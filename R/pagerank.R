@@ -10,30 +10,56 @@
 #' @param clean_edge_urls Logical, whether to clean URLs in the edge list.
 #'   Defaults to TRUE.
 #' @param clean_redirect_urls Logical, whether to clean URLs in the redirect list.
-#'   Defaults to TRUE.
+#'   Defaults to TRUE. Only effective if `redirects_df` is provided.
 #' @param rurl_params A list of parameters to pass to `rurl::clean_url`.
 #'   Defaults to an empty list.
 #' @param self_loops A character string specifying how to handle self-loops.
 #'   Either "drop" (default) or "keep".
 #' @param drop_isolates_flag Logical, whether to drop isolated nodes before
-#'   PageRank computation. Defaults to TRUE. (Note: The spec table uses drop_isolates_flag, while acceptance criteria 6 uses this name for the pagerank() wrapper, and the table uses 'drop' for the drop_isolates() function. I'll use drop_isolates_flag for the wrapper argument for clarity).
+#'   PageRank computation. Defaults to TRUE.
+#' @param edge_from_col,edge_to_col Names of from/to columns in `edge_list_df`.
+#' @param redirect_from_col,redirect_to_col Names of from/to columns in `redirects_df`.
 #' @param ... Additional arguments passed to `compute_pagerank` and subsequently
-#'   to `igraph::page_rank`.
+#'   to `igraph::page_rank` (e.g., `damping`).
 #'
-#' @return A data frame with node names and their PageRank scores, summing to 1.
+#' @return A data frame with node names and their PageRank scores, summing to 1
+#'   for non-empty graphs.
 #' @export
 #' @examples
-#' # Coming soon: End-to-end example
+#' # Basic example
+#' edges <- data.frame(
+#'   from = c("http://A.com/", "B", "C?q=1", "D"), 
+#'   to = c("B", "http://A.com", "D#frag", "D"),
+#'   stringsAsFactors = FALSE
+#' )
+#' redirects <- data.frame(
+#'   from = c("C?q=1", "B"), 
+#'   to = c("http://C_resolved.com", "A"), # B redirects to A, C to C_resolved
+#'   stringsAsFactors = FALSE
+#' )
+#' 
+#' # Run full pipeline
+#' pr_full <- pagerank(edges, redirects_df = redirects, self_loops="drop", drop_isolates_flag=TRUE)
+#' print(pr_full)
+#' 
+#' # Run without URL cleaning for edges (warning expected if query params present)
+#' pr_no_edge_clean <- pagerank(edges, redirects_df = redirects, clean_edge_urls = FALSE)
+#' print(pr_no_edge_clean)
+#' 
+#' # Keep isolates
+#' edges_isol <- rbind(edges, data.frame(from="ISO", to="LAND"))
+#' pr_keep_isolates <- pagerank(edges_isol, drop_isolates_flag = FALSE)
+#' print(pr_keep_isolates)
 
 # Declare package-internal functions as global for linter satisfaction
 if (getRversion() >= "2.15.1") {
   utils::globalVariables(c(
+    ".create_memoized_cleaner", ".urls_contain_query_params", # from utils.R
     "clean_url_columns", 
     "resolve_redirects", 
     "get_unique_edges", 
     "drop_isolates", 
     "compute_pagerank"
-    # Add .urls_contain_query_params here if the warning logic is uncommented
   ))
 }
 
@@ -44,126 +70,173 @@ pagerank <- function(edge_list_df,
                      rurl_params = list(),
                      self_loops = c("drop", "keep"),
                      drop_isolates_flag = TRUE,
+                     edge_from_col = "from",
+                     edge_to_col = "to",
+                     redirect_from_col = "from",
+                     redirect_to_col = "to",
                      ...) {
 
-  # Match arguments
+  # --- Argument Matching and Basic Validation ---
   self_loops <- match.arg(self_loops)
 
-  # 0. Argument validation (basic)
   if (!is.data.frame(edge_list_df)) {
-    stop("`edge_list_df` must be a data frame.")
+    stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
+  # Further column checks within functions called.
+
   if (!is.null(redirects_df) && !is.data.frame(redirects_df)) {
-    stop("`redirects_df` must be a data frame or NULL.")
+    stop("`redirects_df` must be a data frame or NULL.", call. = FALSE)
   }
   if (!is.logical(clean_edge_urls) || length(clean_edge_urls) != 1) {
-    stop("`clean_edge_urls` must be a single logical value.")
+    stop("`clean_edge_urls` must be a single logical value.", call. = FALSE)
   }
   if (!is.logical(clean_redirect_urls) || length(clean_redirect_urls) != 1) {
-    stop("`clean_redirect_urls` must be a single logical value.")
+    stop("`clean_redirect_urls` must be a single logical value.", call. = FALSE)
   }
   if (!is.list(rurl_params)) {
-    stop("`rurl_params` must be a list.")
+    stop("`rurl_params` must be a list.", call. = FALSE)
   }
   if (!is.logical(drop_isolates_flag) || length(drop_isolates_flag) != 1) {
-    stop("`drop_isolates_flag` must be a single logical value.")
+    stop("`drop_isolates_flag` must be a single logical value.", call. = FALSE)
   }
+  # Dots for igraph params are handled by compute_pagerank directly.
 
-  # Create a shared memoized cleaner instance
-  # This will be refined later for true shared memoization across calls to clean_url_columns.
-  # For now, clean_url_columns creates its own memoizer if one isn't passed.
-  # shared_memoized_cleaner <- .create_memoized_cleaner() 
+  # --- Initialize working copies of data frames ---
+  current_edge_list <- edge_list_df
+  current_redirects_list <- redirects_df
 
-  # 1. URL Cleaning
-  # The strategy for shared memoization requires careful implementation.
-  # If clean_edge_urls and clean_redirect_urls are both true, and redirects_df exists,
-  # all unique URLs from both data frames should be collected and cleaned once.
-  # This is more complex than separate calls if .memoized_clean_url is not correctly passed or used.
+  # --- 1. URL Cleaning (Potentially Shared Memoization) ---
+  # As per Spec: "ensures that all unique URLs from both the edge list and 
+  # redirect list are canonicalized *once* per unique string using a shared 
+  # memoized `rurl::clean_url` instance"
+  
+  # Determine edge and redirect columns for cleaning
+  edge_url_cols <- intersect(c(edge_from_col, edge_to_col), names(current_edge_list))
+  redirect_url_cols <- if (!is.null(current_redirects_list)) intersect(c(redirect_from_col, redirect_to_col), names(current_redirects_list)) else character(0)
 
-  # Placeholder for advanced shared cleaning logic. Current clean_url_columns handles its own memoization.
-  # The `.memoized_clean_url` argument in `clean_url_columns` is the hook for this.
+  shared_cleaner <- NULL
+  # Condition for shared cleaning: both flags TRUE, redirects present, and columns exist for cleaning
+  use_shared_cleaning <- clean_edge_urls && clean_redirect_urls && 
+                         !is.null(current_redirects_list) && nrow(current_redirects_list) > 0 &&
+                         length(edge_url_cols) > 0 && length(redirect_url_cols) > 0
 
-  # Warning for query parameters if cleaning is off for edges
-  if (!clean_edge_urls) {
-    # This relies on .urls_contain_query_params from utils.R
-    # if (.urls_contain_query_params(edge_list_df, intersect(c("from", "to"), names(edge_list_df)))) {
-    #   warning("URLs in `edge_list_df` may contain query parameters. Consider setting `clean_edge_urls = TRUE`.")
-    # }
-  }
-
-  if (clean_edge_urls) {
-    edge_list_df <- clean_url_columns(
-      data_frame = edge_list_df,
-      columns = intersect(c("from", "to"), names(edge_list_df)),
-      # .memoized_clean_url = shared_memoized_cleaner, # Pass shared cleaner
-      !!!rurl_params
-    )
-  }
-
-  if (!is.null(redirects_df) && clean_redirect_urls) {
-    redirects_df <- clean_url_columns(
-      data_frame = redirects_df,
-      columns = intersect(c("from", "to"), names(redirects_df)),
-      # .memoized_clean_url = shared_memoized_cleaner, # Pass shared cleaner
-      !!!rurl_params
-    )
-  }
-
-  # 2. Redirect Resolution
-  processed_edge_list <- edge_list_df # Start with (potentially cleaned) edge_list
-  if (!is.null(redirects_df)) {
-    # Ensure redirects_df is not NULL and has rows before calling resolve_redirects
-    if(nrow(redirects_df) > 0) {
-        processed_edge_list <- resolve_redirects(
-        edge_list_df = processed_edge_list, # Use the current state of edge_list_df
-        redirects_df = redirects_df
-      )
-    } # else: no redirects to process, edge_list_df remains as is.
-  }
-
-  # 3. Get Unique Edges (handles self-loops)
-  processed_edge_list <- get_unique_edges(
-    edge_list_df = processed_edge_list,
-    self_loops = self_loops
-  )
-
-  # 4. Handle Isolates
-  vertices_for_graph <- NULL # by default, igraph uses all unique nodes in edges
-  if (drop_isolates_flag) {
-    # drop_isolates returns a df with a single column of node names to keep
-    nodes_to_keep_df <- drop_isolates(
-      edge_list_df = processed_edge_list,
-      drop = TRUE
-    )
-    if (nrow(nodes_to_keep_df) > 0) {
-       vertices_for_graph <- nodes_to_keep_df[[1]] # Assuming first col is node names
-    } else {
-      # All nodes are isolates and dropped, or processed_edge_list was empty.
-      # compute_pagerank should handle an empty edge list or empty vertex set gracefully.
-      # We might pass character(0) to vertices_for_graph or keep it NULL.
-      # If nodes_to_keep_df is empty, vertices_for_graph remains NULL or becomes character(0)
-      # depending on desired igraph input for an empty graph. Let's use character(0) for clarity.
-      vertices_for_graph <- character(0)
+  if (use_shared_cleaning) {
+    shared_cleaner <- .create_memoized_cleaner()
+    
+    if (length(edge_url_cols) > 0) {
+        current_edge_list <- do.call(clean_url_columns, 
+                                     c(list(data_frame = current_edge_list, 
+                                            columns = edge_url_cols, 
+                                            .memoized_clean_url = shared_cleaner), 
+                                       rurl_params))
+    }
+    if (length(redirect_url_cols) > 0) {
+        current_redirects_list <- do.call(clean_url_columns, 
+                                          c(list(data_frame = current_redirects_list, 
+                                                 columns = redirect_url_cols, 
+                                                 .memoized_clean_url = shared_cleaner), rurl_params))
     }
   } else {
-      # If not dropping isolates, get all unique nodes to define the graph vertices.
-      all_nodes_df <- drop_isolates(
-        edge_list_df = processed_edge_list,
-        drop = FALSE
-      )
-      if (nrow(all_nodes_df) > 0) {
-        vertices_for_graph <- all_nodes_df[[1]] # Assuming first col is node names
-      } else {
-        # processed_edge_list was empty or contained only NAs.
-        vertices_for_graph <- character(0)
-      }
+    # No shared cleaning, apply individually if flags are set
+    if (clean_edge_urls && length(edge_url_cols) > 0) {
+      current_edge_list <- do.call(clean_url_columns, 
+                                   c(list(data_frame = current_edge_list, 
+                                          columns = edge_url_cols), rurl_params)) # Uses its own memoizer
+    }
+    if (clean_redirect_urls && !is.null(current_redirects_list) && nrow(current_redirects_list) > 0 && length(redirect_url_cols) > 0) {
+      current_redirects_list <- do.call(clean_url_columns, 
+                                        c(list(data_frame = current_redirects_list, 
+                                               columns = redirect_url_cols), rurl_params)) # Uses its own memoizer
+    }
   }
 
-  # 5. Compute PageRank
+  # --- Warning for Uncleaned Edge URLs with Query Parameters ---
+  # Spec: "If clean_edge_urls = FALSE and URLs in the edge_list_df contain query parameters (`?` or `&`), warn users"
+  if (!clean_edge_urls && length(edge_url_cols) > 0) {
+    if (.urls_contain_query_params(current_edge_list, columns = edge_url_cols)) {
+      warning("URLs in `edge_list_df` may contain query parameters (e.g. '?’ or '&'). ",
+              "Consider setting `clean_edge_urls = TRUE` for consistent PageRank calculation, using `rurl_params` to control `rurl::clean_url` behavior if needed.", 
+              call. = FALSE)
+    }
+  }
+
+  # --- 2. Redirect Resolution ---
+  if (!is.null(current_redirects_list) && nrow(current_redirects_list) > 0) {
+    current_edge_list <- resolve_redirects(
+      edge_list_df = current_edge_list, 
+      redirects_df = current_redirects_list,
+      edge_from_col = edge_from_col, edge_to_col = edge_to_col,
+      redirect_from_col = redirect_from_col, redirect_to_col = redirect_to_col
+    )
+  }
+
+  # --- 3. Get Unique Edges (handles self-loops) ---
+  current_edge_list <- get_unique_edges(
+    edge_list_df = current_edge_list,
+    self_loops = self_loops,
+    from_col = edge_from_col,
+    to_col = edge_to_col
+  )
+
+  # --- 4. Handle Isolates ---
+  vertices_for_pagerank_df <- NULL # Input for compute_pagerank's vertices_df argument
+  
+  # Determine the node column name for the output of drop_isolates and input to compute_pagerank
+  # This should be consistent. Let's use a fixed internal temporary name or ensure it matches.
+  # compute_pagerank expects a column named "node_name" by default in its vertices_df if provided.
+  temp_node_col_name_for_isolates <- "node_name" # Standardized name for this intermediate step
+
+  if (drop_isolates_flag) {
+    nodes_to_keep_df <- drop_isolates(
+      edge_list_df = current_edge_list,
+      drop = TRUE,
+      from_col = edge_from_col,
+      to_col = edge_to_col,
+      node_col_name = temp_node_col_name_for_isolates
+    )
+    if (nrow(nodes_to_keep_df) > 0) {
+      vertices_for_pagerank_df <- nodes_to_keep_df
+    } else {
+      # All nodes are isolates and dropped, or current_edge_list was empty.
+      # Create an empty data frame with the correct column name for compute_pagerank
+      vertices_for_pagerank_df <- data.frame(matrix(ncol=1, nrow=0, dimnames=list(NULL, temp_node_col_name_for_isolates)))
+      vertices_for_pagerank_df[[temp_node_col_name_for_isolates]] <- character(0)
+    }
+  } else {
+    # If not dropping isolates, get all unique nodes to define the graph vertices.
+    all_nodes_df <- drop_isolates(
+      edge_list_df = current_edge_list,
+      drop = FALSE,
+      from_col = edge_from_col,
+      to_col = edge_to_col,
+      node_col_name = temp_node_col_name_for_isolates
+    )
+    if (nrow(all_nodes_df) > 0) {
+      vertices_for_pagerank_df <- all_nodes_df
+    } else {
+      # current_edge_list was empty or contained only NAs.
+      vertices_for_pagerank_df <- data.frame(matrix(ncol=1, nrow=0, dimnames=list(NULL, temp_node_col_name_for_isolates)))
+      vertices_for_pagerank_df[[temp_node_col_name_for_isolates]] <- character(0)
+    }
+  }
+  # If vertices_for_pagerank_df ends up with 0 rows, compute_pagerank should handle it.
+  # It will be NULL if it has 0 rows and passed as data.frame(node_name=character(0)) to compute_pagerank.
+  # Let's ensure it's NULL if empty, or correctly structured if not.
+  if(is.data.frame(vertices_for_pagerank_df) && nrow(vertices_for_pagerank_df) == 0){
+      vertices_for_pagerank_df <- NULL # compute_pagerank handles NULL vertices_df to infer from edges or make empty graph.
+  }
+
+
+  # --- 5. Compute PageRank ---
+  # `...` will pass through arguments like `damping` if not explicitly set above, or other igraph args.
+  # compute_pagerank uses "node_name" as default for vertex_col_name, matching temp_node_col_name_for_isolates.
   pagerank_results <- compute_pagerank(
-    edge_list_df = processed_edge_list,
-    # Pass data.frame for vertices_df as per compute_pagerank's expectation, or NULL.
-    vertices_df = if (!is.null(vertices_for_graph) && length(vertices_for_graph) > 0) data.frame(node_name = vertices_for_graph) else NULL,
+    edge_list_df = current_edge_list,
+    vertices_df = vertices_for_pagerank_df, 
+    from_col = edge_from_col,
+    to_col = edge_to_col,
+    vertex_col_name = temp_node_col_name_for_isolates, # Explicitly pass the col name used by drop_isolates
+    # pr_node_col and pr_value_col for output naming are handled by compute_pagerank defaults or can be passed in ...
     ...
   )
 

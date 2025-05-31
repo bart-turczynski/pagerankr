@@ -14,25 +14,44 @@
   cache <- new.env(hash = TRUE, parent = emptyenv())
   
   memoized_clean_url <- function(url_string, ...) {
-    # Create a unique key based on the URL and other relevant args to clean_url
-    # For rurl::clean_url, the ... args are significant.
-    # A simple approach: paste them together. More robust: deparse(list(...))
     args_list <- list(...)
-    # Sort names of args_list to ensure consistent key for same args in different order
+    
+    # Create a unique key component from ... arguments.
+    # Arguments are sorted by name to ensure that calls with the same arguments
+    # in a different order produce the same cache key.
     if (length(args_list) > 0) {
-        key_args_part <- paste(names(sort(args_list)), sapply(args_list[order(names(args_list))], as.character), collapse = "|")
+      arg_names <- names(args_list)
+      
+      # Handle cases where ... might not have all named arguments (though unlikely for rurl::clean_url options)
+      if (is.null(arg_names)) { # If args_list has no names attribute at all
+        # Fallback to deparse for unnamed lists; might be slow or very long.
+        # This scenario is less likely for rurl::clean_url parameters.
+        warning("Memoization key created from unnamed list in ...; consider naming all arguments.", call. = FALSE)
+        key_args_part <- paste(deparse(args_list, width.cutoff = 500L), collapse = "\\n")
+      } else {
+        # Ensure consistent ordering for arguments, including those with potentially empty names
+        sorted_indices <- order(arg_names)
+        sorted_names <- arg_names[sorted_indices]
+        # Extract values from the original list using the sorted order of names/indices
+        # and convert them to character for the key.
+        # sapply is used here assuming arguments are simple enough for as.character.
+        sorted_values_char <- sapply(args_list[sorted_indices], as.character)
+        key_args_part <- paste(sorted_names, sorted_values_char, sep = "=", collapse = "|")
+      }
     } else {
-        key_args_part <- ""
+      key_args_part <- "NO_ARGS" # Explicitly denote no extra arguments
     }
-    cache_key <- paste(as.character(url_string), key_args_part, sep = "__")
+    
+    # Combine URL string and arguments part for the final cache key.
+    # Using as.character for url_string handles potential factors or other types.
+    cache_key <- paste(as.character(url_string), key_args_part, sep = "::ARGS_SEP::")
     
     if (exists(cache_key, envir = cache, inherits = FALSE)) {
       return(get(cache_key, envir = cache, inherits = FALSE))
     }
     
-    # If not in cache, compute, store, and return
-    # Need to ensure rurl is available or explicitly import clean_url if not done globally
-    # Assuming rurl::clean_url is available in the namespace due to Imports in DESCRIPTION
+    # If not in cache, compute using rurl::clean_url, store, and return.
+    # rurl::clean_url must be available (e.g. via Imports in DESCRIPTION).
     cleaned_url <- rurl::clean_url(url_string, ...)
     assign(cache_key, cleaned_url, envir = cache)
     return(cleaned_url)
