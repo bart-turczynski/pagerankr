@@ -1,46 +1,80 @@
 #' @title Resolve Redirects in an Edge List
-#' @description Updates an edge list by replacing URLs with their final target
-#'   URLs based on a redirect data frame. Detects cycles and ambiguities.
+#' @description Updates an edge list by replacing URLs with their final
+#'   destinations based on a redirect data frame. Detects redirect cycles and
+#'   ambiguities.
 #'
-#' @param edge_list_df A data frame representing the edge list, typically with
-#'   columns "from" and "to" (or names specified by `edge_from_col` and `edge_to_col`).
-#'   Input URLs are expected to be cleaned if necessary before calling this function.
-#' @param redirects_df A data frame detailing redirect rules, with columns
-#'   "from" and "to" (or names specified by `redirect_from_col` and `redirect_to_col`).
-#'   Input URLs are expected to be cleaned if necessary.
-#' @param edge_from_col Name of the source URL column in `edge_list_df`. Default "from".
-#' @param edge_to_col Name of the target URL column in `edge_list_df`. Default "to".
-#' @param redirect_from_col Name of the source URL column in `redirects_df`. Default "from".
-#' @param redirect_to_col Name of the target URL column in `redirects_df`. Default "to".
+#' @param edge_list_df A data frame representing the edge list.
+#' @param redirects_df A data frame containing redirect rules, with 'from' and
+#'   'to' columns specifying the source and target of a redirect.
+#' @param edge_from_col Character, the name of the column in `edge_list_df`
+#'   containing source URLs. Default "from".
+#' @param edge_to_col Character, the name of the column in `edge_list_df`
+#'   containing target URLs. Default "to".
+#' @param redirect_from_col Character, the name of the column in `redirects_df`
+#'   containing source URLs of redirects. Default "from".
+#' @param redirect_to_col Character, the name of the column in `redirects_df`
+#'   containing target URLs of redirects. Default "to".
 #'
-#' @return A data frame, the edge list with URLs resolved to their final
-#'   destinations. Errors out if redirect cycles or ambiguities are detected.
+#' @return An updated `edge_list_df` with URLs in `edge_from_col` and
+#'   `edge_to_col` replaced by their final resolved destinations.
 #' @export
 #' @examples
 #' edges <- data.frame(
-#'   from = c("A", "B", "C", "D", "E", "F_no_redirect", NA, "G"),
-#'   to =   c("B", "C", "X", "Y", "A", "Z_no_redirect", "H", NA),
+#'   from = c("A", "B", "C"),
+#'   to = c("B", "C", "D"),
 #'   stringsAsFactors = FALSE
 #' )
 #' redirects <- data.frame(
-#'   from = c("B", "Y", "X", "A", "G"),
-#'   to =   c("C", "Z", "C", "FINAL_A", "FINAL_G"),
+#'   from = c("B", "C", "E"),
+#'   to = c("B_final", "C_final", "E_final"),
 #'   stringsAsFactors = FALSE
 #' )
-#' resolved_edges <- resolve_redirects(edges, redirects)
-#' print(resolved_edges)
-#' 
-#' # Example with a cycle in redirects
-#' cyclic_redirects <- data.frame(from = c("L1", "L2"), to = c("L2", "L1"))
-#' try(resolve_redirects(data.frame(from="L1", to="L3"), cyclic_redirects)) # Expected to error
-#' 
-#' # Example with ambiguity in redirects
-#' ambiguous_redirects <- data.frame(from = c("X", "X"), to = c("TARGET1", "TARGET2"))
-#' try(resolve_redirects(data.frame(from="START", to="X"), ambiguous_redirects)) # Expected to error
+#' resolve_redirects(edges, redirects)
 #'
-#' # Example with empty redirects_df
-#' resolve_redirects(edges, data.frame(from=character(), to=character()))
-resolve_redirects <- function(edge_list_df, 
+#' # Example with a redirect chain
+#' edges_chain <- data.frame(from = "X", to = "Y", stringsAsFactors = FALSE)
+#' redirects_chain <- data.frame(
+#'   from = c("Y", "Z"),
+#'   to = c("Z", "Z_final"),
+#'   stringsAsFactors = FALSE
+#' )
+#' resolve_redirects(edges_chain, redirects_chain)
+#'
+#' # Example with different column names
+#' edges_custom_names <- data.frame(source_url = "Page1", target_url = "Page2")
+#' redirects_custom_names <- data.frame(original = "Page2", final = "Page2_resolved")
+#' resolve_redirects(edges_custom_names, redirects_custom_names,
+#'                   edge_from_col = "source_url", edge_to_col = "target_url",
+#'                   redirect_from_col = "original", redirect_to_col = "final")
+#'
+#' # Example with NAs (NAs should be preserved)
+#' edges_with_na <- data.frame(
+#'  from = c("A", NA, "C"),
+#'  to = c("B", "D", NA),
+#'  stringsAsFactors = FALSE
+#' )
+#' redirects_simple <- data.frame(from = "A", to = "A_final", stringsAsFactors = FALSE)
+#' resolve_redirects(edges_with_na, redirects_simple)
+#'
+#' # Example of error for ambiguity (uncomment to test):
+#' # edges_for_amb_test <- data.frame(from = "A", to = "X", stringsAsFactors = FALSE)
+#' # redirects_ambiguous <- data.frame(
+#' #   from = c("A", "A"),
+#' #   to = c("B", "C"),
+#' #   stringsAsFactors = FALSE
+#' # )
+#' # try(resolve_redirects(edges_for_amb_test, redirects_ambiguous))
+#'
+#' # Example of error for cycle (uncomment to test):
+#' # redirects_cycle <- data.frame(
+#' #   from = c("L1", "L2"),
+#' #   to = c("L2", "L1"),
+#' #   stringsAsFactors = FALSE
+#' # )
+#' # edges_cycle <- data.frame(from = "Start", to = "L1", stringsAsFactors = FALSE)
+#' # try(resolve_redirects(edges_cycle, redirects_cycle))
+
+resolve_redirects <- function(edge_list_df,
                               redirects_df,
                               edge_from_col = "from",
                               edge_to_col = "to",
@@ -48,98 +82,98 @@ resolve_redirects <- function(edge_list_df,
                               redirect_to_col = "to") {
 
   # --- Input Validation ---
-  if (!is.data.frame(edge_list_df) || 
-      (nrow(edge_list_df) > 0 && !all(c(edge_from_col, edge_to_col) %in% names(edge_list_df)))) {
-    stop("`edge_list_df` must be a data frame with specified edge columns if not empty.", call. = FALSE)
+  if (!is.data.frame(edge_list_df)) {
+    stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  if (!is.data.frame(redirects_df) || 
-      (nrow(redirects_df) > 0 && !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df)))) {
-    stop("`redirects_df` must be a data frame with specified redirect columns if not empty.", call. = FALSE)
+  if (nrow(edge_list_df) > 0 && !all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
+    stop("`edge_list_df` must have '", edge_from_col, "' and '", edge_to_col, "' columns if not empty.", call. = FALSE)
   }
-  
-  # If redirects_df is empty, no redirects to process, return edge_list_df as is.
+
+  if (!is.data.frame(redirects_df)) {
+    stop("`redirects_df` must be a data frame.", call. = FALSE)
+  }
+  if (nrow(redirects_df) > 0 && !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
+     stop("`redirects_df` must have '", redirect_from_col, "' and '", redirect_to_col, "' columns if not empty.", call. = FALSE)
+  }
+
+  # If redirects_df is empty or has no valid rules, return edge_list_df as is.
   if (nrow(redirects_df) == 0) {
     return(edge_list_df)
   }
   
-  # Ensure no NA values in redirect mapping columns, as they are problematic for path finding.
-  # Check only if redirects_df has rows (already handled by the above check, but for clarity).
-  if (any(is.na(redirects_df[[redirect_from_col]])) || any(is.na(redirects_df[[redirect_to_col]]))) {
-    stop("Redirect columns ('", redirect_from_col, "', '", redirect_to_col, "') in `redirects_df` cannot contain NA values.", call. = FALSE)
-  }
+  # --- Prepare Redirect Map & Check for Ambiguities ---
+  redirect_sources_raw <- redirects_df[[redirect_from_col]]
+  redirect_targets_raw <- redirects_df[[redirect_to_col]]
 
-  # --- Prepare Redirect Map & Check Ambiguity ---
-  # Convert to character to avoid factor issues and ensure consistent keying.
-  r_from <- as.character(redirects_df[[redirect_from_col]])
-  r_to <- as.character(redirects_df[[redirect_to_col]])
-  
-  # Create a named list for easier lookup: source_url -> list of target_url(s).
-  # This structure helps detect ambiguities directly.
-  redirect_map_ambiguity_check <- split(r_to, r_from)
+  # Ensure redirect columns are character and handle potential factors
+  redirect_sources <- as.character(redirect_sources_raw)
+  redirect_targets <- as.character(redirect_targets_raw)
 
-  ambiguous_sources <- names(redirect_map_ambiguity_check)[sapply(redirect_map_ambiguity_check, function(targets) length(unique(targets)) > 1)]
-  if (length(ambiguous_sources) > 0) {
-    # Construct a detailed error message for ambiguities
-    error_message_parts <- sapply(ambiguous_sources, function(src) {
-      paste0("'", src, "' -> c('", paste(unique(redirect_map_ambiguity_check[[src]]), collapse = "', '"), "')")
-    })
-    stop(
-      "Redirect ambiguity detected. The following source URLs map to multiple distinct target URLs: \n",
-      paste(error_message_parts, collapse = "\n"),
-      call. = FALSE
-    )
+  valid_redirect_indices <- !is.na(redirect_sources) & !is.na(redirect_targets)
+  redirect_sources <- redirect_sources[valid_redirect_indices]
+  redirect_targets <- redirect_targets[valid_redirect_indices]
+
+  if (length(redirect_sources) == 0) { # No valid redirect rules after NA removal
+      return(edge_list_df)
   }
   
-  # Simplify redirect_map for direct lookup (now that ambiguity is checked).
-  # Each from_url now maps to a single to_url (character, not list).
-  # Use unique() on redirects_df before creating simple_redirect_map to handle duplicate redirect rules (e.g. A->B, A->B)
-  # which are not ambiguities but would cause issues if not handled.
-  unique_redirects_df <- redirects_df[!duplicated(data.frame(r_from, r_to)), , drop = FALSE]
-  simple_redirect_map <- stats::setNames(as.character(unique_redirects_df[[redirect_to_col]]), 
-                                         as.character(unique_redirects_df[[redirect_from_col]]))
+  # Check for ambiguities: a single 'from' URL mapping to multiple distinct 'to' URLs
+  unique_src_in_rules <- unique(redirect_sources)
+  for (src in unique_src_in_rules) {
+    targets_for_source <- unique(redirect_targets[redirect_sources == src])
+    if (length(targets_for_source) > 1) {
+      stop("Ambiguous redirect: URL '", src, "' maps to multiple distinct targets: ",
+           paste(targets_for_source, collapse = ", "), call. = FALSE)
+    }
+  }
+
+  # Create a direct redirect map (names are sources, values are targets)
+  # After the ambiguity check, we know each source maps to at most one unique target.
+  # We use unique pairs of (source, target) to build the map.
+  # This also handles cases where the same redirect (A->B) is listed multiple times.
+  unique_redirect_pairs_df <- unique(data.frame(from = redirect_sources, to = redirect_targets, stringsAsFactors = FALSE))
+  
+  # The 'from' column in unique_redirect_pairs_df should now be unique due to the check above.
+  redirect_map <- stats::setNames(unique_redirect_pairs_df$to, unique_redirect_pairs_df$from)
 
   # --- Resolve URLs in Edge List ---
-  # Convert edge list columns to character to handle factors and for consistency
-  edge_from_vals <- as.character(edge_list_df[[edge_from_col]])
-  edge_to_vals <- as.character(edge_list_df[[edge_to_col]])
+  resolved_edge_list <- edge_list_df
   
-  all_urls_in_edges <- unique(stats::na.omit(c(edge_from_vals, edge_to_vals)))
-  
-  if (length(all_urls_in_edges) == 0) {
-    # Edge list contains no non-NA URLs, so nothing to resolve.
-    return(edge_list_df)
+  cols_to_resolve <- intersect(c(edge_from_col, edge_to_col), names(resolved_edge_list))
+
+  # Memoization for resolved URLs within this function call
+  resolved_cache <- new.env(hash = TRUE, parent = emptyenv())
+
+  for (col_name in cols_to_resolve) {
+    original_urls_in_col <- as.character(resolved_edge_list[[col_name]])
+    resolved_urls_for_col <- character(length(original_urls_in_col))
+    
+    is_na_original <- is.na(original_urls_in_col)
+    resolved_urls_for_col[is_na_original] <- NA_character_
+    
+    urls_to_process_in_col <- original_urls_in_col[!is_na_original]
+    
+    if (length(urls_to_process_in_col) > 0) {
+      unique_input_urls_in_col <- unique(urls_to_process_in_col)
+      
+      for (url in unique_input_urls_in_col) {
+          if (!exists(url, envir = resolved_cache, inherits = FALSE)) {
+              final_url <- .trace_redirect_path(url = url, redirect_map = redirect_map, path = character(0))
+              assign(url, final_url, envir = resolved_cache)
+          }
+      }
+      
+      # Map resolved URLs back for non-NA values
+      # Get needs a vector of names if we were to use mget. Here, we lookup one by one.
+      # This ensures correct assignment even with duplicates in urls_to_process_in_col
+      resolved_values_for_non_na <- character(length(urls_to_process_in_col))
+      for(i in seq_along(urls_to_process_in_col)){
+          resolved_values_for_non_na[i] <- get(urls_to_process_in_col[i], envir = resolved_cache, inherits = FALSE)
+      }
+      resolved_urls_for_col[!is_na_original] <- resolved_values_for_non_na
+    }
+    resolved_edge_list[[col_name]] <- resolved_urls_for_col
   }
-
-  # This will store final_destination_of_X = Y
-  final_destinations_map <- stats::setNames(vector("character", length(all_urls_in_edges)), 
-                                            all_urls_in_edges)
-
-  for (url_to_trace in all_urls_in_edges) {
-    # .trace_redirect_path is an internal util function (e.g. from utils.R)
-    # It handles cycle detection and returns the final URL.
-    final_destinations_map[url_to_trace] <- .trace_redirect_path(url_to_trace, simple_redirect_map)
-  }
-
-  # --- Apply Resolved URLs Back to Edge List, Preserving NAs ---
-  resolved_edge_list <- edge_list_df # Start with a copy
-
-  # Resolve 'from' column
-  new_from_col <- character(length(edge_from_vals))
-  na_in_from <- is.na(edge_from_vals)
-  if(any(!na_in_from)){
-      new_from_col[!na_in_from] <- final_destinations_map[edge_from_vals[!na_in_from]]
-  }
-  new_from_col[na_in_from] <- NA_character_
-  resolved_edge_list[[edge_from_col]] <- new_from_col
-
-  # Resolve 'to' column
-  new_to_col <- character(length(edge_to_vals))
-  na_in_to <- is.na(edge_to_vals)
-  if(any(!na_in_to)){
-      new_to_col[!na_in_to] <- final_destinations_map[edge_to_vals[!na_in_to]]
-  }
-  new_to_col[na_in_to] <- NA_character_
-  resolved_edge_list[[edge_to_col]] <- new_to_col
 
   return(resolved_edge_list)
 } 

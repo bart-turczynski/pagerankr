@@ -32,7 +32,8 @@
 #' if(nrow(pr_results) > 0) sum(pr_results$pagerank)
 #' 
 #' # With specified vertices (e.g., from drop_isolates)
-#' vertices <- data.frame(node_name = c("A", "B", "C", "D"), stringsAsFactors = FALSE) # D is an isolate
+#' vertices <- data.frame(node_name = c("A", "B", "C", "D"), 
+#'                        stringsAsFactors = FALSE) # D is an isolate
 #' pr_results_isolates_kept <- compute_pagerank(edges, vertices_df = vertices)
 #' print(pr_results_isolates_kept)
 #' if(nrow(pr_results_isolates_kept) > 0) sum(pr_results_isolates_kept$pagerank)
