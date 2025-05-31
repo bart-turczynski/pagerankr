@@ -1,12 +1,12 @@
 #' @title Clean URL Columns in a Data Frame
-#' @description Applies `rurl::clean_url` to specified columns of a data frame,
+#' @description Applies `rurl::get_clean_url` to specified columns of a data frame,
 #'   using internal memoization for efficiency.
 #'
 #' @param data_frame A data frame containing URL columns to be cleaned.
 #' @param columns A character vector specifying the names of the columns
 #'   containing URLs. Defaults to `c("from", "to")`.
-#' @param ... Additional arguments passed to `rurl::clean_url`.
-#' @param .memoized_clean_url An optional pre-existing memoized rurl::clean_url function.
+#' @param ... Additional arguments passed to `rurl::get_clean_url`.
+#' @param .memoized_clean_url An optional pre-existing memoized `rurl::get_clean_url` function.
 #' If NULL (default), a new memoization cache is created for this function call.
 #' This is mostly for internal use by the `pagerank()` wrapper to share a cache.
 #'
@@ -14,22 +14,29 @@
 #'   `url_map` containing the mapping from original to cleaned URLs might be
 #'   attached invisibly (currently not implemented but noted from spec).
 #' @export
-#' @importFrom rurl clean_url
+#' @importFrom rurl get_clean_url
 #' @examples
 #' df <- data.frame(
-#'   from = c("http://example.com/path", "HTTPS://Example.com/PATH#frag", NA, "http://example.com/path"),
-#'   to = c("www.another.com?q=1", "another.com/?q=1&b=2", "http://foo.bar", NA),
-#'   other_col = 1:4
+#'   from = c("http://example.com/path", 
+#'            "HTTPS://Example.com/PATH#frag", NA, 
+#'            "http://example.com/path"),
+#'   to = c("www.another.com?q=1", "another.com/?q=1&b=2", 
+#'          "http://foo.bar", NA),
+#'   other_col = 1:4,
+#'   stringsAsFactors = FALSE # Added for consistency
 #' )
 #' cleaned_df <- clean_url_columns(df, columns = c("from", "to"))
 #' print(cleaned_df)
 #'
-#' # Example with rurl::clean_url parameters
+#' # Example with rurl::get_clean_url parameters
+#' # (Assuming rurl::get_clean_url from bart-turczynski/rurl might have limited direct args for these controls)
+#' # Default behavior will be tested. If specific params like drop_query are known for this rurl version,
+#' # they could be exemplified here. For now, showing a simple call.
 #' cleaned_df_custom <- clean_url_columns(
-#'   df, 
-#'   columns = c("from", "to"), 
-#'   drop_fragments = FALSE,
-#'   drop_scheme = TRUE
+#'   df,
+#'   columns = c("from", "to")
+#'   # Example: if rurl::get_clean_url took a known parameter, e.g., `force_https = TRUE`
+#'   # cleaned_df_custom <- clean_url_columns(df, columns = c("from", "to"), force_https = TRUE)
 #' )
 #' print(cleaned_df_custom)
 clean_url_columns <- function(data_frame, 
@@ -74,7 +81,7 @@ clean_url_columns <- function(data_frame,
                                            unique_urls_to_clean)
 
       for (url_to_clean in unique_urls_to_clean) {
-        # Apply active_clean_url (which is memoized rurl::clean_url) with extra arguments.
+        # Apply active_clean_url (which is memoized rurl::get_clean_url) with extra arguments.
         cleaned_version <- do.call(active_clean_url, c(list(url_to_clean), rurl_args))
         cleaned_url_lookup[url_to_clean] <- cleaned_version
       }

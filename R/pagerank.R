@@ -2,6 +2,7 @@
 #' @description Orchestrates the complete PageRank calculation workflow,
 #' including URL cleaning, redirect resolution, edge deduplication,
 #' isolate handling, and PageRank computation.
+#' @name pagerank
 #'
 #' @param edge_list_df A data frame representing the edge list, typically with
 #'   columns like "from" and "to".
@@ -154,7 +155,7 @@ pagerank <- function(edge_list_df,
   # Spec: "If clean_edge_urls = FALSE and URLs in the edge_list_df contain query parameters (`?` or `&`), warn users"
   if (!clean_edge_urls && length(edge_url_cols) > 0) {
     if (.urls_contain_query_params(current_edge_list, columns = edge_url_cols)) {
-      warning("URLs in `edge_list_df` may contain query parameters (e.g. '?’ or '&'). ",
+      warning("URLs in `edge_list_df` may contain query parameters (e.g. '?' or '&'). ",
               "Consider setting `clean_edge_urls = TRUE` for consistent PageRank calculation, using `rurl_params` to control `rurl::clean_url` behavior if needed.", 
               call. = FALSE)
     }

@@ -1,0 +1,147 @@
+pagerankr: Modular Toolkit for PageRank Calculation
+================
+
+- [1 pagerankr
+  <img src="man/figures/logo.png" align="right" height="139" alt="pagerankr hex sticker" />](#1-pagerankr-)
+  - [1.1 Installation](#11-installation)
+  - [1.2 Example](#12-example)
+  - [1.3 Features](#13-features)
+  - [1.4 Further Information](#14-further-information)
+  - [1.5 Code of Conduct](#15-code-of-conduct)
+  - [1.6 License](#16-license)
+
+# 1 pagerankr <img src="man/figures/logo.png" align="right" height="139" alt="pagerankr hex sticker" />
+
+<!-- badges: start -->
+
+[![Lifecycle:
+experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![R-CMD-check](https://github.com/YOUR_USERNAME/pagerankr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/YOUR_USERNAME/pagerankr/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
+The goal of `pagerankr` is to provide a modular, pipeable toolkit for
+calculating PageRank scores from web crawl data (edge lists and redirect
+reports), commonly used in SEO analysis. The package uses base R for
+data manipulation and relies on `igraph` for the core PageRank
+computation and `rurl` for URL cleaning.
+
+## 1.1 Installation
+
+You can install the development version of `pagerankr` from
+[GitHub](https://github.com/) with:
+
+``` r
+# install.packages("devtools")
+# devtools::install_github("YOUR_USERNAME/pagerankr") 
+# Replace YOUR_USERNAME/pagerankr with the actual repository path
+```
+
+## 1.2 Example
+
+This is a basic example which shows you how to calculate PageRank using
+the main wrapper function:
+
+``` r
+library(pagerankr)
+
+# Sample edge list
+edges <- data.frame(
+  from = c("http://A.com/path1", "B.site", "C.page?q=1", "D.html", "http://A.com/path1"), 
+  to = c("B.site", "http://A.com/path1", "D.html#frag", "D.html", "E.net"),
+  stringsAsFactors = FALSE
+)
+
+# Sample redirect list (optional)
+redirects <- data.frame(
+  from = c("C.page?q=1", "B.site"), 
+  to = c("http://C_resolved.com", "A.com/path1"), 
+  stringsAsFactors = FALSE
+)
+
+# Calculate PageRank scores
+# The pagerank() function will handle URL cleaning, redirect resolution, 
+# duplicate edge removal, and PageRank computation.
+pr_scores <- pagerank(
+  edge_list_df = edges, 
+  redirects_df = redirects,
+  self_loops = "drop",        # Default: drop self-loops
+  drop_isolates_flag = TRUE # Default: drop nodes with no links after processing
+)
+
+print(pr_scores)
+
+# Example of using the modular functions (more advanced)
+# Step 1: Clean URLs (if desired, pagerank() wrapper does this by default)
+# For demonstration, assume rurl_params for clean_url_columns
+rurl_args <- list(drop_scheme = TRUE, drop_www = TRUE)
+
+cleaned_edges <- clean_url_columns(edges, columns = c("from", "to"), 
+                                 drop_scheme = TRUE, drop_www = TRUE) # Passes args to rurl::get_clean_url
+cleaned_redirects <- NULL
+if (!is.null(redirects)) {
+  cleaned_redirects <- clean_url_columns(redirects, columns = c("from", "to"),
+                                       drop_scheme = TRUE, drop_www = TRUE)
+}
+
+# Step 2: Resolve redirects
+resolved_edges <- cleaned_edges
+if (!is.null(cleaned_redirects) && nrow(cleaned_redirects) > 0) {
+  resolved_edges <- resolve_redirects(cleaned_edges, cleaned_redirects)
+}
+
+# Step 3: Get unique edges (e.g., drop self-loops)
+unique_edges <- get_unique_edges(resolved_edges, self_loops = "drop")
+
+# Step 4: Define vertices (e.g., drop isolates)
+# drop_isolates_flag = TRUE behavior
+vertices_to_use_df <- drop_isolates(unique_edges, drop = TRUE, node_col_name = "node_name")
+
+# Step 5: Compute PageRank
+final_pagerank_modular <- compute_pagerank(
+  edge_list_df = unique_edges,
+  vertices_df = if(nrow(vertices_to_use_df) > 0) vertices_to_use_df else NULL,
+  damping = 0.85
+)
+
+cat("\nPageRank scores from modular approach:\n")
+print(final_pagerank_modular)
+```
+
+## 1.3 Features
+
+- **URL Cleaning**: Canonicalizes URLs using `rurl::get_clean_url` with
+  memoization for efficiency.
+- **Redirect Resolution**: Flattens redirect chains (A -\> B -\> C
+  becomes A -\> C) and detects cycles/ambiguities.
+- **Duplicate Edge Handling**: Removes duplicate edges.
+- **Self-Loop Control**: Option to keep or drop self-loops (e.g., A -\>
+  A).
+- **Isolate Handling**: Option to include or exclude isolated nodes
+  (nodes with no connections) from PageRank calculation.
+- **Pipeable Workflow**: Core functions are designed to be pipeable
+  using R’s native pipe `|>`.
+- **Base R**: Data manipulation is performed using base R functions for
+  minimal dependencies.
+
+## 1.4 Further Information
+
+For more details on specific functions and their parameters, please
+refer to the package documentation:
+
+``` r
+help(package = "pagerankr")
+# or for a specific function:
+# ?pagerank
+# ?clean_url_columns
+```
+
+## 1.5 Code of Conduct
+
+Please note that the `pagerankr` project is released with a [Contributor
+Code of
+Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html).
+By contributing to this project, you agree to abide by its terms.
+
+## 1.6 License
+
+MIT License. See the `LICENSE` file for details.

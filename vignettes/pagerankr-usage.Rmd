@@ -1,0 +1,285 @@
+---
+title: "Using the pagerankr Package"
+author: "Bart Turczynski"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Using the pagerankr Package}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(pagerankr)
+```
+
+## Introduction
+
+The `pagerankr` package provides a toolkit for calculating PageRank scores from web crawl data, specifically edge lists (showing links between pages) and redirect reports. This is a common task in SEO (Search Engine Optimization) analysis to understand the link equity distribution within a website.
+
+The package offers both a main wrapper function, `pagerank()`, for a quick end-to-end calculation, and a suite of modular, pipeable functions that allow for more granular control over each step of the process. All data manipulation is done using base R, with `igraph` used for the core PageRank algorithm and `rurl` for URL canonicalization.
+
+## Installation
+
+If you haven't installed `pagerankr` yet, you can install it from its GitHub repository (replace `YOUR_USERNAME/pagerankr` with the actual path if different):
+
+```r
+# install.packages("devtools") # If you don't have devtools
+# devtools::install_github("YOUR_USERNAME/pagerankr")
+```
+
+Load the package:
+```{r load_package}
+library(pagerankr)
+```
+
+## Quick Start: Using the `pagerank()` Wrapper
+
+The `pagerank()` function is the easiest way to get started. It orchestrates all the necessary steps: URL cleaning, redirect resolution, edge deduplication, isolate handling, and the final PageRank computation.
+
+Let's create some sample data:
+
+```{r sample_data_wrapper}
+edges_raw <- data.frame(
+  source_page = c(
+    "http://example.com/home", 
+    "example.com/pageA",       # No scheme
+    "HTTPS://Example.com/PAGEA", # Different case, scheme
+    "http://example.com/pageB?param=1#fragment",
+    "http://example.com/pageC",
+    "http://example.com/pageD" # pageD is a self-loop target if clean
+  ),
+  destination_page = c(
+    "example.com/pageA",
+    "http://example.com/pageB?param=1",
+    "http://example.com/pageC",
+    "http://example.com/home",
+    "http://example.com/pageC", # Self-loop C->C
+    "HTTP://EXAMPLE.COM/PAGED"  # pageD self-loop after cleaning
+  ),
+  stringsAsFactors = FALSE
+)
+
+redirects_report <- data.frame(
+  original_url = c("http://example.com/pageB?param=1#fragment", "example.com/old-page"),
+  final_url = c("http://example.com/pageB-final", "http://example.com/pageA"),
+  stringsAsFactors = FALSE
+)
+```
+
+Now, let's calculate PageRank using the wrapper:
+
+```{r wrapper_example}
+pr_scores <- pagerank(
+  edge_list_df = edges_raw,
+  redirects_df = redirects_report,
+  edge_from_col = "source_page", 
+  edge_to_col = "destination_page",
+  redirect_from_col = "original_url",
+  redirect_to_col = "final_url",
+  self_loops = "drop",        # Default: drop self-loops after resolution
+  drop_isolates_flag = TRUE, # Default: drop nodes with no links after processing
+  damping = 0.85             # Default damping factor
+)
+
+print(pr_scores)
+
+# Sum of PageRank should be 1 (or 0 if graph is empty after processing)
+if(nrow(pr_scores) > 0) {
+  cat("\nSum of PageRank scores:", sum(pr_scores$pagerank), "\n")
+}
+```
+
+The `pagerank()` function automatically cleaned the URLs, resolved redirects (e.g., `pageB?param=1#fragment` should have been mapped to `pageB-final`), handled duplicate edges that might arise after cleaning/resolution, dropped self-loops, and excluded any isolated nodes before computing the PageRank.
+
+## Modular Approach: Step-by-Step Calculation
+
+For more control, you can use the individual functions that `pagerank()` wraps. This is useful for inspecting intermediate results or customizing parts of the workflow.
+
+Let's use the same raw data as above.
+
+### 1. Clean URLs
+
+First, we clean the URLs in our edge list and redirect report. `clean_url_columns` uses `rurl::get_clean_url` internally and applies memoization for efficiency.
+
+```{r modular_clean}
+# Define parameters for rurl::get_clean_url if needed
+# Default behavior of rurl::get_clean_url is often sufficient (e.g., lowercases domain, normalizes scheme)
+# For this example, we'll use defaults by not passing rurl_params to pagerank(),
+# or by calling clean_url_columns without extra `...` args for rurl::get_clean_url.
+
+cleaned_edges <- clean_url_columns(
+  data_frame = edges_raw, 
+  columns = c("source_page", "destination_page")
+)
+
+cleaned_redirects <- clean_url_columns(
+  data_frame = redirects_report, 
+  columns = c("original_url", "final_url")
+)
+
+cat("Cleaned Edges:\n")
+print(cleaned_edges)
+cat("\nCleaned Redirects:\n")
+print(cleaned_redirects)
+```
+
+*Note on Shared Memoization*: The `pagerank()` wrapper can ensure that a single URL cleaning cache is used across both the edge list and redirect list if `clean_edge_urls = TRUE` and `clean_redirect_urls = TRUE`. When calling `clean_url_columns` separately like this, each call will use its own internal memoization cache by default.
+
+### 2. Resolve Redirects
+
+Next, update the edge list using the cleaned redirect rules.
+
+```{r modular_redirects}
+resolved_edges <- resolve_redirects(
+  edge_list_df = cleaned_edges, 
+  redirects_df = cleaned_redirects,
+  edge_from_col = "source_page", 
+  edge_to_col = "destination_page",
+  redirect_from_col = "original_url",
+  redirect_to_col = "final_url"
+)
+
+cat("Edges after redirect resolution:\n")
+print(resolved_edges)
+```
+
+### 3. Get Unique Edges (and Handle Self-Loops)
+
+Remove duplicate edges and decide how to handle self-loops (e.g., pageC -> pageC).
+
+```{r modular_unique_edges}
+# Option 1: Drop self-loops (default for get_unique_edges)
+unique_edges_dropped_sl <- get_unique_edges(
+  edge_list_df = resolved_edges,
+  self_loops = "drop",
+  from_col = "source_page",
+  to_col = "destination_page"
+)
+cat("Unique edges (self-loops dropped):\n")
+print(unique_edges_dropped_sl)
+
+# Option 2: Keep self-loops
+unique_edges_kept_sl <- get_unique_edges(
+  edge_list_df = resolved_edges,
+  self_loops = "keep",
+  from_col = "source_page",
+  to_col = "destination_page"
+)
+cat("\nUnique edges (self-loops kept):\n")
+print(unique_edges_kept_sl)
+```
+
+For the rest of this modular example, let's proceed with `unique_edges_dropped_sl`.
+
+### 4. Handle Isolated Nodes
+
+Decide if nodes that have no connections (isolates) after the previous steps should be included in the PageRank calculation. `drop_isolates()` returns a list of vertex names.
+
+```{r modular_isolates}
+# Option 1: Drop isolates (i.e., only keep nodes with degree > 0)
+vertices_to_keep <- drop_isolates(
+  edge_list_df = unique_edges_dropped_sl, 
+  drop = TRUE, 
+  from_col = "source_page", 
+  to_col = "destination_page", 
+  node_col_name = "node_name"
+)
+cat("Vertices for graph (isolates dropped):\n")
+print(vertices_to_keep)
+
+# Option 2: Keep all unique nodes mentioned in the (processed) edge list
+# These will become graph vertices; isolates get base PageRank from teleportation.
+all_vertices <- drop_isolates(
+  edge_list_df = unique_edges_dropped_sl, 
+  drop = FALSE, 
+  from_col = "source_page", 
+  to_col = "destination_page", 
+  node_col_name = "node_name"
+)
+cat("\nAll unique vertices from processed edges (isolates included if any):\n")
+print(all_vertices)
+```
+
+Let's use `vertices_to_keep` for PageRank calculation.
+If `vertices_to_keep` is empty (e.g., all edges were self-loops and dropped), then `compute_pagerank` will produce an empty result.
+
+### 5. Compute PageRank
+
+Finally, compute PageRank scores using the processed edge list and the defined set of vertices.
+
+```{r modular_compute_pr}
+# Ensure vertices_to_keep is not NULL or empty in a way compute_pagerank expects
+final_vertices_df <- NULL
+if (nrow(vertices_to_keep) > 0) {
+  final_vertices_df <- vertices_to_keep
+}
+
+final_pr_scores <- compute_pagerank(
+  edge_list_df = unique_edges_dropped_sl, 
+  vertices_df = final_vertices_df, # Can be NULL if all nodes from edges are desired
+  damping = 0.85,
+  from_col = "source_page",
+  to_col = "destination_page",
+  vertex_col_name = "node_name" # Must match column name in final_vertices_df if provided
+)
+
+cat("Final PageRank scores from modular approach:\n")
+print(final_pr_scores)
+if(nrow(final_pr_scores) > 0) {
+  cat("\nSum of PageRank scores:", sum(final_pr_scores$pagerank), "\n")
+}
+```
+
+## Using the Native Pipe `|>`
+
+The modular functions are designed to be pipeable:
+
+```{r modular_pipe_example, eval=FALSE}
+# Note: eval=FALSE as this is illustrative of the piping syntax.
+# The actual execution depends on the state of variables from previous chunks.
+
+# Assume edges_raw and redirects_report are defined
+
+pr_via_pipe <- edges_raw |>
+  clean_url_columns(columns = c("source_page", "destination_page")) |>
+  (\(df) resolve_redirects( # Lambda to handle multiple arguments for resolve_redirects
+    edge_list_df = df, 
+    redirects_df = clean_url_columns(redirects_report, columns = c("original_url", "final_url")),
+    edge_from_col = "source_page", 
+    edge_to_col = "destination_page",
+    redirect_from_col = "original_url",
+    redirect_to_col = "final_url"
+  ))() |> # Immediately invoke the lambda
+  get_unique_edges(self_loops = "drop", from_col = "source_page", to_col = "destination_page") |>
+  (\(df) {
+    vertices <- drop_isolates(df, drop = TRUE, from_col = "source_page", to_col = "destination_page", node_col_name = "node_name")
+    compute_pagerank(
+      edge_list_df = df, 
+      vertices_df = if(nrow(vertices)>0) vertices else NULL, 
+      from_col = "source_page", 
+      to_col = "destination_page", 
+      vertex_col_name = "node_name"
+    )
+  })()
+
+# print(pr_via_pipe)
+```
+*Note*: Piping `resolve_redirects` and `compute_pagerank` requires a bit more care due to their multiple primary data frame arguments (`edge_list_df`, `redirects_df` for the former; `edge_list_df`, `vertices_df` for the latter). Lambdas or intermediate assignments might be needed for clarity, as shown in the `pagerank()` wrapper itself.
+
+## Key Parameters and Choices
+
+*   **URL Cleaning (`clean_url_columns`, `pagerank(rurl_params=...)`)**: 
+    *   Uses `rurl::get_clean_url`. You can pass parameters to `rurl::get_clean_url` either via `...` in `clean_url_columns` or via the `rurl_params` list argument in `pagerank()`.
+    *   The `pagerank()` wrapper handles whether to clean edge list URLs (`clean_edge_urls`) and redirect URLs (`clean_redirect_urls`) and can use a shared cache.
+*   **Self-Loops (`get_unique_edges`, `pagerank(self_loops=...)`)**: Choose to "drop" (default) or "keep" self-loops.
+*   **Isolates (`drop_isolates`, `pagerank(drop_isolates_flag=...)`)**: Decide whether to include nodes with no connections in the final PageRank graph. If kept, they receive a base PageRank score due to the damping factor.
+*   **Damping Factor (`compute_pagerank`, `pagerank(damping=...)`)**: The `damping` parameter (typically 0.85) for the PageRank algorithm can be adjusted.
+
+This vignette provides an overview of how to use the `pagerankr` package. For more detailed information on each function and its arguments, please consult the package documentation (e.g., `?pagerank`, `?clean_url_columns`). 

@@ -9,7 +9,7 @@
 #' @return A function that takes a URL string and `...` (arguments for
 #'   `rurl::clean_url`) and returns a cleaned URL string, using an internal
 #'   cache to avoid re-computing for the same inputs.
-#' @noRd # Marks as internal, not exported
+#' @noRd
 .create_memoized_cleaner <- function() {
   cache <- new.env(hash = TRUE, parent = emptyenv())
   
@@ -52,7 +52,7 @@
     
     # If not in cache, compute using rurl::clean_url, store, and return.
     # rurl::clean_url must be available (e.g. via Imports in DESCRIPTION).
-    cleaned_url <- rurl::clean_url(url_string, ...)
+    cleaned_url <- rurl::get_clean_url(url_string, ...)
     assign(cache_key, cleaned_url, envir = cache)
     return(cleaned_url)
   }
