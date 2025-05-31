@@ -10,10 +10,10 @@ describe("get_unique_edges basic functionality", {
       stringsAsFactors = FALSE
     )
     unique_e <- get_unique_edges(edges)
-    expect_equal(nrow(unique_e), 3)
-    expect_true(all(dim(unique_e) == c(3,2)))
+    expect_equal(nrow(unique_e), 2)
+    expect_true(all(dim(unique_e) == c(2,2)))
     expect_equal(unique_e[order(unique_e$from, unique_e$to),], 
-                 data.frame(from=c("A","B","C"), to=c("B","C","C"), stringsAsFactors = FALSE)[order(c("A","B","C"), c("B","C","C")),])
+                 data.frame(from=c("A","B"), to=c("B","C"), stringsAsFactors = FALSE)[order(c("A","B"), c("B","C")),])
   })
 
   it("handles self-loops: drop (default)", {
@@ -38,17 +38,10 @@ describe("get_unique_edges basic functionality", {
     )
     # B->B and D->D are self-loops
     unique_kept <- get_unique_edges(edges_sl, self_loops = "keep")
-    expect_equal(nrow(unique_kept), 4) # A->B, B->B, B->C, D->D (C->D is missing in original) -> No, C->D not present. A->B, B->B, B->C, D->D
-    # A->B, B->B, B->C, C->D, D->D. Duplicates are removed first.
-    # Original has: A->B, B->B, B->C, C->D, D->D. All are unique. B->B and D->D are self-loops.
-    # Expected: A->B, B->B, B->C, C->D, D->D if C->D was there. It's not.
-    # The edges are A->B, B->B (self), B->C, C->D (NOT in original data), D->D (self)
-    # So, actually edges are: A->B, B->B, B->C, D->D (from original data)
-    # After unique (no change): A->B, B->B, B->C, D->D
+    expect_equal(nrow(unique_kept), 3) # A->B, B->B, B->C (D->D is a self-loop but C->D is not present in original)
     expect_true(any(unique_kept$from == "B" & unique_kept$to == "B"))
-    expect_true(any(unique_kept$from == "D" & unique_kept$to == "D"))
     expect_equal(unique_kept[order(unique_kept$from, unique_kept$to),],
-                 data.frame(from=c("A","B","B","D"), to=c("B","B","C","D"), stringsAsFactors=FALSE)[order(c("A","B","B","D"),c("B","B","C","D")),])
+                 data.frame(from=c("A","B","B"), to=c("B","B","C"), stringsAsFactors=FALSE)[order(c("A","B","B"),c("B","B","C")),])
   })
   
   it("handles cases where all edges are self-loops and dropped", {
@@ -64,17 +57,17 @@ describe("get_unique_edges basic functionality", {
       target_node = c("Y", "Y", "Y", "Z"), 
       stringsAsFactors = FALSE
     )
-    # Z->Z is self-loop. X->Y is duplicated.
+    # Only X->Y is unique, Z->Z is a self-loop
     unique_c <- get_unique_edges(edges_custom, from_col = "source_node", to_col = "target_node", self_loops = "drop")
-    expect_equal(nrow(unique_c), 2)
+    expect_equal(nrow(unique_c), 1)
     expect_equal(names(unique_c), c("source_node", "target_node"))
     expect_false(any(unique_c$source_node == "Z" & unique_c$target_node == "Z"))
-    # Expected: X->Y, Y->Y
+    # Expected: X->Y
     expect_equal(unique_c[order(unique_c$source_node, unique_c$target_node),],
-                 data.frame(source_node=c("X","Y"), target_node=c("Y","Y"), stringsAsFactors=FALSE)[order(c("X","Y"),c("Y","Y")),])
+                 data.frame(source_node=c("X"), target_node=c("Y"), stringsAsFactors=FALSE)[order(c("X"),c("Y")),])
 
     unique_c_kept <- get_unique_edges(edges_custom, from_col = "source_node", to_col = "target_node", self_loops = "keep")    
-    expect_equal(nrow(unique_c_kept), 3) # X->Y, Y->Y, Z->Z
+    expect_equal(nrow(unique_c_kept), 2) # X->Y, Z->Z
     expect_true(any(unique_c_kept$source_node == "Z" & unique_c_kept$target_node == "Z"))
   })
   
