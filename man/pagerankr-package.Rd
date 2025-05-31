@@ -15,8 +15,8 @@ for data manipulation and 'igraph' for core PageRank calculation.
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/YOUR_USERNAME/pagerankr # Replace with actual URL}
-  \item Report bugs at \url{https://github.com/YOUR_USERNAME/pagerankr/issues # Replace}
+  \item \url{https://github.com/bart-turczynski/pagerankr}
+  \item Report bugs at \url{https://github.com/bart-turczynski/pagerankr/issues}
 }
 
 }

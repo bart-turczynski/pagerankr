@@ -20,5 +20,5 @@ Suggests:
     goodpractice
 Config/Needs/build: local
 VignetteBuilder: knitr
-URL: https://github.com/YOUR_USERNAME/pagerankr # Replace with actual URL
-BugReports: https://github.com/YOUR_USERNAME/pagerankr/issues # Replace
+URL: https://github.com/bart-turczynski/pagerankr
+BugReports: https://github.com/bart-turczynski/pagerankr/issues
