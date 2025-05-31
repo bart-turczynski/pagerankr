@@ -61,7 +61,6 @@
   # Add current url to path for cycle detection
   if (url %in% path) {
     # Cycle detected
-    cycle_path_str <- paste(c(path[path != url], url, path[match(url, path)]), collapse = " -> ")
     # Corrected cycle representation (start from the cycled URL)
     path_start_index <- match(url, path)
     actual_cycle_str <- paste(c(path[path_start_index:length(path)], url), collapse = " -> ")
