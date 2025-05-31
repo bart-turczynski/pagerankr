@@ -24,10 +24,10 @@ describe("get_unique_edges basic functionality", {
     )
     # B->B is a self-loop
     unique_dropped <- get_unique_edges(edges_sl, self_loops = "drop")
-    expect_equal(nrow(unique_dropped), 2)
+    expect_equal(nrow(unique_dropped), 3)
     expect_false(any(unique_dropped$from == "B" & unique_dropped$to == "B"))
     expect_equal(unique_dropped[order(unique_dropped$from, unique_dropped$to),],
-                 data.frame(from=c("A","B"), to=c("B","C"), stringsAsFactors = FALSE)[order(c("A","B"),c("B","C")),])
+                 data.frame(from=c("A","B","C"), to=c("B","C","D"), stringsAsFactors = FALSE)[order(c("A","B","C"),c("B","C","D")),])
   })
 
   it("handles self-loops: keep", {
@@ -38,10 +38,11 @@ describe("get_unique_edges basic functionality", {
     )
     # B->B and D->D are self-loops
     unique_kept <- get_unique_edges(edges_sl, self_loops = "keep")
-    expect_equal(nrow(unique_kept), 3) # A->B, B->B, B->C (D->D is a self-loop but C->D is not present in original)
+    expect_equal(nrow(unique_kept), 5) # A->B, B->B, B->C, C->D, D->D
     expect_true(any(unique_kept$from == "B" & unique_kept$to == "B"))
+    expect_true(any(unique_kept$from == "D" & unique_kept$to == "D"))
     expect_equal(unique_kept[order(unique_kept$from, unique_kept$to),],
-                 data.frame(from=c("A","B","B"), to=c("B","B","C"), stringsAsFactors=FALSE)[order(c("A","B","B"),c("B","B","C")),])
+                 data.frame(from=c("A","B","B","C","D"), to=c("B","B","C","D","D"), stringsAsFactors=FALSE)[order(c("A","B","B","C","D"),c("B","B","C","D","D")),])
   })
   
   it("handles cases where all edges are self-loops and dropped", {
@@ -67,8 +68,11 @@ describe("get_unique_edges basic functionality", {
                  data.frame(source_node=c("X"), target_node=c("Y"), stringsAsFactors=FALSE)[order(c("X"),c("Y")),])
 
     unique_c_kept <- get_unique_edges(edges_custom, from_col = "source_node", to_col = "target_node", self_loops = "keep")    
-    expect_equal(nrow(unique_c_kept), 2) # X->Y, Z->Z
+    expect_equal(nrow(unique_c_kept), 3) # X->Y, Y->Y, Z->Z
     expect_true(any(unique_c_kept$source_node == "Z" & unique_c_kept$target_node == "Z"))
+    expect_true(any(unique_c_kept$source_node == "Y" & unique_c_kept$target_node == "Y"))
+    expect_equal(unique_c_kept[order(unique_c_kept$source_node, unique_c_kept$target_node),],
+                 data.frame(source_node=c("X","Y","Z"), target_node=c("Y","Y","Z"), stringsAsFactors=FALSE)[order(c("X","Y","Z"),c("Y","Y","Z")),])
   })
   
   it("handles NA values correctly (NAs are dropped)", {
