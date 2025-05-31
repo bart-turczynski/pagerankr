@@ -127,4 +127,7 @@ Please note that the `pagerankr` project is released with a [Contributor Code of
 
 ## License
 
-MIT License. See the `LICENSE` file for details. 
+MIT License. See the `LICENSE` file for details.
+
+#' @details
+#' As part of the workflow, any edge where either from or to is NA is automatically dropped before deduplication and PageRank calculation. Self-referencing redirects (where from == to) are also filtered out before redirect resolution. 
