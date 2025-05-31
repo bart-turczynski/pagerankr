@@ -38,6 +38,8 @@
 #' )
 #' get_unique_edges(edges_na, self_loops = "keep")
 #' get_unique_edges(edges_na, self_loops = "drop") # No self-loops with NA to drop
+#' @details
+#' Any edge where either from or to is NA is automatically dropped before deduplication and self-loop handling.
 
 get_unique_edges <- function(edge_list_df,
                              self_loops = c("drop", "keep"),
@@ -81,6 +83,9 @@ get_unique_edges <- function(edge_list_df,
     }
     return(edge_list_df) # Return as is if empty and columns are assumed OK or it's truly empty.
   }
+
+  # Drop any edge where from or to is NA
+  edge_list_df <- edge_list_df[!is.na(edge_list_df[[from_col]]) & !is.na(edge_list_df[[to_col]]), , drop = FALSE]
 
   # --- Select and Prepare Relevant Columns ---
   # Ensure columns are character to handle factors and for reliable comparison.

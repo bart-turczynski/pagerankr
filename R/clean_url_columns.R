@@ -39,6 +39,9 @@
 #'   # cleaned_df_custom <- clean_url_columns(df, columns = c("from", "to"), force_https = TRUE)
 #' )
 #' print(cleaned_df_custom)
+#'
+#' @details
+#' NA values in the specified columns are preserved in the output. Downstream functions in the pagerankr workflow (such as get_unique_edges and pagerank) will automatically drop any edge where either from or to is NA.
 clean_url_columns <- function(data_frame, 
                               columns = c("from", "to"), 
                               ...,

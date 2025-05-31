@@ -98,6 +98,8 @@ if(nrow(pr_scores) > 0) {
 
 The `pagerank()` function automatically cleaned the URLs, resolved redirects (e.g., `pageB?param=1#fragment` should have been mapped to `pageB-final`), handled duplicate edges that might arise after cleaning/resolution, dropped self-loops, and excluded any isolated nodes before computing the PageRank.
 
+> **Note:** As part of the workflow, any edge where either `from` or `to` is `NA` is automatically dropped before deduplication and PageRank calculation. Self-referencing redirects (where `from == to`) are also filtered out before redirect resolution.
+
 ## Modular Approach: Step-by-Step Calculation
 
 For more control, you can use the individual functions that `pagerank()` wraps. This is useful for inspecting intermediate results or customizing parts of the workflow.
@@ -283,3 +285,5 @@ pr_via_pipe <- edges_raw |>
 *   **Damping Factor (`compute_pagerank`, `pagerank(damping=...)`)**: The `damping` parameter (typically 0.85) for the PageRank algorithm can be adjusted.
 
 This vignette provides an overview of how to use the `pagerankr` package. For more detailed information on each function and its arguments, please consult the package documentation (e.g., `?pagerank`, `?clean_url_columns`). 
+
+> **Note:** Edges with `NA` in either endpoint are dropped automatically by the workflow. Self-referencing redirects are filtered out before redirect resolution. 

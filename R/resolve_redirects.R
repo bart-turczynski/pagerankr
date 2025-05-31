@@ -73,6 +73,8 @@
 #' # )
 #' # edges_cycle <- data.frame(from = "Start", to = "L1", stringsAsFactors = FALSE)
 #' # try(resolve_redirects(edges_cycle, redirects_cycle))
+#' @details
+#' Self-referencing redirects (where from == to) and any redirects with NA in from or to are automatically filtered out before processing.
 
 resolve_redirects <- function(edge_list_df,
                               redirects_df,
@@ -100,6 +102,11 @@ resolve_redirects <- function(edge_list_df,
   if (nrow(redirects_df) == 0) {
     return(edge_list_df)
   }
+  
+  # Filter out self-referencing redirects and NA values in redirect map
+  redirects_df <- redirects_df[!is.na(redirects_df[[redirect_from_col]]) &
+                               !is.na(redirects_df[[redirect_to_col]]) &
+                               redirects_df[[redirect_from_col]] != redirects_df[[redirect_to_col]], , drop = FALSE]
   
   # --- Prepare Redirect Map & Check for Ambiguities ---
   redirect_sources_raw <- redirects_df[[redirect_from_col]]
