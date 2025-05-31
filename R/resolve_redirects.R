@@ -146,40 +146,14 @@ resolve_redirects <- function(edge_list_df,
   # --- Resolve URLs in Edge List ---
   resolved_edge_list <- edge_list_df
   
-  cols_to_resolve <- intersect(c(edge_from_col, edge_to_col), names(resolved_edge_list))
-
-  # Memoization for resolved URLs within this function call
-  resolved_cache <- new.env(hash = TRUE, parent = emptyenv())
-
-  for (col_name in cols_to_resolve) {
-    original_urls_in_col <- as.character(resolved_edge_list[[col_name]])
-    resolved_urls_for_col <- character(length(original_urls_in_col))
-    
-    is_na_original <- is.na(original_urls_in_col)
-    resolved_urls_for_col[is_na_original] <- NA_character_
-    
-    urls_to_process_in_col <- original_urls_in_col[!is_na_original]
-    
-    if (length(urls_to_process_in_col) > 0) {
-      unique_input_urls_in_col <- unique(urls_to_process_in_col)
-      
-      for (url in unique_input_urls_in_col) {
-          if (!exists(url, envir = resolved_cache, inherits = FALSE)) {
-              final_url <- .trace_redirect_path(url = url, redirect_map = redirect_map, path = character(0))
-              assign(url, final_url, envir = resolved_cache)
-          }
-      }
-      
-      # Map resolved URLs back for non-NA values
-      # Get needs a vector of names if we were to use mget. Here, we lookup one by one.
-      # This ensures correct assignment even with duplicates in urls_to_process_in_col
-      resolved_values_for_non_na <- character(length(urls_to_process_in_col))
-      for(i in seq_along(urls_to_process_in_col)){
-          resolved_values_for_non_na[i] <- get(urls_to_process_in_col[i], envir = resolved_cache, inherits = FALSE)
-      }
-      resolved_urls_for_col[!is_na_original] <- resolved_values_for_non_na
-    }
-    resolved_edge_list[[col_name]] <- resolved_urls_for_col
+  # Only resolve the 'to' column (target of the edge)
+  if (edge_to_col %in% names(resolved_edge_list)) {
+    original_to <- as.character(resolved_edge_list[[edge_to_col]])
+    resolved_to <- vapply(original_to, function(url) {
+      if (is.na(url)) return(NA_character_)
+      .trace_redirect_path(url = url, redirect_map = redirect_map, path = character(0))
+    }, character(1))
+    resolved_edge_list[[edge_to_col]] <- resolved_to
   }
 
   return(resolved_edge_list)
