@@ -1,0 +1,17 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.git$
+^\.github$
+^\.gitignore$
+^\.Rbuildignore$
+^README\.Rmd$
+^instructions\.md$
+^cran-comments\.md$
+^CONTRIBUTING\.md$
+^CODE_OF_CONDUCT\.md$
+^LICENSE\.md$
+# Add any other files/directories specific to your development process
+# that should not be in the package tarball.
+# For example, if you have raw data or analysis scripts not part of the package:
+# ^data-raw/
+# ^analysis/
