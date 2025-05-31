@@ -31,6 +31,9 @@ A data frame with unique edges, with self-loops handled according to
 Removes duplicate edge rows from an edge list data frame and
   provides control over how self-loops (e.g., a -> a) are handled.
 }
+\details{
+Any edge where either from or to is NA is automatically dropped before deduplication and self-loop handling.
+}
 \examples{
 edges <- data.frame(
   from = c("A", "B", "A", "C", "D"),

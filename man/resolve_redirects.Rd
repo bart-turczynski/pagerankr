@@ -40,6 +40,9 @@ Updates an edge list by replacing URLs with their final
   destinations based on a redirect data frame. Detects redirect cycles and
   ambiguities.
 }
+\details{
+Self-referencing redirects (where from == to) and any redirects with NA in from or to are automatically filtered out before processing.
+}
 \examples{
 edges <- data.frame(
   from = c("A", "B", "C"),

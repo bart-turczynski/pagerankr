@@ -145,3 +145,8 @@ By contributing to this project, you agree to abide by its terms.
 ## 1.6 License
 
 MIT License. See the `LICENSE` file for details.
+
+\#’ @details \#’ As part of the workflow, any edge where either from or
+to is NA is automatically dropped before deduplication and PageRank
+calculation. Self-referencing redirects (where from == to) are also
+filtered out before redirect resolution.
