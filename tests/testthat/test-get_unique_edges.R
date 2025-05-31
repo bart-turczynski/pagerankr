@@ -78,40 +78,22 @@ describe("get_unique_edges basic functionality", {
     expect_true(any(unique_c_kept$source_node == "Z" & unique_c_kept$target_node == "Z"))
   })
   
-  it("handles NA values correctly (NAs make edges distinct unless all parts are NA and identical)", {
+  it("handles NA values correctly (NAs are dropped)", {
     edges_na <- data.frame(
       from = c("A", NA, "A", "B", NA, "X"), 
       to =   c("B", "C", "B", "D", "C", NA),
       stringsAsFactors = FALSE
     )
-    # Duplicates: A->B (appears twice). NA->C (appears twice).
-    # Self-loops: None that are non-NA. NA == NA is NA, so (NA,NA) would be self-loop if not for NA handling in `==`.
-    # The implementation checks `!is.na(from) & !is.na(to) & (from == to)`
+    # After dropping NA-containing edges, only A->B, B->D remain
     unique_na_drop <- get_unique_edges(edges_na, self_loops = "drop")
-    # Expected: A->B, NA->C, B->D, X->NA. (4 unique rows)
-    expect_equal(nrow(unique_na_drop), 4)
+    expect_equal(nrow(unique_na_drop), 2)
+    expect_equal(unique_na_drop$from, c("A", "B"))
+    expect_equal(unique_na_drop$to, c("B", "D"))
 
-    # Verify specific unique rows (order might vary, so check content)
-    # Convert to a canonical representation for comparison (e.g., paste from and to)
-    expected_pairs_drop <- sort(c("A_B", "NA_C", "B_D", "X_NA"))
-    actual_pairs_drop <- sort(paste(unique_na_drop$from, unique_na_drop$to, sep="_"))
-    expect_equal(actual_pairs_drop, expected_pairs_drop)
-    
     unique_na_keep <- get_unique_edges(edges_na, self_loops = "keep")
-    # Same as drop in this case as there are no non-NA self-loops
-    expect_equal(nrow(unique_na_keep), 4)
-    actual_pairs_keep <- sort(paste(unique_na_keep$from, unique_na_keep$to, sep="_"))
-    expect_equal(actual_pairs_keep, expected_pairs_drop)
-    
-    # Test with actual NA self-loop potential if logic was different, but current logic excludes it.
-    edges_na_sl <- data.frame(from=c(NA, "A"), to=c(NA, "A"), stringsAsFactors = FALSE)
-    res_sl_na_drop <- get_unique_edges(edges_na_sl, self_loops="drop") # A->A drops, NA->NA not considered SL
-    expect_equal(nrow(res_sl_na_drop), 1)
-    expect_equal(res_sl_na_drop$from[1], NA_character_)
-    expect_equal(res_sl_na_drop$to[1], NA_character_)
-    
-    res_sl_na_keep <- get_unique_edges(edges_na_sl, self_loops="keep") # A->A kept, NA->NA kept
-    expect_equal(nrow(res_sl_na_keep), 2)
+    expect_equal(nrow(unique_na_keep), 2)
+    expect_equal(unique_na_keep$from, c("A", "B"))
+    expect_equal(unique_na_keep$to, c("B", "D"))
   })
   
   it("handles empty data frame", {
@@ -153,5 +135,12 @@ describe("get_unique_edges basic functionality", {
       df <- data.frame(fcol="a", tcol="b")
       expect_error(get_unique_edges(df)) # Default cols from/to missing
       expect_error(get_unique_edges(df, from_col = "non_existent"))
+  })
+  
+  it("handles data frame with columns having all NAs (all dropped)", {
+    df_all_na <- data.frame(from = c(NA_character_, NA_character_), to = c(NA_character_, NA_character_), stringsAsFactors = FALSE)
+    unique_all_na <- get_unique_edges(df_all_na)
+    expect_equal(nrow(unique_all_na), 0)
+    expect_equal(names(unique_all_na), c("from", "to"))
   })
 }) 
