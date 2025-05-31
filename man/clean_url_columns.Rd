@@ -32,6 +32,9 @@ A data frame with the specified URL columns cleaned. An attribute
 Applies `rurl::get_clean_url` to specified columns of a data frame,
   using internal memoization for efficiency.
 }
+\details{
+NA values in the specified columns are preserved in the output. Downstream functions in the pagerankr workflow (such as get_unique_edges and pagerank) will automatically drop any edge where either from or to is NA.
+}
 \examples{
 df <- data.frame(
   from = c("http://example.com/path", 
@@ -56,4 +59,5 @@ cleaned_df_custom <- clean_url_columns(
   # cleaned_df_custom <- clean_url_columns(df, columns = c("from", "to"), force_https = TRUE)
 )
 print(cleaned_df_custom)
+
 }
