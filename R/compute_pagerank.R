@@ -4,49 +4,55 @@
 #'
 #' @param edge_list_df A data frame representing the processed edge list,
 #'   typically with columns "from" and "to" (or as specified by `from_col`, `to_col`).
-#'   It should contain only edges to be included in the graph.
+#'   It should contain only edges to be included in the graph. NAs in these
+#'   columns will be omitted before graph construction.
 #' @param vertices_df An optional single-column data frame of node names to define
-#'   the set of vertices for the graph. If `NULL` (default), all unique nodes
-#'   present in `edge_list_df` are used. The column name is specified by `vertex_col_name`.
+#'   the set of vertices for the graph. If `NULL` (default), all unique non-NA nodes
+#'   present in `edge_list_df` (after NA removal from edges) are used. 
+#'   The column name is specified by `vertex_col_name`.
 #' @param damping The damping factor for PageRank. Default is 0.85.
 #' @param from_col Name of the source node column in `edge_list_df`. Default "from".
 #' @param to_col Name of the target node column in `edge_list_df`. Default "to".
 #' @param vertex_col_name Name of the column in `vertices_df` containing node names.
-#'   Default "node_name". (This matches the output of `drop_isolates`).
+#'   Default "node_name".
 #' @param pr_node_col Name for the node column in the output PageRank data frame. Default "node_name".
 #' @param pr_value_col Name for the PageRank value column in the output data frame. Default "pagerank".
 #' @param ... Additional arguments passed to `igraph::page_rank()`.
 #'
 #' @return A data frame with two columns: one for node names (named by `pr_node_col`)
-#'   and one for their PageRank scores (named by `pr_value_col`), which sum to 1.
-#'   Returns an empty data frame with correct columns if the graph is empty or
-#'   has no nodes after processing.
+#'   and one for their PageRank scores (named by `pr_value_col`), which sum to 1
+#'   for non-empty graphs. Returns an empty data frame with correct column names 
+#'   if the graph is empty or has no nodes after processing.
 #' @export
 #' @import igraph
 #' @examples
-#' edges <- data.frame(from = c("A", "B", "C"), to = c("B", "C", "A"))
+#' edges <- data.frame(from = c("A", "B", "C"), to = c("B", "C", "A"), stringsAsFactors = FALSE)
 #' pr_results <- compute_pagerank(edges)
 #' print(pr_results)
-#' sum(pr_results$pagerank)
+#' if(nrow(pr_results) > 0) sum(pr_results$pagerank)
 #' 
 #' # With specified vertices (e.g., from drop_isolates)
-#' vertices <- data.frame(node_name = c("A", "B", "C", "D")) # D is an isolate
+#' vertices <- data.frame(node_name = c("A", "B", "C", "D"), stringsAsFactors = FALSE) # D is an isolate
 #' pr_results_isolates_kept <- compute_pagerank(edges, vertices_df = vertices)
 #' print(pr_results_isolates_kept)
-#' sum(pr_results_isolates_kept$pagerank)
+#' if(nrow(pr_results_isolates_kept) > 0) sum(pr_results_isolates_kept$pagerank)
 #'
-#' # Single node graph
-#' single_node_edges <- data.frame(from="A", to="A") # if self-loops kept
+#' # Single node graph with self-loop
+#' single_node_edges <- data.frame(from="A", to="A", stringsAsFactors = FALSE)
 #' compute_pagerank(single_node_edges)
 #' 
-#' # Single node graph, no self loop (effectively an isolate if self-loops dropped prior)
-#' single_node_no_loop <- data.frame(from=character(0), to=character(0))
-#' # compute_pagerank will use vertices_df if provided
+#' # Single node, no edges, defined by vertices_df
+#' single_node_no_loop <- data.frame(from=character(0), to=character(0), stringsAsFactors = FALSE)
 #' compute_pagerank(single_node_no_loop, vertices_df = data.frame(node_name="A"))
 #'
-#' # Empty graph
-#' empty_edges <- data.frame(from = character(), to = character())
+#' # Empty graph (no edges, no vertices defined)
+#' empty_edges <- data.frame(from = character(), to = character(), stringsAsFactors = FALSE)
 #' compute_pagerank(empty_edges)
+#'
+#' # Edges with NAs (these edges will be dropped)
+#' edges_with_na <- data.frame(from=c("A", NA, "C"), to=c("B", "D", NA), stringsAsFactors = FALSE)
+#' compute_pagerank(edges_with_na) # Should only process A->B
+#' compute_pagerank(edges_with_na, vertices_df = data.frame(node_name=c("A","B","C","D")))
 compute_pagerank <- function(edge_list_df, 
                              vertices_df = NULL, 
                              damping = 0.85, 
@@ -57,117 +63,127 @@ compute_pagerank <- function(edge_list_df,
                              pr_value_col = "pagerank",
                              ...) {
 
+  # --- Input Validation ---
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  # Validate edge_list_df columns only if it's not empty, to allow empty graphs
   if (nrow(edge_list_df) > 0 && !all(c(from_col, to_col) %in% names(edge_list_df))) {
      stop("`edge_list_df` must have '", from_col, "' and '", to_col, "' columns if not empty.", call. = FALSE)
   }
-  if (!is.null(vertices_df) && !is.data.frame(vertices_df)) {
-    stop("`vertices_df` must be a data frame or NULL.", call. = FALSE)
-  }
-  if (!is.null(vertices_df) && !(vertex_col_name %in% names(vertices_df))) {
-    stop("`vertices_df` must have a column named '", vertex_col_name, "'.", call. = FALSE)
+  if (!is.null(vertices_df)){
+    if (!is.data.frame(vertices_df)) {
+      stop("`vertices_df` must be a data frame or NULL.", call. = FALSE)
+    }
+    if (nrow(vertices_df) > 0 && !(vertex_col_name %in% names(vertices_df))) {
+      stop("`vertices_df` must have a column named '", vertex_col_name, "' if not empty.", call. = FALSE)
+    }
   }
   if (!is.numeric(damping) || length(damping) != 1 || damping < 0 || damping > 1) {
     stop("`damping` must be a single numeric value between 0 and 1.", call. = FALSE)
   }
+  if(!is.character(pr_node_col) || length(pr_node_col) !=1 || nchar(pr_node_col)==0){
+      stop("`pr_node_col` must be a non-empty character string.", call. = FALSE)
+  }
+  if(!is.character(pr_value_col) || length(pr_value_col) !=1 || nchar(pr_value_col)==0){
+      stop("`pr_value_col` must be a non-empty character string.", call. = FALSE)
+  }
+  if(pr_node_col == pr_value_col){
+      stop("`pr_node_col` and `pr_value_col` must be different.", call. = FALSE)
+  }
 
-  # Prepare an empty result data frame template for early exits
-  empty_pr_result <- stats::setNames(data.frame(matrix(ncol = 2, nrow = 0)), c(pr_node_col, pr_value_col))
+  # --- Prepare Empty Result & Graph Vertices ---
+  empty_pr_result <- stats::setNames(data.frame(matrix(ncol = 2, nrow = 0)), 
+                                     c(pr_node_col, pr_value_col))
+  # Ensure columns of empty result are character and numeric respectively
+  empty_pr_result[[pr_node_col]] <- character(0)
+  empty_pr_result[[pr_value_col]] <- numeric(0)
   
-  # Determine the set of vertices for the graph
-  graph_nodes <- NULL
-  if (!is.null(vertices_df)) {
-    if (nrow(vertices_df) > 0 && ncol(vertices_df) > 0) {
-      graph_nodes <- as.character(vertices_df[[vertex_col_name]])
-      graph_nodes <- unique(stats::na.omit(graph_nodes)) # ensure unique, non-NA
-    } else {
-      # vertices_df is provided but is empty or has no valid column data
-      # This implies a graph with no pre-defined nodes. If edge_list_df is also empty,
-      # it results in an empty graph.
-      graph_nodes <- character(0)
-    }
-  } 
-  # If vertices_df is NULL, igraph::graph_from_data_frame will infer nodes from edge_list_df.
-  # If edge_list_df is also empty, it correctly creates an empty graph.
+  defined_nodes <- NULL
+  if (!is.null(vertices_df) && nrow(vertices_df) > 0 && vertex_col_name %in% names(vertices_df)) {
+    defined_nodes <- unique(stats::na.omit(as.character(vertices_df[[vertex_col_name]])))
+    if (length(defined_nodes) == 0) defined_nodes <- NULL # Treat empty after na.omit as NULL
+  }
 
-  # Handle edge case: no edges and no explicitly defined vertices through vertices_df
-  # (or vertices_df was empty and edge_list_df is empty).
-  if (nrow(edge_list_df) == 0 && (is.null(graph_nodes) || length(graph_nodes) == 0) ) {
+  # --- Prepare Edges (Remove NAs) ---
+  valid_edges_df <- NULL
+  if (nrow(edge_list_df) > 0) {
+    edges_for_graph <- edge_list_df[, c(from_col, to_col), drop = FALSE]
+    edges_for_graph[[from_col]] <- as.character(edges_for_graph[[from_col]])
+    edges_for_graph[[to_col]] <- as.character(edges_for_graph[[to_col]])
+    
+    # igraph cannot handle NAs in edge lists for graph_from_data_frame
+    na_in_edges <- is.na(edges_for_graph[[from_col]]) | is.na(edges_for_graph[[to_col]])
+    valid_edges_df <- edges_for_graph[!na_in_edges, , drop = FALSE]
+  } else {
+    # No rows in edge_list_df, so valid_edges_df remains an empty structure
+    valid_edges_df <- data.frame(matrix(ncol=2, nrow=0, dimnames=list(NULL, c(from_col, to_col))))
+    valid_edges_df[[from_col]] <- character(0)
+    valid_edges_df[[to_col]] <- character(0)
+  }
+
+  # --- Create Graph ---
+  # If no valid edges and no defined nodes, result is an empty graph/empty PR results.
+  if (nrow(valid_edges_df) == 0 && is.null(defined_nodes)) {
     return(empty_pr_result)
   }
   
-  # Create the graph
-  # Ensure edge list columns are character to avoid factor issues with igraph
-  # Only select from_col and to_col for graph_from_data_frame
-  # Handle empty edge_list_df explicitly for graph_from_data_frame
-  if (nrow(edge_list_df) > 0) {
-      graph_edges_df <- edge_list_df[, c(from_col, to_col), drop = FALSE]
-      graph_edges_df[[from_col]] <- as.character(graph_edges_df[[from_col]])
-      graph_edges_df[[to_col]] <- as.character(graph_edges_df[[to_col]])
-      
-      # Filter out edges with NA in from or to, as igraph cannot handle them
-      graph_edges_df <- stats::na.omit(graph_edges_df)
-      
-      # If after na.omit, there are no edges, but graph_nodes are defined, we build a graph with these nodes and no edges.
-      if (nrow(graph_edges_df) == 0 && !is.null(graph_nodes) && length(graph_nodes) > 0) {
-         current_graph <- igraph::make_empty_graph(n = length(graph_nodes), directed = TRUE)
-         igraph::V(current_graph)$name <- graph_nodes
-      } else if (nrow(graph_edges_df) == 0 && (is.null(graph_nodes) || length(graph_nodes) == 0) ){
-         # No edges and no nodes, return empty result
-         return(empty_pr_result)
-      } else {
-        # We have edges
-        current_graph <- igraph::graph_from_data_frame(d = graph_edges_df, 
-                                                       directed = TRUE, 
-                                                       vertices = graph_nodes) # graph_nodes can be NULL
-      }
-  } else { # nrow(edge_list_df) == 0 but graph_nodes might be defined
-      if (!is.null(graph_nodes) && length(graph_nodes) > 0) {
-          current_graph <- igraph::make_empty_graph(n = length(graph_nodes), directed = TRUE)
-          igraph::V(current_graph)$name <- graph_nodes
-      } else {
-          # No edges, no nodes defined. This case should be caught above, but as a safeguard:
-          return(empty_pr_result)
-      }
+  current_graph <- NULL
+  if (nrow(valid_edges_df) > 0) {
+    # If defined_nodes is NULL, igraph infers vertices from valid_edges_df.
+    # If defined_nodes is provided, it uses them (and adds any from valid_edges_df not in defined_nodes).
+    current_graph <- igraph::graph_from_data_frame(d = valid_edges_df, 
+                                                     directed = TRUE, 
+                                                     vertices = defined_nodes) 
+  } else { # No valid edges, but defined_nodes might exist
+    if (!is.null(defined_nodes) && length(defined_nodes) > 0) {
+      current_graph <- igraph::make_empty_graph(n = length(defined_nodes), directed = TRUE)
+      igraph::V(current_graph)$name <- defined_nodes
+    } else {
+      # Should have been caught by the check above, but as a safeguard.
+      return(empty_pr_result)
+    }
   }
   
-  # If graph is empty (no vertices), igraph::page_rank might error or return trivial results.
+  # If graph has no vertices (e.g. defined_nodes was empty and edges were empty), return empty.
   if (igraph::vcount(current_graph) == 0) {
     return(empty_pr_result)
   }
 
-  # Compute PageRank
-  pr_result <- tryCatch({
+  # --- Compute PageRank ---
+  pr_igraph_output <- tryCatch({
     igraph::page_rank(graph = current_graph, damping = damping, ...)
   }, error = function(e) {
     warning("igraph::page_rank computation failed: ", e$message, call. = FALSE)
-    # Return a structure that can be processed into the expected output format, even if empty
-    list(vector = stats::setNames(numeric(0), character(0)))
+    NULL # Return NULL on error to distinguish from valid empty results
   })
 
-  # Format results into a data frame
-  if (length(pr_result$vector) > 0) {
-    pagerank_df <- data.frame(
-      node_name = names(pr_result$vector),
-      pagerank = pr_result$vector,
-      row.names = NULL, # Important for consistent data.frame structure
-      stringsAsFactors = FALSE
-    )
-    # Ensure correct column names as per parameters
-    names(pagerank_df) <- c(pr_node_col, pr_value_col)
-    
-    # Ensure PageRank sums to 1 (within tolerance) for non-empty results
-    # This is more of a check/assertion for development, actual igraph output should be correct.
-    # if (abs(sum(pagerank_df[[pr_value_col]]) - 1.0) > 1e-6 && sum(pagerank_df[[pr_value_col]]) != 0) { 
-    #   warning("PageRank scores do not sum to 1.")
-    # }
-  } else {
-    # Handles cases like completely disconnected graph if igraph returns empty vector, or error case
-    pagerank_df <- empty_pr_result
+  if (is.null(pr_igraph_output) || is.null(pr_igraph_output$vector) || length(pr_igraph_output$vector) == 0) {
+    # This handles errors from page_rank or cases where it returns an empty vector (e.g. graph with nodes but no edges)
+    # For a graph with nodes but no edges, igraph::page_rank gives equal scores. If vcount > 0, vector shouldn't be empty.
+    # However, if an error occurred or if somehow an empty vector is returned for vcount > 0, return empty_pr_result.
+    # If defined_nodes existed but no edges, PR is 1/N for each. Let's ensure this is handled.
+    if (igraph::vcount(current_graph) > 0 && (is.null(pr_igraph_output) || length(pr_igraph_output$vector) == 0) ){
+        # This case implies something went wrong, or a graph of isolates for which PR might be 1/N for each.
+        # igraph::page_rank on isolates assigns them 1/vcount.
+        # If pr_igraph_output$vector is truly empty when it shouldn't be, it's an issue.
+        # Let's assume if vcount > 0, pr_result$vector will be non-empty from igraph for isolates.
+        # If pr_igraph_output is NULL (error) or its vector is empty unexpectedly, return empty_pr_result.
+        return(empty_pr_result) 
+    }
+    # If caught by length(pr_result$vector) == 0, implies no nodes had PR computed or graph was empty. 
   }
+  
+  # --- Format Results ---
+  pagerank_df <- data.frame(
+    node = names(pr_igraph_output$vector),
+    pagerank_val = pr_igraph_output$vector,
+    row.names = NULL,
+    stringsAsFactors = FALSE
+  )
+  names(pagerank_df) <- c(pr_node_col, pr_value_col)
+  
+  # Order by pagerank descending by default (optional, but common)
+  # pagerank_df <- pagerank_df[order(pagerank_df[[pr_value_col]], decreasing = TRUE), , drop = FALSE]
 
   return(pagerank_df)
 } 

@@ -12,14 +12,14 @@
 #'
 #' @return A data frame with the specified URL columns cleaned. An attribute
 #'   `url_map` containing the mapping from original to cleaned URLs might be
-#'   attached invisibly if deemed useful (currently not implemented but noted from spec).
+#'   attached invisibly (currently not implemented but noted from spec).
 #' @export
 #' @importFrom rurl clean_url
 #' @examples
 #' df <- data.frame(
-#'   from = c("http://example.com/path", "HTTPS://Example.com/PATH#frag"),
-#'   to = c("www.another.com?q=1", "another.com/?q=1&b=2"),
-#'   other_col = 1:2
+#'   from = c("http://example.com/path", "HTTPS://Example.com/PATH#frag", NA, "http://example.com/path"),
+#'   to = c("www.another.com?q=1", "another.com/?q=1&b=2", "http://foo.bar", NA),
+#'   other_col = 1:4
 #' )
 #' cleaned_df <- clean_url_columns(df, columns = c("from", "to"))
 #' print(cleaned_df)
@@ -28,7 +28,8 @@
 #' cleaned_df_custom <- clean_url_columns(
 #'   df, 
 #'   columns = c("from", "to"), 
-#'   drop_fragments = FALSE
+#'   drop_fragments = FALSE,
+#'   drop_scheme = TRUE
 #' )
 #' print(cleaned_df_custom)
 clean_url_columns <- function(data_frame, 
@@ -39,59 +40,71 @@ clean_url_columns <- function(data_frame,
   if (!is.data.frame(data_frame)) {
     stop("`data_frame` must be a data frame.", call. = FALSE)
   }
-  if (!is.character(columns) || !all(columns %in% names(data_frame))) {
-    stop("All `columns` must be existing column names in `data_frame`.", call. = FALSE)
+  if (!is.character(columns) || !all(sapply(columns, function(cn) cn %in% names(data_frame)))) {
+    # Ensure all specified columns actually exist
+    missing_cols <- columns[!sapply(columns, function(cn) cn %in% names(data_frame))]
+    if (length(missing_cols) > 0) {
+      stop("Column(s) not found in `data_frame`: ", paste(missing_cols, collapse=", "), call. = FALSE)
+    }
+    # This case should ideally not be reached if the above check is comprehensive,
+    # but as a general guard for columns argument type.
+    stop("`columns` must be a character vector of existing column names.", call. = FALSE)
   }
 
-  # Use the provided memoized function or create a new one for this call
   if (is.null(.memoized_clean_url)) {
-    # This internal helper should be in utils.R
-    # For now, defining it conceptually here or assuming it exists
-    # .local_memoized_clean_url <- .create_memoized_cleaner() 
-    active_clean_url <- .create_memoized_cleaner() # Placeholder for actual memoization util
+    # If no shared memoizer is passed, create one for the scope of this call.
+    # .create_memoized_cleaner is an internal util function (e.g. from utils.R)
+    active_clean_url <- .create_memoized_cleaner() 
   } else {
     active_clean_url <- .memoized_clean_url
   }
 
-  # Capture additional arguments for rurl::clean_url
   rurl_args <- list(...)
-
   cleaned_data_frame <- data_frame
-  url_map_list <- list() # To store mappings for a potential url_map attribute
+  # url_map_list <- list() # For the optional 'url_map' attribute, not implemented in this pass.
 
   for (col_name in columns) {
-    if (col_name %in% names(cleaned_data_frame)) {
-      unique_urls <- unique(stats::na.omit(cleaned_data_frame[[col_name]]))
-      cleaned_urls_vec <- character(length(unique_urls))
-      names(cleaned_urls_vec) <- unique_urls
-      
-      if(length(unique_urls) > 0) {
-        for (i in seq_along(unique_urls)) {
-          original_url <- unique_urls[i]
-          # Apply rurl::clean_url with extra arguments using do.call
-          cleaned_url <- do.call(active_clean_url, c(list(original_url), rurl_args))
-          cleaned_urls_vec[original_url] <- cleaned_url
-        }
-        
-        # Create a mapping for the current column's URLs
-        current_map <- cleaned_urls_vec
-        # Replace NAs in original column with NAs, not "NA" string
-        is_na_original <- is.na(cleaned_data_frame[[col_name]])
-        cleaned_column_values <- cleaned_urls_vec[as.character(cleaned_data_frame[[col_name]])]
-        cleaned_column_values[is_na_original] <- NA
-        cleaned_data_frame[[col_name]] <- cleaned_column_values
-        
-        url_map_list[[col_name]] <- current_map
+    # It's already confirmed col_name is in names(data_frame)
+    original_column_as_char <- as.character(cleaned_data_frame[[col_name]])
+    unique_urls_to_clean <- unique(stats::na.omit(original_column_as_char))
+    
+    if (length(unique_urls_to_clean) > 0) {
+      # Create a named vector to map unique original URLs to their cleaned versions.
+      cleaned_url_lookup <- stats::setNames(vector("character", length(unique_urls_to_clean)), 
+                                           unique_urls_to_clean)
+
+      for (url_to_clean in unique_urls_to_clean) {
+        # Apply active_clean_url (which is memoized rurl::clean_url) with extra arguments.
+        cleaned_version <- do.call(active_clean_url, c(list(url_to_clean), rurl_args))
+        cleaned_url_lookup[url_to_clean] <- cleaned_version
       }
-    } else {
-      warning(paste0("Column '", col_name, "' not found in data_frame."), call. = FALSE)
+      
+      # Apply the map back to the original column structure, preserving NAs.
+      # Initialize a new vector for the cleaned column values.
+      new_column_values <- character(length(original_column_as_char))
+      is_na_in_original <- is.na(original_column_as_char)
+      
+      # Get cleaned URLs for non-NA original URLs
+      # The names of cleaned_url_lookup are the non-NA original_column_as_char values
+      # So, we can use original_column_as_char[!is_na_in_original] to index the lookup table.
+      if(any(!is_na_in_original)){
+         new_column_values[!is_na_in_original] <- cleaned_url_lookup[original_column_as_char[!is_na_in_original]]
+      }
+      # Set NA values in the new column where they were in the original.
+      new_column_values[is_na_in_original] <- NA_character_
+      
+      cleaned_data_frame[[col_name]] <- new_column_values
+      
+      # Optionally, store this column's map for the url_map attribute
+      # url_map_list[[col_name]] <- cleaned_url_lookup
     }
+    # If length(unique_urls_to_clean) == 0, the column was all NAs or empty, no cleaning needed.
   }
 
-  # Combine individual column maps into a single url_map (optional attribute)
-  # This part needs further refinement based on how `url_map` should be structured.
-  # For now, just returning the cleaned data frame.
-  # attr(cleaned_data_frame, "url_map") <- url_map_list # Or some processed version
+  # As per spec: "Attaches url_map invisibly if useful." - Not implementing attachment in this pass.
+  # if (length(url_map_list) > 0) {
+  #   attr(cleaned_data_frame, "url_map") <- url_map_list 
+  # }
 
   return(cleaned_data_frame)
 } 
