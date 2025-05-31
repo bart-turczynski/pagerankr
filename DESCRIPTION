@@ -1,0 +1,24 @@
+Package: pagerankr
+Type: Package
+Title: Modular Toolkit for PageRank Calculation
+Version: 0.0.0.9000
+Authors@R: person("Bart", "Turczynski", email = "bart@example.com", role = c("aut", "cre")) # Replace with actual details
+Description: Provides a set of modular, pipeable functions to calculate PageRank scores from edge lists and redirect reports, common in SEO analysis. Functions handle URL cleaning, redirect resolution, edge deduplication, isolate handling, and PageRank computation using base R for data manipulation and 'igraph' for core PageRank calculation.
+License: MIT + file LICENSE # Or your chosen license, e.g., GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.1 # Or current Roxygen2 version
+Imports:
+    igraph,
+    rurl
+Suggests:
+    testthat (>= 3.0.0),
+    knitr,
+    rmarkdown,
+    covr,
+    lintr,
+    goodpractice
+Config/Needs/build: local
+# VignetteBuilder: knitr # Uncomment if you plan to have vignettes
+# URL: https://github.com/bart-turczynski/pagerankr # Replace with actual URL
+# BugReports: https://github.com/bart-turczynski/pagerankr/issues # Replace
