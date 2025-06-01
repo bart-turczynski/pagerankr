@@ -118,7 +118,7 @@ pagerank <- function(edge_list_df,
   # Default rurl_params for internal consistency if not overridden by user for protocol handling
   effective_rurl_params <- rurl_params
   if (is.null(effective_rurl_params$protocol_handling)) {
-    effective_rurl_params$protocol_handling <- "force_http" # Ensure schemes for consistency
+    effective_rurl_params$protocol_handling <- "http" # Ensure schemes for consistency, valid for rurl
   }
   # rurl::get_clean_url will apply its own defaults for other params like case_handling, www_handling, etc., if not in rurl_params.
 
