@@ -88,7 +88,7 @@ resolve_redirects <- function(edge_list_df,
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
   if (nrow(edge_list_df) > 0 && !all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
-    stop("`edge_list_df` must have '", edge_from_col, "' and '", edge_to_col, "' columns if not empty.", call. = FALSE)
+    stop(paste0("`edge_list_df` must have '", edge_from_col, "' and '", edge_to_col, "' columns if not empty."), call. = FALSE)
   }
 
   if (!is.data.frame(redirects_df)) {
@@ -103,10 +103,9 @@ resolve_redirects <- function(edge_list_df,
     return(edge_list_df)
   }
   
-  # Filter out self-referencing redirects and NA values in redirect map
+  # Filter out NA values in redirect map. Self-referencing redirects are handled by .trace_redirect_path for cycle detection.
   redirects_df <- redirects_df[!is.na(redirects_df[[redirect_from_col]]) &
-                               !is.na(redirects_df[[redirect_to_col]]) &
-                               redirects_df[[redirect_from_col]] != redirects_df[[redirect_to_col]], , drop = FALSE]
+                               !is.na(redirects_df[[redirect_to_col]]), , drop = FALSE]
   
   # --- Prepare Redirect Map & Check for Ambiguities ---
   redirect_sources_raw <- redirects_df[[redirect_from_col]]
@@ -146,14 +145,17 @@ resolve_redirects <- function(edge_list_df,
   # --- Resolve URLs in Edge List ---
   resolved_edge_list <- edge_list_df
   
-  # Only resolve the 'to' column (target of the edge)
-  if (edge_to_col %in% names(resolved_edge_list)) {
-    original_to <- as.character(resolved_edge_list[[edge_to_col]])
-    resolved_to <- vapply(original_to, function(url) {
-      if (is.na(url)) return(NA_character_)
-      .trace_redirect_path(url = url, redirect_map = redirect_map, path = character(0))
-    }, character(1))
-    resolved_edge_list[[edge_to_col]] <- resolved_to
+  # Resolve both 'from' and 'to' columns
+  for (col_name in c(edge_from_col, edge_to_col)) {
+    if (col_name %in% names(resolved_edge_list)) {
+      original_urls <- as.character(resolved_edge_list[[col_name]])
+      resolved_urls <- vapply(original_urls, function(url) {
+        if (is.na(url)) return(NA_character_)
+        # .trace_redirect_path is assumed to exist and handle cycles correctly
+        .trace_redirect_path(url = url, redirect_map = redirect_map, path = character(0)) 
+      }, character(1))
+      resolved_edge_list[[col_name]] <- resolved_urls
+    }
   }
 
   return(resolved_edge_list)
