@@ -106,69 +106,51 @@ describe("pagerank main wrapper basic functionality", {
   })
   
   it("controls self_loops argument", {
-    edges_sl <- data.frame(from = c("A", "B"), to = c("A", "A"), stringsAsFactors = FALSE) # A->A, B->A
-    pr_drop_sl <- pagerank(edges_sl, self_loops = "drop") # A->A is dropped, B->A remains. nodes B,A
+    edges_sl <- data.frame(from = c("http://page.com/a", "http://page.com/b"), to = c("http://page.com/a", "http://page.com/a"), stringsAsFactors = FALSE) # A->A, B->A
+    pr_drop_sl <- pagerank(edges_sl, self_loops = "drop", drop_isolates_flag = FALSE) # A->A is dropped, B->A remains. B becomes an isolate if A is dropped.
+    # With drop_isolates_flag = FALSE, B should remain with base PR, A gets PR from B.
+    # Node "b" points to "a". "a" has a self-loop. 
+    # If self-loop "a->a" is dropped, graph is "b" -> "a". 
+    # "b" becomes a source, "a" a sink. PR("a") > PR("b").
     expect_equal(nrow(pr_drop_sl), 2)
-    expect_false("A" %in% pr_drop_sl$node_name[pr_drop_sl$pagerank == 0]) # No, PR for B->A is A=0.65, B=0.34 approx
-                                                                        # B is source, A is sink basically
-                                                                        # PR for A > PR for B
-    # Assuming minimal cleaning for simple strings like "A" -> "A" (original case)
-    expect_gt(pr_drop_sl$pagerank[pr_drop_sl$node_name=="A"] , pr_drop_sl$pagerank[pr_drop_sl$node_name=="B"])
+    # Check actual cleaned names based on get_clean_url defaults (lowercase, http if missing)
+    # "http://page.com/a", "http://page.com/b"
+    expect_gt(pr_drop_sl$pagerank[pr_drop_sl$node_name=="http://page.com/a"] , pr_drop_sl$pagerank[pr_drop_sl$node_name=="http://page.com/b"])
     
-    pr_keep_sl <- pagerank(edges_sl, self_loops = "keep") # A->A kept, B->A kept. Graph is A<=>A, B->A
+    pr_keep_sl <- pagerank(edges_sl, self_loops = "keep", drop_isolates_flag = FALSE) # A->A kept, B->A kept. 
     expect_equal(nrow(pr_keep_sl), 2)
-    # A gets PR from B and from its self-loop (or however igraph treats it)
-    # This should change PR distribution compared to dropping.
     expect_false(all(pr_drop_sl$pagerank == pr_keep_sl$pagerank)) # Expect different PR values
   })
   
   it("controls drop_isolates_flag argument", {
-    edges_iso <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    # With drop_isolates_flag = TRUE (default), C is not in graph if only in vertices_df passed to compute_pagerank
-    # but pagerank() wrapper constructs vertices_df based on drop_isolates_flag and edge list content.
-    # If an edge C->D exists, and then D->E, and we drop C,D,E, pagerank might be empty.
-    # Let's test by ensuring an isolate would be removed / kept.
-    
-    # Scenario: A->B. If we add C as an unconnected node. 
-    # drop_isolates_flag = TRUE: C should not be in PR output
-    # drop_isolates_flag = FALSE: C should be in PR output with base PR
-    
-    # To test this, we need pagerank() to know about C.
-    # If C is not in edge_list_df, drop_isolates() won't see it unless pagerank() passes it to vertices_df.
-    # The logic is: drop_isolates() operates on current_edge_list. 
-    # If drop_isolates_flag=T, vertices_for_pagerank_df = nodes_with_degree>0 from current_edge_list.
-    # If drop_isolates_flag=F, vertices_for_pagerank_df = ALL unique nodes from current_edge_list.
-    
-    # So, to test drop_isolates_flag, we need an edge list where some nodes become isolates *after* processing.
-    # Example: A->B, B->A.  C->C (self-loop). D (no links)
-    # Assume D is not in edge list. C->C is an edge.
+    # Scenario: A->B, B->A. C->C (self-loop). 
     edges_complex = rbind(
-        data.frame(from="A",to="B", stringsAsFactors=FALSE),
-        data.frame(from="B",to="A", stringsAsFactors=FALSE),
-        data.frame(from="C",to="C", stringsAsFactors=FALSE)
-        # D is an implicit isolate if not mentioned
+        data.frame(from="http://page.com/a",to="http://page.com/b", stringsAsFactors=FALSE),
+        data.frame(from="http://page.com/b",to="http://page.com/a", stringsAsFactors=FALSE),
+        data.frame(from="http://page.com/c",to="http://page.com/c", stringsAsFactors=FALSE)
     )
     
     # Case 1: self_loops="keep", drop_isolates_flag=FALSE
     # Edges: A->B, B->A, C->C. Nodes: A, B, C. All connected or self-looped.
+    # Expected cleaned names: "http://page.com/a", "http://page.com/b", "http://page.com/c"
     pr_keep_iso_keep_sl <- pagerank(edges_complex, self_loops="keep", drop_isolates_flag=FALSE)
     expect_equal(nrow(pr_keep_iso_keep_sl), 3) # A,B,C
-    expect_true(all(c("A","B","C") %in% pr_keep_iso_keep_sl$node_name))
+    expect_true(all(c("http://page.com/a","http://page.com/b","http://page.com/c") %in% pr_keep_iso_keep_sl$node_name))
     
     # Case 2: self_loops="drop", drop_isolates_flag=FALSE
     # Edges: A->B, B->A. C->C is dropped. Nodes: A, B, C. C becomes an isolate.
     # drop_isolates_flag=FALSE means C (now an isolate) is KEPT for PR.
     pr_keep_iso_drop_sl <- pagerank(edges_complex, self_loops="drop", drop_isolates_flag=FALSE)
     expect_equal(nrow(pr_keep_iso_drop_sl), 3) # A,B,C. C is isolate, gets base PR.
-    expect_true(pr_keep_iso_drop_sl$pagerank[pr_keep_iso_drop_sl$node_name=="C"] < 
-                pr_keep_iso_drop_sl$pagerank[pr_keep_iso_drop_sl$node_name=="A"])
+    expect_true(pr_keep_iso_drop_sl$pagerank[pr_keep_iso_drop_sl$node_name=="http://page.com/c"] < 
+                pr_keep_iso_drop_sl$pagerank[pr_keep_iso_drop_sl$node_name=="http://page.com/a"])
     
     # Case 3: self_loops="drop", drop_isolates_flag=TRUE
     # Edges: A->B, B->A. C->C is dropped. C becomes an isolate.
     # drop_isolates_flag=TRUE means C (now an isolate) is DROPPED before PR.
     pr_drop_iso_drop_sl <- pagerank(edges_complex, self_loops="drop", drop_isolates_flag=TRUE)
     expect_equal(nrow(pr_drop_iso_drop_sl), 2) # A,B only
-    expect_false("C" %in% pr_drop_iso_drop_sl$node_name)
+    expect_false("http://page.com/c" %in% pr_drop_iso_drop_sl$node_name)
   })
   
   it("handles custom column names for edges and redirects", {
