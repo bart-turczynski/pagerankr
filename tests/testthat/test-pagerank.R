@@ -50,16 +50,22 @@ describe("pagerank main wrapper basic functionality", {
     expect_true(all(c("node_name", "pagerank") %in% names(pr_full)))
     if(nrow(pr_full) > 0) expect_equal(sum(pr_full$pagerank), 1, tolerance = 1e-9)
     
-    # Based on the assumed flow: edge C-resolved.com -> D.com. Resulting nodes: C-resolved.com, D.com.
-    # C-resolved.com PR should be (1-0.85)/2 = 0.075
-    # D.com PR should be (1-0.85)/2 + 0.85 * (1/1) * PR(C-resolved.com) ? No, igraph is more complex.
-    # For a simple C_res -> D graph, PR(D) > PR(C_res)
-    expect_true(nrow(pr_full) %in% c(0,2)) # Could be 0 if all resolve to self loops and are dropped.
+    # With pagerank() now defaulting to rurl_params$protocol_handling = "force_http", 
+    # all URLs should have schemes.
+    # Cleaned Edges: http://a.com/ -> http://b.com/; http://b.com/ -> http://a.com/; http://c.com/?q=1 -> http://d.com/
+    # Cleaned Redirects: http://c.com/?q=1 -> http://c-resolved.com/; http://b.com/ -> http://a.com/
+    # Resolved Edges: http://a.com/ -> http://a.com/; http://a.com/ -> http://a.com/; http://c-resolved.com/ -> http://d.com/
+    # After unique_edges (self_loops="drop"): http://c-resolved.com/ -> http://d.com/ remains.
+    # Node http://a.com/ becomes an isolate and is dropped.
+    # Expected nodes: "http://c-resolved.com/", "http://d.com/"
+    expect_true(nrow(pr_full) %in% c(0,2))
     if(nrow(pr_full) == 2) {
-      expect_true("http://c-resolved.com/" %in% pr_full$node_name || "http://c-resolved.com" %in% pr_full$node_name) # rurl adds trailing slash sometimes
-      expect_true("http://d.com/" %in% pr_full$node_name || "http://d.com" %in% pr_full$node_name)
-      pr_d <- pr_full$pagerank[grep("d\\.com", pr_full$node_name)]
-      pr_c_res <- pr_full$pagerank[grep("c-resolved\\.com", pr_full$node_name)]
+      # URLs should have trailing slashes if original or cleaning added them and trailing_slash_handling='none' (default of get_clean_url)
+      # force_http might interact with this. Assuming http://domain.com/ for schemeless inputs.
+      expect_true("http://c-resolved.com/" %in% pr_full$node_name) # Reverted to expect scheme
+      expect_true("http://d.com/" %in% pr_full$node_name)          # Reverted to expect scheme
+      pr_d <- pr_full$pagerank[pr_full$node_name == "http://d.com/"]
+      pr_c_res <- pr_full$pagerank[pr_full$node_name == "http://c-resolved.com/"]
       expect_gt(pr_d, pr_c_res)
     }
   })

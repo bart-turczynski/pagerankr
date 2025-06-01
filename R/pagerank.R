@@ -115,6 +115,13 @@ pagerank <- function(edge_list_df,
   edge_url_cols <- intersect(c(edge_from_col, edge_to_col), names(current_edge_list))
   redirect_url_cols <- if (!is.null(current_redirects_list)) intersect(c(redirect_from_col, redirect_to_col), names(current_redirects_list)) else character(0)
 
+  # Default rurl_params for internal consistency if not overridden by user for protocol handling
+  effective_rurl_params <- rurl_params
+  if (is.null(effective_rurl_params$protocol_handling)) {
+    effective_rurl_params$protocol_handling <- "force_http" # Ensure schemes for consistency
+  }
+  # rurl::get_clean_url will apply its own defaults for other params like case_handling, www_handling, etc., if not in rurl_params.
+
   shared_cleaner <- NULL
   # Condition for shared cleaning: both flags TRUE, redirects present, and columns exist for cleaning
   use_shared_cleaning <- clean_edge_urls && clean_redirect_urls && 
@@ -129,25 +136,25 @@ pagerank <- function(edge_list_df,
                                      c(list(data_frame = current_edge_list, 
                                             columns = edge_url_cols, 
                                             .memoized_clean_url = shared_cleaner), 
-                                       rurl_params))
+                                       effective_rurl_params))
     }
     if (length(redirect_url_cols) > 0) {
         current_redirects_list <- do.call(clean_url_columns, 
                                           c(list(data_frame = current_redirects_list, 
                                                  columns = redirect_url_cols, 
-                                                 .memoized_clean_url = shared_cleaner), rurl_params))
+                                                 .memoized_clean_url = shared_cleaner), effective_rurl_params))
     }
   } else {
     # No shared cleaning, apply individually if flags are set
     if (clean_edge_urls && length(edge_url_cols) > 0) {
       current_edge_list <- do.call(clean_url_columns, 
                                    c(list(data_frame = current_edge_list, 
-                                          columns = edge_url_cols), rurl_params)) # Uses its own memoizer
+                                          columns = edge_url_cols), effective_rurl_params))
     }
     if (clean_redirect_urls && !is.null(current_redirects_list) && nrow(current_redirects_list) > 0 && length(redirect_url_cols) > 0) {
       current_redirects_list <- do.call(clean_url_columns, 
                                         c(list(data_frame = current_redirects_list, 
-                                               columns = redirect_url_cols), rurl_params)) # Uses its own memoizer
+                                               columns = redirect_url_cols), effective_rurl_params))
     }
   }
 
