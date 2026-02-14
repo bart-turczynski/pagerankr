@@ -23,6 +23,8 @@ pagerank(
   edge_to_col = "to",
   redirect_from_col = "from",
   redirect_to_col = "to",
+  duplicate_from_policy = c("strict", "first_wins", "last_wins", "most_frequent",
+    "prune_source", "resolve_if_consistent"),
   ...
 )
 }
@@ -89,7 +91,13 @@ results. One of:
 
 \item{edge_from_col, edge_to_col}{Names of from/to columns in `edge_list_df`.}
 
-\item{redirect_from_col, redirect_to_col}{Names of from/to columns in `redirects_df`.}
+\item{redirect_from_col, redirect_to_col}{Names of from/to columns in
+`redirects_df`.}
+
+\item{duplicate_from_policy}{How to handle conflicting redirects in
+`redirects_df`. Passed through to [resolve_redirects()]. Default
+`"strict"` (error on conflicts). See [resolve_redirects()] for all
+available policies.}
 
 \item{...}{Additional arguments passed to `compute_pagerank` and subsequently
 to `igraph::page_rank` (e.g., `damping`).}

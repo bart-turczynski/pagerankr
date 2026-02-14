@@ -52,7 +52,12 @@
 #'       disappears.}
 #'   }
 #' @param edge_from_col,edge_to_col Names of from/to columns in `edge_list_df`.
-#' @param redirect_from_col,redirect_to_col Names of from/to columns in `redirects_df`.
+#' @param redirect_from_col,redirect_to_col Names of from/to columns in
+#'   `redirects_df`.
+#' @param duplicate_from_policy How to handle conflicting redirects in
+#'   `redirects_df`. Passed through to [resolve_redirects()]. Default
+#'   `"strict"` (error on conflicts). See [resolve_redirects()] for all
+#'   available policies.
 #' @param ... Additional arguments passed to `compute_pagerank` and subsequently
 #'   to `igraph::page_rank` (e.g., `damping`).
 #'
@@ -134,12 +139,19 @@ pagerank <- function(edge_list_df,
                      edge_to_col = "to",
                      redirect_from_col = "from",
                      redirect_to_col = "to",
+                     duplicate_from_policy = c("strict",
+                                               "first_wins",
+                                               "last_wins",
+                                               "most_frequent",
+                                               "prune_source",
+                                               "resolve_if_consistent"),
                      ...) {
 
   # --- Argument Matching and Basic Validation ---
   self_loops <- match.arg(self_loops)
   nofollow_action <- match.arg(nofollow_action)
   robots_blocked_action <- match.arg(robots_blocked_action)
+  duplicate_from_policy <- match.arg(duplicate_from_policy)
 
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
@@ -270,10 +282,11 @@ pagerank <- function(edge_list_df,
   # --- 2. Redirect Resolution ---
   if (!is.null(current_redirects_list) && nrow(current_redirects_list) > 0) {
     current_edge_list <- resolve_redirects(
-      edge_list_df = current_edge_list, 
+      edge_list_df = current_edge_list,
       redirects_df = current_redirects_list,
       edge_from_col = edge_from_col, edge_to_col = edge_to_col,
-      redirect_from_col = redirect_from_col, redirect_to_col = redirect_to_col
+      redirect_from_col = redirect_from_col, redirect_to_col = redirect_to_col,
+      duplicate_from_policy = duplicate_from_policy
     )
   }
 

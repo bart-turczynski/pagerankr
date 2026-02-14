@@ -10,7 +10,9 @@ resolve_redirects(
   edge_from_col = "from",
   edge_to_col = "to",
   redirect_from_col = "from",
-  redirect_to_col = "to"
+  redirect_to_col = "to",
+  duplicate_from_policy = c("strict", "first_wins", "last_wins", "most_frequent",
+    "prune_source", "resolve_if_consistent")
 )
 }
 \arguments{
@@ -30,6 +32,20 @@ containing source URLs of redirects. Default "from".}
 
 \item{redirect_to_col}{Character, the name of the column in `redirects_df`
 containing target URLs of redirects. Default "to".}
+
+\item{duplicate_from_policy}{Character, how to handle conflicting redirects
+(same source URL mapping to multiple distinct targets). One of:
+\describe{
+  \item{"strict"}{(Default) Error on any conflict.}
+  \item{"first_wins"}{Keep the first occurrence for each conflicting
+    source.}
+  \item{"last_wins"}{Keep the last occurrence for each conflicting source.}
+  \item{"most_frequent"}{Keep the most common target. Ties broken by first
+    occurrence.}
+  \item{"prune_source"}{Remove ALL redirects from any conflicting source.}
+  \item{"resolve_if_consistent"}{Allow exact duplicates; error only on
+    true conflicts where targets differ.}
+}}
 }
 \value{
 An updated `edge_list_df` with URLs in `edge_from_col` and
@@ -37,11 +53,18 @@ An updated `edge_list_df` with URLs in `edge_from_col` and
 }
 \description{
 Updates an edge list by replacing URLs with their final
-  destinations based on a redirect data frame. Detects redirect cycles and
-  ambiguities.
+  destinations based on a redirect data frame. Handles redirect chains,
+  detects cycles, and resolves conflicting redirects using configurable
+  policies.
 }
 \details{
-Self-referencing redirects (where from == to) and any redirects with NA in from or to are automatically filtered out before processing.
+Self-referencing redirects (where from == to) and any redirects with NA
+in from or to are automatically filtered out before processing.
+
+When crawl data contains conflicting redirects (the same URL redirecting
+to different targets), use \code{duplicate_from_policy} to control the
+behavior. The default \code{"strict"} preserves backward compatibility
+by erroring on any conflict.
 }
 \examples{
 edges <- data.frame(
@@ -65,37 +88,28 @@ redirects_chain <- data.frame(
 )
 resolve_redirects(edges_chain, redirects_chain)
 
-# Example with different column names
-edges_custom_names <- data.frame(source_url = "Page1", target_url = "Page2")
-redirects_custom_names <- data.frame(original = "Page2", final = "Page2_resolved")
-resolve_redirects(edges_custom_names, redirects_custom_names,
-                  edge_from_col = "source_url", edge_to_col = "target_url",
-                  redirect_from_col = "original", redirect_to_col = "final")
-
-# Example with NAs (NAs should be preserved)
-edges_with_na <- data.frame(
- from = c("A", NA, "C"),
- to = c("B", "D", NA),
- stringsAsFactors = FALSE
+# Example with conflicting redirects resolved via first_wins
+edges_conflict <- data.frame(
+  from = "A", to = "B", stringsAsFactors = FALSE
 )
-redirects_simple <- data.frame(from = "A", to = "A_final", stringsAsFactors = FALSE)
-resolve_redirects(edges_with_na, redirects_simple)
+redirects_conflict <- data.frame(
+  from = c("B", "B"),
+  to = c("C", "D"),
+  stringsAsFactors = FALSE
+)
+resolve_redirects(edges_conflict, redirects_conflict,
+                  duplicate_from_policy = "first_wins")
 
-# Example of error for ambiguity (uncomment to test):
-# edges_for_amb_test <- data.frame(from = "A", to = "X", stringsAsFactors = FALSE)
-# redirects_ambiguous <- data.frame(
-#   from = c("A", "A"),
-#   to = c("B", "C"),
-#   stringsAsFactors = FALSE
-# )
-# try(resolve_redirects(edges_for_amb_test, redirects_ambiguous))
-
-# Example of error for cycle (uncomment to test):
-# redirects_cycle <- data.frame(
-#   from = c("L1", "L2"),
-#   to = c("L2", "L1"),
-#   stringsAsFactors = FALSE
-# )
-# edges_cycle <- data.frame(from = "Start", to = "L1", stringsAsFactors = FALSE)
-# try(resolve_redirects(edges_cycle, redirects_cycle))
+# Example with different column names
+edges_custom <- data.frame(
+  source_url = "Page1", target_url = "Page2"
+)
+redirects_custom <- data.frame(
+  original = "Page2", final = "Page2_resolved"
+)
+resolve_redirects(edges_custom, redirects_custom,
+                  edge_from_col = "source_url",
+                  edge_to_col = "target_url",
+                  redirect_from_col = "original",
+                  redirect_to_col = "final")
 }
