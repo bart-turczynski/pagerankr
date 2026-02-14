@@ -12,7 +12,8 @@ resolve_redirects(
   redirect_from_col = "from",
   redirect_to_col = "to",
   duplicate_from_policy = c("strict", "first_wins", "last_wins", "most_frequent",
-    "prune_source", "resolve_if_consistent")
+    "prune_source", "resolve_if_consistent"),
+  loop_handling = c("error", "prune_loop", "break_arrow")
 )
 }
 \arguments{
@@ -46,6 +47,17 @@ containing target URLs of redirects. Default "to".}
   \item{"resolve_if_consistent"}{Allow exact duplicates; error only on
     true conflicts where targets differ.}
 }}
+
+\item{loop_handling}{Character, how to handle redirect cycles (loops).
+One of:
+\describe{
+  \item{"error"}{(Default) Error when a redirect cycle is detected.}
+  \item{"prune_loop"}{Remove all edges involved in cycles. URLs in the
+    loop remain unresolved (map to themselves).}
+  \item{"break_arrow"}{For each cycle, keep the node with the highest
+    in-degree as the sink and remove edges pointing away from it within
+    the cycle. This preserves as much of the chain as possible.}
+}}
 }
 \value{
 An updated `edge_list_df` with URLs in `edge_from_col` and
@@ -65,6 +77,12 @@ When crawl data contains conflicting redirects (the same URL redirecting
 to different targets), use \code{duplicate_from_policy} to control the
 behavior. The default \code{"strict"} preserves backward compatibility
 by erroring on any conflict.
+
+Redirect resolution uses a graph-based approach: an igraph is built from
+the redirect rules, strongly connected components (SCCs) are used to
+detect loops, and the \code{loop_handling} policy determines what happens
+to cycles. After loop handling, each URL is mapped to its terminal
+destination by traversing the acyclic graph.
 }
 \examples{
 edges <- data.frame(

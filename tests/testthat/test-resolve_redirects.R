@@ -94,7 +94,7 @@ describe("resolve_redirects error handling", {
       stringsAsFactors = FALSE
     )
     expect_error(resolve_redirects(edges, redirects_cycle),
-                 regexp = "Redirect cycle detected for URL 'L1'. Path: L1 -> L2 -> L3 -> L1")
+                 regexp = "Redirect cycle detected: L1 -> L2 -> L3 -> L1")
 
     # Self-referencing redirects (from == to) are silently filtered, not treated as cycles.
     # Moved to its own test below. Multi-hop cycles (L1->L2->L3->L1) still error.
@@ -497,5 +497,297 @@ describe("duplicate_from_policy integration", {
                    clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
     expect_true(is.data.frame(pr))
     expect_true(nrow(pr) > 0)
+  })
+})
+
+
+# =============================================================================
+# Graph-based redirect resolution and loop_handling tests
+# =============================================================================
+
+describe("loop_handling = 'error' (default)", {
+  it("errors on simple redirect cycle (A -> B -> C -> A)", {
+    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("A", "B", "C"),
+      to = c("B", "C", "A"),
+      stringsAsFactors = FALSE
+    )
+    expect_error(
+      resolve_redirects(edges, redirects),
+      regexp = "Redirect cycle detected"
+    )
+  })
+
+  it("errors on two-node cycle (A -> B -> A)", {
+    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("A", "B"), to = c("B", "A"), stringsAsFactors = FALSE
+    )
+    expect_error(
+      resolve_redirects(edges, redirects),
+      regexp = "Redirect cycle detected"
+    )
+  })
+
+  it("error message includes readable cycle path", {
+    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("A", "B", "C"),
+      to = c("B", "C", "A"),
+      stringsAsFactors = FALSE
+    )
+    expect_error(
+      resolve_redirects(edges, redirects),
+      regexp = "A -> B -> C -> A"
+    )
+  })
+})
+
+
+describe("loop_handling = 'prune_loop'", {
+  it("removes cycle edges and leaves URLs unresolved", {
+    edges <- data.frame(
+      from = c("X", "Y"),
+      to = c("A", "D"),
+      stringsAsFactors = FALSE
+    )
+    # A -> B -> C -> A is a cycle; D -> E is not
+    redirects <- data.frame(
+      from = c("A", "B", "C", "D"),
+      to = c("B", "C", "A", "E"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects, loop_handling = "prune_loop")
+    # A stays as A (cycle pruned), D becomes E
+    expect_equal(resolved$to[resolved$from == "X"], "A")
+    expect_equal(resolved$to[resolved$from == "Y"], "E")
+  })
+
+  it("handles cycle where all redirects are in loop", {
+    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("A", "B"), to = c("B", "A"), stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects, loop_handling = "prune_loop")
+    # A -> B -> A is a cycle, both pruned. A stays as A.
+    expect_equal(resolved$to, "A")
+  })
+
+  it("preserves chains that feed into a cycle node but aren't in the cycle", {
+    edges <- data.frame(from = "Start", to = "P", stringsAsFactors = FALSE)
+    # P -> Q (linear), Q -> R -> S -> Q (cycle)
+    redirects <- data.frame(
+      from = c("P", "Q", "R", "S"),
+      to = c("Q", "R", "S", "Q"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects, loop_handling = "prune_loop")
+    # Q, R, S are in a cycle -> their edges are pruned
+    # P -> Q still exists as a linear redirect, so P resolves to Q
+    # Q is now terminal (its outgoing edge was pruned)
+    expect_equal(resolved$to, "Q")
+  })
+})
+
+
+describe("loop_handling = 'break_arrow'", {
+  it("breaks cycle by keeping highest in-degree node as sink", {
+    edges <- data.frame(
+      from = c("X", "Y"),
+      to = c("A", "D"),
+      stringsAsFactors = FALSE
+    )
+    # A -> B -> C -> A is a cycle; D -> E is linear
+    # In the cycle, A has in-degree 2 (from C within cycle + from X via edge)
+    # but within the SCC, in-degrees are A:1(from C), B:1(from A), C:1(from B)
+    # Highest in-degree within SCC: all equal, so first is picked
+    redirects <- data.frame(
+      from = c("A", "B", "C", "D"),
+      to = c("B", "C", "A", "E"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects, loop_handling = "break_arrow")
+    # D -> E should still work
+    expect_equal(resolved$to[resolved$from == "Y"], "E")
+    # A should resolve to something (not error)
+    expect_true(!is.na(resolved$to[resolved$from == "X"]))
+  })
+
+  it("break_arrow resolves chain through broken cycle", {
+    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    # A -> B -> C -> A cycle. If A is picked as sink (outgoing A->B removed),
+    # then B -> C -> A, so A resolves to A (terminal)
+    # If C is picked (outgoing C->A removed), then A -> B -> C (terminal)
+    redirects <- data.frame(
+      from = c("A", "B", "C"),
+      to = c("B", "C", "A"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects, loop_handling = "break_arrow")
+    # Should not error and should resolve to something
+    expect_true(is.character(resolved$to))
+    expect_true(!is.na(resolved$to))
+  })
+
+  it("break_arrow with asymmetric in-degree picks correct sink", {
+    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    # A -> B, C -> B, B -> A creates a cycle {A, B} with B having in-degree 2
+    # So B should be kept as sink, B->A removed, A -> B resolves to B
+    redirects <- data.frame(
+      from = c("A", "B", "C"),
+      to = c("B", "A", "B"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects, loop_handling = "break_arrow")
+    # A -> B (B is the sink, B->A removed), so A resolves to B
+    # X -> A -> B
+    expect_equal(resolved$to, "B")
+  })
+})
+
+
+describe("graph-based resolution: complex topologies", {
+  it("resolves long chain (5 hops)", {
+    edges <- data.frame(from = "Start", to = "A", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("A", "B", "C", "D", "E"),
+      to = c("B", "C", "D", "E", "Final"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects)
+    expect_equal(resolved$to, "Final")
+  })
+
+  it("resolves diamond/convergent redirects", {
+    # A -> C, B -> C (both redirect to same target)
+    edges <- data.frame(
+      from = c("X", "Y"), to = c("A", "B"), stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("A", "B"), to = c("C", "C"), stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects)
+    expect_equal(resolved$to, c("C", "C"))
+  })
+
+  it("handles mixed: some URLs redirect, some don't", {
+    edges <- data.frame(
+      from = c("A", "B", "C"),
+      to = c("D", "E", "F"),
+      stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("D"), to = c("D_final"), stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects)
+    expect_equal(resolved$to, c("D_final", "E", "F"))
+    expect_equal(resolved$from, c("A", "B", "C"))
+  })
+
+  it("resolves from-column URLs too", {
+    edges <- data.frame(
+      from = c("OldPage", "Other"),
+      to = c("Target", "Target"),
+      stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("OldPage"), to = c("NewPage"), stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects)
+    expect_equal(resolved$from, c("NewPage", "Other"))
+  })
+
+  it("handles tree-shaped redirects (one source, branching via edges)", {
+    edges <- data.frame(
+      from = c("Hub", "Hub", "Hub"),
+      to = c("A", "B", "C"),
+      stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("A", "B"),
+      to = c("A_final", "B_final"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects)
+    expect_equal(resolved$to, c("A_final", "B_final", "C"))
+  })
+})
+
+
+describe("loop_handling passthrough via pagerank()", {
+  it("pagerank() accepts loop_handling = 'prune_loop'", {
+    edges <- data.frame(
+      from = c("X", "Y"), to = c("Y", "X"), stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("X", "Z"), to = c("Z", "X"), stringsAsFactors = FALSE
+    )
+    # With loop_handling = "error" this would fail
+    pr <- pagerank(edges, redirects_df = redirects,
+                   loop_handling = "prune_loop",
+                   clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+    expect_true(is.data.frame(pr))
+    expect_true(nrow(pr) > 0)
+  })
+
+  it("pagerank() accepts loop_handling = 'break_arrow'", {
+    edges <- data.frame(
+      from = c("A", "B"), to = c("B", "A"), stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("A", "C"), to = c("C", "A"), stringsAsFactors = FALSE
+    )
+    pr <- pagerank(edges, redirects_df = redirects,
+                   loop_handling = "break_arrow",
+                   clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+    expect_true(is.data.frame(pr))
+    expect_true(nrow(pr) > 0)
+  })
+
+  it("pagerank() default loop_handling = 'error' still errors on cycles", {
+    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("A", "B"), to = c("B", "A"), stringsAsFactors = FALSE
+    )
+    expect_error(
+      pagerank(edges, redirects_df = redirects,
+               clean_edge_urls = FALSE, clean_redirect_urls = FALSE),
+      regexp = "Redirect cycle detected"
+    )
+  })
+})
+
+
+describe("loop_handling with duplicate_from_policy interaction", {
+  it("prune_loop works with first_wins policy", {
+    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("A", "A", "B"),
+      to = c("B", "C", "A"),
+      stringsAsFactors = FALSE
+    )
+    # first_wins: A -> B (first), then B -> A creates cycle
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "first_wins",
+                                  loop_handling = "prune_loop")
+    expect_true(is.data.frame(resolved))
+    # A -> B -> A cycle pruned, so A stays as A
+    expect_equal(resolved$to, "A")
+  })
+
+  it("break_arrow works with most_frequent policy", {
+    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("A", "A", "A", "B"),
+      to = c("B", "B", "C", "A"),
+      stringsAsFactors = FALSE
+    )
+    # most_frequent: A -> B (appears 2x vs C's 1x), then B -> A creates cycle
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "most_frequent",
+                                  loop_handling = "break_arrow")
+    expect_true(is.data.frame(resolved))
+    expect_true(!is.na(resolved$to))
   })
 }) 
