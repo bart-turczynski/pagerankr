@@ -1,7 +1,8 @@
 #' @title Resolve Redirects in an Edge List
 #' @description Updates an edge list by replacing URLs with their final
-#'   destinations based on a redirect data frame. Detects redirect cycles and
-#'   ambiguities.
+#'   destinations based on a redirect data frame. Handles redirect chains,
+#'   detects cycles, and resolves conflicting redirects using configurable
+#'   policies.
 #'
 #' @param edge_list_df A data frame representing the edge list.
 #' @param redirects_df A data frame containing redirect rules, with 'from' and
@@ -14,6 +15,19 @@
 #'   containing source URLs of redirects. Default "from".
 #' @param redirect_to_col Character, the name of the column in `redirects_df`
 #'   containing target URLs of redirects. Default "to".
+#' @param duplicate_from_policy Character, how to handle conflicting redirects
+#'   (same source URL mapping to multiple distinct targets). One of:
+#'   \describe{
+#'     \item{"strict"}{(Default) Error on any conflict.}
+#'     \item{"first_wins"}{Keep the first occurrence for each conflicting
+#'       source.}
+#'     \item{"last_wins"}{Keep the last occurrence for each conflicting source.}
+#'     \item{"most_frequent"}{Keep the most common target. Ties broken by first
+#'       occurrence.}
+#'     \item{"prune_source"}{Remove ALL redirects from any conflicting source.}
+#'     \item{"resolve_if_consistent"}{Allow exact duplicates; error only on
+#'       true conflicts where targets differ.}
+#'   }
 #'
 #' @return An updated `edge_list_df` with URLs in `edge_from_col` and
 #'   `edge_to_col` replaced by their final resolved destinations.
@@ -40,70 +54,77 @@
 #' )
 #' resolve_redirects(edges_chain, redirects_chain)
 #'
-#' # Example with different column names
-#' edges_custom_names <- data.frame(source_url = "Page1", target_url = "Page2")
-#' redirects_custom_names <- data.frame(original = "Page2", final = "Page2_resolved")
-#' resolve_redirects(edges_custom_names, redirects_custom_names,
-#'                   edge_from_col = "source_url", edge_to_col = "target_url",
-#'                   redirect_from_col = "original", redirect_to_col = "final")
-#'
-#' # Example with NAs (NAs should be preserved)
-#' edges_with_na <- data.frame(
-#'  from = c("A", NA, "C"),
-#'  to = c("B", "D", NA),
-#'  stringsAsFactors = FALSE
+#' # Example with conflicting redirects resolved via first_wins
+#' edges_conflict <- data.frame(
+#'   from = "A", to = "B", stringsAsFactors = FALSE
 #' )
-#' redirects_simple <- data.frame(from = "A", to = "A_final", stringsAsFactors = FALSE)
-#' resolve_redirects(edges_with_na, redirects_simple)
+#' redirects_conflict <- data.frame(
+#'   from = c("B", "B"),
+#'   to = c("C", "D"),
+#'   stringsAsFactors = FALSE
+#' )
+#' resolve_redirects(edges_conflict, redirects_conflict,
+#'                   duplicate_from_policy = "first_wins")
 #'
-#' # Example of error for ambiguity (uncomment to test):
-#' # edges_for_amb_test <- data.frame(from = "A", to = "X", stringsAsFactors = FALSE)
-#' # redirects_ambiguous <- data.frame(
-#' #   from = c("A", "A"),
-#' #   to = c("B", "C"),
-#' #   stringsAsFactors = FALSE
-#' # )
-#' # try(resolve_redirects(edges_for_amb_test, redirects_ambiguous))
-#'
-#' # Example of error for cycle (uncomment to test):
-#' # redirects_cycle <- data.frame(
-#' #   from = c("L1", "L2"),
-#' #   to = c("L2", "L1"),
-#' #   stringsAsFactors = FALSE
-#' # )
-#' # edges_cycle <- data.frame(from = "Start", to = "L1", stringsAsFactors = FALSE)
-#' # try(resolve_redirects(edges_cycle, redirects_cycle))
+#' # Example with different column names
+#' edges_custom <- data.frame(
+#'   source_url = "Page1", target_url = "Page2"
+#' )
+#' redirects_custom <- data.frame(
+#'   original = "Page2", final = "Page2_resolved"
+#' )
+#' resolve_redirects(edges_custom, redirects_custom,
+#'                   edge_from_col = "source_url",
+#'                   edge_to_col = "target_url",
+#'                   redirect_from_col = "original",
+#'                   redirect_to_col = "final")
 #' @details
-#' Self-referencing redirects (where from == to) and any redirects with NA in from or to are automatically filtered out before processing.
+#' Self-referencing redirects (where from == to) and any redirects with NA
+#' in from or to are automatically filtered out before processing.
+#'
+#' When crawl data contains conflicting redirects (the same URL redirecting
+#' to different targets), use \code{duplicate_from_policy} to control the
+#' behavior. The default \code{"strict"} preserves backward compatibility
+#' by erroring on any conflict.
 
 resolve_redirects <- function(edge_list_df,
                               redirects_df,
                               edge_from_col = "from",
                               edge_to_col = "to",
                               redirect_from_col = "from",
-                              redirect_to_col = "to") {
+                              redirect_to_col = "to",
+                              duplicate_from_policy = c("strict",
+                                                        "first_wins",
+                                                        "last_wins",
+                                                        "most_frequent",
+                                                        "prune_source",
+                                                        "resolve_if_consistent")) {
+
+  duplicate_from_policy <- match.arg(duplicate_from_policy)
 
   # --- Input Validation ---
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
   if (nrow(edge_list_df) > 0 && !all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
-    stop(paste0("`edge_list_df` must have '", edge_from_col, "' and '", edge_to_col, "' columns if not empty."), call. = FALSE)
+    stop(paste0("`edge_list_df` must have '", edge_from_col, "' and '",
+                edge_to_col, "' columns if not empty."), call. = FALSE)
   }
 
   if (!is.data.frame(redirects_df)) {
     stop("`redirects_df` must be a data frame.", call. = FALSE)
   }
   if (nrow(redirects_df) > 0 && !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
-     stop("`redirects_df` must have '", redirect_from_col, "' and '", redirect_to_col, "' columns if not empty.", call. = FALSE)
+    stop("`redirects_df` must have '", redirect_from_col, "' and '",
+         redirect_to_col, "' columns if not empty.", call. = FALSE)
   }
 
   # If redirects_df is empty or has no valid rules, return edge_list_df as is.
   if (nrow(redirects_df) == 0) {
     return(edge_list_df)
   }
-  
-  # Filter out NA values and self-referencing redirects (from == to) before processing.
+
+  # Filter out NA values and self-referencing redirects (from == to).
   na_mask <- !is.na(redirects_df[[redirect_from_col]]) &
              !is.na(redirects_df[[redirect_to_col]])
   redirects_df <- redirects_df[na_mask, , drop = FALSE]
@@ -113,57 +134,148 @@ resolve_redirects <- function(edge_list_df,
                 as.character(redirects_df[[redirect_to_col]])
     redirects_df <- redirects_df[!self_ref, , drop = FALSE]
   }
-  
-  # --- Prepare Redirect Map & Check for Ambiguities ---
-  redirect_sources_raw <- redirects_df[[redirect_from_col]]
-  redirect_targets_raw <- redirects_df[[redirect_to_col]]
 
-  # Ensure redirect columns are character and handle potential factors
-  redirect_sources <- as.character(redirect_sources_raw)
-  redirect_targets <- as.character(redirect_targets_raw)
+  # --- Preprocess: handle conflicting redirects ---
+  redirect_sources <- as.character(redirects_df[[redirect_from_col]])
+  redirect_targets <- as.character(redirects_df[[redirect_to_col]])
 
   valid_redirect_indices <- !is.na(redirect_sources) & !is.na(redirect_targets)
   redirect_sources <- redirect_sources[valid_redirect_indices]
   redirect_targets <- redirect_targets[valid_redirect_indices]
 
-  if (length(redirect_sources) == 0) { # No valid redirect rules after NA removal
-      return(edge_list_df)
-  }
-  
-  # Check for ambiguities: a single 'from' URL mapping to multiple distinct 'to' URLs
-  unique_src_in_rules <- unique(redirect_sources)
-  for (src in unique_src_in_rules) {
-    targets_for_source <- unique(redirect_targets[redirect_sources == src])
-    if (length(targets_for_source) > 1) {
-      stop("Ambiguous redirect: URL '", src, "' maps to multiple distinct targets: ",
-           paste(targets_for_source, collapse = ", "), call. = FALSE)
-    }
+  if (length(redirect_sources) == 0) {
+    return(edge_list_df)
   }
 
-  # Create a direct redirect map (names are sources, values are targets)
-  # After the ambiguity check, we know each source maps to at most one unique target.
-  # We use unique pairs of (source, target) to build the map.
-  # This also handles cases where the same redirect (A->B) is listed multiple times.
-  unique_redirect_pairs_df <- unique(data.frame(from = redirect_sources, to = redirect_targets, stringsAsFactors = FALSE))
-  
-  # The 'from' column in unique_redirect_pairs_df should now be unique due to the check above.
-  redirect_map <- stats::setNames(unique_redirect_pairs_df$to, unique_redirect_pairs_df$from)
+  clean_df <- data.frame(from = redirect_sources, to = redirect_targets,
+                         stringsAsFactors = FALSE)
+  clean_df <- .preprocess_redirects(clean_df, "from", "to",
+                                    policy = duplicate_from_policy)
+
+  if (nrow(clean_df) == 0) {
+    return(edge_list_df)
+  }
+
+  # --- Build redirect map ---
+  redirect_map <- stats::setNames(clean_df$to, clean_df$from)
 
   # --- Resolve URLs in Edge List ---
   resolved_edge_list <- edge_list_df
-  
-  # Resolve both 'from' and 'to' columns
+
   for (col_name in c(edge_from_col, edge_to_col)) {
     if (col_name %in% names(resolved_edge_list)) {
       original_urls <- as.character(resolved_edge_list[[col_name]])
       resolved_urls <- vapply(original_urls, function(url) {
         if (is.na(url)) return(NA_character_)
-        # .trace_redirect_path is assumed to exist and handle cycles correctly
-        .trace_redirect_path(url = url, redirect_map = redirect_map, path = character(0)) 
+        .trace_redirect_path(url = url, redirect_map = redirect_map,
+                             path = character(0))
       }, character(1))
       resolved_edge_list[[col_name]] <- resolved_urls
     }
   }
 
   return(resolved_edge_list)
+}
+
+
+# --- Internal: preprocess conflicting redirects ---
+
+#' Preprocess redirects to handle conflicting sources
+#'
+#' Given a two-column data frame of (from, to) redirect pairs (already cleaned
+#' of NAs and self-refs), detect conflicting sources and apply the chosen policy.
+#'
+#' @param redirects_df Data frame with columns named by `from_col` and `to_col`.
+#' @param from_col Character, name of the source column.
+#' @param to_col Character, name of the target column.
+#' @param policy One of "strict", "first_wins", "last_wins", "most_frequent",
+#'   "prune_source", "resolve_if_consistent".
+#' @return A deduplicated data frame where each source maps to exactly one
+#'   target.
+#' @noRd
+.preprocess_redirects <- function(redirects_df, from_col, to_col,
+                                  policy = "strict") {
+
+  sources <- redirects_df[[from_col]]
+  targets <- redirects_df[[to_col]]
+
+  # --- Detect conflicting sources ---
+  # A source is "conflicting" if it has >1 distinct target
+  src_target_pairs <- paste0(sources, "\t", targets)
+  unique_pairs_df <- redirects_df[!duplicated(src_target_pairs), , drop = FALSE]
+  dup_sources <- unique_pairs_df[[from_col]][
+    duplicated(unique_pairs_df[[from_col]])
+  ]
+  conflicting_sources <- unique(dup_sources)
+
+  # No conflicts: just deduplicate exact duplicates and return
+
+  if (length(conflicting_sources) == 0) {
+    return(unique_pairs_df)
+  }
+
+  # --- Apply policy ---
+  if (policy == "strict") {
+    first_conflict <- conflicting_sources[1]
+    conflict_targets <- unique(targets[sources == first_conflict])
+    stop("Ambiguous redirect: URL '", first_conflict,
+         "' maps to multiple distinct targets: ",
+         paste(conflict_targets, collapse = ", "), call. = FALSE)
+  }
+
+  if (policy == "resolve_if_consistent") {
+    first_conflict <- conflicting_sources[1]
+    conflict_targets <- unique(targets[sources == first_conflict])
+    stop("Ambiguous redirect: URL '", first_conflict,
+         "' maps to multiple distinct targets: ",
+         paste(conflict_targets, collapse = ", "), call. = FALSE)
+  }
+
+  if (policy == "first_wins") {
+    return(redirects_df[!duplicated(sources), , drop = FALSE])
+  }
+
+  if (policy == "last_wins") {
+    return(redirects_df[!duplicated(sources, fromLast = TRUE), , drop = FALSE])
+  }
+
+  if (policy == "prune_source") {
+    keep <- !(sources %in% conflicting_sources)
+    # Also deduplicate the remaining non-conflicting redirects
+    result <- redirects_df[keep, , drop = FALSE]
+    dedup_key <- paste0(result[[from_col]], "\t", result[[to_col]])
+    return(result[!duplicated(dedup_key), , drop = FALSE])
+  }
+
+  if (policy == "most_frequent") {
+    # For non-conflicting sources: just deduplicate
+    is_conflict <- sources %in% conflicting_sources
+    non_conflict <- redirects_df[!is_conflict, , drop = FALSE]
+    nc_key <- paste0(non_conflict[[from_col]], "\t", non_conflict[[to_col]])
+    non_conflict <- non_conflict[!duplicated(nc_key), , drop = FALSE]
+
+    # For conflicting sources: find the mode target per source
+    conflict_df <- redirects_df[is_conflict, , drop = FALSE]
+    resolved_rows <- lapply(conflicting_sources, function(src) {
+      idx <- conflict_df[[from_col]] == src
+      src_targets <- conflict_df[[to_col]][idx]
+      freq <- table(src_targets)
+      max_freq <- max(freq)
+      candidates <- names(freq)[freq == max_freq]
+      # Tie-break: first occurrence in original data
+      winner <- candidates[1]
+      for (cand in candidates) {
+        if (match(cand, src_targets) < match(winner, src_targets)) {
+          winner <- cand
+        }
+      }
+      data.frame(from = src, to = winner, stringsAsFactors = FALSE)
+    })
+    resolved <- do.call(rbind, resolved_rows)
+    names(resolved) <- c(from_col, to_col)
+    return(rbind(non_conflict, resolved))
+  }
+
+  # Should not reach here due to match.arg in caller, but as safeguard
+  stop("Unknown duplicate_from_policy: ", policy, call. = FALSE) # nocov
 } 

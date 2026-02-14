@@ -233,4 +233,269 @@ describe("resolve_redirects self-referencing redirect handling", {
         redirects <- data.frame(x = "A", y = "B", stringsAsFactors = FALSE)
         expect_error(resolve_redirects(edges, redirects), "columns")
     })
+})
+
+# ===========================================================================
+# duplicate_from_policy tests
+# ===========================================================================
+
+describe("duplicate_from_policy = 'strict' (default)", {
+  it("errors on conflicting redirects", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("B", "B"), to = c("C", "D"), stringsAsFactors = FALSE
+    )
+    expect_error(resolve_redirects(edges, redirects),
+                 "Ambiguous redirect.*B.*C, D")
+  })
+
+  it("allows exact duplicate redirects (same from and to)", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("B", "B"), to = c("C", "C"), stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects)
+    expect_equal(resolved$to, "C")
+  })
+
+  it("passes through clean redirects unchanged", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    redirects <- data.frame(from = "B", to = "C", stringsAsFactors = FALSE)
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "strict")
+    expect_equal(resolved$to, "C")
+  })
+})
+
+describe("duplicate_from_policy = 'first_wins'", {
+  it("keeps the first target for conflicting sources", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("B", "B", "B"), to = c("C", "D", "E"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "first_wins")
+    expect_equal(resolved$to, "C")
+  })
+
+  it("preserves non-conflicting redirects alongside conflicting ones", {
+    edges <- data.frame(
+      from = c("A", "X"), to = c("B", "Y"), stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("B", "B", "Y"), to = c("C", "D", "Z"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "first_wins")
+    expect_equal(resolved$to, c("C", "Z"))
+  })
+
+  it("works with redirect chains after conflict resolution", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    # B -> C (first), B -> D (second, dropped); C -> Final
+    redirects <- data.frame(
+      from = c("B", "B", "C"), to = c("C", "D", "Final"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "first_wins")
+    expect_equal(resolved$to, "Final")
+  })
+})
+
+describe("duplicate_from_policy = 'last_wins'", {
+  it("keeps the last target for conflicting sources", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("B", "B", "B"), to = c("C", "D", "E"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "last_wins")
+    expect_equal(resolved$to, "E")
+  })
+
+  it("preserves non-conflicting redirects", {
+    edges <- data.frame(
+      from = c("A", "X"), to = c("B", "Y"), stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("B", "B", "Y"), to = c("C", "D", "Z"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "last_wins")
+    expect_equal(resolved$to, c("D", "Z"))
+  })
+})
+
+describe("duplicate_from_policy = 'most_frequent'", {
+  it("picks the most common target", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("B", "B", "B", "B"),
+      to = c("C", "D", "D", "D"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "most_frequent")
+    expect_equal(resolved$to, "D")
+  })
+
+  it("breaks ties by first occurrence", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    # C appears first (2x), D appears second (2x) -- tie, C wins
+    redirects <- data.frame(
+      from = c("B", "B", "B", "B"),
+      to = c("C", "C", "D", "D"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "most_frequent")
+    expect_equal(resolved$to, "C")
+  })
+
+  it("preserves non-conflicting redirects", {
+    edges <- data.frame(
+      from = c("A", "X"), to = c("B", "Y"), stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("B", "B", "B", "Y"),
+      to = c("C", "D", "D", "Z"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "most_frequent")
+    expect_equal(resolved$to, c("D", "Z"))
+  })
+})
+
+describe("duplicate_from_policy = 'prune_source'", {
+  it("removes all redirects from conflicting sources", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("B", "B"), to = c("C", "D"), stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "prune_source")
+    # B has conflicting targets -> pruned -> B stays unresolved
+    expect_equal(resolved$to, "B")
+  })
+
+  it("preserves non-conflicting redirects when conflicting ones are pruned", {
+    edges <- data.frame(
+      from = c("A", "X"), to = c("B", "Y"), stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("B", "B", "Y"), to = c("C", "D", "Z"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "prune_source")
+    # B is pruned (conflicting), Y -> Z is kept
+    expect_equal(resolved$to, c("B", "Z"))
+  })
+
+  it("returns edge list unchanged when all sources conflict", {
+    edges <- data.frame(
+      from = c("A"), to = c("B"), stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("B", "B", "A", "A"),
+      to = c("C", "D", "E", "F"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "prune_source")
+    expect_equal(resolved$from, "A")
+    expect_equal(resolved$to, "B")
+  })
+})
+
+describe("duplicate_from_policy = 'resolve_if_consistent'", {
+  it("allows exact duplicate redirects (all same target)", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("B", "B", "B"), to = c("C", "C", "C"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(
+      edges, redirects,
+      duplicate_from_policy = "resolve_if_consistent"
+    )
+    expect_equal(resolved$to, "C")
+  })
+
+  it("errors on true conflicts (different targets)", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c("B", "B"), to = c("C", "D"), stringsAsFactors = FALSE
+    )
+    expect_error(
+      resolve_redirects(edges, redirects,
+                        duplicate_from_policy = "resolve_if_consistent"),
+      "Ambiguous redirect.*B.*C, D"
+    )
+  })
+
+  it("handles mix of consistent duplicates and unique redirects", {
+    edges <- data.frame(
+      from = c("A", "X"), to = c("B", "Y"), stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("B", "B", "Y"), to = c("C", "C", "Z"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(
+      edges, redirects,
+      duplicate_from_policy = "resolve_if_consistent"
+    )
+    expect_equal(resolved$to, c("C", "Z"))
+  })
+})
+
+describe("duplicate_from_policy integration", {
+  it("works with redirect chains after conflict resolution", {
+    edges <- data.frame(from = "Start", to = "A", stringsAsFactors = FALSE)
+    # A -> B (most frequent, 3x), A -> C (1x); B -> Final
+    redirects <- data.frame(
+      from = c("A", "A", "A", "A", "B"),
+      to = c("B", "B", "B", "C", "Final"),
+      stringsAsFactors = FALSE
+    )
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "most_frequent")
+    # A -> B (most frequent) -> Final (chain)
+    expect_equal(resolved$to, "Final")
+  })
+
+  it("works with self-ref filtering before conflict detection", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    # B -> B (self-ref, filtered), B -> C, B -> D
+    redirects <- data.frame(
+      from = c("B", "B", "B"), to = c("B", "C", "D"),
+      stringsAsFactors = FALSE
+    )
+    # After self-ref removal: B -> C, B -> D (conflict)
+    resolved <- resolve_redirects(edges, redirects,
+                                  duplicate_from_policy = "first_wins")
+    expect_equal(resolved$to, "C")
+  })
+
+  it("passthrough via pagerank() works", {
+    edges <- data.frame(
+      from = c("A", "B"), to = c("B", "A"), stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = c("A", "A"), to = c("X", "Y"), stringsAsFactors = FALSE
+    )
+    # Should not error with first_wins
+    pr <- pagerank(edges, redirects_df = redirects,
+                   duplicate_from_policy = "first_wins",
+                   clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+    expect_true(is.data.frame(pr))
+    expect_true(nrow(pr) > 0)
+  })
 }) 
