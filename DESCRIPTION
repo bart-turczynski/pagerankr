@@ -20,7 +20,10 @@ Suggests:
     rmarkdown,
     covr,
     lintr,
-    goodpractice
+    goodpractice,
+    shiny,
+    DT,
+    visNetwork
 Config/Needs/build: local
 VignetteBuilder: knitr
 URL: https://github.com/bart-turczynski/pagerankr
