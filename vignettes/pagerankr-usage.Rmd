@@ -21,335 +21,351 @@ library(pagerankr)
 
 ## Introduction
 
-The `pagerankr` package provides a toolkit for calculating PageRank scores from web crawl data, specifically edge lists (showing links between pages) and redirect reports. This is a common task in SEO (Search Engine Optimization) analysis to understand the link equity distribution within a website.
+The `pagerankr` package provides an SEO-focused toolkit for calculating,
+comparing, and analysing PageRank scores from web crawl data. It handles
+the full pipeline from raw crawl exports (edge lists, redirect reports,
+nofollow annotations, indexability status) to actionable insights.
 
-The package offers both a main wrapper function, `pagerank()`, for a quick end-to-end calculation, and a suite of modular, pipeable functions that allow for more granular control over each step of the process. All data manipulation is done using base R, with `igraph` used for the core PageRank algorithm and `rurl` for URL canonicalization.
+The package offers:
+
+- **`pagerank()`** -- end-to-end wrapper for quick calculations
+- **Modular functions** -- for granular control over each pipeline step
+- **Model comparison** -- grid search, diff, and distribution metrics
+- **What-if simulation** -- test link/redirect changes before production
+
+All data manipulation uses base R. `igraph` powers the PageRank algorithm
+and graph-based redirect resolution. `rurl` handles URL canonicalisation.
 
 ## Installation
 
-If you haven't installed `pagerankr` yet, you can install it from its GitHub repository:
-
 ```r
-# install.packages("devtools") # If you don't have devtools
-# devtools::install_github("bart-turczynski/pagerankr")
+# install.packages("devtools")
+devtools::install_github("bart-turczynski/pagerankr")
 ```
 
-Load the package:
 ```{r load_package}
 library(pagerankr)
 ```
 
-## Quick Start: Using the `pagerank()` Wrapper
+## Quick Start
 
-The `pagerank()` function is the easiest way to get started. It orchestrates all the necessary steps: URL cleaning, redirect resolution, edge deduplication, isolate handling, and the final PageRank computation.
-
-Let's create some sample data:
-
-```{r sample_data_wrapper}
-edges_raw <- data.frame(
-  source_page = c(
-    "http://example.com/home", 
-    "example.com/pageA",       # No scheme
-    "HTTPS://Example.com/PAGEA", # Different case, scheme
-    "http://example.com/pageB?param=1#fragment",
-    "http://example.com/pageC",
-    "http://example.com/pageD" # pageD is a self-loop target if clean
-  ),
-  destination_page = c(
-    "example.com/pageA",
-    "http://example.com/pageB?param=1",
-    "http://example.com/pageC",
-    "http://example.com/home",
-    "http://example.com/pageC", # Self-loop C->C
-    "HTTP://EXAMPLE.COM/PAGED"  # pageD self-loop after cleaning
-  ),
+```{r quick_start}
+edges <- data.frame(
+  from = c("http://example.com/home", "http://example.com/about",
+           "http://example.com/blog", "http://example.com/blog"),
+  to   = c("http://example.com/about", "http://example.com/home",
+           "http://example.com/home", "http://example.com/about"),
   stringsAsFactors = FALSE
 )
 
-redirects_report <- data.frame(
-  original_url = c("http://example.com/pageB?param=1#fragment", "example.com/old-page"),
-  final_url = c("http://example.com/pageB-final", "http://example.com/pageA"),
+pr <- pagerank(edges)
+print(pr)
+```
+
+## Redirect Resolution
+
+### Basic redirect handling
+
+```{r redirects_basic}
+edges <- data.frame(
+  from = c("A", "B", "C"),
+  to   = c("B", "C", "D"),
   stringsAsFactors = FALSE
 )
+redirects <- data.frame(
+  from = c("B", "C"),
+  to   = c("B_new", "C_new"),
+  stringsAsFactors = FALSE
+)
+
+# resolve_redirects() applies redirect rules to an edge list
+resolved <- resolve_redirects(edges, redirects)
+print(resolved)
 ```
 
-Now, let's calculate PageRank using the wrapper:
+Redirect chains are resolved transitively: if A redirects to B and B
+redirects to C, then A resolves to C.
 
-```{r wrapper_example}
-pr_scores <- pagerank(
-  edge_list_df = edges_raw,
-  redirects_df = redirects_report,
-  edge_from_col = "source_page", 
-  edge_to_col = "destination_page",
-  redirect_from_col = "original_url",
-  redirect_to_col = "final_url",
-  self_loops = "drop",        # Default: drop self-loops after resolution
-  drop_isolates_flag = TRUE, # Default: drop nodes with no links after processing
-  damping = 0.85             # Default damping factor
+### Conflicting redirects
+
+Crawl data often has the same URL redirecting to different targets.
+Use `duplicate_from_policy` to control the behaviour:
+
+```{r redirects_conflict}
+redirects_conflict <- data.frame(
+  from = c("old", "old", "old"),
+  to   = c("target_A", "target_B", "target_B"),
+  stringsAsFactors = FALSE
 )
 
-print(pr_scores)
-
-# Sum of PageRank should be 1 (or 0 if graph is empty after processing)
-if(nrow(pr_scores) > 0) {
-  cat("\nSum of PageRank scores:", sum(pr_scores$pagerank), "\n")
-}
+# "most_frequent" picks the most common target
+edges_simple <- data.frame(from = "X", to = "old", stringsAsFactors = FALSE)
+resolve_redirects(edges_simple, redirects_conflict,
+                  duplicate_from_policy = "most_frequent")
 ```
 
-The `pagerank()` function automatically cleaned the URLs, resolved redirects (e.g., `pageB?param=1#fragment` should have been mapped to `pageB-final`), handled duplicate edges that might arise after cleaning/resolution, dropped self-loops, and excluded any isolated nodes before computing the PageRank.
+Available policies: `strict` (default, errors on conflict), `first_wins`,
+`last_wins`, `most_frequent`, `prune_source`, `resolve_if_consistent`.
 
-> **Note:** As part of the workflow, any edge where either `from` or `to` is `NA` is automatically dropped before deduplication and PageRank calculation. Self-referencing redirects (where `from == to`) are also filtered out before redirect resolution.
+### Redirect loops
 
-## Modular Approach: Step-by-Step Calculation
+Redirect cycles (A -> B -> C -> A) are detected via strongly connected
+components. Use `loop_handling` to control behaviour:
 
-For more control, you can use the individual functions that `pagerank()` wraps. This is useful for inspecting intermediate results or customizing parts of the workflow.
-
-Let's use the same raw data as above.
-
-### 1. Clean URLs
-
-First, we clean the URLs in our edge list and redirect report. `clean_url_columns` uses `rurl::get_clean_url` internally and applies memoization for efficiency.
-
-```{r modular_clean}
-# Define parameters for rurl::get_clean_url if needed
-# Default behavior of rurl::get_clean_url is often sufficient (e.g., lowercases domain, normalizes scheme)
-# For this example, we'll use defaults by not passing rurl_params to pagerank(),
-# or by calling clean_url_columns without extra `...` args for rurl::get_clean_url.
-
-cleaned_edges <- clean_url_columns(
-  data_frame = edges_raw, 
-  columns = c("source_page", "destination_page")
+```{r redirects_loops}
+edges_loop <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+redirects_loop <- data.frame(
+  from = c("A", "B", "C", "D"),
+  to   = c("B", "C", "A", "E"),
+  stringsAsFactors = FALSE
 )
 
-cleaned_redirects <- clean_url_columns(
-  data_frame = redirects_report, 
-  columns = c("original_url", "final_url")
-)
-
-cat("Cleaned Edges:\n")
-print(cleaned_edges)
-cat("\nCleaned Redirects:\n")
-print(cleaned_redirects)
+# "prune_loop" removes cycle edges; linear redirects still work
+resolved <- resolve_redirects(edges_loop, redirects_loop,
+                              loop_handling = "prune_loop")
+print(resolved)
 ```
 
-*Note on Shared Memoization*: The `pagerank()` wrapper can ensure that a single URL cleaning cache is used across both the edge list and redirect list if `clean_edge_urls = TRUE` and `clean_redirect_urls = TRUE`. When calling `clean_url_columns` separately like this, each call will use its own internal memoization cache by default.
+Available policies: `error` (default), `prune_loop`, `break_arrow`
+(keeps the highest in-degree node as sink).
 
-### 2. Resolve Redirects
+### Standalone link resolution
 
-Next, update the edge list using the cleaned redirect rules.
+Use `resolve_links()` to apply redirects and deduplicate without
+computing PageRank -- useful for inspecting the resolved graph:
 
-```{r modular_redirects}
-resolved_edges <- resolve_redirects(
-  edge_list_df = cleaned_edges, 
-  redirects_df = cleaned_redirects,
-  edge_from_col = "source_page", 
-  edge_to_col = "destination_page",
-  redirect_from_col = "original_url",
-  redirect_to_col = "final_url"
+```{r resolve_links_example}
+edges <- data.frame(
+  from = c("A", "A", "B"),
+  to   = c("B", "B", "C"),
+  stringsAsFactors = FALSE
 )
+redirects <- data.frame(from = "B", to = "B_final", stringsAsFactors = FALSE)
 
-cat("Edges after redirect resolution:\n")
-print(resolved_edges)
+resolve_links(edges, redirects, clean_urls = FALSE)
 ```
 
-### 3. Get Unique Edges (and Handle Self-Loops)
+## Nofollow Handling
 
-Remove duplicate edges and decide how to handle self-loops (e.g., pageC -> pageC).
+Google splits PageRank across all outgoing links, including nofollow.
+The nofollow share simply vanishes (the "evaporate" model). `pagerankr`
+supports this natively:
 
-```{r modular_unique_edges}
-# Option 1: Drop self-loops (default for get_unique_edges)
-unique_edges_dropped_sl <- get_unique_edges(
-  edge_list_df = resolved_edges,
-  self_loops = "drop",
-  from_col = "source_page",
-  to_col = "destination_page"
+```{r nofollow}
+edges <- data.frame(
+  from = c("Hub", "Hub", "Hub"),
+  to   = c("A", "B", "C"),
+  nofollow = c(FALSE, FALSE, TRUE),
+  stringsAsFactors = FALSE
 )
-cat("Unique edges (self-loops dropped):\n")
-print(unique_edges_dropped_sl)
 
-# Option 2: Keep self-loops
-unique_edges_kept_sl <- get_unique_edges(
-  edge_list_df = resolved_edges,
-  self_loops = "keep",
-  from_col = "source_page",
-  to_col = "destination_page"
-)
-cat("\nUnique edges (self-loops kept):\n")
-print(unique_edges_kept_sl)
+# "evaporate": PR splits 3 ways, C's share vanishes
+pr_evap <- pagerank(edges, nofollow_col = "nofollow",
+                    nofollow_action = "evaporate",
+                    clean_edge_urls = FALSE)
+print(pr_evap)
+
+# "drop": nofollow edges removed, PR splits only among followed links
+pr_drop <- pagerank(edges, nofollow_col = "nofollow",
+                    nofollow_action = "drop",
+                    clean_edge_urls = FALSE)
+print(pr_drop)
 ```
 
-For the rest of this modular example, let's proceed with `unique_edges_dropped_sl`.
+## Indexability
 
-### 4. Handle Isolated Nodes
+### noindex pages
 
-Decide if nodes that have no connections (isolates) after the previous steps should be included in the PageRank calculation. `drop_isolates()` returns a list of vertex names.
+A `noindex` page cannot pass PageRank because it's not in Google's index.
+All outgoing links from a noindex page are treated as nofollow:
 
-```{r modular_isolates}
-# Option 1: Drop isolates (i.e., only keep nodes with degree > 0)
-vertices_to_keep <- drop_isolates(
-  edge_list_df = unique_edges_dropped_sl, 
-  drop = TRUE, 
-  from_col = "source_page", 
-  to_col = "destination_page", 
-  node_col_name = "node_name"
-)
-cat("Vertices for graph (isolates dropped):\n")
-print(vertices_to_keep)
-
-# Option 2: Keep all unique nodes mentioned in the (processed) edge list
-# These will become graph vertices; isolates get base PageRank from teleportation.
-all_vertices <- drop_isolates(
-  edge_list_df = unique_edges_dropped_sl, 
-  drop = FALSE, 
-  from_col = "source_page", 
-  to_col = "destination_page", 
-  node_col_name = "node_name"
-)
-cat("\nAll unique vertices from processed edges (isolates included if any):\n")
-print(all_vertices)
-```
-
-Let's use `vertices_to_keep` for PageRank calculation.
-If `vertices_to_keep` is empty (e.g., all edges were self-loops and dropped), then `compute_pagerank` will produce an empty result.
-
-### 5. Compute PageRank
-
-Finally, compute PageRank scores using the processed edge list and the defined set of vertices.
-
-```{r modular_compute_pr}
-# Ensure vertices_to_keep is not NULL or empty in a way compute_pagerank expects
-final_vertices_df <- NULL
-if (nrow(vertices_to_keep) > 0) {
-  final_vertices_df <- vertices_to_keep
-}
-
-final_pr_scores <- compute_pagerank(
-  edge_list_df = unique_edges_dropped_sl, 
-  vertices_df = final_vertices_df, # Can be NULL if all nodes from edges are desired
-  damping = 0.85,
-  from_col = "source_page",
-  to_col = "destination_page",
-  vertex_col_name = "node_name" # Must match column name in final_vertices_df if provided
+```{r indexability_noindex}
+edges <- data.frame(
+  from = c("Home", "NoindexPage", "NoindexPage"),
+  to   = c("NoindexPage", "A", "B"),
+  stringsAsFactors = FALSE
 )
 
-cat("Final PageRank scores from modular approach:\n")
-print(final_pr_scores)
-if(nrow(final_pr_scores) > 0) {
-  cat("\nSum of PageRank scores:", sum(final_pr_scores$pagerank), "\n")
-}
+idx_status <- data.frame(
+  url = "NoindexPage",
+  indexability_status = "noindex",
+  stringsAsFactors = FALSE
+)
+
+pr <- pagerank(edges, indexability_df = idx_status,
+               clean_edge_urls = FALSE)
+print(pr)
 ```
 
-## Using the Native Pipe `|>`
+### robots.txt blocked pages
 
-The modular functions are designed to be pipeable:
+A robots.txt-blocked page receives inbound PageRank but cannot pass it
+outbound (Google can't see the links). The PR is either trapped or vanishes:
 
-```{r modular_pipe_example, eval=FALSE}
-# Note: eval=FALSE as this is illustrative of the piping syntax.
-# The actual execution depends on the state of variables from previous chunks.
+```{r indexability_robots}
+edges <- data.frame(
+  from = c("Home", "Blocked", "A"),
+  to   = c("Blocked", "A", "Home"),
+  stringsAsFactors = FALSE
+)
 
-# Assume edges_raw and redirects_report are defined
+idx_status <- data.frame(
+  url = "Blocked",
+  indexability_status = "Blocked by robots.txt",
+  stringsAsFactors = FALSE
+)
 
-pr_via_pipe <- edges_raw |>
-  clean_url_columns(columns = c("source_page", "destination_page")) |>
-  (\(df) resolve_redirects( # Lambda to handle multiple arguments for resolve_redirects
-    edge_list_df = df, 
-    redirects_df = clean_url_columns(redirects_report, columns = c("original_url", "final_url")),
-    edge_from_col = "source_page", 
-    edge_to_col = "destination_page",
-    redirect_from_col = "original_url",
-    redirect_to_col = "final_url"
-  ))() |> # Immediately invoke the lambda
-  get_unique_edges(self_loops = "drop", from_col = "source_page", to_col = "destination_page") |>
-  (\(df) {
-    vertices <- drop_isolates(df, drop = TRUE, from_col = "source_page", to_col = "destination_page", node_col_name = "node_name")
-    compute_pagerank(
-      edge_list_df = df, 
-      vertices_df = if(nrow(vertices)>0) vertices else NULL, 
-      from_col = "source_page", 
-      to_col = "destination_page", 
-      vertex_col_name = "node_name"
-    )
-  })()
+# "trap": blocked page keeps its PR (visible in results)
+pr_trap <- pagerank(edges, indexability_df = idx_status,
+                    robots_blocked_action = "trap",
+                    clean_edge_urls = FALSE)
+print(pr_trap)
 
-# print(pr_via_pipe)
+# "vanish": blocked page removed from results
+pr_vanish <- pagerank(edges, indexability_df = idx_status,
+                      robots_blocked_action = "vanish",
+                      clean_edge_urls = FALSE)
+print(pr_vanish)
 ```
-*Note*: Piping `resolve_redirects` and `compute_pagerank` requires a bit more care due to their multiple primary data frame arguments (`edge_list_df`, `redirects_df` for the former; `edge_list_df`, `vertices_df` for the latter). Lambdas or intermediate assignments might be needed for clarity, as shown in the `pagerank()` wrapper itself.
 
-## Key Parameters and Choices
+## Weighted Edges
 
-*   **URL Cleaning (`clean_url_columns`, `pagerank(rurl_params=...)`)**: 
-    *   Uses `rurl::get_clean_url`. You can pass parameters to `rurl::get_clean_url` either via `...` in `clean_url_columns` or via the `rurl_params` list argument in `pagerank()`.
-    *   The `pagerank()` wrapper handles whether to clean edge list URLs (`clean_edge_urls`) and redirect URLs (`clean_redirect_urls`) and can use a shared cache.
-*   **Self-Loops (`get_unique_edges`, `pagerank(self_loops=...)`)**: Choose to "drop" (default) or "keep" self-loops.
-*   **Isolates (`drop_isolates`, `pagerank(drop_isolates_flag=...)`)**: Decide whether to include nodes with no connections in the final PageRank graph. If kept, they receive a base PageRank score due to the damping factor.
-*   **Damping Factor (`compute_pagerank`, `pagerank(damping=...)`)**: The `damping` parameter (typically 0.85) for the PageRank algorithm can be adjusted.
+Pass a `weight_col` to use link weights (e.g., number of links, link
+position scores) in the PageRank calculation:
 
-This vignette provides an overview of how to use the `pagerankr` package. For more detailed information on each function and its arguments, please consult the package documentation (e.g., `?pagerank`, `?clean_url_columns`). 
+```{r weighted}
+edges <- data.frame(
+  from   = c("A", "A", "B"),
+  to     = c("B", "C", "C"),
+  weight = c(3, 1, 1),
+  stringsAsFactors = FALSE
+)
 
-> **Note:** Edges with `NA` in either endpoint are dropped automatically by the workflow. Self-referencing redirects are filtered out before redirect resolution. 
+pr <- pagerank(edges, weight_col = "weight", clean_edge_urls = FALSE)
+print(pr)
+```
+
+## Domain Filtering
+
+`filter_links_by_domain()` scopes edge lists by domain, useful for
+separating internal vs. external links:
+```{r domain_filter}
+edges <- data.frame(
+  from = c("http://example.com/a", "http://example.com/b",
+           "http://other.com/c"),
+  to   = c("http://example.com/b", "http://other.com/d",
+           "http://example.com/a"),
+  stringsAsFactors = FALSE
+)
+
+# Keep only internal links
+internal <- filter_links_by_domain(edges, keep_domains = "example.com")
+print(internal)
+```
+
+## Model Comparison
+
+### Comparing two models
+
+```{r compare}
+edges <- data.frame(
+  from = c("A", "B", "C", "D"),
+  to   = c("B", "C", "D", "A"),
+  stringsAsFactors = FALSE
+)
+
+pr_85 <- pagerank(edges, damping = 0.85, clean_edge_urls = FALSE)
+pr_90 <- pagerank(edges, damping = 0.90, clean_edge_urls = FALSE)
+
+diff <- compare_pagerank(pr_85, pr_90, label_a = "d=0.85", label_b = "d=0.90")
+print(diff)
+cat("\nCorrelation summary:\n")
+print(attr(diff, "summary"))
+```
+
+### Parameter grid search
+
+Run PageRank across multiple parameter combinations to find the most
+informative model:
+
+```{r grid}
+edges <- data.frame(
+  from = c("A", "A", "B", "C"),
+  to   = c("B", "C", "C", "A"),
+  stringsAsFactors = FALSE
+)
+
+grid <- auto_grid(damping = c(0.75, 0.85, 0.95))
+results <- pagerank_grid(edges, params_grid = grid, clean_edge_urls = FALSE)
+
+# Analyse distribution metrics across the grid
+analysis <- analyze_pagerank_grid(results)
+print(analysis)
+```
+
+### Distribution metrics
+
+Standalone metrics for any PageRank vector:
+
+```{r metrics}
+pr <- pagerank(edges, clean_edge_urls = FALSE)
+cat("Gini coefficient:", pr_gini(pr$pagerank), "\n")
+cat("Entropy:", pr_entropy(pr$pagerank), "\n")
+cat("Top-1 share:", pr_top_k_share(pr$pagerank, k = 1), "\n")
+```
+
 ## Simulating Changes
 
-A common SEO workflow is asking "what happens to PageRank if I add these links, remove those links, or implement these redirects?" The `simulate_changes()` function makes this a single call.
+A common SEO workflow is asking "what happens to PageRank if I add these
+links, remove those links, or implement these redirects?"
 
-### Using `simulate_changes()`
+### Adding links
 
 ```{r simulate_add_link}
-# Current site structure: a simple triangle
 site_links <- data.frame(
   from = c("Home", "Home", "About", "Blog"),
-  to = c("About", "Blog", "Home", "Home"),
+  to   = c("About", "Blog", "Home", "Home"),
   stringsAsFactors = FALSE
 )
 
-# Propose adding a link from Blog -> About
-new_links <- data.frame(
-  from = "Blog", to = "About", stringsAsFactors = FALSE
+impact <- simulate_changes(
+  site_links,
+  add_links_df = data.frame(from = "Blog", to = "About",
+                            stringsAsFactors = FALSE),
+  clean_edge_urls = FALSE
 )
-
-impact <- simulate_changes(site_links, add_links_df = new_links,
-                           clean_edge_urls = FALSE)
 print(impact)
-cat("\nSummary:\n")
-print(attr(impact, "summary"))
 ```
 
-The `delta` column shows how much each page's PageRank changes. Positive means the page gains PR, negative means it loses.
-
-### Simulating link removal
+### Removing links
 
 ```{r simulate_remove_link}
-# What if we remove the Home -> Blog link?
-remove_links <- data.frame(
-  from = "Home", to = "Blog", stringsAsFactors = FALSE
+impact_remove <- simulate_changes(
+  site_links,
+  remove_links_df = data.frame(from = "Home", to = "Blog",
+                               stringsAsFactors = FALSE),
+  clean_edge_urls = FALSE
 )
-
-impact_remove <- simulate_changes(site_links, remove_links_df = remove_links,
-                                  clean_edge_urls = FALSE)
 print(impact_remove)
 ```
 
 ### Simulating redirects
 
 ```{r simulate_redirect}
-# What if we redirect OldPage to About?
-# First, add OldPage to the graph
 extended_links <- rbind(site_links, data.frame(
   from = "OldPage", to = "Home", stringsAsFactors = FALSE
 ))
 
-new_redirect <- data.frame(
-  from = "OldPage", to = "About", stringsAsFactors = FALSE
+impact_redirect <- simulate_changes(
+  extended_links,
+  add_redirects_df = data.frame(from = "OldPage", to = "About",
+                                stringsAsFactors = FALSE),
+  clean_edge_urls = FALSE
 )
-
-impact_redirect <- simulate_changes(extended_links,
-                                    add_redirects_df = new_redirect,
-                                    clean_edge_urls = FALSE)
 print(impact_redirect)
 ```
 
 ### Combined changes
-
-You can combine adds, removes, and redirects in a single call:
 
 ```{r simulate_combined}
 impact_all <- simulate_changes(
@@ -363,27 +379,26 @@ impact_all <- simulate_changes(
 print(impact_all)
 ```
 
-### Manual approach (advanced)
+All `pagerank()` parameters (damping, nofollow, indexability, etc.) can
+be passed through `simulate_changes()` via `...`.
 
-For full control, you can do the same thing manually:
+## Function Reference
 
-```{r simulate_manual, eval=FALSE}
-# 1. Compute baseline
-pr_baseline <- pagerank(site_links, clean_edge_urls = FALSE)
-
-# 2. Modify the edge list
-proposed <- rbind(site_links,
-                  data.frame(from = "Blog", to = "About",
-                             stringsAsFactors = FALSE))
-
-# 3. Compute proposed
-pr_proposed <- pagerank(proposed, clean_edge_urls = FALSE)
-
-# 4. Compare
-diff <- compare_pagerank(pr_baseline, pr_proposed,
-                         label_a = "current", label_b = "proposed")
-print(diff)
-attr(diff, "summary")
-```
-
-All `pagerank()` parameters (damping, nofollow, indexability, etc.) can be passed through `simulate_changes()` via `...`.
+| Function | Purpose |
+|---|---|
+| `pagerank()` | End-to-end: clean, resolve, compute |
+| `resolve_links()` | Resolve redirects + deduplicate (no PR) |
+| `simulate_changes()` | What-if: compare baseline vs. proposed |
+| `compare_pagerank()` | Diff two PR results with rank shifts |
+| `pagerank_grid()` | Run PR across parameter combinations |
+| `auto_grid()` | Generate parameter grid |
+| `analyze_pagerank_grid()` | Distribution metrics across a grid |
+| `filter_links_by_domain()` | Scope edges by domain |
+| `resolve_redirects()` | Apply redirects to an edge list |
+| `clean_url_columns()` | Canonicalise URLs |
+| `get_unique_edges()` | Deduplicate, handle self-loops |
+| `drop_isolates()` | Include/exclude disconnected nodes |
+| `compute_pagerank()` | Low-level igraph PR wrapper |
+| `pr_gini()` | Gini coefficient of PR distribution |
+| `pr_entropy()` | Entropy of PR distribution |
+| `pr_top_k_share()` | Top-k concentration of PR |
