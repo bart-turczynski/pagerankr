@@ -3,6 +3,29 @@
 \name{pagerank}
 \alias{pagerank}
 \title{Master PageRank Calculation Wrapper}
+\usage{
+pagerank(
+  edge_list_df,
+  redirects_df = NULL,
+  clean_edge_urls = TRUE,
+  clean_redirect_urls = TRUE,
+  rurl_params = list(),
+  self_loops = c("drop", "keep"),
+  drop_isolates_flag = TRUE,
+  weight_col = NULL,
+  nofollow_col = NULL,
+  nofollow_action = c("evaporate", "drop", "keep"),
+  indexability_df = NULL,
+  indexability_url_col = "url",
+  indexability_status_col = "indexability_status",
+  robots_blocked_action = c("trap", "vanish"),
+  edge_from_col = "from",
+  edge_to_col = "to",
+  redirect_from_col = "from",
+  redirect_to_col = "to",
+  ...
+)
+}
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, typically with
 columns like "from" and "to".}
@@ -25,6 +48,45 @@ Either "drop" (default) or "keep".}
 \item{drop_isolates_flag}{Logical, whether to drop isolated nodes before
 PageRank computation. Defaults to TRUE.}
 
+\item{weight_col}{Optional name of a numeric column in `edge_list_df`
+containing edge weights. Higher weights make edges more likely to be
+followed. If `NULL` (default), all edges have equal weight.}
+
+\item{nofollow_col}{Optional name of a logical or 0/1 column in
+`edge_list_df` indicating nofollow edges. If `NULL` (default),
+no nofollow handling is performed.}
+
+\item{nofollow_action}{How to handle nofollow edges when `nofollow_col` is
+provided. One of:
+\describe{
+  \item{`"evaporate"`}{(default, Google-like) Nofollow links consume their
+    share of the source node's outgoing PR budget but pass nothing to the
+    target. Implemented via a sink node that absorbs the wasted PR.}
+  \item{`"drop"`}{Remove nofollow edges entirely. Follow edges share the
+    full PR budget among themselves.}
+  \item{`"keep"`}{Treat nofollow edges identically to follow edges.}
+}}
+
+\item{indexability_df}{Optional data frame mapping URLs to their indexability
+status (e.g., from an SEO crawl export). See Details.}
+
+\item{indexability_url_col}{Name of the URL column in `indexability_df`.
+Default `"url"`.}
+
+\item{indexability_status_col}{Name of the status column in
+`indexability_df`. Default `"indexability_status"`. Values are
+comma-separated strings; recognized statuses are `"Blocked by robots.txt"`
+and `"noindex"` (case-insensitive for noindex).}
+
+\item{robots_blocked_action}{How to present robots.txt-blocked pages in
+results. One of:
+\describe{
+  \item{`"trap"`}{(default) Blocked pages appear in results showing their
+    accumulated (trapped) PageRank, useful for seeing wasted PR.}
+  \item{`"vanish"`}{Blocked pages are removed from results. Their PR
+    disappears.}
+}}
+
 \item{edge_from_col, edge_to_col}{Names of from/to columns in `edge_list_df`.}
 
 \item{redirect_from_col, redirect_to_col}{Names of from/to columns in `redirects_df`.}
@@ -33,13 +95,36 @@ PageRank computation. Defaults to TRUE.}
 to `igraph::page_rank` (e.g., `damping`).}
 }
 \value{
-A data frame with node names and their PageRank scores, summing to 1
-  for non-empty graphs.
+A data frame with node names and their PageRank scores. When
+  nofollow evaporation, indexability handling, or `robots_blocked_action =
+  "vanish"` is active, scores may sum to less than 1 (the difference is
+  the wasted/evaporated share).
 }
 \description{
 Orchestrates the complete PageRank calculation workflow,
 including URL cleaning, redirect resolution, edge deduplication,
-isolate handling, and PageRank computation.
+indexability handling, nofollow handling, isolate handling, and
+PageRank computation.
+}
+\details{
+## Indexability handling
+
+When `indexability_df` is provided, two types of pages receive special
+treatment:
+
+**noindex pages:** All outgoing links from a noindex page are treated as
+nofollow (the page is not in Google's index, so it cannot pass PageRank).
+These edges are then processed by the nofollow mechanism according to
+`nofollow_action`.
+
+**robots.txt-blocked pages:** Google cannot access the page content, so
+there are no visible outgoing links. All outgoing edges are removed and a
+self-loop is added to trap inbound PageRank. The `robots_blocked_action`
+parameter controls whether these pages appear in results (`"trap"`) or
+are removed (`"vanish"`).
+
+**Priority rule:** robots.txt always takes precedence over noindex. If a
+page is both robots-blocked and noindex, it is treated as robots-blocked.
 }
 \examples{
 # Basic example
@@ -66,4 +151,13 @@ print(pr_no_edge_clean)
 edges_isol <- rbind(edges, data.frame(from="ISO", to="LAND"))
 pr_keep_isolates <- pagerank(edges_isol, drop_isolates_flag = FALSE)
 print(pr_keep_isolates)
+
+# With nofollow edges (evaporate mode)
+edges_nf <- data.frame(
+  from = c("A", "A", "B"), to = c("B", "C", "A"),
+  nofollow = c(FALSE, TRUE, FALSE), stringsAsFactors = FALSE
+)
+pr_nf <- pagerank(edges_nf, nofollow_col = "nofollow",
+                  nofollow_action = "evaporate", clean_edge_urls = FALSE)
+print(pr_nf)
 }

@@ -103,9 +103,16 @@ resolve_redirects <- function(edge_list_df,
     return(edge_list_df)
   }
   
-  # Filter out NA values in redirect map. Self-referencing redirects are handled by .trace_redirect_path for cycle detection.
-  redirects_df <- redirects_df[!is.na(redirects_df[[redirect_from_col]]) &
-                               !is.na(redirects_df[[redirect_to_col]]), , drop = FALSE]
+  # Filter out NA values and self-referencing redirects (from == to) before processing.
+  na_mask <- !is.na(redirects_df[[redirect_from_col]]) &
+             !is.na(redirects_df[[redirect_to_col]])
+  redirects_df <- redirects_df[na_mask, , drop = FALSE]
+
+  if (nrow(redirects_df) > 0) {
+    self_ref <- as.character(redirects_df[[redirect_from_col]]) ==
+                as.character(redirects_df[[redirect_to_col]])
+    redirects_df <- redirects_df[!self_ref, , drop = FALSE]
+  }
   
   # --- Prepare Redirect Map & Check for Ambiguities ---
   redirect_sources_raw <- redirects_df[[redirect_from_col]]

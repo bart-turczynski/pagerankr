@@ -140,4 +140,80 @@ describe("get_unique_edges basic functionality", {
     expect_equal(nrow(unique_all_na), 0)
     expect_equal(names(unique_all_na), c("from", "to"))
   })
+})
+
+describe("get_unique_edges preserves extra columns", {
+  it("preserves extra columns during deduplication", {
+    edges <- data.frame(
+      from = c("A", "B", "A", "C"),
+      to = c("B", "C", "B", "D"),
+      weight = c(1, 2, 3, 4),
+      nofollow = c(FALSE, TRUE, FALSE, FALSE),
+      stringsAsFactors = FALSE
+    )
+    result <- get_unique_edges(edges, self_loops = "drop")
+    expect_equal(nrow(result), 3) # A->B, B->C, C->D
+    expect_true("weight" %in% names(result))
+    expect_true("nofollow" %in% names(result))
+    # First occurrence of A->B (weight=1) should be kept
+    ab_row <- result[result$from == "A" & result$to == "B", ]
+    expect_equal(ab_row$weight, 1)
+    expect_equal(ab_row$nofollow, FALSE)
+  })
+
+  it("preserves extra columns during self-loop removal", {
+    edges <- data.frame(
+      from = c("A", "B", "B"),
+      to = c("B", "B", "C"),
+      score = c(10, 20, 30),
+      stringsAsFactors = FALSE
+    )
+    result <- get_unique_edges(edges, self_loops = "drop")
+    expect_equal(nrow(result), 2) # A->B, B->C (B->B removed)
+    expect_true("score" %in% names(result))
+    expect_equal(result$score[result$from == "A"], 10)
+    expect_equal(result$score[result$from == "B"], 30)
+  })
+
+  it("preserves extra column structure when all rows are dropped", {
+    edges <- data.frame(
+      from = c("A", "B"),
+      to = c("A", "B"),
+      weight = c(1, 2),
+      stringsAsFactors = FALSE
+    )
+    result <- get_unique_edges(edges, self_loops = "drop")
+    expect_equal(nrow(result), 0)
+    expect_true("weight" %in% names(result))
+    expect_equal(names(result), c("from", "to", "weight"))
+  })
+
+  it("deduplicates by from/to only, not by extra columns", {
+    edges <- data.frame(
+      from = c("A", "A"),
+      to = c("B", "B"),
+      weight = c(1, 99),
+      stringsAsFactors = FALSE
+    )
+    result <- get_unique_edges(edges, self_loops = "keep")
+    expect_equal(nrow(result), 1)
+    # First occurrence kept
+    expect_equal(result$weight, 1)
+  })
+
+  it("handles truly empty data.frame() with non-default col names", {
+    # 0 rows, 0 cols, custom from/to names
+    empty_df <- data.frame()
+    result <- get_unique_edges(empty_df, from_col = "src", to_col = "dst")
+    expect_equal(nrow(result), 0)
+    expect_true("src" %in% names(result))
+    expect_true("dst" %in% names(result))
+  })
+
+  it("handles empty df with wrong columns (0 rows but some cols)", {
+    # Has columns but not the right ones, and is empty
+    df <- data.frame(x = character(0), y = character(0), stringsAsFactors = FALSE)
+    result <- get_unique_edges(df, from_col = "x", to_col = "y")
+    expect_equal(nrow(result), 0)
+  })
 }) 

@@ -24,7 +24,8 @@ Must be one of "drop" (default) or "keep".}
 }
 \value{
 A data frame with unique edges, with self-loops handled according to
-  the `self_loops` argument. Output columns will match `from_col` and `to_col`.
+  the `self_loops` argument. The from/to columns are coerced to character; all
+  other columns in the input are preserved (first occurrence kept on dedup).
   If input columns are factors, they are converted to characters in the output.
 }
 \description{

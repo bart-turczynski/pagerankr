@@ -96,10 +96,8 @@ describe("resolve_redirects error handling", {
     expect_error(resolve_redirects(edges, redirects_cycle),
                  regexp = "Redirect cycle detected for URL 'L1'. Path: L1 -> L2 -> L3 -> L1")
 
-    redirects_self_cycle <- data.frame(from = "S", to = "S", stringsAsFactors = FALSE)
-    edges_self_cycle <- data.frame(from = "Initial", to = "S", stringsAsFactors = FALSE)
-    expect_error(resolve_redirects(edges_self_cycle, redirects_self_cycle),
-                 regexp = "Redirect cycle detected for URL 'S'. Path: S -> S")
+    # Self-referencing redirects (from == to) are silently filtered, not treated as cycles.
+    # Moved to its own test below. Multi-hop cycles (L1->L2->L3->L1) still error.
   })
 
   it("detects and errors on redirect ambiguities", {
@@ -188,5 +186,51 @@ describe("resolve_redirects with more complex scenarios", {
         resolved <- resolve_redirects(edges, redirects)
         expect_equal(resolved$from, "A_final")
         expect_equal(resolved$to, "B_final")
+    })
+})
+
+describe("resolve_redirects self-referencing redirect handling", {
+    it("silently filters self-referencing redirects (from == to)", {
+        edges <- data.frame(from = "Initial", to = "S", stringsAsFactors = FALSE)
+        redirects_self <- data.frame(from = "S", to = "S", stringsAsFactors = FALSE)
+        # Self-referencing redirect S -> S should be silently filtered, not an error.
+        # "S" remains "S" since no valid redirect applies.
+        resolved <- resolve_redirects(edges, redirects_self)
+        expect_equal(resolved$from, "Initial")
+        expect_equal(resolved$to, "S")
+    })
+
+    it("filters self-referencing redirects while keeping valid ones", {
+        edges <- data.frame(from = c("A", "B"), to = c("X", "Y"), stringsAsFactors = FALSE)
+        redirects <- data.frame(
+            from = c("X", "Y", "Z"),
+            to =   c("X", "Y_final", "Z_final"),
+            stringsAsFactors = FALSE
+        )
+        # X -> X is self-referencing, silently filtered. Y -> Y_final is valid.
+        resolved <- resolve_redirects(edges, redirects)
+        expect_equal(resolved$to, c("X", "Y_final"))
+    })
+
+    it("returns edge list unchanged when all redirects are self-referencing", {
+        edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+        redirects <- data.frame(
+            from = c("X", "Y"),
+            to =   c("X", "Y"),
+            stringsAsFactors = FALSE
+        )
+        resolved <- resolve_redirects(edges, redirects)
+        expect_equal(resolved, edges)
+    })
+
+    it("errors when redirects_df is not a data frame", {
+        edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+        expect_error(resolve_redirects(edges, "not_a_df"), "data frame")
+    })
+
+    it("errors when redirects_df is missing required columns", {
+        edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+        redirects <- data.frame(x = "A", y = "B", stringsAsFactors = FALSE)
+        expect_error(resolve_redirects(edges, redirects), "columns")
     })
 }) 

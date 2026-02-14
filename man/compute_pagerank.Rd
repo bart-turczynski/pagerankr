@@ -11,6 +11,7 @@ compute_pagerank(
   from_col = "from",
   to_col = "to",
   vertex_col_name = "node_name",
+  weight_col = NULL,
   pr_node_col = "node_name",
   pr_value_col = "pagerank",
   ...
@@ -35,6 +36,11 @@ The column name is specified by `vertex_col_name`.}
 
 \item{vertex_col_name}{Name of the column in `vertices_df` containing node names.
 Default "node_name".}
+
+\item{weight_col}{Optional name of a numeric column in `edge_list_df` containing
+edge weights. Higher weights make edges more likely to be followed in the
+random surfer model. If `NULL` (default), all edges have equal weight
+(unweighted PageRank).}
 
 \item{pr_node_col}{Name for the node column in the output PageRank data frame. Default "node_name".}
 

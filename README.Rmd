@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 <!-- badges: start -->
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![R-CMD-check](https://github.com/YOUR_USERNAME/pagerankr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/YOUR_USERNAME/pagerankr/actions/workflows/R-CMD-check.yaml)
+[![R-CMD-check](https://github.com/bart-turczynski/pagerankr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 The goal of `pagerankr` is to provide a modular, pipeable toolkit for calculating PageRank scores from web crawl data (edge lists and redirect reports), commonly used in SEO analysis. The package uses base R for data manipulation and relies on `igraph` for the core PageRank computation and `rurl` for URL cleaning.
@@ -25,8 +25,7 @@ You can install the development version of `pagerankr` from [GitHub](https://git
 
 ```r
 # install.packages("devtools")
-# devtools::install_github("YOUR_USERNAME/pagerankr") 
-# Replace YOUR_USERNAME/pagerankr with the actual repository path
+# devtools::install_github("bart-turczynski/pagerankr")
 ```
 
 ## Example
@@ -128,6 +127,3 @@ Please note that the `pagerankr` project is released with a [Contributor Code of
 ## License
 
 MIT License. See the `LICENSE` file for details.
-
-#' @details
-#' As part of the workflow, any edge where either from or to is NA is automatically dropped before deduplication and PageRank calculation. Self-referencing redirects (where from == to) are also filtered out before redirect resolution. 

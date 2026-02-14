@@ -16,32 +16,25 @@ describe("drop_isolates basic functionality", {
     expect_equal(sort(all_nodes_df$vertex), sort(c("A", "B", "C", "D", "E", "F")))
   })
 
-  it("drop = TRUE: returns unique non-NA nodes with degree > 0", {
+  it("drop = TRUE: returns only nodes participating in complete edges", {
     edges <- data.frame(
       from = c("A", "B", "C", "Isolated", NA, "E"), 
       to =   c("B", "C", "A", NA, "Orphan", "F"), 
       stringsAsFactors = FALSE
     )
-    # Valid edges define degree. 
-    # A-B, B-C, C-A, E-F are valid links. Nodes: A,B,C,E,F
-    # "Isolated" appears with NA in to: so "Isolated" is mentioned but has no valid edge from it here.
-    # "Orphan" appears with NA in from: so "Orphan" is mentioned but has no valid edge to it here.
-    # The current implementation of drop_isolates with drop=TRUE returns all unique non-NA nodes mentioned
-    # because any mention implies it was part of an attempted edge. This aligns with spec: 
-    # "If drop = TRUE, returns a single-column data.frame of node names *with degree > 0*."
-    # "degree > 0" means it appeared in from or to of a non-NA edge part.
-    # After na.omit(c(from, to)), nodes are: A,B,C,Isolated,E,Orphan,F
-    # So all these have "degree > 0" in the context of *being mentioned*
+    # Complete edges: A->B, B->C, C->A, E->F. Connected nodes: A,B,C,E,F
+    # "Isolated" appears only in row with NA to: isolate (not in a complete edge)
+    # "Orphan" appears only in row with NA from: isolate (not in a complete edge)
     active_nodes_df <- drop_isolates(edges, drop = TRUE)
     expect_equal(names(active_nodes_df), "node_name")
-    expected_active <- sort(c("A", "B", "C", "E", "F", "Isolated", "Orphan"))
+    expected_active <- sort(c("A", "B", "C", "E", "F"))
     expect_equal(sort(active_nodes_df$node_name), expected_active)
     
-    # More explicit test for degree > 0
+    # More explicit test: V3 only appears in partial row (V3 -> NA)
     edges2 <- data.frame(from=c("V1","V2", "V3"), to=c("V2","V1",NA), stringsAsFactors = FALSE)
-    # V1, V2 are in valid edges. V3 is mentioned (from V3 to NA).
+    # V1, V2 are in complete edges. V3 is only in a partial row (isolate).
     active2 <- drop_isolates(edges2, drop=TRUE)
-    expect_equal(sort(active2$node_name), sort(c("V1","V2","V3")))
+    expect_equal(sort(active2$node_name), sort(c("V1","V2")))
   })
   
   it("handles custom column names for edges and output", {
@@ -50,6 +43,7 @@ describe("drop_isolates basic functionality", {
       target = c("T1", "T1"), 
       stringsAsFactors = FALSE
     )
+    # All rows are complete edges, so drop=TRUE and drop=FALSE return the same nodes
     all_custom <- drop_isolates(edges_custom, drop = FALSE, 
                                 from_col = "source", to_col = "target", node_col_name = "my_nodes")
     expect_equal(nrow(all_custom), 3) # S1, S2, T1
@@ -58,7 +52,7 @@ describe("drop_isolates basic functionality", {
     
     active_custom <- drop_isolates(edges_custom, drop = TRUE, 
                                    from_col = "source", to_col = "target", node_col_name = "active_verts")
-    expect_equal(nrow(active_custom), 3)
+    expect_equal(nrow(active_custom), 3) # All rows are complete, so same result
     expect_equal(names(active_custom), "active_verts")
     expect_equal(sort(active_custom$active_verts), sort(c("S1", "S2", "T1"))) 
   })
@@ -106,5 +100,67 @@ describe("drop_isolates basic functionality", {
       expect_error(drop_isolates(df, from_col = "non_existent"))
       expect_error(drop_isolates(edges_df = df, from_col = "fcol", to_col="tcol", node_col_name = 123))
       expect_error(drop_isolates(edges_df = df, from_col = "fcol", to_col="tcol", drop = "TRUE"))
+  })
+})
+
+describe("drop_isolates isolate detection with partial rows", {
+  it("drop=TRUE and drop=FALSE produce different results when isolates exist", {
+    # Partial rows: "Orphan" only appears in a row with NA from,
+    # "Dead" only appears in a row with NA to.
+    edges <- data.frame(
+      from = c("A", "B", NA, "Dead"),
+      to =   c("B", "A", "Orphan", NA),
+      stringsAsFactors = FALSE
+    )
+
+    all_nodes <- drop_isolates(edges, drop = FALSE)
+    active_nodes <- drop_isolates(edges, drop = TRUE)
+
+    # drop=FALSE: full vertex universe (A, B, Dead, Orphan)
+    expect_equal(sort(all_nodes$node_name), sort(c("A", "B", "Dead", "Orphan")))
+    # drop=TRUE: only nodes from complete edges (A, B)
+    expect_equal(sort(active_nodes$node_name), sort(c("A", "B")))
+
+    # They must differ
+    expect_false(nrow(all_nodes) == nrow(active_nodes))
+  })
+
+  it("drop=TRUE and drop=FALSE return the same result when no isolates exist", {
+    edges <- data.frame(
+      from = c("A", "B", "C"),
+      to =   c("B", "C", "A"),
+      stringsAsFactors = FALSE
+    )
+
+    all_nodes <- drop_isolates(edges, drop = FALSE)
+    active_nodes <- drop_isolates(edges, drop = TRUE)
+
+    expect_equal(sort(all_nodes$node_name), sort(active_nodes$node_name))
+  })
+
+  it("drop=TRUE returns empty when all rows are partial", {
+    edges <- data.frame(
+      from = c("A", NA),
+      to =   c(NA, "B"),
+      stringsAsFactors = FALSE
+    )
+
+    active_nodes <- drop_isolates(edges, drop = TRUE)
+    all_nodes <- drop_isolates(edges, drop = FALSE)
+
+    expect_equal(nrow(active_nodes), 0)
+    expect_equal(sort(all_nodes$node_name), sort(c("A", "B")))
+  })
+
+  it("errors when drop is not a single logical", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    expect_error(drop_isolates(edges, drop = "yes"), "single logical")
+    expect_error(drop_isolates(edges, drop = c(TRUE, FALSE)), "single logical")
+  })
+
+  it("errors when node_col_name is invalid", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    expect_error(drop_isolates(edges, node_col_name = ""), "non-empty")
+    expect_error(drop_isolates(edges, node_col_name = 123), "non-empty")
   })
 }) 

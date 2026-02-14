@@ -1,53 +1,58 @@
 #' @title Identify and Optionally Drop Isolated Nodes from an Edge List
-#' @description From an edge list, identifies nodes with a total degree of zero
-#'   (i.e., they are not a source or target of any edge). It can return a list
-#'   of nodes to keep (degree > 0) or all unique nodes from the edge list.
+#' @description From an edge list, identifies isolated nodes (nodes that do not
+#'   participate in any complete edge, i.e., a row where both from and to are
+#'   non-NA). It can return only connected nodes (degree > 0) or the full vertex
+#'   universe (all unique non-NA URLs from both columns, including those from
+#'   partial/incomplete rows).
 #'
 #' @param edge_list_df A data frame representing the edge list, typically with
 #'   columns "from" and "to" (or as specified by `from_col`, `to_col`).
-#'   This should typically be a processed edge list (e.g., after unique edges
-#'   and redirect resolution).
+#'   Rows where both columns are non-NA represent edges. Rows where one column
+#'   is NA represent known nodes that do not participate in a complete edge
+#'   (potential isolates).
 #' @param drop Logical. If `TRUE`, returns a single-column data frame containing
-#'   only node names with a total degree greater than 0. If `FALSE` (default),
-#'   returns a single-column data frame of all unique node names present in the
-#'   `edge_list_df` (after NA removal from source/target columns).
+#'   only node names that participate in at least one complete edge (both from
+#'   and to are non-NA in the same row). If `FALSE` (default), returns a
+#'   single-column data frame of all unique non-NA node names present in either
+#'   column of `edge_list_df` (the full vertex universe, including isolates).
 #' @param from_col Name of the source node column in `edge_list_df`. Default "from".
 #' @param to_col Name of the target node column in `edge_list_df`. Default "to".
 #' @param node_col_name Name for the output column containing node names.
-#'   Default "node_name".
+#'   Default "node_name". When used with [compute_pagerank()], this should match
+#'   its `vertex_col_name` parameter.
 #'
 #' @return A single-column data frame named according to `node_col_name`.
-#'   If `drop = TRUE`, contains unique node names with degree > 0.
-#'   If `drop = FALSE`, contains all unique node names from the input edge list.
+#'   If `drop = TRUE`, contains unique node names with degree > 0 (from complete
+#'   edges only). If `drop = FALSE`, contains all unique non-NA node names from
+#'   both columns of the input edge list (full vertex universe).
 #'   Returns an empty data frame with the correct column name if no nodes meet
 #'   the criteria or if the input edge list is empty/all NAs.
 #' @export
 #' @examples
+#' # Edge list with partial rows (NA in one column = known node, not a complete edge)
 #' edges <- data.frame(
 #'   from = c("A", "B", "C", NA, "D"),
 #'   to = c("B", "C", "A", "E", NA),
 #'   stringsAsFactors = FALSE
 #' )
-#' # Nodes involved in edges are A, B, C, D, E. Assume F, G are isolates if not in edges.
+#' # Complete edges: A->B, B->C, C->A. Partial rows: NA->E (E is isolate), D->NA (D is isolate).
 #' 
-#' # Get nodes with degree > 0 (A, B, C, D, E should appear)
+#' # Get only nodes participating in complete edges (A, B, C)
 #' active_nodes <- drop_isolates(edges, drop = TRUE)
 #' print(active_nodes)
 #' 
-#' # Get all unique nodes mentioned in edges (A, B, C, D, E)
+#' # Get all unique nodes including isolates from partial rows (A, B, C, D, E)
 #' all_nodes <- drop_isolates(edges, drop = FALSE)
 #' print(all_nodes)
 #' 
-#' # Edge list leading to some nodes being isolates
-#' edges_with_isolates <- data.frame(
+#' # Edge list with no isolates (all rows are complete edges)
+#' edges_complete <- data.frame(
 #'   from = c("X", "Y"), 
 #'   to = c("Y", "X"), 
 #'   stringsAsFactors = FALSE
 #' )
-#' # If we consider nodes X, Y, Z, then Z would be an isolate here.
-#' # drop_isolates only knows about nodes in the edge_list_df.
-#' drop_isolates(edges_with_isolates, drop = TRUE) # X, Y
-#' drop_isolates(edges_with_isolates, drop = FALSE) # X, Y
+#' drop_isolates(edges_complete, drop = TRUE)  # X, Y
+#' drop_isolates(edges_complete, drop = FALSE) # X, Y (same, no partial rows)
 #' 
 #' # Empty edge list
 #' empty_edges <- data.frame(from = character(0), to = character(0), stringsAsFactors = FALSE)
@@ -108,13 +113,16 @@ drop_isolates <- function(edge_list_df,
   nodes_to_return <- character(0)
 
   if (drop) {
-    # If drop = TRUE, we return nodes with degree > 0.
-    # In this context, any node mentioned in a valid (non-NA in both parts) edge
-    # has degree > 0 with respect to the provided edge_list_df.
-    # So, all_mentioned_nodes are effectively the nodes with degree > 0.
-    nodes_to_return <- all_mentioned_nodes
+    # If drop = TRUE, return only nodes that participate in at least one
+    # complete edge (both from and to are non-NA in the same row).
+    complete_edge_mask <- !is.na(from_nodes) & !is.na(to_nodes)
+    nodes_to_return <- unique(c(
+      from_nodes[complete_edge_mask],
+      to_nodes[complete_edge_mask]
+    ))
   } else {
-    # If drop = FALSE, we return all unique nodes mentioned in the edge list.
+    # If drop = FALSE, return the full vertex universe: all unique non-NA
+    # nodes from both columns, including those from partial/incomplete rows.
     nodes_to_return <- all_mentioned_nodes
   }
 
