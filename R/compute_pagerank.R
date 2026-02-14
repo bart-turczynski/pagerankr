@@ -15,6 +15,10 @@
 #' @param to_col Name of the target node column in `edge_list_df`. Default "to".
 #' @param vertex_col_name Name of the column in `vertices_df` containing node names.
 #'   Default "node_name".
+#' @param weight_col Optional name of a numeric column in `edge_list_df` containing
+#'   edge weights. Higher weights make edges more likely to be followed in the
+#'   random surfer model. If `NULL` (default), all edges have equal weight
+#'   (unweighted PageRank).
 #' @param pr_node_col Name for the node column in the output PageRank data frame. Default "node_name".
 #' @param pr_value_col Name for the PageRank value column in the output data frame. Default "pagerank".
 #' @param ... Additional arguments passed to `igraph::page_rank()`.
@@ -60,6 +64,7 @@ compute_pagerank <- function(edge_list_df,
                              from_col = "from", 
                              to_col = "to",
                              vertex_col_name = "node_name",
+                             weight_col = NULL,
                              pr_node_col = "node_name",
                              pr_value_col = "pagerank",
                              ...) {
@@ -91,6 +96,17 @@ compute_pagerank <- function(edge_list_df,
   if(pr_node_col == pr_value_col){
       stop("`pr_node_col` and `pr_value_col` must be different.", call. = FALSE)
   }
+  if (!is.null(weight_col)) {
+    if (!is.character(weight_col) || length(weight_col) != 1) {
+      stop("`weight_col` must be a single character string or NULL.", call. = FALSE)
+    }
+    if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
+      stop("`weight_col` '", weight_col, "' not found in `edge_list_df`.", call. = FALSE)
+    }
+    if (nrow(edge_list_df) > 0 && !is.numeric(edge_list_df[[weight_col]])) {
+      stop("`weight_col` '", weight_col, "' must be a numeric column.", call. = FALSE)
+    }
+  }
 
   # --- Prepare Empty Result & Graph Vertices ---
   empty_pr_result <- stats::setNames(data.frame(matrix(ncol = 2, nrow = 0)), 
@@ -107,14 +123,25 @@ compute_pagerank <- function(edge_list_df,
 
   # --- Prepare Edges (Remove NAs) ---
   valid_edges_df <- NULL
+  weight_vector <- NULL
   if (nrow(edge_list_df) > 0) {
-    edges_for_graph <- edge_list_df[, c(from_col, to_col), drop = FALSE]
+    # Select from/to (and weight if present) columns
+    cols_to_keep <- c(from_col, to_col)
+    if (!is.null(weight_col)) cols_to_keep <- c(cols_to_keep, weight_col)
+    edges_for_graph <- edge_list_df[, cols_to_keep, drop = FALSE]
     edges_for_graph[[from_col]] <- as.character(edges_for_graph[[from_col]])
     edges_for_graph[[to_col]] <- as.character(edges_for_graph[[to_col]])
     
     # igraph cannot handle NAs in edge lists for graph_from_data_frame
     na_in_edges <- is.na(edges_for_graph[[from_col]]) | is.na(edges_for_graph[[to_col]])
     valid_edges_df <- edges_for_graph[!na_in_edges, , drop = FALSE]
+
+    # Extract aligned weight vector after NA removal
+    if (!is.null(weight_col) && nrow(valid_edges_df) > 0) {
+      weight_vector <- valid_edges_df[[weight_col]]
+      # Pass only from/to to graph_from_data_frame (weights set via edge attr)
+      valid_edges_df <- valid_edges_df[, c(from_col, to_col), drop = FALSE]
+    }
   } else {
     # No rows in edge_list_df, so valid_edges_df remains an empty structure
     valid_edges_df <- data.frame(matrix(ncol=2, nrow=0, dimnames=list(NULL, c(from_col, to_col))))
@@ -134,7 +161,11 @@ compute_pagerank <- function(edge_list_df,
     # If defined_nodes is provided, it uses them (and adds any from valid_edges_df not in defined_nodes).
     current_graph <- igraph::graph_from_data_frame(d = valid_edges_df, 
                                                      directed = TRUE, 
-                                                     vertices = defined_nodes) 
+                                                     vertices = defined_nodes)
+    # Set edge weights if provided (igraph::page_rank auto-detects weight attr)
+    if (!is.null(weight_vector)) {
+      igraph::E(current_graph)$weight <- weight_vector
+    }
   } else { # No valid edges, but defined_nodes might exist
     if (!is.null(defined_nodes) && length(defined_nodes) > 0) {
       current_graph <- igraph::make_empty_graph(n = length(defined_nodes), directed = TRUE)

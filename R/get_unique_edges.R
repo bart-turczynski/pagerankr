@@ -10,7 +10,8 @@
 #' @param to_col Name of the target node column in `edge_list_df`. Default "to".
 #'
 #' @return A data frame with unique edges, with self-loops handled according to
-#'   the `self_loops` argument. Output columns will match `from_col` and `to_col`.
+#'   the `self_loops` argument. The from/to columns are coerced to character; all
+#'   other columns in the input are preserved (first occurrence kept on dedup).
 #'   If input columns are factors, they are converted to characters in the output.
 #' @export
 #' @examples
@@ -87,41 +88,29 @@ get_unique_edges <- function(edge_list_df,
   # Drop any edge where from or to is NA
   edge_list_df <- edge_list_df[!is.na(edge_list_df[[from_col]]) & !is.na(edge_list_df[[to_col]]), , drop = FALSE]
 
-  # --- Select and Prepare Relevant Columns ---
-  # Ensure columns are character to handle factors and for reliable comparison.
-  # Using a temporary data.frame for processing.
-  temp_df <- data.frame(
-    from_nodes = as.character(edge_list_df[[from_col]]),
-    to_nodes = as.character(edge_list_df[[to_col]]),
-    stringsAsFactors = FALSE
-  )
-  names(temp_df) <- c(from_col, to_col) # Rename for clarity if defaults were used.
+  # --- Coerce from/to to character (handles factors) ---
+  edge_list_df[[from_col]] <- as.character(edge_list_df[[from_col]])
+  edge_list_df[[to_col]] <- as.character(edge_list_df[[to_col]])
 
   # --- Handle Self-loops ---
   if (self_loops == "drop") {
-    # Identify self-loops: where from_node == to_node.
-    # Need to handle NAs correctly: NA == NA is NA, not TRUE.
-    # A self-loop requires both components to be non-NA and equal.
-    is_self_loop <- (!is.na(temp_df[[from_col]]) & 
-                       !is.na(temp_df[[to_col]]) & 
-                       (temp_df[[from_col]] == temp_df[[to_col]]))
-    temp_df <- temp_df[!is_self_loop, , drop = FALSE]
+    is_self_loop <- edge_list_df[[from_col]] == edge_list_df[[to_col]]
+    edge_list_df <- edge_list_df[!is_self_loop, , drop = FALSE]
   }
-  
-  # If all rows were self-loops and dropped, temp_df could be empty.
-  if (nrow(temp_df) == 0) {
-    # Return an empty data frame with the correct column names and types.
-    empty_result_df <- stats::setNames(
-        data.frame(character(0), character(0), stringsAsFactors = FALSE),
-        c(from_col, to_col)
-    )
+
+  # If all rows were dropped, return an empty data frame preserving column structure.
+  if (nrow(edge_list_df) == 0) {
+    empty_result_df <- edge_list_df[FALSE, , drop = FALSE]
+    row.names(empty_result_df) <- NULL
     return(empty_result_df)
   }
 
   # --- Remove Duplicate Edges ---
-  # duplicated() works row-wise on data frames.
-  unique_edges_df <- temp_df[!duplicated(temp_df), , drop = FALSE]
-  
+  # Deduplicate by from/to columns only, preserving all other columns
+  # (first occurrence of each from/to pair is kept).
+  key_cols <- c(from_col, to_col)
+  unique_edges_df <- edge_list_df[!duplicated(edge_list_df[, key_cols, drop = FALSE]), , drop = FALSE]
+
   # Reset row names for cleaner output
   row.names(unique_edges_df) <- NULL
 

@@ -27,11 +27,11 @@ The package offers both a main wrapper function, `pagerank()`, for a quick end-t
 
 ## Installation
 
-If you haven't installed `pagerankr` yet, you can install it from its GitHub repository (replace `YOUR_USERNAME/pagerankr` with the actual path if different):
+If you haven't installed `pagerankr` yet, you can install it from its GitHub repository:
 
 ```r
 # install.packages("devtools") # If you don't have devtools
-# devtools::install_github("YOUR_USERNAME/pagerankr")
+# devtools::install_github("bart-turczynski/pagerankr")
 ```
 
 Load the package:

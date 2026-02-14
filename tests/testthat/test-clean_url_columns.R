@@ -185,10 +185,22 @@ describe("clean_url_columns memoization (conceptual)", {
   # })
 })
 
-# Note: Accessing internal cache structure like `shared_memoizer$.__enclos_env__$private$cache` 
-# is fragile and highly dependent on the memoization implementation detail in utils.R.
-# It's included here for a deeper conceptual check but might break if .create_memoized_cleaner changes.
-# For CRAN, such internal checks might be too risky unless the cache structure is stable and documented for testing.
-# A safer conceptual test for memoization is simply to ensure that for a given memoizer instance,
-# subsequent calls with identical inputs (URL + params) yield identical outputs, and different inputs/params yield
-# appropriately different (or same, if they clean to the same value) outputs, without directly inspecting cache state. 
+describe("clean_url_columns validation coverage", {
+  it("errors when input is not a data frame", {
+    expect_error(clean_url_columns("not_a_df"), "data frame")
+  })
+
+  it("errors when specified columns are missing", {
+    df <- data.frame(x = "http://example.com", stringsAsFactors = FALSE)
+    expect_error(clean_url_columns(df, columns = c("from", "to")),
+                 "not found")
+  })
+
+  it("errors when columns is not a character vector even if values match", {
+    df <- data.frame(from = "http://example.com", to = "http://b.com",
+                     stringsAsFactors = FALSE)
+    # Factor with matching values -> triggers the type guard
+    expect_error(clean_url_columns(df, columns = factor("from")),
+                 "character vector")
+  })
+}) 

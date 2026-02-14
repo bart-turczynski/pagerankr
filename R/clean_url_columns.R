@@ -28,15 +28,11 @@
 #' cleaned_df <- clean_url_columns(df, columns = c("from", "to"))
 #' print(cleaned_df)
 #'
-#' # Example with rurl::get_clean_url parameters
-#' # (Assuming rurl::get_clean_url from bart-turczynski/rurl might have limited direct args for these controls)
-#' # Default behavior will be tested. If specific params like drop_query are known for this rurl version,
-#' # they could be exemplified here. For now, showing a simple call.
+#' # Pass extra arguments to rurl::get_clean_url via ...
 #' cleaned_df_custom <- clean_url_columns(
 #'   df,
-#'   columns = c("from", "to")
-#'   # Example: if rurl::get_clean_url took a known parameter, e.g., `force_https = TRUE`
-#'   # cleaned_df_custom <- clean_url_columns(df, columns = c("from", "to"), force_https = TRUE)
+#'   columns = c("from", "to"),
+#'   protocol_handling = "http"
 #' )
 #' print(cleaned_df_custom)
 #'

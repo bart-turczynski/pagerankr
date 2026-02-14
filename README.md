@@ -16,7 +16,7 @@ pagerankr: Modular Toolkit for PageRank Calculation
 
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![R-CMD-check](https://github.com/YOUR_USERNAME/pagerankr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/YOUR_USERNAME/pagerankr/actions/workflows/R-CMD-check.yaml)
+[![R-CMD-check](https://github.com/bart-turczynski/pagerankr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 The goal of `pagerankr` is to provide a modular, pipeable toolkit for
@@ -32,8 +32,7 @@ You can install the development version of `pagerankr` from
 
 ``` r
 # install.packages("devtools")
-# devtools::install_github("YOUR_USERNAME/pagerankr") 
-# Replace YOUR_USERNAME/pagerankr with the actual repository path
+# devtools::install_github("bart-turczynski/pagerankr")
 ```
 
 ## 1.2 Example
@@ -145,8 +144,3 @@ By contributing to this project, you agree to abide by its terms.
 ## 1.6 License
 
 MIT License. See the `LICENSE` file for details.
-
-\#’ @details \#’ As part of the workflow, any edge where either from or
-to is NA is automatically dropped before deduplication and PageRank
-calculation. Self-referencing redirects (where from == to) are also
-filtered out before redirect resolution.

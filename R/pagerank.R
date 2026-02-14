@@ -1,7 +1,8 @@
 #' @title Master PageRank Calculation Wrapper
 #' @description Orchestrates the complete PageRank calculation workflow,
 #' including URL cleaning, redirect resolution, edge deduplication,
-#' isolate handling, and PageRank computation.
+#' indexability handling, nofollow handling, isolate handling, and
+#' PageRank computation.
 #' @name pagerank
 #'
 #' @param edge_list_df A data frame representing the edge list, typically with
@@ -18,13 +19,67 @@
 #'   Either "drop" (default) or "keep".
 #' @param drop_isolates_flag Logical, whether to drop isolated nodes before
 #'   PageRank computation. Defaults to TRUE.
+#' @param weight_col Optional name of a numeric column in `edge_list_df`
+#'   containing edge weights. Higher weights make edges more likely to be
+#'   followed. If `NULL` (default), all edges have equal weight.
+#' @param nofollow_col Optional name of a logical or 0/1 column in
+#'   `edge_list_df` indicating nofollow edges. If `NULL` (default),
+#'   no nofollow handling is performed.
+#' @param nofollow_action How to handle nofollow edges when `nofollow_col` is
+#'   provided. One of:
+#'   \describe{
+#'     \item{`"evaporate"`}{(default, Google-like) Nofollow links consume their
+#'       share of the source node's outgoing PR budget but pass nothing to the
+#'       target. Implemented via a sink node that absorbs the wasted PR.}
+#'     \item{`"drop"`}{Remove nofollow edges entirely. Follow edges share the
+#'       full PR budget among themselves.}
+#'     \item{`"keep"`}{Treat nofollow edges identically to follow edges.}
+#'   }
+#' @param indexability_df Optional data frame mapping URLs to their indexability
+#'   status (e.g., from an SEO crawl export). See Details.
+#' @param indexability_url_col Name of the URL column in `indexability_df`.
+#'   Default `"url"`.
+#' @param indexability_status_col Name of the status column in
+#'   `indexability_df`. Default `"indexability_status"`. Values are
+#'   comma-separated strings; recognized statuses are `"Blocked by robots.txt"`
+#'   and `"noindex"` (case-insensitive for noindex).
+#' @param robots_blocked_action How to present robots.txt-blocked pages in
+#'   results. One of:
+#'   \describe{
+#'     \item{`"trap"`}{(default) Blocked pages appear in results showing their
+#'       accumulated (trapped) PageRank, useful for seeing wasted PR.}
+#'     \item{`"vanish"`}{Blocked pages are removed from results. Their PR
+#'       disappears.}
+#'   }
 #' @param edge_from_col,edge_to_col Names of from/to columns in `edge_list_df`.
 #' @param redirect_from_col,redirect_to_col Names of from/to columns in `redirects_df`.
 #' @param ... Additional arguments passed to `compute_pagerank` and subsequently
 #'   to `igraph::page_rank` (e.g., `damping`).
 #'
-#' @return A data frame with node names and their PageRank scores, summing to 1
-#'   for non-empty graphs.
+#' @details
+#' ## Indexability handling
+#'
+#' When `indexability_df` is provided, two types of pages receive special
+#' treatment:
+#'
+#' **noindex pages:** All outgoing links from a noindex page are treated as
+#' nofollow (the page is not in Google's index, so it cannot pass PageRank).
+#' These edges are then processed by the nofollow mechanism according to
+#' `nofollow_action`.
+#'
+#' **robots.txt-blocked pages:** Google cannot access the page content, so
+#' there are no visible outgoing links. All outgoing edges are removed and a
+#' self-loop is added to trap inbound PageRank. The `robots_blocked_action`
+#' parameter controls whether these pages appear in results (`"trap"`) or
+#' are removed (`"vanish"`).
+#'
+#' **Priority rule:** robots.txt always takes precedence over noindex. If a
+#' page is both robots-blocked and noindex, it is treated as robots-blocked.
+#'
+#' @return A data frame with node names and their PageRank scores. When
+#'   nofollow evaporation, indexability handling, or `robots_blocked_action =
+#'   "vanish"` is active, scores may sum to less than 1 (the difference is
+#'   the wasted/evaporated share).
 #' @export
 #' @examples
 #' # Basic example
@@ -51,18 +106,15 @@
 #' edges_isol <- rbind(edges, data.frame(from="ISO", to="LAND"))
 #' pr_keep_isolates <- pagerank(edges_isol, drop_isolates_flag = FALSE)
 #' print(pr_keep_isolates)
-
-# Declare package-internal functions as global for linter satisfaction
-if (getRversion() >= "2.15.1") {
-  utils::globalVariables(c(
-    ".create_memoized_cleaner", ".urls_contain_query_params", # from utils.R
-    "clean_url_columns", 
-    "resolve_redirects", 
-    "get_unique_edges", 
-    "drop_isolates", 
-    "compute_pagerank"
-  ))
-}
+#'
+#' # With nofollow edges (evaporate mode)
+#' edges_nf <- data.frame(
+#'   from = c("A", "A", "B"), to = c("B", "C", "A"),
+#'   nofollow = c(FALSE, TRUE, FALSE), stringsAsFactors = FALSE
+#' )
+#' pr_nf <- pagerank(edges_nf, nofollow_col = "nofollow",
+#'                   nofollow_action = "evaporate", clean_edge_urls = FALSE)
+#' print(pr_nf)
 
 pagerank <- function(edge_list_df,
                      redirects_df = NULL,
@@ -71,6 +123,13 @@ pagerank <- function(edge_list_df,
                      rurl_params = list(),
                      self_loops = c("drop", "keep"),
                      drop_isolates_flag = TRUE,
+                     weight_col = NULL,
+                     nofollow_col = NULL,
+                     nofollow_action = c("evaporate", "drop", "keep"),
+                     indexability_df = NULL,
+                     indexability_url_col = "url",
+                     indexability_status_col = "indexability_status",
+                     robots_blocked_action = c("trap", "vanish"),
                      edge_from_col = "from",
                      edge_to_col = "to",
                      redirect_from_col = "from",
@@ -79,6 +138,8 @@ pagerank <- function(edge_list_df,
 
   # --- Argument Matching and Basic Validation ---
   self_loops <- match.arg(self_loops)
+  nofollow_action <- match.arg(nofollow_action)
+  robots_blocked_action <- match.arg(robots_blocked_action)
 
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
@@ -100,6 +161,44 @@ pagerank <- function(edge_list_df,
   if (!is.logical(drop_isolates_flag) || length(drop_isolates_flag) != 1) {
     stop("`drop_isolates_flag` must be a single logical value.", call. = FALSE)
   }
+
+  # Validate weight_col
+  if (!is.null(weight_col)) {
+    if (!is.character(weight_col) || length(weight_col) != 1) {
+      stop("`weight_col` must be a single character string or NULL.", call. = FALSE)
+    }
+    if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
+      stop("`weight_col` '", weight_col, "' not found in `edge_list_df`.", call. = FALSE)
+    }
+  }
+
+  # Validate nofollow_col
+  if (!is.null(nofollow_col)) {
+    if (!is.character(nofollow_col) || length(nofollow_col) != 1) {
+      stop("`nofollow_col` must be a single character string or NULL.", call. = FALSE)
+    }
+    if (nrow(edge_list_df) > 0 && !(nofollow_col %in% names(edge_list_df))) {
+      stop("`nofollow_col` '", nofollow_col, "' not found in `edge_list_df`.", call. = FALSE)
+    }
+  }
+
+  # Validate indexability_df
+  if (!is.null(indexability_df)) {
+    if (!is.data.frame(indexability_df)) {
+      stop("`indexability_df` must be a data frame or NULL.", call. = FALSE)
+    }
+    if (nrow(indexability_df) > 0) {
+      if (!(indexability_url_col %in% names(indexability_df))) {
+        stop("`indexability_url_col` '", indexability_url_col,
+             "' not found in `indexability_df`.", call. = FALSE)
+      }
+      if (!(indexability_status_col %in% names(indexability_df))) {
+        stop("`indexability_status_col` '", indexability_status_col,
+             "' not found in `indexability_df`.", call. = FALSE)
+      }
+    }
+  }
+
   # Dots for igraph params are handled by compute_pagerank directly.
 
   # --- Initialize working copies of data frames ---
@@ -178,6 +277,16 @@ pagerank <- function(edge_list_df,
     )
   }
 
+  # --- 2.5. Extract full vertex universe (before NA rows are stripped) ---
+  # This must happen before get_unique_edges() which drops rows with NAs.
+  # When drop_isolates_flag = FALSE, nodes from partial rows (one NA column)
+  # represent known URLs that should be included in the graph as isolates.
+  temp_node_col_name <- "node_name" # Standardized name for intermediate vertex data
+  all_vertex_universe <- unique(stats::na.omit(c(
+    as.character(current_edge_list[[edge_from_col]]),
+    as.character(current_edge_list[[edge_to_col]])
+  )))
+
   # --- 3. Get Unique Edges (handles self-loops) ---
   current_edge_list <- get_unique_edges(
     edge_list_df = current_edge_list,
@@ -186,67 +295,182 @@ pagerank <- function(edge_list_df,
     to_col = edge_to_col
   )
 
+  # --- 3.5. Indexability handling ---
+  # Must come after dedup (step 3) but before nofollow (step 3.6) so that
+
+  # noindex-derived nofollow edges are picked up by the nofollow mechanism.
+  robots_blocked_urls <- character(0)
+  if (!is.null(indexability_df) && nrow(indexability_df) > 0 && nrow(current_edge_list) > 0) {
+    statuses <- as.character(indexability_df[[indexability_status_col]])
+    urls <- as.character(indexability_df[[indexability_url_col]])
+
+    # Parse statuses: robots.txt takes priority over noindex
+    is_robots_blocked <- grepl("Blocked by robots.txt", statuses, fixed = TRUE)
+    is_noindex <- grepl("noindex", statuses, ignore.case = TRUE) & !is_robots_blocked
+
+    noindex_urls <- urls[is_noindex]
+    robots_blocked_urls <- urls[is_robots_blocked]
+
+    # --- noindex pages: mark all outgoing edges as nofollow ---
+    if (length(noindex_urls) > 0) {
+      from_is_noindex <- current_edge_list[[edge_from_col]] %in% noindex_urls
+      if (any(from_is_noindex)) {
+        # Create nofollow column if it doesn't exist
+        if (is.null(nofollow_col)) {
+          nofollow_col <- "__pr_nofollow__"
+          current_edge_list[[nofollow_col]] <- FALSE
+        } else if (!(nofollow_col %in% names(current_edge_list))) {
+          current_edge_list[[nofollow_col]] <- FALSE
+        }
+        current_edge_list[[nofollow_col]][from_is_noindex] <- TRUE
+      }
+    }
+
+    # --- robots-blocked pages: remove outgoing edges, add self-loop ---
+    if (length(robots_blocked_urls) > 0) {
+      from_is_blocked <- current_edge_list[[edge_from_col]] %in% robots_blocked_urls
+      if (any(from_is_blocked)) {
+        # Remove all outgoing edges from blocked pages
+        current_edge_list <- current_edge_list[!from_is_blocked, , drop = FALSE]
+
+        # Add self-loops for each blocked URL that exists as a source
+        blocked_with_edges <- unique(robots_blocked_urls[robots_blocked_urls %in%
+          current_edge_list[[edge_from_col]] | robots_blocked_urls %in%
+          current_edge_list[[edge_to_col]] | robots_blocked_urls %in%
+          all_vertex_universe])
+        if (length(blocked_with_edges) > 0) {
+          # Build self-loop rows matching the edge list structure
+          self_loop_df <- stats::setNames(
+            data.frame(blocked_with_edges, blocked_with_edges,
+                       stringsAsFactors = FALSE),
+            c(edge_from_col, edge_to_col)
+          )
+          # Fill extra columns with appropriate defaults
+          extra_cols <- setdiff(names(current_edge_list), c(edge_from_col, edge_to_col))
+          for (col in extra_cols) {
+            if (is.logical(current_edge_list[[col]])) {
+              self_loop_df[[col]] <- FALSE
+            } else if (is.numeric(current_edge_list[[col]])) {
+              self_loop_df[[col]] <- 1
+            } else {
+              self_loop_df[[col]] <- NA
+            }
+          }
+          current_edge_list <- rbind(current_edge_list, self_loop_df)
+        }
+      }
+    }
+  }
+
+  # --- 3.6. Nofollow handling ---
+  nofollow_sink_name <- "__pr_nofollow_sink__"
+  used_nofollow_sink <- FALSE
+
+  if (!is.null(nofollow_col) && nofollow_col %in% names(current_edge_list) &&
+      nrow(current_edge_list) > 0) {
+
+    # Coerce nofollow column to logical
+    nf_vals <- current_edge_list[[nofollow_col]]
+    if (is.numeric(nf_vals)) nf_vals <- as.logical(nf_vals)
+    nf_mask <- !is.na(nf_vals) & nf_vals
+
+    if (any(nf_mask)) {
+      if (nofollow_action == "drop") {
+        # Simply remove nofollow edges
+        current_edge_list <- current_edge_list[!nf_mask, , drop = FALSE]
+
+      } else if (nofollow_action == "evaporate") {
+        # Redirect nofollow edge targets to the sink node
+        current_edge_list[[edge_to_col]][nf_mask] <- nofollow_sink_name
+
+        # Add a self-loop on the sink so it isn't a dangling node
+        sink_row <- stats::setNames(
+          data.frame(nofollow_sink_name, nofollow_sink_name,
+                     stringsAsFactors = FALSE),
+          c(edge_from_col, edge_to_col)
+        )
+        # Fill extra columns
+        extra_cols <- setdiff(names(current_edge_list), c(edge_from_col, edge_to_col))
+        for (col in extra_cols) {
+          if (is.logical(current_edge_list[[col]])) {
+            sink_row[[col]] <- FALSE
+          } else if (is.numeric(current_edge_list[[col]])) {
+            sink_row[[col]] <- 1
+          } else {
+            sink_row[[col]] <- NA
+          }
+        }
+        current_edge_list <- rbind(current_edge_list, sink_row)
+        used_nofollow_sink <- TRUE
+
+      }
+      # nofollow_action == "keep": do nothing
+    }
+  }
+
   # --- 4. Handle Isolates ---
-  vertices_for_pagerank_df <- NULL # Input for compute_pagerank's vertices_df argument
-  
-  # Determine the node column name for the output of drop_isolates and input to compute_pagerank
-  # This should be consistent. Let's use a fixed internal temporary name or ensure it matches.
-  # compute_pagerank expects a column named "node_name" by default in its vertices_df if provided.
-  temp_node_col_name_for_isolates <- "node_name" # Standardized name for this intermediate step
+  # After nofollow/indexability steps, the edge list may contain new nodes
+
+  # (e.g., __pr_nofollow_sink__, robots-blocked self-loops). Include them.
+  current_edge_nodes <- unique(c(
+    as.character(current_edge_list[[edge_from_col]]),
+    as.character(current_edge_list[[edge_to_col]])
+  ))
+  current_edge_nodes <- current_edge_nodes[!is.na(current_edge_nodes)]
+
+  vertices_for_pagerank_df <- NULL
 
   if (drop_isolates_flag) {
-    nodes_to_keep_df <- drop_isolates(
-      edge_list_df = current_edge_list,
-      drop = TRUE,
-      from_col = edge_from_col,
-      to_col = edge_to_col,
-      node_col_name = temp_node_col_name_for_isolates
-    )
-    if (nrow(nodes_to_keep_df) > 0) {
-      vertices_for_pagerank_df <- nodes_to_keep_df
-    } else {
-      # All nodes are isolates and dropped, or current_edge_list was empty.
-      # Create an empty data frame with the correct column name for compute_pagerank
-      vertices_for_pagerank_df <- data.frame(matrix(ncol=1, nrow=0, dimnames=list(NULL, temp_node_col_name_for_isolates)))
-      vertices_for_pagerank_df[[temp_node_col_name_for_isolates]] <- character(0)
+    # Only keep nodes that participate in at least one complete edge.
+    if (length(current_edge_nodes) > 0) {
+      vertices_for_pagerank_df <- stats::setNames(
+        data.frame(sort(current_edge_nodes), stringsAsFactors = FALSE),
+        temp_node_col_name
+      )
     }
   } else {
-    # If not dropping isolates, get all unique nodes to define the graph vertices.
-    all_nodes_df <- drop_isolates(
-      edge_list_df = current_edge_list,
-      drop = FALSE,
-      from_col = edge_from_col,
-      to_col = edge_to_col,
-      node_col_name = temp_node_col_name_for_isolates
-    )
-    if (nrow(all_nodes_df) > 0) {
-      vertices_for_pagerank_df <- all_nodes_df
-    } else {
-      # current_edge_list was empty or contained only NAs.
-      vertices_for_pagerank_df <- data.frame(matrix(ncol=1, nrow=0, dimnames=list(NULL, temp_node_col_name_for_isolates)))
-      vertices_for_pagerank_df[[temp_node_col_name_for_isolates]] <- character(0)
+    # Keep all known nodes: original vertex universe PLUS any nodes
+    # introduced by nofollow/indexability steps (sink node, etc.)
+    full_universe <- unique(c(all_vertex_universe, current_edge_nodes))
+    if (length(full_universe) > 0) {
+      vertices_for_pagerank_df <- stats::setNames(
+        data.frame(sort(full_universe), stringsAsFactors = FALSE),
+        temp_node_col_name
+      )
     }
   }
-  # If vertices_for_pagerank_df ends up with 0 rows, compute_pagerank should handle it.
-  # It will be NULL if it has 0 rows and passed as data.frame(node_name=character(0)) to compute_pagerank.
-  # Let's ensure it's NULL if empty, or correctly structured if not.
-  if(is.data.frame(vertices_for_pagerank_df) && nrow(vertices_for_pagerank_df) == 0){
-      vertices_for_pagerank_df <- NULL # compute_pagerank handles NULL vertices_df to infer from edges or make empty graph.
-  }
-
 
   # --- 5. Compute PageRank ---
-  # `...` will pass through arguments like `damping` if not explicitly set above, or other igraph args.
-  # compute_pagerank uses "node_name" as default for vertex_col_name, matching temp_node_col_name_for_isolates.
   pagerank_results <- compute_pagerank(
     edge_list_df = current_edge_list,
-    vertices_df = vertices_for_pagerank_df, 
+    vertices_df = vertices_for_pagerank_df,
     from_col = edge_from_col,
     to_col = edge_to_col,
-    vertex_col_name = temp_node_col_name_for_isolates, # Explicitly pass the col name used by drop_isolates
-    # pr_node_col and pr_value_col for output naming are handled by compute_pagerank defaults or can be passed in ...
+    vertex_col_name = temp_node_col_name,
+    weight_col = weight_col,
     ...
   )
+
+  # --- 6. Post-processing: remove internal nodes from results ---
+  if (nrow(pagerank_results) > 0) {
+    pr_node_col <- names(pagerank_results)[1]
+
+    # Remove nofollow sink node
+    if (used_nofollow_sink) {
+      pagerank_results <- pagerank_results[
+        pagerank_results[[pr_node_col]] != nofollow_sink_name, , drop = FALSE
+      ]
+    }
+
+    # Remove robots-blocked nodes if vanish action
+    if (robots_blocked_action == "vanish" && length(robots_blocked_urls) > 0) {
+      pagerank_results <- pagerank_results[
+        !(pagerank_results[[pr_node_col]] %in% robots_blocked_urls), , drop = FALSE
+      ]
+    }
+
+    row.names(pagerank_results) <- NULL
+  }
 
   return(pagerank_results)
 } 
