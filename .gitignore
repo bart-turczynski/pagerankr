@@ -98,3 +98,6 @@ instructions.md
 pagerankr.Rproj
 
 TODO.md
+# Coverage report assets
+lib/
+covr_report.html
