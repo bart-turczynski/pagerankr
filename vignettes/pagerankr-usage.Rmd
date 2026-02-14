@@ -287,3 +287,103 @@ pr_via_pipe <- edges_raw |>
 This vignette provides an overview of how to use the `pagerankr` package. For more detailed information on each function and its arguments, please consult the package documentation (e.g., `?pagerank`, `?clean_url_columns`). 
 
 > **Note:** Edges with `NA` in either endpoint are dropped automatically by the workflow. Self-referencing redirects are filtered out before redirect resolution. 
+## Simulating Changes
+
+A common SEO workflow is asking "what happens to PageRank if I add these links, remove those links, or implement these redirects?" The `simulate_changes()` function makes this a single call.
+
+### Using `simulate_changes()`
+
+```{r simulate_add_link}
+# Current site structure: a simple triangle
+site_links <- data.frame(
+  from = c("Home", "Home", "About", "Blog"),
+  to = c("About", "Blog", "Home", "Home"),
+  stringsAsFactors = FALSE
+)
+
+# Propose adding a link from Blog -> About
+new_links <- data.frame(
+  from = "Blog", to = "About", stringsAsFactors = FALSE
+)
+
+impact <- simulate_changes(site_links, add_links_df = new_links,
+                           clean_edge_urls = FALSE)
+print(impact)
+cat("\nSummary:\n")
+print(attr(impact, "summary"))
+```
+
+The `delta` column shows how much each page's PageRank changes. Positive means the page gains PR, negative means it loses.
+
+### Simulating link removal
+
+```{r simulate_remove_link}
+# What if we remove the Home -> Blog link?
+remove_links <- data.frame(
+  from = "Home", to = "Blog", stringsAsFactors = FALSE
+)
+
+impact_remove <- simulate_changes(site_links, remove_links_df = remove_links,
+                                  clean_edge_urls = FALSE)
+print(impact_remove)
+```
+
+### Simulating redirects
+
+```{r simulate_redirect}
+# What if we redirect OldPage to About?
+# First, add OldPage to the graph
+extended_links <- rbind(site_links, data.frame(
+  from = "OldPage", to = "Home", stringsAsFactors = FALSE
+))
+
+new_redirect <- data.frame(
+  from = "OldPage", to = "About", stringsAsFactors = FALSE
+)
+
+impact_redirect <- simulate_changes(extended_links,
+                                    add_redirects_df = new_redirect,
+                                    clean_edge_urls = FALSE)
+print(impact_redirect)
+```
+
+### Combined changes
+
+You can combine adds, removes, and redirects in a single call:
+
+```{r simulate_combined}
+impact_all <- simulate_changes(
+  site_links,
+  add_links_df = data.frame(from = "Blog", to = "About",
+                            stringsAsFactors = FALSE),
+  remove_links_df = data.frame(from = "Home", to = "Blog",
+                               stringsAsFactors = FALSE),
+  clean_edge_urls = FALSE
+)
+print(impact_all)
+```
+
+### Manual approach (advanced)
+
+For full control, you can do the same thing manually:
+
+```{r simulate_manual, eval=FALSE}
+# 1. Compute baseline
+pr_baseline <- pagerank(site_links, clean_edge_urls = FALSE)
+
+# 2. Modify the edge list
+proposed <- rbind(site_links,
+                  data.frame(from = "Blog", to = "About",
+                             stringsAsFactors = FALSE))
+
+# 3. Compute proposed
+pr_proposed <- pagerank(proposed, clean_edge_urls = FALSE)
+
+# 4. Compare
+diff <- compare_pagerank(pr_baseline, pr_proposed,
+                         label_a = "current", label_b = "proposed")
+print(diff)
+attr(diff, "summary")
+```
+
+All `pagerank()` parameters (damping, nofollow, indexability, etc.) can be passed through `simulate_changes()` via `...`.
