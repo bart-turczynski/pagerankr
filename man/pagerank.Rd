@@ -25,6 +25,7 @@ pagerank(
   redirect_to_col = "to",
   duplicate_from_policy = c("strict", "first_wins", "last_wins", "most_frequent",
     "prune_source", "resolve_if_consistent"),
+  loop_handling = c("error", "prune_loop", "break_arrow"),
   ...
 )
 }
@@ -98,6 +99,10 @@ results. One of:
 `redirects_df`. Passed through to [resolve_redirects()]. Default
 `"strict"` (error on conflicts). See [resolve_redirects()] for all
 available policies.}
+
+\item{loop_handling}{How to handle redirect cycles. Passed through to
+[resolve_redirects()]. Default `"error"`. See [resolve_redirects()] for
+all available policies.}
 
 \item{...}{Additional arguments passed to `compute_pagerank` and subsequently
 to `igraph::page_rank` (e.g., `damping`).}

@@ -58,6 +58,9 @@
 #'   `redirects_df`. Passed through to [resolve_redirects()]. Default
 #'   `"strict"` (error on conflicts). See [resolve_redirects()] for all
 #'   available policies.
+#' @param loop_handling How to handle redirect cycles. Passed through to
+#'   [resolve_redirects()]. Default `"error"`. See [resolve_redirects()] for
+#'   all available policies.
 #' @param ... Additional arguments passed to `compute_pagerank` and subsequently
 #'   to `igraph::page_rank` (e.g., `damping`).
 #'
@@ -145,6 +148,9 @@ pagerank <- function(edge_list_df,
                                                "most_frequent",
                                                "prune_source",
                                                "resolve_if_consistent"),
+                     loop_handling = c("error",
+                                       "prune_loop",
+                                       "break_arrow"),
                      ...) {
 
   # --- Argument Matching and Basic Validation ---
@@ -152,6 +158,7 @@ pagerank <- function(edge_list_df,
   nofollow_action <- match.arg(nofollow_action)
   robots_blocked_action <- match.arg(robots_blocked_action)
   duplicate_from_policy <- match.arg(duplicate_from_policy)
+  loop_handling <- match.arg(loop_handling)
 
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
@@ -286,7 +293,8 @@ pagerank <- function(edge_list_df,
       redirects_df = current_redirects_list,
       edge_from_col = edge_from_col, edge_to_col = edge_to_col,
       redirect_from_col = redirect_from_col, redirect_to_col = redirect_to_col,
-      duplicate_from_policy = duplicate_from_policy
+      duplicate_from_policy = duplicate_from_policy,
+      loop_handling = loop_handling
     )
   }
 
