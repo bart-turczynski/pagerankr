@@ -14,4 +14,7 @@
 # that should not be in the package tarball.
 # For example, if you have raw data or analysis scripts not part of the package:
 # ^data-raw/
-# ^analysis/
+# ^analysis/^\.claude$
+^covr_report\.html$
+^docs$
+^lib$
