@@ -685,3 +685,60 @@ describe("pagerank numeric nofollow column coercion", {
     expect_false("C" %in% pr$node_name)
   })
 }) 
+
+# =============================================================================
+# Domain filtering passthrough tests
+# =============================================================================
+
+describe("pagerank() keep_domains parameter", {
+  it("filters to internal links only", {
+    edges <- data.frame(
+      from = c("http://example.com/a", "http://example.com/b",
+               "http://other.com/c"),
+      to   = c("http://example.com/b", "http://other.com/d",
+               "http://example.com/a"),
+      stringsAsFactors = FALSE
+    )
+    pr <- pagerank(edges, keep_domains = "example.com")
+    # Only example.com nodes should appear
+    expect_true(all(grepl("example.com", pr$node_name)))
+  })
+
+  it("returns fewer nodes than without filter", {
+    edges <- data.frame(
+      from = c("http://a.com/1", "http://a.com/2", "http://b.com/1"),
+      to   = c("http://a.com/2", "http://b.com/1", "http://a.com/1"),
+      stringsAsFactors = FALSE
+    )
+    pr_all <- pagerank(edges)
+    pr_filtered <- pagerank(edges, keep_domains = "a.com")
+    expect_true(nrow(pr_filtered) <= nrow(pr_all))
+  })
+})
+
+describe("pagerank() exclude_domains parameter", {
+  it("removes edges involving excluded domains", {
+    edges <- data.frame(
+      from = c("http://example.com/a", "http://example.com/b",
+               "http://spam.com/x"),
+      to   = c("http://example.com/b", "http://spam.com/y",
+               "http://example.com/a"),
+      stringsAsFactors = FALSE
+    )
+    pr <- pagerank(edges, exclude_domains = "spam.com")
+    # spam.com nodes should not appear
+    expect_false(any(grepl("spam.com", pr$node_name)))
+  })
+})
+
+describe("pagerank() domain filtering with NULL (default)", {
+  it("no filtering when both are NULL", {
+    edges <- data.frame(
+      from = c("http://a.com/1", "http://b.com/1"),
+      to   = c("http://b.com/1", "http://a.com/1"),
+      stringsAsFactors = FALSE
+    )
+    pr <- pagerank(edges)
+    expect_equal(nrow(pr), 2)
+  })
+})
