@@ -88,7 +88,7 @@ describe(".trace_redirect_path", {
 describe(".create_memoized_cleaner", {
   it("warns when ... has entirely unnamed arguments", {
     # We need to bypass rurl to test the memoization key logic.
-    # The unnamed args warning fires before rurl is called (in the key construction).
+    # The unnamed args warning fires before rurl is called.
     # However, the actual call to rurl happens after. We use tryCatch to catch
     # downstream errors but still verify the warning was emitted.
     cleaner <- pagerankr:::.create_memoized_cleaner()

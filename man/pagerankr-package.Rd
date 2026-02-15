@@ -21,7 +21,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Bart Turczynski \email{bart@example.com}
+\strong{Maintainer}: Bart Turczynski \email{bartek@turczynski.pl}
 
 }
 \keyword{internal}
