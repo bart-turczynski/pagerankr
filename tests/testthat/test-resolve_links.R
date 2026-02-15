@@ -159,6 +159,39 @@ describe("resolve_links custom column names", {
 })
 
 
+describe("resolve_links with URL cleaning", {
+  it("cleans edge URLs when clean_urls = TRUE", {
+    # Use real-looking URLs so rurl::clean_url can process them
+    edges <- data.frame(
+      from = c("http://example.com/a/", "http://example.com/b/"),
+      to   = c("http://example.com/b/", "http://example.com/c/"),
+      stringsAsFactors = FALSE
+    )
+    result <- resolve_links(edges, clean_urls = TRUE)
+    expect_true(is.data.frame(result))
+    expect_true(nrow(result) > 0)
+    # The function should return a valid edge list
+    expect_true(all(c("from", "to") %in% names(result)))
+  })
+
+  it("cleans redirect URLs when clean_urls = TRUE", {
+    edges <- data.frame(
+      from = c("http://example.com/a/"),
+      to   = c("http://example.com/b/"),
+      stringsAsFactors = FALSE
+    )
+    redirects <- data.frame(
+      from = "http://example.com/b/",
+      to   = "http://example.com/c/",
+      stringsAsFactors = FALSE
+    )
+    result <- resolve_links(edges, redirects, clean_urls = TRUE)
+    expect_true(is.data.frame(result))
+    expect_true(nrow(result) > 0)
+  })
+})
+
+
 describe("resolve_links preserves extra columns", {
   it("keeps extra columns from edge_list_df", {
     edges <- data.frame(

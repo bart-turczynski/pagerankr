@@ -116,6 +116,97 @@ describe("export_graph with extra attributes", {
 })
 
 
+describe("export_graph pajek format", {
+  it("writes a pajek file", {
+    edges <- data.frame(
+      from = c("A", "B"), to = c("B", "A"), stringsAsFactors = FALSE
+    )
+    pr <- pagerank(edges, clean_edge_urls = FALSE)
+    tmp <- tempfile(fileext = ".net")
+    on.exit(unlink(tmp))
+
+    result <- export_graph(pr, edges, tmp, format = "pajek")
+    expect_equal(result, tmp)
+    expect_true(file.exists(tmp))
+  })
+})
+
+
+describe("export_graph node_attrs parameter", {
+  it("includes additional node attributes from pagerank_df", {
+    edges <- data.frame(
+      from = c("A", "B", "C"), to = c("B", "C", "A"),
+      stringsAsFactors = FALSE
+    )
+    pr <- pagerank(edges, clean_edge_urls = FALSE)
+    pr$my_rank <- seq_len(nrow(pr))
+    tmp <- tempfile(fileext = ".graphml")
+    on.exit(unlink(tmp))
+
+    export_graph(pr, edges, tmp, format = "graphml",
+                 node_attrs = list(rank = "my_rank"))
+    content <- paste(readLines(tmp), collapse = "\n")
+    expect_true(grepl("rank", content))
+  })
+})
+
+
+describe("export_graph missing vertices in edge list", {
+  it("adds vertices from edge list not in pagerank_df", {
+    # pagerank_df only has A, but edges reference A and B
+    pr <- data.frame(node_name = "A", pagerank = 1.0, stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    tmp <- tempfile(fileext = ".graphml")
+    on.exit(unlink(tmp))
+
+    export_graph(pr, edges, tmp, format = "graphml")
+    content <- paste(readLines(tmp), collapse = "\n")
+    # B should be present as a vertex
+    expect_true(grepl("B", content))
+  })
+})
+
+
+describe("export_graph DOT with zero pagerank", {
+  it("handles max_pr == 0 without error", {
+    pr <- data.frame(
+      node_name = c("A", "B"), pagerank = c(0, 0),
+      stringsAsFactors = FALSE
+    )
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    tmp <- tempfile(fileext = ".dot")
+    on.exit(unlink(tmp))
+
+    export_graph(pr, edges, tmp, format = "dot")
+    expect_true(file.exists(tmp))
+    content <- readLines(tmp)
+    expect_true(any(grepl("digraph pagerank", content)))
+  })
+})
+
+
+describe("export_graph edgelist with no file extension", {
+  it("defaults to csv extension when file has none", {
+    edges <- data.frame(
+      from = c("A", "B"), to = c("B", "A"), stringsAsFactors = FALSE
+    )
+    pr <- pagerank(edges, clean_edge_urls = FALSE)
+    tmp <- tempfile(fileext = "")
+    on.exit({
+      unlink(paste0(tmp, "_edges.csv"))
+      unlink(paste0(tmp, "_nodes.csv"))
+    })
+
+    expect_message(
+      export_graph(pr, edges, tmp, format = "edgelist"),
+      "Wrote:"
+    )
+    expect_true(file.exists(paste0(tmp, "_edges.csv")))
+    expect_true(file.exists(paste0(tmp, "_nodes.csv")))
+  })
+})
+
+
 describe("export_graph input validation", {
   it("errors on non-data-frame pagerank_df", {
     expect_error(
@@ -124,12 +215,38 @@ describe("export_graph input validation", {
     )
   })
 
-  it("errors on missing PR columns", {
+  it("errors on missing PR url column", {
     pr <- data.frame(x = "A", y = 0.5, stringsAsFactors = FALSE)
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
     expect_error(
       export_graph(pr, edges, tempfile(), format = "graphml"),
       "must have.*node_name"
+    )
+  })
+
+  it("errors on missing PR score column", {
+    pr <- data.frame(node_name = "A", wrong = 0.5, stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    expect_error(
+      export_graph(pr, edges, tempfile(), format = "graphml"),
+      "must have.*pagerank"
+    )
+  })
+
+  it("errors on non-data-frame edge_list_df", {
+    pr <- data.frame(node_name = "A", pagerank = 0.5, stringsAsFactors = FALSE)
+    expect_error(
+      export_graph(pr, "not_a_df", tempfile(), format = "graphml"),
+      "must be a data frame"
+    )
+  })
+
+  it("errors on missing edge list columns", {
+    pr <- data.frame(node_name = "A", pagerank = 0.5, stringsAsFactors = FALSE)
+    edges <- data.frame(x = "A", y = "B", stringsAsFactors = FALSE)
+    expect_error(
+      export_graph(pr, edges, tempfile(), format = "graphml"),
+      "must have.*from.*to"
     )
   })
 

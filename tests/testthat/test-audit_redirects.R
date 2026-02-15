@@ -130,6 +130,82 @@ describe("audit_redirects edge cases", {
 })
 
 
+describe("audit_redirects print method coverage", {
+  it("prints orphaned redirects info when present", {
+    redirects <- data.frame(
+      from = c("A", "B"),
+      to   = c("X", "Y"),
+      stringsAsFactors = FALSE
+    )
+    edges <- data.frame(
+      from = "Z", to = "A", stringsAsFactors = FALSE
+    )
+    audit <- audit_redirects(redirects, edge_list_df = edges)
+    expect_output(print(audit), "Orphaned redirects")
+  })
+
+  it("prints long chains when present", {
+    redirects <- data.frame(
+      from = c("A", "B", "C"),
+      to   = c("B", "C", "Final"),
+      stringsAsFactors = FALSE
+    )
+    audit <- audit_redirects(redirects)
+    expect_output(print(audit), "Long chains")
+  })
+
+  it("prints clean report with no issues", {
+    redirects <- data.frame(
+      from = "A", to = "B", stringsAsFactors = FALSE
+    )
+    audit <- audit_redirects(redirects)
+    output <- capture.output(print(audit))
+    expect_true(any(grepl("Redirect Audit Report", output)))
+    # The detail sections (with ---) should not appear
+    expect_false(any(grepl("--- Self-referencing", output)))
+    expect_false(any(grepl("--- Conflicting", output)))
+    expect_false(any(grepl("--- Loops", output)))
+    expect_false(any(grepl("--- Long chains", output)))
+  })
+
+  it("prints all sections for complex redirects", {
+    redirects <- data.frame(
+      from = c("A", "B", "C", "D", "D", "E"),
+      to   = c("B", "C", "A", "X", "Y", "E"),
+      stringsAsFactors = FALSE
+    )
+    audit <- audit_redirects(redirects)
+    output <- capture.output(print(audit))
+    expect_true(any(grepl("Redirect Audit Report", output)))
+    expect_true(any(grepl("Self-referencing", output)))
+    expect_true(any(grepl("Conflicting", output)))
+    expect_true(any(grepl("Loops", output)))
+  })
+
+  it("prints empty report for zero-rule audit", {
+    redirects <- data.frame(from = character(0), to = character(0),
+                            stringsAsFactors = FALSE)
+    audit <- audit_redirects(redirects)
+    expect_output(print(audit), "Total rules.*0")
+  })
+})
+
+
+describe("audit_redirects only self-referencing redirects", {
+  it("handles case where all redirects are self-refs", {
+    redirects <- data.frame(
+      from = c("A", "B"),
+      to   = c("A", "B"),
+      stringsAsFactors = FALSE
+    )
+    audit <- audit_redirects(redirects)
+    expect_equal(audit$n_self_refs, 2)
+    expect_equal(audit$n_loops, 0)
+    expect_equal(audit$max_chain_length, 0)
+  })
+})
+
+
 describe("audit_redirects input validation", {
   it("errors on non-data-frame", {
     expect_error(audit_redirects("not a df"), "must be a data frame")

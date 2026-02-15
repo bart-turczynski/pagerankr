@@ -298,4 +298,21 @@ describe("compute_pagerank validation coverage", {
     pr <- compute_pagerank(edges)
     expect_equal(nrow(pr), 0)
   })
+
+  it("errors when edge_list_df is not a data frame", {
+    expect_error(compute_pagerank("not_a_df"),
+                 "must be a data frame")
+  })
+
+  it("errors when non-empty edge_list_df is missing from/to columns", {
+    edges <- data.frame(x = "A", y = "B", stringsAsFactors = FALSE)
+    expect_error(compute_pagerank(edges),
+                 "must have.*from.*to")
+  })
+
+  it("errors when pr_score_col is not a non-empty string", {
+    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    expect_error(compute_pagerank(edges, pr_value_col = 123),
+                 "non-empty character string")
+  })
 }) 

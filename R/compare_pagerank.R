@@ -128,7 +128,12 @@ compare_pagerank <- function(pr_a, pr_b,
   common_b_ranks <- merged$rank_b[common_mask]
 
   spearman_rho <- if (sum(common_mask) >= 3) {
-    stats::cor(common_a_ranks, common_b_ranks, method = "spearman")
+    # cor() warns when sd is zero (e.g. all ranks identical); return NA directly
+    if (stats::sd(common_a_ranks) == 0 || stats::sd(common_b_ranks) == 0) {
+      NA_real_
+    } else {
+      stats::cor(common_a_ranks, common_b_ranks, method = "spearman")
+    }
   } else {
     NA_real_
   }
