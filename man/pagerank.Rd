@@ -26,6 +26,8 @@ pagerank(
   duplicate_from_policy = c("strict", "first_wins", "last_wins", "most_frequent",
     "prune_source", "resolve_if_consistent"),
   loop_handling = c("error", "prune_loop", "break_arrow"),
+  keep_domains = NULL,
+  exclude_domains = NULL,
   ...
 )
 }
@@ -103,6 +105,16 @@ available policies.}
 \item{loop_handling}{How to handle redirect cycles. Passed through to
 [resolve_redirects()]. Default `"error"`. See [resolve_redirects()] for
 all available policies.}
+
+\item{keep_domains}{Optional character vector of domains to keep. When
+provided, edges are filtered via [filter_links_by_domain()] before
+PageRank calculation so that only links where both endpoints belong
+to one of the specified domains are included. Useful for restricting
+to internal links. Default `NULL` (no domain filtering).}
+
+\item{exclude_domains}{Optional character vector of domains to exclude.
+Edges where either endpoint belongs to one of these domains are removed.
+Default `NULL` (no exclusion).}
 
 \item{...}{Additional arguments passed to `compute_pagerank` and subsequently
 to `igraph::page_rank` (e.g., `damping`).}

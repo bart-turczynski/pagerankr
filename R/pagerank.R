@@ -61,6 +61,14 @@
 #' @param loop_handling How to handle redirect cycles. Passed through to
 #'   [resolve_redirects()]. Default `"error"`. See [resolve_redirects()] for
 #'   all available policies.
+#' @param keep_domains Optional character vector of domains to keep. When
+#'   provided, edges are filtered via [filter_links_by_domain()] before
+#'   PageRank calculation so that only links where both endpoints belong
+#'   to one of the specified domains are included. Useful for restricting
+#'   to internal links. Default `NULL` (no domain filtering).
+#' @param exclude_domains Optional character vector of domains to exclude.
+#'   Edges where either endpoint belongs to one of these domains are removed.
+#'   Default `NULL` (no exclusion).
 #' @param ... Additional arguments passed to `compute_pagerank` and subsequently
 #'   to `igraph::page_rank` (e.g., `damping`).
 #'
@@ -151,6 +159,8 @@ pagerank <- function(edge_list_df,
                      loop_handling = c("error",
                                        "prune_loop",
                                        "break_arrow"),
+                     keep_domains = NULL,
+                     exclude_domains = NULL,
                      ...) {
 
   # --- Argument Matching and Basic Validation ---
@@ -295,6 +305,17 @@ pagerank <- function(edge_list_df,
       redirect_from_col = redirect_from_col, redirect_to_col = redirect_to_col,
       duplicate_from_policy = duplicate_from_policy,
       loop_handling = loop_handling
+    )
+  }
+
+  # --- 2.7. Domain filtering ---
+  if (!is.null(keep_domains) || !is.null(exclude_domains)) {
+    current_edge_list <- filter_links_by_domain(
+      edge_list_df = current_edge_list,
+      from_col = edge_from_col,
+      to_col = edge_to_col,
+      keep_domains = keep_domains,
+      ignore_domains = exclude_domains
     )
   }
 
