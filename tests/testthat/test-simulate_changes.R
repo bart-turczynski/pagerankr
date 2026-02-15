@@ -7,13 +7,21 @@ describe("simulate_changes basic functionality", {
   )
 
   it("returns a comparison data frame", {
-    result <- simulate_changes(base_edges, clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+    result <- simulate_changes(
+      base_edges,
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
     expect_true(is.data.frame(result))
     expect_true(!is.null(attr(result, "summary")))
   })
 
   it("with no changes, baseline and proposed are identical", {
-    result <- simulate_changes(base_edges, clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+    result <- simulate_changes(
+      base_edges,
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
     # All deltas should be 0
     expect_true(all(result$delta == 0))
     s <- attr(result, "summary")
@@ -33,8 +41,11 @@ describe("simulate_changes adding links", {
   it("adding a link to a page increases its PR", {
     # Add A -> C (A now links to both B and C)
     add <- data.frame(from = "A", to = "C", stringsAsFactors = FALSE)
-    result <- simulate_changes(base_edges, add_links_df = add,
-                               clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+    result <- simulate_changes(
+      base_edges, add_links_df = add,
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
     c_row <- result[result$node_name == "C", ]
     # C should gain PR (gets a direct link from A now)
     expect_true(c_row$delta > 0)
@@ -42,8 +53,11 @@ describe("simulate_changes adding links", {
 
   it("adding a new node introduces it in the proposed model", {
     add <- data.frame(from = "A", to = "NewPage", stringsAsFactors = FALSE)
-    result <- simulate_changes(base_edges, add_links_df = add,
-                               clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+    result <- simulate_changes(
+      base_edges, add_links_df = add,
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
     s <- attr(result, "summary")
     expect_true(s$nodes_gained > 0)
     expect_true("NewPage" %in% result$node_name)
@@ -60,8 +74,11 @@ describe("simulate_changes removing links", {
   it("removing a link reduces PR for the target page", {
     # Remove A -> C
     remove <- data.frame(from = "A", to = "C", stringsAsFactors = FALSE)
-    result <- simulate_changes(base_edges, remove_links_df = remove,
-                               clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+    result <- simulate_changes(
+      base_edges, remove_links_df = remove,
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
     c_row <- result[result$node_name == "C", ]
     # C loses a direct link from A, so its PR should decrease
     expect_true(c_row$delta < 0)
@@ -96,8 +113,11 @@ describe("simulate_changes adding redirects", {
     new_redir <- data.frame(
       from = "OldPage", to = "NewPage", stringsAsFactors = FALSE
     )
-    result <- simulate_changes(base_edges, add_redirects_df = new_redir,
-                               clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+    result <- simulate_changes(
+      base_edges, add_redirects_df = new_redir,
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
     # NewPage should appear in the proposed model (gained)
     expect_true("NewPage" %in% result$node_name)
     s <- attr(result, "summary")
@@ -114,7 +134,8 @@ describe("simulate_changes adding redirects", {
     result <- simulate_changes(base_edges,
                                redirects_df = existing_redir,
                                add_redirects_df = new_redir,
-                               clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+                               clean_edge_urls = FALSE,
+                               clean_redirect_urls = FALSE)
     expect_true(is.data.frame(result))
   })
 })
@@ -135,7 +156,8 @@ describe("simulate_changes combined changes", {
                                add_links_df = add,
                                remove_links_df = remove,
                                add_redirects_df = redir,
-                               clean_edge_urls = FALSE, clean_redirect_urls = FALSE)
+                               clean_edge_urls = FALSE,
+                               clean_redirect_urls = FALSE)
     expect_true(is.data.frame(result))
     expect_true(nrow(result) > 0)
   })

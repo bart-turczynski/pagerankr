@@ -50,9 +50,9 @@ describe("transform_weights: zipf", {
   it("applies Zipf's law with alpha = 1", {
     x <- c(100, 50, 10)  # descending: 100 is rank 1
     result <- transform_weights(x, "zipf", alpha = 1, descending = TRUE)
-    expect_equal(result[1], 1.0)       # 1/1^1
-    expect_equal(result[2], 0.5)       # 1/2^1
-    expect_true(result[3] < result[2]) # 1/3^1
+    expect_equal(result[1], 1.0)       # rank 1: weight is 1
+    expect_equal(result[2], 0.5)       # rank 2: weight is 0.5
+    expect_true(result[3] < result[2]) # rank 3: even smaller
   })
 
   it("steeper drop-off with higher alpha", {
@@ -88,7 +88,7 @@ describe("transform_weights: log", {
   it("handles zeros with default offset", {
     x <- c(0, 1, 10)
     result <- transform_weights(x, "log", offset = 1)
-    expect_equal(result[1], 0)  # log(0 + 1) = 0
+    expect_equal(result[1], 0)  # log of (0 + offset) equals 0
     expect_true(result[2] > 0)
   })
 
@@ -96,7 +96,7 @@ describe("transform_weights: log", {
     x <- c(0, 1)
     r1 <- transform_weights(x, "log", offset = 1)
     r2 <- transform_weights(x, "log", offset = 10)
-    expect_true(r2[1] > r1[1])  # log(0 + 10) > log(0 + 1)
+    expect_true(r2[1] > r1[1])  # larger offset -> larger result
   })
 })
 
@@ -130,7 +130,7 @@ describe("transform_weights: percentile", {
     x <- c(10, 20, 30, 40, 50)
     result <- transform_weights(x, "percentile", descending = TRUE)
     # Ascending ranks: 10=rank1, 50=rank5
-    # Percentile = rank / n
+    # Percentile equals rank divided by n
     expect_equal(result[5], 1.0)  # 50 is highest = percentile 1.0
     expect_equal(result[1], 0.2)  # 10 is lowest = percentile 0.2
   })

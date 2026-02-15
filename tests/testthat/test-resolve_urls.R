@@ -124,7 +124,10 @@ describe("resolve_urls edge cases with empty results after preprocessing", {
       to   = c("B", "C"),
       stringsAsFactors = FALSE
     )
-    result <- resolve_urls("A", redirects, duplicate_from_policy = "prune_source")
+    result <- resolve_urls(
+      "A", redirects,
+      duplicate_from_policy = "prune_source"
+    )
     expect_equal(result$resolved, "A")
     expect_false(result$changed)
   })
