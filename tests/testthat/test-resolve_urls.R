@@ -105,6 +105,32 @@ describe("resolve_urls input validation", {
 })
 
 
+describe("resolve_urls edge cases with empty results after preprocessing", {
+  it("returns unchanged when all redirects are self-referencing", {
+    redirects <- data.frame(
+      from = c("A", "B"),
+      to   = c("A", "B"),
+      stringsAsFactors = FALSE
+    )
+    result <- resolve_urls(c("A", "B"), redirects)
+    expect_equal(result$resolved, c("A", "B"))
+    expect_false(any(result$changed))
+  })
+
+  it("returns unchanged when preprocessing prunes all conflicts", {
+    # prune_source removes ALL redirects from conflicting sources
+    redirects <- data.frame(
+      from = c("A", "A"),
+      to   = c("B", "C"),
+      stringsAsFactors = FALSE
+    )
+    result <- resolve_urls("A", redirects, duplicate_from_policy = "prune_source")
+    expect_equal(result$resolved, "A")
+    expect_false(result$changed)
+  })
+})
+
+
 describe("resolve_urls self-referencing handling", {
   it("filters self-referencing redirects silently", {
     redirects <- data.frame(
