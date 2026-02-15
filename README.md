@@ -5,18 +5,18 @@ pagerankr: SEO-Focused PageRank Modelling Toolkit
   <img src="man/figures/logo.png" align="right" height="139" alt="pagerankr hex sticker" />](#1-pagerankr-)
   - [1.1 Installation](#11-installation)
   - [1.2 Quick Start](#12-quick-start)
-  - [1.3 Features](#13-features)
-    - [1.3.1 Core Pipeline](#131-core-pipeline)
-    - [1.3.2 SEO Modelling](#132-seo-modelling)
-    - [1.3.3 Analysis & Comparison](#133-analysis--comparison)
-    - [1.3.4 Simulation & Utilities](#134-simulation--utilities)
+  - [1.3 Current Capabilities](#13-current-capabilities)
+    - [1.3.1 Crawl Data Prep and Redirect
+      QA](#131-crawl-data-prep-and-redirect-qa)
+    - [1.3.2 PageRank Modelling
+      Controls](#132-pagerank-modelling-controls)
+    - [1.3.3 Comparison, Grid Search, and
+      Simulation](#133-comparison-grid-search-and-simulation)
+    - [1.3.4 Export and Exploration](#134-export-and-exploration)
   - [1.4 Key Functions](#14-key-functions)
-  - [1.5 Example: Comparing Models](#15-example-comparing-models)
-  - [1.6 Example: Simulating a Link
-    Change](#16-example-simulating-a-link-change)
-  - [1.7 Further Information](#17-further-information)
-  - [1.8 Code of Conduct](#18-code-of-conduct)
-  - [1.9 License](#19-license)
+  - [1.5 Further Information](#15-further-information)
+  - [1.6 Code of Conduct](#16-code-of-conduct)
+  - [1.7 License](#17-license)
 
 # 1 pagerankr <img src="man/figures/logo.png" align="right" height="139" alt="pagerankr hex sticker" />
 
@@ -27,16 +27,19 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 [![R-CMD-check](https://github.com/bart-turczynski/pagerankr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-`pagerankr` is a modular R toolkit for calculating, comparing, and
-analysing PageRank scores from web crawl data. Built for SEO
-professionals, it handles the full pipeline from raw crawl exports to
-actionable insights: URL cleaning, redirect resolution,
-nofollow/indexability modelling, weighted edges, domain filtering, model
-comparison, and what-if simulation.
+`pagerankr` is an SEO-focused R toolkit for PageRank modelling on crawl
+data. It supports both a single end-to-end wrapper (`pagerank()`) and
+modular building blocks for cleaning URLs, auditing redirects, resolving
+link graphs, running scenario comparisons, and exporting graph outputs.
 
-Data manipulation uses base R; `igraph` powers the PageRank algorithm
-and graph-based redirect resolution; `rurl` handles URL
-canonicalisation.
+The package currently includes:
+
+- End-to-end and low-level PageRank calculation
+- Redirect diagnostics and resolution policies
+- Nofollow and indexability-aware PageRank modelling
+- Domain/host filtering and edge-weight transformations
+- Model comparison, parameter sweeps, and what-if simulations
+- Graph export utilities and an optional interactive Shiny explorer
 
 ## 1.1 Installation
 
@@ -51,9 +54,11 @@ devtools::install_github("bart-turczynski/pagerankr")
 library(pagerankr)
 
 edges <- data.frame(
-  from = c("http://example.com/home", "http://example.com/about",
+  from = c("http://example.com/home",
+           "http://example.com/about",
            "http://example.com/blog"),
-  to   = c("http://example.com/about", "http://example.com/home",
+  to   = c("http://example.com/about",
+           "http://example.com/home",
            "http://example.com/home"),
   stringsAsFactors = FALSE
 )
@@ -64,106 +69,142 @@ redirects <- data.frame(
   stringsAsFactors = FALSE
 )
 
-pagerank(edges, redirects_df = redirects)
+pr <- pagerank(edges, redirects_df = redirects)
+print(pr)
 ```
 
-## 1.3 Features
+## 1.3 Current Capabilities
 
-### 1.3.1 Core Pipeline
+### 1.3.1 Crawl Data Prep and Redirect QA
 
-- **URL Cleaning** – canonicalise URLs via `rurl::clean_url` with
-  memoisation
-- **Redirect Resolution** – graph-based chain resolution with SCC loop
-  detection
-- **Conflicting Redirects** – 6 policies: `strict`, `first_wins`,
-  `last_wins`, `most_frequent`, `prune_source`, `resolve_if_consistent`
-- **Redirect Loops** – 3 policies: `error`, `prune_loop`, `break_arrow`
-- **Duplicate Edge Handling** – deduplication preserving extra columns
-- **Self-Loop Control** – drop or keep self-referencing edges
-- **Isolate Handling** – include or exclude disconnected nodes
-- **Weighted Edges** – pass a `weight_col` to use link weights in
-  PageRank
+- `clean_url_columns()` canonicalises URL columns using
+  `rurl::get_clean_url`
+- `audit_redirects()` reports redirect chains, loops, conflicts,
+  self-refs, and optional orphaned rules vs. an edge list
+- `resolve_redirects()` applies redirect maps to an edge list with
+  conflict and loop policies
+- `resolve_urls()` resolves a character vector of URLs without requiring
+  an edge list
+- `resolve_links()` returns the resolved/deduplicated graph without
+  computing PR
+- `get_unique_edges()` and `drop_isolates()` provide explicit graph
+  hygiene tools
 
-### 1.3.2 SEO Modelling
+``` r
+audit <- audit_redirects(redirects, edge_list_df = edges)
+print(audit)
 
-- **Nofollow Links** – `evaporate` (Google-like: PR splits across all
-  links, nofollow share vanishes), `drop`, or `keep`
-- **Indexability** – model `noindex` pages (outgoing links become
-  nofollow) and `robots.txt`-blocked pages (outgoing links removed,
-  inbound PR trapped or vanished)
-- **Domain Filtering** – `filter_links_by_domain()` to scope edge lists
-  to internal links, cross-domain links, or specific domains
+resolve_urls(
+  c("http://example.com/old-blog", "http://example.com/home"),
+  redirects
+)
+```
 
-### 1.3.3 Analysis & Comparison
+### 1.3.2 PageRank Modelling Controls
 
-- **Model Comparison** – `compare_pagerank()` diffs two PageRank results
-  with rank shifts and Spearman correlation
-- **Parameter Grid** – `pagerank_grid()` runs PageRank across parameter
-  combinations; `auto_grid()` generates the grid
-- **Grid Analysis** – `analyze_pagerank_grid()` computes distribution
-  metrics across a grid
-- **Distribution Metrics** – `pr_gini()`, `pr_entropy()`,
-  `pr_top_k_share()`
+- `pagerank()` supports weighted edges via `weight_col`
+- `nofollow_col` + `nofollow_action = c("evaporate", "drop", "keep")`
+- `indexability_df` support for `noindex` and `Blocked by robots.txt`
+  behaviours (`robots_blocked_action = "trap"` or `"vanish"`)
+- Domain scoping directly in `pagerank()` (`keep_domains`,
+  `exclude_domains`) or via `filter_links_by_domain()` with domain/host
+  keep/ignore rules
+- `transform_weights()` provides rank/log/zipf/percentile transforms for
+  raw edge signals
 
-### 1.3.4 Simulation & Utilities
+``` r
+edges_w <- data.frame(
+  from = c("Home", "Home", "Home"),
+  to = c("About", "Blog", "Contact"),
+  position = c(1, 2, 5),
+  stringsAsFactors = FALSE
+)
 
-- **What-If Simulation** – `simulate_changes()` models the impact of
-  adding/removing links or redirects before production
-- **Link Resolution** – `resolve_links()` applies redirects and
-  deduplication without computing PageRank
+edges_w$weight <- transform_weights(
+  edges_w$position,
+  method = "zipf",
+  descending = FALSE
+)
+
+pagerank(edges_w, weight_col = "weight", clean_edge_urls = FALSE)
+```
+
+### 1.3.3 Comparison, Grid Search, and Simulation
+
+- `compare_pagerank()` calculates deltas, rank shifts, and summary stats
+- `auto_grid()` and `pagerank_grid()` run parameter sweeps
+- `analyze_pagerank_grid()` summarises concentration/distribution
+  effects
+- `simulate_changes()` compares baseline vs proposed links/redirects
+- `pr_gini()`, `pr_entropy()`, and `pr_top_k_share()` compute
+  distribution metrics
+
+``` r
+grid <- auto_grid(
+  damping = c(0.85, 0.95),
+  nofollow_action = c("evaporate", "drop")
+)
+
+grid_results <- pagerank_grid(edges, params_grid = grid, clean_edge_urls = FALSE)
+analyze_pagerank_grid(grid_results)
+```
+
+### 1.3.4 Export and Exploration
+
+- `export_graph()` writes outputs in `graphml`, `dot`, `edgelist`, or
+  `pajek` formats
+- `launch_pagerank_explorer()` launches an interactive Shiny app for
+  uploads, visualisation, redirect auditing, and exports
+
+``` r
+pr <- pagerank(edges, clean_edge_urls = FALSE)
+export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
+
+# Optional interactive app:
+# install.packages(c("shiny", "DT", "visNetwork"))
+# launch_pagerank_explorer()
+```
 
 ## 1.4 Key Functions
 
 | Function | Purpose |
 |:---|:---|
-| `pagerank()` | End-to-end pipeline: clean, resolve, compute |
-| `resolve_links()` | Resolve redirects and deduplicate without PageRank |
-| `simulate_changes()` | Compare baseline vs. proposed graph changes |
-| `compare_pagerank()` | Diff two PageRank results |
-| `pagerank_grid()` | Run PageRank across parameter combinations |
-| `filter_links_by_domain()` | Scope edges by domain/host |
+| `pagerank()` | End-to-end PageRank pipeline |
+| `compute_pagerank()` | Low-level wrapper around `igraph::page_rank()` |
+| `resolve_links()` | Resolve redirects and deduplicate graph without PR |
 | `resolve_redirects()` | Apply redirect rules to an edge list |
-| `clean_url_columns()` | Canonicalise URLs in a data frame |
-| `get_unique_edges()` | Deduplicate edges, handle self-loops |
-| `compute_pagerank()` | Low-level igraph PageRank wrapper |
+| `resolve_urls()` | Resolve standalone URL vectors through redirects |
+| `audit_redirects()` | Diagnose redirect chains, loops, and conflicts |
+| `clean_url_columns()` | Canonicalise URL columns in data frames |
+| `get_unique_edges()` | Deduplicate edges and handle self-loops |
+| `drop_isolates()` | Build vertex sets with or without isolates |
+| `filter_links_by_domain()` | Filter edges by keep/ignore domain or host lists |
+| `transform_weights()` | Transform raw signals into PageRank edge weights |
+| `compare_pagerank()` | Compare two PageRank outputs with rank deltas |
+| `simulate_changes()` | Evaluate proposed link/redirect changes |
+| `auto_grid()` | Build exhaustive parameter grids |
+| `pagerank_grid()` | Run PageRank across multiple parameter sets |
+| `analyze_pagerank_grid()` | Summarise PageRank distribution by model |
+| `pr_gini()` | Gini concentration metric |
+| `pr_entropy()` | Entropy dispersion metric |
+| `pr_top_k_share()` | Top-k PageRank concentration share |
+| `export_graph()` | Export graph and PageRank metadata for external tools |
+| `launch_pagerank_explorer()` | Start the interactive Shiny explorer |
 
-## 1.5 Example: Comparing Models
-
-``` r
-# Run PageRank with different damping factors and nofollow handling
-grid <- auto_grid(damping = c(0.85, 0.90), nofollow_action = c("evaporate", "drop"))
-results <- pagerank_grid(edges, params_grid = grid, clean_edge_urls = FALSE)
-analysis <- analyze_pagerank_grid(results)
-print(analysis)
-```
-
-## 1.6 Example: Simulating a Link Change
-
-``` r
-# What happens if we add a link from Blog to About?
-impact <- simulate_changes(
-  edges,
-  add_links_df = data.frame(from = "Blog", to = "About",
-                            stringsAsFactors = FALSE),
-  clean_edge_urls = FALSE
-)
-print(impact)
-```
-
-## 1.7 Further Information
+## 1.5 Further Information
 
 ``` r
 help(package = "pagerankr")
 vignette("pagerankr-usage")
 ```
 
-## 1.8 Code of Conduct
+## 1.6 Code of Conduct
 
 Please note that the `pagerankr` project is released with a [Contributor
 Code of
 Conduct](https://contributor-covenant.org/version/2/1/CODE_OF_CONDUCT.html).
 By contributing to this project, you agree to abide by its terms.
 
-## 1.9 License
+## 1.7 License
 
 MIT License. See the `LICENSE` file for details.
