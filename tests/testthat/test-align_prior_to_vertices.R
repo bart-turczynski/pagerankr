@@ -79,6 +79,41 @@ test_that("a fully-unmatched prior falls back to uniform with a warning", {
   expect_equal(p, c(0.5, 0.5))
 })
 
+test_that("alternative count metric is swappable via prior_weight_col", {
+  # Source-agnostic contract: any additive raw count is a drop-in metric swap.
+  # Same URLs, two count columns (e.g. referring domains vs links-to-target);
+  # selecting one with prior_weight_col yields that metric's authority share.
+  v <- c("a", "b", "c")
+  prior <- data.frame(
+    url            = c("a", "b", "c"),
+    ref_domains    = c(900, 100, 0),
+    links_to_target = c(100, 100, 800),
+    stringsAsFactors = FALSE
+  )
+
+  rd <- align_prior_to_vertices(v, prior, prior_weight_col = "ref_domains",
+                                verbose = FALSE)
+  lt <- align_prior_to_vertices(v, prior, prior_weight_col = "links_to_target",
+                                verbose = FALSE)
+
+  expect_equal(rd[1] / rd[2], 9)        # 900:100 referring domains
+  expect_equal(rd[3], 0)                # no referring domains
+  expect_equal(unname(lt), c(0.1, 0.1, 0.8))  # links-to-target share
+})
+
+test_that("swapped count metric still folds duplicate URLs by summation", {
+  # The additive-count contract holds for whichever count column is selected.
+  v <- c("a", "b")
+  prior <- data.frame(
+    url             = c("a", "a", "b"),
+    links_to_target = c(40, 20, 30),
+    stringsAsFactors = FALSE
+  )
+  p <- align_prior_to_vertices(v, prior, prior_weight_col = "links_to_target",
+                               verbose = FALSE)
+  expect_equal(p[1] / p[2], 2)          # (40+20):30
+})
+
 test_that("empty vertex set returns numeric(0)", {
   expect_equal(
     align_prior_to_vertices(character(0),

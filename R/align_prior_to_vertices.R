@@ -20,7 +20,18 @@
 #' @param prior_url_col Name of the URL column in \code{prior_df}. Default
 #'   \code{"url"}.
 #' @param prior_weight_col Name of the numeric weight column in \code{prior_df}.
-#'   Default \code{"weight"}.
+#'   Default \code{"weight"}. \strong{Contract: this must be an additive raw
+#'   count.} URLs that coalesce (duplicate rows here, redirect variants folded
+#'   upstream by [pagerank()]) are combined by \emph{summation}, which is only
+#'   meaningful for counts — quantities that genuinely add when two URLs merge.
+#'   This makes the prior \strong{source-agnostic}: referring domains (the
+#'   default metric), links-to-target, or dofollow-only referring domains from
+#'   Ahrefs are interchangeable swaps, as are equivalent counts from other
+#'   sources (SEMrush, GA4 entrances, …). Do \strong{not} pass a calculated
+#'   authority \emph{score} (Ahrefs UR / DR, or any 0–100 rating): scores do not
+#'   sum across redirect variants (the correct fold would be \code{max}), and a
+#'   per-URL score such as UR is itself a PageRank-flavoured metric, so using it
+#'   as the teleport prior for PageRank is circular.
 #' @param transform Character, how to shape the raw authority before it becomes
 #'   teleport mass. Passed to [transform_weights()]; one of \code{"none"}
 #'   (default, faithful linear share), \code{"log"}, \code{"percentile"},
