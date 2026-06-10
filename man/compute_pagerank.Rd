@@ -14,6 +14,13 @@ compute_pagerank(
   weight_col = NULL,
   pr_node_col = "node_name",
   pr_value_col = "pagerank",
+  prior_df = NULL,
+  prior_url_col = "url",
+  prior_weight_col = "weight",
+  prior_transform = "none",
+  prior_alpha = 0,
+  prior_exclude_nodes = character(0),
+  prior_verbose = TRUE,
   ...
 )
 }
@@ -45,6 +52,20 @@ random surfer model. If `NULL` (default), all edges have equal weight
 \item{pr_node_col}{Name for the node column in the output PageRank data frame. Default "node_name".}
 
 \item{pr_value_col}{Name for the PageRank value column in the output data frame. Default "pagerank".}
+
+\item{prior_df}{Optional per-URL external-authority prior (TIPR). When
+supplied, a personalization/teleport vector is built via
+[align_prior_to_vertices()] from the final vertex set and passed to
+`igraph::page_rank(personalized = )`. The prior URLs must already share the
+vertex namespace (canonicalized + redirect-folded); [pagerank()] handles
+that. Default `NULL` (uniform teleport).}
+
+\item{prior_url_col, prior_weight_col}{Column names in `prior_df`. Defaults
+`"url"` / `"weight"`.}
+
+\item{prior_transform, prior_alpha, prior_exclude_nodes, prior_verbose}{Passed
+to [align_prior_to_vertices()] as `transform`, `alpha`, `exclude_nodes`,
+`verbose`. See that function for semantics.}
 
 \item{...}{Additional arguments passed to `igraph::page_rank()`.}
 }

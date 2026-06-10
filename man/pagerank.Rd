@@ -28,6 +28,13 @@ pagerank(
   loop_handling = c("error", "prune_loop", "break_arrow"),
   keep_domains = NULL,
   exclude_domains = NULL,
+  prior_df = NULL,
+  prior_url_col = "url",
+  prior_weight_col = "weight",
+  prior_transform = c("none", "log", "percentile", "minmax", "zipf", "rank_linear"),
+  prior_alpha = 0,
+  prior_inject_unmatched = FALSE,
+  prior_verbose = TRUE,
   ...
 )
 }
@@ -115,6 +122,37 @@ to internal links. Default `NULL` (no domain filtering).}
 \item{exclude_domains}{Optional character vector of domains to exclude.
 Edges where either endpoint belongs to one of these domains are removed.
 Default `NULL` (no exclusion).}
+
+\item{prior_df}{Optional per-URL external-authority prior for TIPR
+(authority-weighted teleport). A data frame with one row per URL and a
+numeric weight (e.g. Ahrefs referring domains). The prior URLs are
+canonicalized with the same `rurl_params` and folded through the same
+redirect map as the edges, weights for URLs that coalesce are summed, and
+the result is aligned to the final vertex set via
+[align_prior_to_vertices()] and passed to
+`igraph::page_rank(personalized = )`. Default `NULL` (uniform teleport).}
+
+\item{prior_url_col, prior_weight_col}{Column names in `prior_df`. Defaults
+`"url"` / `"weight"`.}
+
+\item{prior_transform}{How to shape raw authority before it becomes teleport
+mass. One of `"none"` (default, faithful linear share), `"log"`,
+`"percentile"`, `"minmax"`, `"zipf"`, `"rank_linear"`. See
+[transform_weights()]. Counts are summed on the raw scale before any
+transform.}
+
+\item{prior_alpha}{Mixture weight in `[0, 1]` between uniform and
+authority-weighted teleport (`p = alpha * uniform + (1 - alpha) *
+authority_share`). `0` (default) is pure authority teleport; `1` reproduces
+uniform PageRank. See [align_prior_to_vertices()].}
+
+\item{prior_inject_unmatched}{Logical. If `TRUE`, authoritative prior URLs
+that do not fold onto any existing vertex are added as edge-less isolate
+vertices so they appear in results carrying their teleport prior. Default
+`FALSE` (align-only: such URLs are dropped and logged).}
+
+\item{prior_verbose}{Logical, whether to emit prior-alignment coverage
+diagnostics. Default `TRUE`. Only relevant when `prior_df` is supplied.}
 
 \item{...}{Additional arguments passed to `compute_pagerank` and subsequently
 to `igraph::page_rank` (e.g., `damping`).}
