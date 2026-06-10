@@ -124,16 +124,30 @@ Edges where either endpoint belongs to one of these domains are removed.
 Default `NULL` (no exclusion).}
 
 \item{prior_df}{Optional per-URL external-authority prior for TIPR
-(authority-weighted teleport). A data frame with one row per URL and a
-numeric weight (e.g. Ahrefs referring domains). The prior URLs are
-canonicalized with the same `rurl_params` and folded through the same
-redirect map as the edges, weights for URLs that coalesce are summed, and
-the result is aligned to the final vertex set via
-[align_prior_to_vertices()] and passed to
-`igraph::page_rank(personalized = )`. Default `NULL` (uniform teleport).}
+  (authority-weighted teleport). A data frame with one row per URL and a
+  numeric weight. The prior URLs are canonicalized with the same
+  `rurl_params` and folded through the same redirect map as the edges,
+  weights for URLs that coalesce are summed, and the result is aligned to the
+  final vertex set via [align_prior_to_vertices()] and passed to
+  `igraph::page_rank(personalized = )`. Default `NULL` (uniform teleport).
+
+  The weight column must be an **additive raw count** — the redirect fold
+  sums it (see `prior_weight_col`), which is only meaningful for quantities
+  that add when URLs coalesce. This keeps the prior **source-agnostic**: the
+  default is Ahrefs **referring domains**, but any backlink-source count is a
+  drop-in swap (Ahrefs *links-to-target* or *dofollow-only referring
+  domains*; SEMrush backlink/referring-domain counts; or even non-backlink
+  counts such as GA4 entrances), simply by pointing `prior_weight_col` at it.
+  Do **not** pass a calculated authority *score* (Ahrefs UR / DR, or any
+  0–100 rating): scores are not additive (folding two redirect variants is a
+  `max`, not a `sum`), and a per-URL score like UR is itself a PageRank-style
+  metric — using it as a teleport prior for PageRank is circular. See
+  [align_prior_to_vertices()] for the full contract.}
 
 \item{prior_url_col, prior_weight_col}{Column names in `prior_df`. Defaults
-`"url"` / `"weight"`.}
+`"url"` / `"weight"`. Swapping `prior_weight_col` between additive count
+columns is the supported way to A/B alternative authority metrics (e.g. via
+[pagerank_grid()]); see `prior_df` for which metrics qualify.}
 
 \item{prior_transform}{How to shape raw authority before it becomes teleport
 mass. One of `"none"` (default, faithful linear share), `"log"`,
