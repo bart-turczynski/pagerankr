@@ -305,12 +305,24 @@ pagerank <- function(edge_list_df,
   edge_url_cols <- intersect(c(edge_from_col, edge_to_col), names(current_edge_list))
   redirect_url_cols <- if (!is.null(current_redirects_list)) intersect(c(redirect_from_col, redirect_to_col), names(current_redirects_list)) else character(0)
 
-  # Default rurl_params for internal consistency if not overridden by user for protocol handling
+  # Default rurl_params for internal consistency if not overridden by user.
+  # These mirror the cross-project canonicalization contract (semantic FR-05):
+  #   - case_handling = "lower_host": scheme + host are case-insensitive
+  #     (RFC 3986), so WWW.Tidio.COM and www.tidio.com fold to one node; the
+  #     path keeps its case (paths are case-sensitive).
+  #   - protocol_handling = "keep": add a scheme to scheme-less URLs but do NOT
+  #     rewrite an existing one. (The old "http" default silently downgraded
+  #     https -> http, merging distinct scheme variants and breaking byte-parity
+  #     with the semantic side's node keys.)
   effective_rurl_params <- rurl_params
   if (is.null(effective_rurl_params$protocol_handling)) {
-    effective_rurl_params$protocol_handling <- "http" # Ensure schemes for consistency, valid for rurl
+    effective_rurl_params$protocol_handling <- "keep"
   }
-  # rurl::get_clean_url will apply its own defaults for other params like case_handling, www_handling, etc., if not in rurl_params.
+  if (is.null(effective_rurl_params$case_handling)) {
+    effective_rurl_params$case_handling <- "lower_host"
+  }
+  # rurl::get_clean_url applies its own defaults for remaining params
+  # (www_handling, trailing_slash_handling, encoding, etc.).
 
   shared_cleaner <- NULL
   # Condition for shared cleaning: both flags TRUE, redirects present, and columns exist for cleaning
