@@ -69,6 +69,31 @@
 #' @param exclude_domains Optional character vector of domains to exclude.
 #'   Edges where either endpoint belongs to one of these domains are removed.
 #'   Default `NULL` (no exclusion).
+#' @param prior_df Optional per-URL external-authority prior for TIPR
+#'   (authority-weighted teleport). A data frame with one row per URL and a
+#'   numeric weight (e.g. Ahrefs referring domains). The prior URLs are
+#'   canonicalized with the same `rurl_params` and folded through the same
+#'   redirect map as the edges, weights for URLs that coalesce are summed, and
+#'   the result is aligned to the final vertex set via
+#'   [align_prior_to_vertices()] and passed to
+#'   `igraph::page_rank(personalized = )`. Default `NULL` (uniform teleport).
+#' @param prior_url_col,prior_weight_col Column names in `prior_df`. Defaults
+#'   `"url"` / `"weight"`.
+#' @param prior_transform How to shape raw authority before it becomes teleport
+#'   mass. One of `"none"` (default, faithful linear share), `"log"`,
+#'   `"percentile"`, `"minmax"`, `"zipf"`, `"rank_linear"`. See
+#'   [transform_weights()]. Counts are summed on the raw scale before any
+#'   transform.
+#' @param prior_alpha Mixture weight in `[0, 1]` between uniform and
+#'   authority-weighted teleport (`p = alpha * uniform + (1 - alpha) *
+#'   authority_share`). `0` (default) is pure authority teleport; `1` reproduces
+#'   uniform PageRank. See [align_prior_to_vertices()].
+#' @param prior_inject_unmatched Logical. If `TRUE`, authoritative prior URLs
+#'   that do not fold onto any existing vertex are added as edge-less isolate
+#'   vertices so they appear in results carrying their teleport prior. Default
+#'   `FALSE` (align-only: such URLs are dropped and logged).
+#' @param prior_verbose Logical, whether to emit prior-alignment coverage
+#'   diagnostics. Default `TRUE`. Only relevant when `prior_df` is supplied.
 #' @param ... Additional arguments passed to `compute_pagerank` and subsequently
 #'   to `igraph::page_rank` (e.g., `damping`).
 #'
@@ -161,6 +186,14 @@ pagerank <- function(edge_list_df,
                                        "break_arrow"),
                      keep_domains = NULL,
                      exclude_domains = NULL,
+                     prior_df = NULL,
+                     prior_url_col = "url",
+                     prior_weight_col = "weight",
+                     prior_transform = c("none", "log", "percentile",
+                                         "minmax", "zipf", "rank_linear"),
+                     prior_alpha = 0,
+                     prior_inject_unmatched = FALSE,
+                     prior_verbose = TRUE,
                      ...) {
 
   # --- Argument Matching and Basic Validation ---
@@ -169,6 +202,7 @@ pagerank <- function(edge_list_df,
   robots_blocked_action <- match.arg(robots_blocked_action)
   duplicate_from_policy <- match.arg(duplicate_from_policy)
   loop_handling <- match.arg(loop_handling)
+  prior_transform <- match.arg(prior_transform)
 
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
@@ -228,6 +262,34 @@ pagerank <- function(edge_list_df,
     }
   }
 
+  # Validate prior_df (TIPR personalization)
+  if (!is.null(prior_df)) {
+    if (!is.data.frame(prior_df)) {
+      stop("`prior_df` must be a data frame or NULL.", call. = FALSE)
+    }
+    if (nrow(prior_df) > 0) {
+      if (!(prior_url_col %in% names(prior_df))) {
+        stop("`prior_url_col` '", prior_url_col,
+             "' not found in `prior_df`.", call. = FALSE)
+      }
+      if (!(prior_weight_col %in% names(prior_df))) {
+        stop("`prior_weight_col` '", prior_weight_col,
+             "' not found in `prior_df`.", call. = FALSE)
+      }
+      if (!is.numeric(prior_df[[prior_weight_col]])) {
+        stop("`prior_weight_col` '", prior_weight_col,
+             "' must be a numeric column.", call. = FALSE)
+      }
+    }
+  }
+  if (!is.numeric(prior_alpha) || length(prior_alpha) != 1 ||
+      is.na(prior_alpha) || prior_alpha < 0 || prior_alpha > 1) {
+    stop("`prior_alpha` must be a single number between 0 and 1.", call. = FALSE)
+  }
+  if (!is.logical(prior_inject_unmatched) || length(prior_inject_unmatched) != 1) {
+    stop("`prior_inject_unmatched` must be a single logical value.", call. = FALSE)
+  }
+
   # Dots for igraph params are handled by compute_pagerank directly.
 
   # --- Initialize working copies of data frames ---
@@ -243,12 +305,24 @@ pagerank <- function(edge_list_df,
   edge_url_cols <- intersect(c(edge_from_col, edge_to_col), names(current_edge_list))
   redirect_url_cols <- if (!is.null(current_redirects_list)) intersect(c(redirect_from_col, redirect_to_col), names(current_redirects_list)) else character(0)
 
-  # Default rurl_params for internal consistency if not overridden by user for protocol handling
+  # Default rurl_params for internal consistency if not overridden by user.
+  # These mirror the cross-project canonicalization contract (semantic FR-05):
+  #   - case_handling = "lower_host": scheme + host are case-insensitive
+  #     (RFC 3986), so WWW.Tidio.COM and www.tidio.com fold to one node; the
+  #     path keeps its case (paths are case-sensitive).
+  #   - protocol_handling = "keep": add a scheme to scheme-less URLs but do NOT
+  #     rewrite an existing one. (The old "http" default silently downgraded
+  #     https -> http, merging distinct scheme variants and breaking byte-parity
+  #     with the semantic side's node keys.)
   effective_rurl_params <- rurl_params
   if (is.null(effective_rurl_params$protocol_handling)) {
-    effective_rurl_params$protocol_handling <- "http" # Ensure schemes for consistency, valid for rurl
+    effective_rurl_params$protocol_handling <- "keep"
   }
-  # rurl::get_clean_url will apply its own defaults for other params like case_handling, www_handling, etc., if not in rurl_params.
+  if (is.null(effective_rurl_params$case_handling)) {
+    effective_rurl_params$case_handling <- "lower_host"
+  }
+  # rurl::get_clean_url applies its own defaults for remaining params
+  # (www_handling, trailing_slash_handling, encoding, etc.).
 
   shared_cleaner <- NULL
   # Condition for shared cleaning: both flags TRUE, redirects present, and columns exist for cleaning
@@ -328,6 +402,47 @@ pagerank <- function(edge_list_df,
     as.character(current_edge_list[[edge_from_col]]),
     as.character(current_edge_list[[edge_to_col]])
   )))
+
+  # --- 2.8. Prior preparation (TIPR) ---
+  # Canonicalize the prior URLs with the SAME rurl settings as the edges and
+  # fold them through the SAME redirect map, summing happens later in
+  # align_prior_to_vertices(). This puts the prior into the final vertex
+  # namespace before the graph is built.
+  folded_prior_df <- NULL
+  if (!is.null(prior_df) && nrow(prior_df) > 0) {
+    folded_prior_df <- prior_df[, c(prior_url_col, prior_weight_col),
+                                drop = FALSE]
+    folded_prior_df[[prior_url_col]] <-
+      as.character(folded_prior_df[[prior_url_col]])
+
+    # Canonicalize to match the edge namespace (only when edges were cleaned).
+    if (clean_edge_urls) {
+      folded_prior_df <- do.call(
+        clean_url_columns,
+        c(list(data_frame = folded_prior_df, columns = prior_url_col),
+          effective_rurl_params)
+      )
+    }
+
+    # Fold through the same canonical redirect map (same policies).
+    if (!is.null(current_redirects_list) && nrow(current_redirects_list) > 0) {
+      fold_tmp <- data.frame(
+        .pr_url = folded_prior_df[[prior_url_col]],
+        .pr_dst = folded_prior_df[[prior_url_col]],
+        stringsAsFactors = FALSE
+      )
+      fold_tmp <- resolve_redirects(
+        edge_list_df = fold_tmp,
+        redirects_df = current_redirects_list,
+        edge_from_col = ".pr_url", edge_to_col = ".pr_dst",
+        redirect_from_col = redirect_from_col,
+        redirect_to_col = redirect_to_col,
+        duplicate_from_policy = duplicate_from_policy,
+        loop_handling = loop_handling
+      )
+      folded_prior_df[[prior_url_col]] <- fold_tmp$.pr_url
+    }
+  }
 
   # --- 3. Get Unique Edges (handles self-loops) ---
   current_edge_list <- get_unique_edges(
@@ -482,6 +597,29 @@ pagerank <- function(edge_list_df,
     }
   }
 
+  # --- 4.5. Inject unmatched prior URLs as isolates (opt-in) ---
+  # Authoritative URLs that don't fold onto any existing vertex are surfaced as
+  # edge-less vertices (carrying their teleport prior, distributing nothing).
+  if (!is.null(folded_prior_df) && prior_inject_unmatched &&
+      !is.null(vertices_for_pagerank_df)) {
+    existing_nodes <- vertices_for_pagerank_df[[temp_node_col_name]]
+    prior_dests <- unique(stats::na.omit(folded_prior_df[[prior_url_col]]))
+    to_add <- setdiff(prior_dests, existing_nodes)
+    if (length(to_add) > 0) {
+      vertices_for_pagerank_df <- stats::setNames(
+        data.frame(sort(c(existing_nodes, to_add)), stringsAsFactors = FALSE),
+        temp_node_col_name
+      )
+    }
+  }
+
+  # Only the synthetic nofollow sink is excluded from teleport; robots/404
+  # self-loop nodes are real pages and keep their authority.
+  prior_exclude_nodes <- character(0)
+  if (used_nofollow_sink) {
+    prior_exclude_nodes <- c(prior_exclude_nodes, nofollow_sink_name)
+  }
+
   # --- 5. Compute PageRank ---
   pagerank_results <- compute_pagerank(
     edge_list_df = current_edge_list,
@@ -490,6 +628,13 @@ pagerank <- function(edge_list_df,
     to_col = edge_to_col,
     vertex_col_name = temp_node_col_name,
     weight_col = weight_col,
+    prior_df = folded_prior_df,
+    prior_url_col = prior_url_col,
+    prior_weight_col = prior_weight_col,
+    prior_transform = prior_transform,
+    prior_alpha = prior_alpha,
+    prior_exclude_nodes = prior_exclude_nodes,
+    prior_verbose = prior_verbose,
     ...
   )
 

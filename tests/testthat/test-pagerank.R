@@ -36,16 +36,16 @@ describe("pagerank main wrapper basic functionality", {
     expect_true(nrow(pr_full) %in% c(0, 2))
     if (nrow(pr_full) == 2) {
       expect_true(
-        "http://C-resolved.com/" %in% pr_full$node_name
+        "http://c-resolved.com/" %in% pr_full$node_name
       )
       expect_true(
-        "http://D.com/" %in% pr_full$node_name
+        "http://d.com/" %in% pr_full$node_name
       )
       pr_d <- pr_full$pagerank[
-        pr_full$node_name == "http://D.com/"
+        pr_full$node_name == "http://d.com/"
       ]
       pr_c_res <- pr_full$pagerank[
-        pr_full$node_name == "http://C-resolved.com/"
+        pr_full$node_name == "http://c-resolved.com/"
       ]
       expect_gt(pr_d, pr_c_res)
     }
@@ -69,12 +69,13 @@ describe("pagerank main wrapper basic functionality", {
     )
 
     pr_clean <- pagerank(edges_dirty, clean_edge_urls = TRUE)
-    # rurl normalizes scheme, strips query/fragment
+    # rurl normalizes scheme, lowercases the host, strips query/fragment
+    # (case_handling = "lower_host"); the path keeps its case.
     expect_true(
-      "http://Example.COM/path" %in% pr_clean$node_name
+      "http://example.com/path" %in% pr_clean$node_name
     )
     expect_true(
-      "http://Sub.example.NET/" %in% pr_clean$node_name
+      "http://sub.example.net/" %in% pr_clean$node_name
     )
 
     # Warning if query params present and cleaning off
@@ -219,9 +220,9 @@ describe("pagerank main wrapper basic functionality", {
       redirect_from_col = "orig", redirect_to_col = "final"
     )
     expect_equal(nrow(pr), 2)
-    # rurl adds http:// and trailing slash for bare domains
-    expect_true("http://X.com/" %in% pr$node_name)
-    expect_true("http://Z.org/" %in% pr$node_name)
+    # rurl adds http:// and trailing slash for bare domains, lowercases host
+    expect_true("http://x.com/" %in% pr$node_name)
+    expect_true("http://z.org/" %in% pr$node_name)
   })
 
   it("passes ... (e.g. damping) to compute_pagerank", {
@@ -293,10 +294,10 @@ describe("pagerank shared memoization for cleaning (conceptual)", {
       clean_redirect_urls = TRUE
     )
     expect_true(
-      "http://SiteA_RESOLVED.com/" %in% pr_shared$node_name
+      "http://sitea_resolved.com/" %in% pr_shared$node_name
     )
     expect_true(
-      "http://SiteB.com/" %in% pr_shared$node_name
+      "http://siteb.com/" %in% pr_shared$node_name
     )
 
     # Scenario 2: URL from edge `to` matches redirect `to`.
@@ -316,10 +317,10 @@ describe("pagerank shared memoization for cleaning (conceptual)", {
       clean_redirect_urls = TRUE
     )
     expect_true(
-      "http://Source.com/" %in% pr_shared2$node_name
+      "http://source.com/" %in% pr_shared2$node_name
     )
     expect_true(
-      "http://CommonTarget.com/Page" %in% pr_shared2$node_name
+      "http://commontarget.com/Page" %in% pr_shared2$node_name
     )
   })
 })

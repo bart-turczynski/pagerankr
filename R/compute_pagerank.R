@@ -21,6 +21,17 @@
 #'   (unweighted PageRank).
 #' @param pr_node_col Name for the node column in the output PageRank data frame. Default "node_name".
 #' @param pr_value_col Name for the PageRank value column in the output data frame. Default "pagerank".
+#' @param prior_df Optional per-URL external-authority prior (TIPR). When
+#'   supplied, a personalization/teleport vector is built via
+#'   [align_prior_to_vertices()] from the final vertex set and passed to
+#'   `igraph::page_rank(personalized = )`. The prior URLs must already share the
+#'   vertex namespace (canonicalized + redirect-folded); [pagerank()] handles
+#'   that. Default `NULL` (uniform teleport).
+#' @param prior_url_col,prior_weight_col Column names in `prior_df`. Defaults
+#'   `"url"` / `"weight"`.
+#' @param prior_transform,prior_alpha,prior_exclude_nodes,prior_verbose Passed
+#'   to [align_prior_to_vertices()] as `transform`, `alpha`, `exclude_nodes`,
+#'   `verbose`. See that function for semantics.
 #' @param ... Additional arguments passed to `igraph::page_rank()`.
 #'
 #' @return A data frame with two columns: one for node names (named by `pr_node_col`)
@@ -67,6 +78,13 @@ compute_pagerank <- function(edge_list_df,
                              weight_col = NULL,
                              pr_node_col = "node_name",
                              pr_value_col = "pagerank",
+                             prior_df = NULL,
+                             prior_url_col = "url",
+                             prior_weight_col = "weight",
+                             prior_transform = "none",
+                             prior_alpha = 0,
+                             prior_exclude_nodes = character(0),
+                             prior_verbose = TRUE,
                              ...) {
 
   # --- Input Validation ---
@@ -181,9 +199,29 @@ compute_pagerank <- function(edge_list_df,
     return(empty_pr_result)
   }
 
+  # --- Build TIPR personalization vector (aligned to final vertex set) ---
+  personalized_vec <- NULL
+  if (!is.null(prior_df)) {
+    personalized_vec <- align_prior_to_vertices(
+      vertex_names = igraph::V(current_graph)$name,
+      prior_df = prior_df,
+      prior_url_col = prior_url_col,
+      prior_weight_col = prior_weight_col,
+      transform = prior_transform,
+      alpha = prior_alpha,
+      exclude_nodes = prior_exclude_nodes,
+      verbose = prior_verbose
+    )
+  }
+
   # --- Compute PageRank ---
   pr_igraph_output <- tryCatch({
-    igraph::page_rank(graph = current_graph, damping = damping, ...)
+    if (is.null(personalized_vec)) {
+      igraph::page_rank(graph = current_graph, damping = damping, ...)
+    } else {
+      igraph::page_rank(graph = current_graph, damping = damping,
+                        personalized = personalized_vec, ...)
+    }
   }, error = function(e) {
     warning("igraph::page_rank computation failed: ", e$message, call. = FALSE)
     NULL # Return NULL on error to distinguish from valid empty results
@@ -213,7 +251,13 @@ compute_pagerank <- function(edge_list_df,
     stringsAsFactors = FALSE
   )
   names(pagerank_df) <- c(pr_node_col, pr_value_col)
-  
+
+  # Attach the aligned teleport share so the input prior sits next to the score.
+  if (!is.null(personalized_vec)) {
+    pw <- stats::setNames(personalized_vec, igraph::V(current_graph)$name)
+    pagerank_df[["prior_weight"]] <- unname(pw[pagerank_df[[pr_node_col]]])
+  }
+
   # Order by pagerank descending by default (optional, but common)
   # pagerank_df <- pagerank_df[order(pagerank_df[[pr_value_col]], decreasing = TRUE), , drop = FALSE]
 
