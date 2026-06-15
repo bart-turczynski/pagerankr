@@ -9,11 +9,11 @@ describe("clean_url_columns basic functionality", {
     )
     cleaned <- clean_url_columns(df, columns = c("from", "to"))
     expect_equal(nrow(cleaned), 2)
-    # Assuming rurl::get_clean_url normalizes scheme, preserves case for path,
-    # adds trailing slash, and drops query/fragments by default.
+    # rurl normalizes scheme, lowercases the host, preserves path case, adds a
+    # trailing slash, and drops query/fragments by default.
     expect_equal(
       cleaned$from,
-      c("http://Example.com/path", "https://Example.com/PATH")
+      c("http://example.com/path", "https://example.com/PATH")
     )
     expect_equal(
       cleaned$to,
@@ -49,11 +49,11 @@ describe("clean_url_columns basic functionality", {
     # Test default behavior if no extra params passed or if params unsupported
     cleaned_default <- clean_url_columns(df, columns = "link")
     expect_equal(nrow(cleaned_default), 2)
-    # Default: preserve path case, normalize scheme, drop fragment and query,
-    # add trailing slash
+    # Default: lowercase host, preserve path case, normalize scheme, drop
+    # fragment and query, add trailing slash
     expect_equal(
       cleaned_default$link,
-      c("http://www.Example.com/path", "https://google.com/")
+      c("http://www.example.com/path", "https://google.com/")
     )
   })
 
@@ -65,8 +65,8 @@ describe("clean_url_columns basic functionality", {
     )
     cleaned <- clean_url_columns(df, columns = c("source_url", "target_url"))
     expect_equal(nrow(cleaned), 1)
-    # Preserve case, normalize scheme, drop query, add trailing slash
-    expect_equal(cleaned$source_url, "http://MySite.com/One")
+    # Lowercase host, preserve path case, normalize scheme, drop query
+    expect_equal(cleaned$source_url, "http://mysite.com/One")
     expect_equal(cleaned$target_url, "https://theirsite.com/TWO")
   })
 
@@ -79,7 +79,7 @@ describe("clean_url_columns basic functionality", {
       )
       cleaned <- clean_url_columns(df, columns = "col_to_clean")
       expect_equal(nrow(cleaned), 1)
-      expect_equal(cleaned$col_to_clean, "http://Domain.com/Page") # Cleaned
+      expect_equal(cleaned$col_to_clean, "http://domain.com/Page") # Cleaned
       # Ignored, as is
       expect_equal(
         cleaned$col_to_ignore,
@@ -116,7 +116,7 @@ describe("clean_url_columns basic functionality", {
     # 'columns' param: it tries to find 'from' and 'to', fails, and returns
     # the original df with a warning. If 'columns' IS specified, it uses those.
     cleaned <- clean_url_columns(df_no_default_cols, columns = "link_source")
-    expect_equal(cleaned$link_source, "http://EXAMPLE.com/")
+    expect_equal(cleaned$link_source, "http://example.com/")
     # Unchanged
     expect_equal(cleaned$link_target, "example.net/resource?id=2")
   })
@@ -148,8 +148,8 @@ describe("clean_url_columns memoization (conceptual)", {
     )
     # Test with default behavior (no extra params)
     cleaned_1 <- clean_url_columns(df_repeated, columns = "urls")
-    # Fragment and query dropped, case preserved
-    expect_equal(cleaned_1$urls[1], "https://Example.Com/Page")
+    # Fragment and query dropped, host lowercased, path case preserved
+    expect_equal(cleaned_1$urls[1], "https://example.com/Page")
     # Adjust expectation: if rurl does not encode the space, expect a space.
     # If it turns it into NA, expect NA. Based on output, the actual value is
     # "http://sub.example.com/another path".
@@ -167,7 +167,7 @@ describe("clean_url_columns memoization (conceptual)", {
       df_repeated,
       columns = "urls"
     )
-    expect_equal(cleaned_2_default_behavior$urls[1], "https://Example.Com/Page")
+    expect_equal(cleaned_2_default_behavior$urls[1], "https://example.com/Page")
     # This test previously failed because it passed an unsupported argument.
     # By removing the argument, we test default behavior which should pass.
   })
