@@ -46,8 +46,10 @@
 #' new_links <- data.frame(
 #'   from = "Blog", to = "About", stringsAsFactors = FALSE
 #' )
-#' result <- simulate_changes(edges, add_links_df = new_links,
-#'                            clean_edge_urls = FALSE)
+#' result <- simulate_changes(edges,
+#'   add_links_df = new_links,
+#'   clean_edge_urls = FALSE
+#' )
 #' print(result)
 #' attr(result, "summary")
 simulate_changes <- function(edge_list_df,
@@ -60,7 +62,6 @@ simulate_changes <- function(edge_list_df,
                              edge_to_col = "to",
                              label_baseline = "baseline",
                              label_proposed = "proposed") {
-
   # --- Validation ---
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
@@ -72,9 +73,11 @@ simulate_changes <- function(edge_list_df,
       stop("`add_links_df` must be a data frame or NULL.", call. = FALSE)
     }
     if (nrow(add_links_df) > 0 &&
-        !all(required_cols %in% names(add_links_df))) {
+          !all(required_cols %in% names(add_links_df))) {
       stop("`add_links_df` must have '", edge_from_col, "' and '",
-           edge_to_col, "' columns.", call. = FALSE)
+        edge_to_col, "' columns.",
+        call. = FALSE
+      )
     }
   }
 
@@ -83,9 +86,11 @@ simulate_changes <- function(edge_list_df,
       stop("`remove_links_df` must be a data frame or NULL.", call. = FALSE)
     }
     if (nrow(remove_links_df) > 0 &&
-        !all(required_cols %in% names(remove_links_df))) {
+          !all(required_cols %in% names(remove_links_df))) {
       stop("`remove_links_df` must have '", edge_from_col, "' and '",
-           edge_to_col, "' columns.", call. = FALSE)
+        edge_to_col, "' columns.",
+        call. = FALSE
+      )
     }
   }
 
@@ -101,17 +106,24 @@ simulate_changes <- function(edge_list_df,
 
   if (!is.null(add_links_df) && nrow(add_links_df) > 0) {
     common_cols <- intersect(names(proposed_edges), names(add_links_df))
-    proposed_edges <- rbind(proposed_edges[, common_cols, drop = FALSE],
-                            add_links_df[, common_cols, drop = FALSE])
+    proposed_edges <- rbind(
+      proposed_edges[, common_cols, drop = FALSE],
+      add_links_df[, common_cols, drop = FALSE]
+    )
   }
 
   if (!is.null(remove_links_df) && nrow(remove_links_df) > 0) {
-    remove_key <- paste0(as.character(remove_links_df[[edge_from_col]]), "\t",
-                         as.character(remove_links_df[[edge_to_col]]))
-    current_key <- paste0(as.character(proposed_edges[[edge_from_col]]), "\t",
-                          as.character(proposed_edges[[edge_to_col]]))
+    remove_key <- paste0(
+      as.character(remove_links_df[[edge_from_col]]), "\t",
+      as.character(remove_links_df[[edge_to_col]])
+    )
+    current_key <- paste0(
+      as.character(proposed_edges[[edge_from_col]]), "\t",
+      as.character(proposed_edges[[edge_to_col]])
+    )
     proposed_edges <- proposed_edges[!(current_key %in% remove_key), ,
-                                    drop = FALSE]
+      drop = FALSE
+    ]
   }
 
   # --- Build proposed redirects ---
@@ -121,8 +133,10 @@ simulate_changes <- function(edge_list_df,
     if (is.null(proposed_redirects)) {
       proposed_redirects <- add_redirects_df
     } else {
-      common_cols <- intersect(names(proposed_redirects),
-                               names(add_redirects_df))
+      common_cols <- intersect(
+        names(proposed_redirects),
+        names(add_redirects_df)
+      )
       proposed_redirects <- rbind(
         proposed_redirects[, common_cols, drop = FALSE],
         add_redirects_df[, common_cols, drop = FALSE]
@@ -132,10 +146,13 @@ simulate_changes <- function(edge_list_df,
 
   # --- Run both models ---
   pr_baseline <- pagerank(edge_list_df, redirects_df = redirects_df, ...)
-  pr_proposed <- pagerank(proposed_edges, redirects_df = proposed_redirects,
-                          ...)
+  pr_proposed <- pagerank(proposed_edges,
+    redirects_df = proposed_redirects,
+    ...
+  )
 
   # --- Compare ---
   compare_pagerank(pr_baseline, pr_proposed,
-                   label_a = label_baseline, label_b = label_proposed)
+    label_a = label_baseline, label_b = label_proposed
+  )
 }

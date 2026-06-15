@@ -11,8 +11,8 @@
 #'   with "from" and "to" columns. Defaults to NULL.
 #' @param clean_edge_urls Logical, whether to clean URLs in the edge list.
 #'   Defaults to TRUE.
-#' @param clean_redirect_urls Logical, whether to clean URLs in the redirect list.
-#'   Defaults to TRUE. Only effective if `redirects_df` is provided.
+#' @param clean_redirect_urls Logical, whether to clean URLs in the redirect
+#'   list. Defaults to TRUE. Only effective if `redirects_df` is provided.
 #' @param rurl_params A list of parameters to pass to `rurl::clean_url`.
 #'   Defaults to an empty list.
 #' @param self_loops A character string specifying how to handle self-loops.
@@ -139,26 +139,33 @@
 #' @examples
 #' # Basic example
 #' edges <- data.frame(
-#'   from = c("http://A.com/", "B", "C?q=1", "D"), 
+#'   from = c("http://A.com/", "B", "C?q=1", "D"),
 #'   to = c("B", "http://A.com", "D#frag", "D"),
 #'   stringsAsFactors = FALSE
 #' )
 #' redirects <- data.frame(
-#'   from = c("C?q=1", "B"), 
+#'   from = c("C?q=1", "B"),
 #'   to = c("http://C_resolved.com", "A"), # B redirects to A, C to C_resolved
 #'   stringsAsFactors = FALSE
 #' )
-#' 
+#'
 #' # Run full pipeline
-#' pr_full <- pagerank(edges, redirects_df = redirects, self_loops="drop", drop_isolates_flag=TRUE)
+#' pr_full <- pagerank(
+#'   edges,
+#'   redirects_df = redirects, self_loops = "drop", drop_isolates_flag = TRUE
+#' )
 #' print(pr_full)
-#' 
-#' # Run without URL cleaning for edges (warning expected if query params present)
-#' pr_no_edge_clean <- pagerank(edges, redirects_df = redirects, clean_edge_urls = FALSE)
+#'
+#' # Run without URL cleaning for edges
+#' # (warning expected if query params present)
+#' pr_no_edge_clean <- pagerank(
+#'   edges,
+#'   redirects_df = redirects, clean_edge_urls = FALSE
+#' )
 #' print(pr_no_edge_clean)
-#' 
+#'
 #' # Keep isolates
-#' edges_isol <- rbind(edges, data.frame(from="ISO", to="LAND"))
+#' edges_isol <- rbind(edges, data.frame(from = "ISO", to = "LAND"))
 #' pr_keep_isolates <- pagerank(edges_isol, drop_isolates_flag = FALSE)
 #' print(pr_keep_isolates)
 #'
@@ -167,10 +174,11 @@
 #'   from = c("A", "A", "B"), to = c("B", "C", "A"),
 #'   nofollow = c(FALSE, TRUE, FALSE), stringsAsFactors = FALSE
 #' )
-#' pr_nf <- pagerank(edges_nf, nofollow_col = "nofollow",
-#'                   nofollow_action = "evaporate", clean_edge_urls = FALSE)
+#' pr_nf <- pagerank(edges_nf,
+#'   nofollow_col = "nofollow",
+#'   nofollow_action = "evaporate", clean_edge_urls = FALSE
+#' )
 #' print(pr_nf)
-
 pagerank <- function(edge_list_df,
                      redirects_df = NULL,
                      clean_edge_urls = TRUE,
@@ -189,27 +197,32 @@ pagerank <- function(edge_list_df,
                      edge_to_col = "to",
                      redirect_from_col = "from",
                      redirect_to_col = "to",
-                     duplicate_from_policy = c("strict",
-                                               "first_wins",
-                                               "last_wins",
-                                               "most_frequent",
-                                               "prune_source",
-                                               "resolve_if_consistent"),
-                     loop_handling = c("error",
-                                       "prune_loop",
-                                       "break_arrow"),
+                     duplicate_from_policy = c(
+                       "strict",
+                       "first_wins",
+                       "last_wins",
+                       "most_frequent",
+                       "prune_source",
+                       "resolve_if_consistent"
+                     ),
+                     loop_handling = c(
+                       "error",
+                       "prune_loop",
+                       "break_arrow"
+                     ),
                      keep_domains = NULL,
                      exclude_domains = NULL,
                      prior_df = NULL,
                      prior_url_col = "url",
                      prior_weight_col = "weight",
-                     prior_transform = c("none", "log", "percentile",
-                                         "minmax", "zipf", "rank_linear"),
+                     prior_transform = c(
+                       "none", "log", "percentile",
+                       "minmax", "zipf", "rank_linear"
+                     ),
                      prior_alpha = 0,
                      prior_inject_unmatched = FALSE,
                      prior_verbose = TRUE,
                      ...) {
-
   # --- Argument Matching and Basic Validation ---
   self_loops <- match.arg(self_loops)
   nofollow_action <- match.arg(nofollow_action)
@@ -242,20 +255,32 @@ pagerank <- function(edge_list_df,
   # Validate weight_col
   if (!is.null(weight_col)) {
     if (!is.character(weight_col) || length(weight_col) != 1) {
-      stop("`weight_col` must be a single character string or NULL.", call. = FALSE)
+      stop(
+        "`weight_col` must be a single character string or NULL.",
+        call. = FALSE
+      )
     }
     if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
-      stop("`weight_col` '", weight_col, "' not found in `edge_list_df`.", call. = FALSE)
+      stop(
+        "`weight_col` '", weight_col, "' not found in `edge_list_df`.",
+        call. = FALSE
+      )
     }
   }
 
   # Validate nofollow_col
   if (!is.null(nofollow_col)) {
     if (!is.character(nofollow_col) || length(nofollow_col) != 1) {
-      stop("`nofollow_col` must be a single character string or NULL.", call. = FALSE)
+      stop(
+        "`nofollow_col` must be a single character string or NULL.",
+        call. = FALSE
+      )
     }
     if (nrow(edge_list_df) > 0 && !(nofollow_col %in% names(edge_list_df))) {
-      stop("`nofollow_col` '", nofollow_col, "' not found in `edge_list_df`.", call. = FALSE)
+      stop(
+        "`nofollow_col` '", nofollow_col, "' not found in `edge_list_df`.",
+        call. = FALSE
+      )
     }
   }
 
@@ -267,11 +292,15 @@ pagerank <- function(edge_list_df,
     if (nrow(indexability_df) > 0) {
       if (!(indexability_url_col %in% names(indexability_df))) {
         stop("`indexability_url_col` '", indexability_url_col,
-             "' not found in `indexability_df`.", call. = FALSE)
+          "' not found in `indexability_df`.",
+          call. = FALSE
+        )
       }
       if (!(indexability_status_col %in% names(indexability_df))) {
         stop("`indexability_status_col` '", indexability_status_col,
-             "' not found in `indexability_df`.", call. = FALSE)
+          "' not found in `indexability_df`.",
+          call. = FALSE
+        )
       }
     }
   }
@@ -284,24 +313,37 @@ pagerank <- function(edge_list_df,
     if (nrow(prior_df) > 0) {
       if (!(prior_url_col %in% names(prior_df))) {
         stop("`prior_url_col` '", prior_url_col,
-             "' not found in `prior_df`.", call. = FALSE)
+          "' not found in `prior_df`.",
+          call. = FALSE
+        )
       }
       if (!(prior_weight_col %in% names(prior_df))) {
         stop("`prior_weight_col` '", prior_weight_col,
-             "' not found in `prior_df`.", call. = FALSE)
+          "' not found in `prior_df`.",
+          call. = FALSE
+        )
       }
       if (!is.numeric(prior_df[[prior_weight_col]])) {
         stop("`prior_weight_col` '", prior_weight_col,
-             "' must be a numeric column.", call. = FALSE)
+          "' must be a numeric column.",
+          call. = FALSE
+        )
       }
     }
   }
   if (!is.numeric(prior_alpha) || length(prior_alpha) != 1 ||
-      is.na(prior_alpha) || prior_alpha < 0 || prior_alpha > 1) {
-    stop("`prior_alpha` must be a single number between 0 and 1.", call. = FALSE)
+        is.na(prior_alpha) || prior_alpha < 0 || prior_alpha > 1) {
+    stop(
+      "`prior_alpha` must be a single number between 0 and 1.",
+      call. = FALSE
+    )
   }
-  if (!is.logical(prior_inject_unmatched) || length(prior_inject_unmatched) != 1) {
-    stop("`prior_inject_unmatched` must be a single logical value.", call. = FALSE)
+  if (!is.logical(prior_inject_unmatched) ||
+        length(prior_inject_unmatched) != 1) {
+    stop(
+      "`prior_inject_unmatched` must be a single logical value.",
+      call. = FALSE
+    )
   }
 
   # Dots for igraph params are handled by compute_pagerank directly.
@@ -311,13 +353,23 @@ pagerank <- function(edge_list_df,
   current_redirects_list <- redirects_df
 
   # --- 1. URL Cleaning (Potentially Shared Memoization) ---
-  # As per Spec: "ensures that all unique URLs from both the edge list and 
-  # redirect list are canonicalized *once* per unique string using a shared 
+  # As per Spec: "ensures that all unique URLs from both the edge list and
+  # redirect list are canonicalized *once* per unique string using a shared
   # memoized `rurl::clean_url` instance"
-  
+
   # Determine edge and redirect columns for cleaning
-  edge_url_cols <- intersect(c(edge_from_col, edge_to_col), names(current_edge_list))
-  redirect_url_cols <- if (!is.null(current_redirects_list)) intersect(c(redirect_from_col, redirect_to_col), names(current_redirects_list)) else character(0)
+  edge_url_cols <- intersect(
+    c(edge_from_col, edge_to_col),
+    names(current_edge_list)
+  )
+  redirect_url_cols <- if (!is.null(current_redirects_list)) {
+    intersect(
+      c(redirect_from_col, redirect_to_col),
+      names(current_redirects_list)
+    )
+  } else {
+    character(0)
+  }
 
   # Default rurl_params for internal consistency if not overridden by user.
   # These mirror the cross-project canonicalization contract (semantic FR-05):
@@ -339,48 +391,79 @@ pagerank <- function(edge_list_df,
   # (www_handling, trailing_slash_handling, encoding, etc.).
 
   shared_cleaner <- NULL
-  # Condition for shared cleaning: both flags TRUE, redirects present, and columns exist for cleaning
-  use_shared_cleaning <- clean_edge_urls && clean_redirect_urls && 
-                         !is.null(current_redirects_list) && nrow(current_redirects_list) > 0 &&
-                         length(edge_url_cols) > 0 && length(redirect_url_cols) > 0
+  # Condition for shared cleaning: both flags TRUE, redirects present, and
+  # columns exist for cleaning
+  use_shared_cleaning <- clean_edge_urls && clean_redirect_urls &&
+    !is.null(current_redirects_list) && nrow(current_redirects_list) > 0 &&
+    length(edge_url_cols) > 0 && length(redirect_url_cols) > 0
 
   if (use_shared_cleaning) {
     shared_cleaner <- .create_memoized_cleaner()
-    
+
     if (length(edge_url_cols) > 0) {
-        current_edge_list <- do.call(clean_url_columns, 
-                                     c(list(data_frame = current_edge_list, 
-                                            columns = edge_url_cols, 
-                                            .memoized_clean_url = shared_cleaner), 
-                                       effective_rurl_params))
+      current_edge_list <- do.call(
+        clean_url_columns,
+        c(
+          list(
+            data_frame = current_edge_list,
+            columns = edge_url_cols,
+            .memoized_clean_url = shared_cleaner
+          ),
+          effective_rurl_params
+        )
+      )
     }
     if (length(redirect_url_cols) > 0) {
-        current_redirects_list <- do.call(clean_url_columns, 
-                                          c(list(data_frame = current_redirects_list, 
-                                                 columns = redirect_url_cols, 
-                                                 .memoized_clean_url = shared_cleaner), effective_rurl_params))
+      current_redirects_list <- do.call(
+        clean_url_columns,
+        c(list(
+          data_frame = current_redirects_list,
+          columns = redirect_url_cols,
+          .memoized_clean_url = shared_cleaner
+        ), effective_rurl_params)
+      )
     }
   } else {
     # No shared cleaning, apply individually if flags are set
     if (clean_edge_urls && length(edge_url_cols) > 0) {
-      current_edge_list <- do.call(clean_url_columns, 
-                                   c(list(data_frame = current_edge_list, 
-                                          columns = edge_url_cols), effective_rurl_params))
+      current_edge_list <- do.call(
+        clean_url_columns,
+        c(list(
+          data_frame = current_edge_list,
+          columns = edge_url_cols
+        ), effective_rurl_params)
+      )
     }
-    if (clean_redirect_urls && !is.null(current_redirects_list) && nrow(current_redirects_list) > 0 && length(redirect_url_cols) > 0) {
-      current_redirects_list <- do.call(clean_url_columns, 
-                                        c(list(data_frame = current_redirects_list, 
-                                               columns = redirect_url_cols), effective_rurl_params))
+    if (clean_redirect_urls && !is.null(current_redirects_list) &&
+          nrow(current_redirects_list) > 0 && length(redirect_url_cols) > 0) {
+      current_redirects_list <- do.call(
+        clean_url_columns,
+        c(list(
+          data_frame = current_redirects_list,
+          columns = redirect_url_cols
+        ), effective_rurl_params)
+      )
     }
   }
 
   # --- Warning for Uncleaned Edge URLs with Query Parameters ---
-  # Spec: "If clean_edge_urls = FALSE and URLs in the edge_list_df contain query parameters (`?` or `&`), warn users"
+  # Per spec: when edge URL cleaning is disabled and edge URLs still contain
+  # query parameters, the user should be warned.
   if (!clean_edge_urls && length(edge_url_cols) > 0) {
-    if (.urls_contain_query_params(current_edge_list, columns = edge_url_cols)) {
-      warning("URLs in `edge_list_df` may contain query parameters (e.g. '?' or '&'). ",
-              "Consider setting `clean_edge_urls = TRUE` for consistent PageRank calculation, using `rurl_params` to control `rurl::clean_url` behavior if needed.", 
-              call. = FALSE)
+    has_query_params <- .urls_contain_query_params(
+      current_edge_list,
+      columns = edge_url_cols
+    )
+    if (has_query_params) {
+      warning(
+        paste0(
+          "URLs in `edge_list_df` may contain query parameters ",
+          "(e.g. '?' or '&'). Consider setting `clean_edge_urls = TRUE` ",
+          "for consistent PageRank calculation, using `rurl_params` to ",
+          "control `rurl::clean_url` behavior if needed."
+        ),
+        call. = FALSE
+      )
     }
   }
 
@@ -411,7 +494,8 @@ pagerank <- function(edge_list_df,
   # This must happen before get_unique_edges() which drops rows with NAs.
   # When drop_isolates_flag = FALSE, nodes from partial rows (one NA column)
   # represent known URLs that should be included in the graph as isolates.
-  temp_node_col_name <- "node_name" # Standardized name for intermediate vertex data
+  # Standardized name for intermediate vertex data
+  temp_node_col_name <- "node_name"
   all_vertex_universe <- unique(stats::na.omit(c(
     as.character(current_edge_list[[edge_from_col]]),
     as.character(current_edge_list[[edge_to_col]])
@@ -425,7 +509,8 @@ pagerank <- function(edge_list_df,
   folded_prior_df <- NULL
   if (!is.null(prior_df) && nrow(prior_df) > 0) {
     folded_prior_df <- prior_df[, c(prior_url_col, prior_weight_col),
-                                drop = FALSE]
+      drop = FALSE
+    ]
     folded_prior_df[[prior_url_col]] <-
       as.character(folded_prior_df[[prior_url_col]])
 
@@ -433,8 +518,10 @@ pagerank <- function(edge_list_df,
     if (clean_edge_urls) {
       folded_prior_df <- do.call(
         clean_url_columns,
-        c(list(data_frame = folded_prior_df, columns = prior_url_col),
-          effective_rurl_params)
+        c(
+          list(data_frame = folded_prior_df, columns = prior_url_col),
+          effective_rurl_params
+        )
       )
     }
 
@@ -471,13 +558,15 @@ pagerank <- function(edge_list_df,
 
   # noindex-derived nofollow edges are picked up by the nofollow mechanism.
   robots_blocked_urls <- character(0)
-  if (!is.null(indexability_df) && nrow(indexability_df) > 0 && nrow(current_edge_list) > 0) {
+  if (!is.null(indexability_df) && nrow(indexability_df) > 0 &&
+        nrow(current_edge_list) > 0) {
     statuses <- as.character(indexability_df[[indexability_status_col]])
     urls <- as.character(indexability_df[[indexability_url_col]])
 
     # Parse statuses: robots.txt takes priority over noindex
     is_robots_blocked <- grepl("Blocked by robots.txt", statuses, fixed = TRUE)
-    is_noindex <- grepl("noindex", statuses, ignore.case = TRUE) & !is_robots_blocked
+    is_noindex <- grepl("noindex", statuses, ignore.case = TRUE) &
+      !is_robots_blocked
 
     noindex_urls <- urls[is_noindex]
     robots_blocked_urls <- urls[is_robots_blocked]
@@ -499,25 +588,31 @@ pagerank <- function(edge_list_df,
 
     # --- robots-blocked pages: remove outgoing edges, add self-loop ---
     if (length(robots_blocked_urls) > 0) {
-      from_is_blocked <- current_edge_list[[edge_from_col]] %in% robots_blocked_urls
+      from_is_blocked <-
+        current_edge_list[[edge_from_col]] %in% robots_blocked_urls
       if (any(from_is_blocked)) {
         # Remove all outgoing edges from blocked pages
         current_edge_list <- current_edge_list[!from_is_blocked, , drop = FALSE]
 
         # Add self-loops for each blocked URL that exists as a source
-        blocked_with_edges <- unique(robots_blocked_urls[robots_blocked_urls %in%
-          current_edge_list[[edge_from_col]] | robots_blocked_urls %in%
-          current_edge_list[[edge_to_col]] | robots_blocked_urls %in%
-          all_vertex_universe])
+        blocked_with_edges <- unique(robots_blocked_urls[
+          robots_blocked_urls %in% current_edge_list[[edge_from_col]] |
+            robots_blocked_urls %in% current_edge_list[[edge_to_col]] |
+            robots_blocked_urls %in% all_vertex_universe
+        ])
         if (length(blocked_with_edges) > 0) {
           # Build self-loop rows matching the edge list structure
           self_loop_df <- stats::setNames(
             data.frame(blocked_with_edges, blocked_with_edges,
-                       stringsAsFactors = FALSE),
+              stringsAsFactors = FALSE
+            ),
             c(edge_from_col, edge_to_col)
           )
           # Fill extra columns with appropriate defaults
-          extra_cols <- setdiff(names(current_edge_list), c(edge_from_col, edge_to_col))
+          extra_cols <- setdiff(
+            names(current_edge_list),
+            c(edge_from_col, edge_to_col)
+          )
           for (col in extra_cols) {
             if (is.logical(current_edge_list[[col]])) {
               self_loop_df[[col]] <- FALSE
@@ -538,8 +633,7 @@ pagerank <- function(edge_list_df,
   used_nofollow_sink <- FALSE
 
   if (!is.null(nofollow_col) && nofollow_col %in% names(current_edge_list) &&
-      nrow(current_edge_list) > 0) {
-
+        nrow(current_edge_list) > 0) {
     # Coerce nofollow column to logical
     nf_vals <- current_edge_list[[nofollow_col]]
     if (is.numeric(nf_vals)) nf_vals <- as.logical(nf_vals)
@@ -549,7 +643,6 @@ pagerank <- function(edge_list_df,
       if (nofollow_action == "drop") {
         # Simply remove nofollow edges
         current_edge_list <- current_edge_list[!nf_mask, , drop = FALSE]
-
       } else if (nofollow_action == "evaporate") {
         # Redirect nofollow edge targets to the sink node
         current_edge_list[[edge_to_col]][nf_mask] <- nofollow_sink_name
@@ -557,11 +650,15 @@ pagerank <- function(edge_list_df,
         # Add a self-loop on the sink so it isn't a dangling node
         sink_row <- stats::setNames(
           data.frame(nofollow_sink_name, nofollow_sink_name,
-                     stringsAsFactors = FALSE),
+            stringsAsFactors = FALSE
+          ),
           c(edge_from_col, edge_to_col)
         )
         # Fill extra columns
-        extra_cols <- setdiff(names(current_edge_list), c(edge_from_col, edge_to_col))
+        extra_cols <- setdiff(
+          names(current_edge_list),
+          c(edge_from_col, edge_to_col)
+        )
         for (col in extra_cols) {
           if (is.logical(current_edge_list[[col]])) {
             sink_row[[col]] <- FALSE
@@ -573,7 +670,6 @@ pagerank <- function(edge_list_df,
         }
         current_edge_list <- rbind(current_edge_list, sink_row)
         used_nofollow_sink <- TRUE
-
       }
       # nofollow_action == "keep": do nothing
     }
@@ -615,7 +711,7 @@ pagerank <- function(edge_list_df,
   # Authoritative URLs that don't fold onto any existing vertex are surfaced as
   # edge-less vertices (carrying their teleport prior, distributing nothing).
   if (!is.null(folded_prior_df) && prior_inject_unmatched &&
-      !is.null(vertices_for_pagerank_df)) {
+        !is.null(vertices_for_pagerank_df)) {
     existing_nodes <- vertices_for_pagerank_df[[temp_node_col_name]]
     prior_dests <- unique(stats::na.omit(folded_prior_df[[prior_url_col]]))
     to_add <- setdiff(prior_dests, existing_nodes)
@@ -659,19 +755,21 @@ pagerank <- function(edge_list_df,
     # Remove nofollow sink node
     if (used_nofollow_sink) {
       pagerank_results <- pagerank_results[
-        pagerank_results[[pr_node_col]] != nofollow_sink_name, , drop = FALSE
+        pagerank_results[[pr_node_col]] != nofollow_sink_name, ,
+        drop = FALSE
       ]
     }
 
     # Remove robots-blocked nodes if vanish action
     if (robots_blocked_action == "vanish" && length(robots_blocked_urls) > 0) {
       pagerank_results <- pagerank_results[
-        !(pagerank_results[[pr_node_col]] %in% robots_blocked_urls), , drop = FALSE
+        !(pagerank_results[[pr_node_col]] %in% robots_blocked_urls), ,
+        drop = FALSE
       ]
     }
 
     row.names(pagerank_results) <- NULL
   }
 
-  return(pagerank_results)
-} 
+  pagerank_results
+}

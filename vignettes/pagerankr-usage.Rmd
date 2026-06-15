@@ -51,10 +51,14 @@ library(pagerankr)
 
 ```{r quick_start}
 edges <- data.frame(
-  from = c("http://example.com/home", "http://example.com/about",
-           "http://example.com/blog", "http://example.com/blog"),
-  to   = c("http://example.com/about", "http://example.com/home",
-           "http://example.com/home", "http://example.com/about"),
+  from = c(
+    "http://example.com/home", "http://example.com/about",
+    "http://example.com/blog", "http://example.com/blog"
+  ),
+  to = c(
+    "http://example.com/about", "http://example.com/home",
+    "http://example.com/home", "http://example.com/about"
+  ),
   stringsAsFactors = FALSE
 )
 
@@ -69,12 +73,12 @@ print(pr)
 ```{r redirects_basic}
 edges <- data.frame(
   from = c("A", "B", "C"),
-  to   = c("B", "C", "D"),
+  to = c("B", "C", "D"),
   stringsAsFactors = FALSE
 )
 redirects <- data.frame(
   from = c("B", "C"),
-  to   = c("B_new", "C_new"),
+  to = c("B_new", "C_new"),
   stringsAsFactors = FALSE
 )
 
@@ -94,14 +98,15 @@ Use `duplicate_from_policy` to control the behaviour:
 ```{r redirects_conflict}
 redirects_conflict <- data.frame(
   from = c("old", "old", "old"),
-  to   = c("target_A", "target_B", "target_B"),
+  to = c("target_A", "target_B", "target_B"),
   stringsAsFactors = FALSE
 )
 
 # "most_frequent" picks the most common target
 edges_simple <- data.frame(from = "X", to = "old", stringsAsFactors = FALSE)
 resolve_redirects(edges_simple, redirects_conflict,
-                  duplicate_from_policy = "most_frequent")
+  duplicate_from_policy = "most_frequent"
+)
 ```
 
 Available policies: `strict` (default, errors on conflict), `first_wins`,
@@ -116,13 +121,14 @@ components. Use `loop_handling` to control behaviour:
 edges_loop <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
 redirects_loop <- data.frame(
   from = c("A", "B", "C", "D"),
-  to   = c("B", "C", "A", "E"),
+  to = c("B", "C", "A", "E"),
   stringsAsFactors = FALSE
 )
 
 # "prune_loop" removes cycle edges; linear redirects still work
 resolved <- resolve_redirects(edges_loop, redirects_loop,
-                              loop_handling = "prune_loop")
+  loop_handling = "prune_loop"
+)
 print(resolved)
 ```
 
@@ -137,7 +143,7 @@ computing PageRank -- useful for inspecting the resolved graph:
 ```{r resolve_links_example}
 edges <- data.frame(
   from = c("A", "A", "B"),
-  to   = c("B", "B", "C"),
+  to = c("B", "B", "C"),
   stringsAsFactors = FALSE
 )
 redirects <- data.frame(from = "B", to = "B_final", stringsAsFactors = FALSE)
@@ -154,21 +160,25 @@ supports this natively:
 ```{r nofollow}
 edges <- data.frame(
   from = c("Hub", "Hub", "Hub"),
-  to   = c("A", "B", "C"),
+  to = c("A", "B", "C"),
   nofollow = c(FALSE, FALSE, TRUE),
   stringsAsFactors = FALSE
 )
 
 # "evaporate": PR splits 3 ways, C's share vanishes
-pr_evap <- pagerank(edges, nofollow_col = "nofollow",
-                    nofollow_action = "evaporate",
-                    clean_edge_urls = FALSE)
+pr_evap <- pagerank(edges,
+  nofollow_col = "nofollow",
+  nofollow_action = "evaporate",
+  clean_edge_urls = FALSE
+)
 print(pr_evap)
 
 # "drop": nofollow edges removed, PR splits only among followed links
-pr_drop <- pagerank(edges, nofollow_col = "nofollow",
-                    nofollow_action = "drop",
-                    clean_edge_urls = FALSE)
+pr_drop <- pagerank(edges,
+  nofollow_col = "nofollow",
+  nofollow_action = "drop",
+  clean_edge_urls = FALSE
+)
 print(pr_drop)
 ```
 
@@ -182,7 +192,7 @@ All outgoing links from a noindex page are treated as nofollow:
 ```{r indexability_noindex}
 edges <- data.frame(
   from = c("Home", "NoindexPage", "NoindexPage"),
-  to   = c("NoindexPage", "A", "B"),
+  to = c("NoindexPage", "A", "B"),
   stringsAsFactors = FALSE
 )
 
@@ -192,8 +202,10 @@ idx_status <- data.frame(
   stringsAsFactors = FALSE
 )
 
-pr <- pagerank(edges, indexability_df = idx_status,
-               clean_edge_urls = FALSE)
+pr <- pagerank(edges,
+  indexability_df = idx_status,
+  clean_edge_urls = FALSE
+)
 print(pr)
 ```
 
@@ -205,7 +217,7 @@ outbound (Google can't see the links). The PR is either trapped or vanishes:
 ```{r indexability_robots}
 edges <- data.frame(
   from = c("Home", "Blocked", "A"),
-  to   = c("Blocked", "A", "Home"),
+  to = c("Blocked", "A", "Home"),
   stringsAsFactors = FALSE
 )
 
@@ -216,15 +228,19 @@ idx_status <- data.frame(
 )
 
 # "trap": blocked page keeps its PR (visible in results)
-pr_trap <- pagerank(edges, indexability_df = idx_status,
-                    robots_blocked_action = "trap",
-                    clean_edge_urls = FALSE)
+pr_trap <- pagerank(edges,
+  indexability_df = idx_status,
+  robots_blocked_action = "trap",
+  clean_edge_urls = FALSE
+)
 print(pr_trap)
 
 # "vanish": blocked page removed from results
-pr_vanish <- pagerank(edges, indexability_df = idx_status,
-                      robots_blocked_action = "vanish",
-                      clean_edge_urls = FALSE)
+pr_vanish <- pagerank(edges,
+  indexability_df = idx_status,
+  robots_blocked_action = "vanish",
+  clean_edge_urls = FALSE
+)
 print(pr_vanish)
 ```
 
@@ -235,8 +251,8 @@ position scores) in the PageRank calculation:
 
 ```{r weighted}
 edges <- data.frame(
-  from   = c("A", "A", "B"),
-  to     = c("B", "C", "C"),
+  from = c("A", "A", "B"),
+  to = c("B", "C", "C"),
   weight = c(3, 1, 1),
   stringsAsFactors = FALSE
 )
@@ -251,10 +267,14 @@ print(pr)
 separating internal vs. external links:
 ```{r domain_filter}
 edges <- data.frame(
-  from = c("http://example.com/a", "http://example.com/b",
-           "http://other.com/c"),
-  to   = c("http://example.com/b", "http://other.com/d",
-           "http://example.com/a"),
+  from = c(
+    "http://example.com/a", "http://example.com/b",
+    "http://other.com/c"
+  ),
+  to = c(
+    "http://example.com/b", "http://other.com/d",
+    "http://example.com/a"
+  ),
   stringsAsFactors = FALSE
 )
 
@@ -270,7 +290,7 @@ print(internal)
 ```{r compare}
 edges <- data.frame(
   from = c("A", "B", "C", "D"),
-  to   = c("B", "C", "D", "A"),
+  to = c("B", "C", "D", "A"),
   stringsAsFactors = FALSE
 )
 
@@ -291,7 +311,7 @@ informative model:
 ```{r grid}
 edges <- data.frame(
   from = c("A", "A", "B", "C"),
-  to   = c("B", "C", "C", "A"),
+  to = c("B", "C", "C", "A"),
   stringsAsFactors = FALSE
 )
 
@@ -324,14 +344,16 @@ links, remove those links, or implement these redirects?"
 ```{r simulate_add_link}
 site_links <- data.frame(
   from = c("Home", "Home", "About", "Blog"),
-  to   = c("About", "Blog", "Home", "Home"),
+  to = c("About", "Blog", "Home", "Home"),
   stringsAsFactors = FALSE
 )
 
 impact <- simulate_changes(
   site_links,
-  add_links_df = data.frame(from = "Blog", to = "About",
-                            stringsAsFactors = FALSE),
+  add_links_df = data.frame(
+    from = "Blog", to = "About",
+    stringsAsFactors = FALSE
+  ),
   clean_edge_urls = FALSE
 )
 print(impact)
@@ -342,8 +364,10 @@ print(impact)
 ```{r simulate_remove_link}
 impact_remove <- simulate_changes(
   site_links,
-  remove_links_df = data.frame(from = "Home", to = "Blog",
-                               stringsAsFactors = FALSE),
+  remove_links_df = data.frame(
+    from = "Home", to = "Blog",
+    stringsAsFactors = FALSE
+  ),
   clean_edge_urls = FALSE
 )
 print(impact_remove)
@@ -358,8 +382,10 @@ extended_links <- rbind(site_links, data.frame(
 
 impact_redirect <- simulate_changes(
   extended_links,
-  add_redirects_df = data.frame(from = "OldPage", to = "About",
-                                stringsAsFactors = FALSE),
+  add_redirects_df = data.frame(
+    from = "OldPage", to = "About",
+    stringsAsFactors = FALSE
+  ),
   clean_edge_urls = FALSE
 )
 print(impact_redirect)
@@ -370,10 +396,14 @@ print(impact_redirect)
 ```{r simulate_combined}
 impact_all <- simulate_changes(
   site_links,
-  add_links_df = data.frame(from = "Blog", to = "About",
-                            stringsAsFactors = FALSE),
-  remove_links_df = data.frame(from = "Home", to = "Blog",
-                               stringsAsFactors = FALSE),
+  add_links_df = data.frame(
+    from = "Blog", to = "About",
+    stringsAsFactors = FALSE
+  ),
+  remove_links_df = data.frame(
+    from = "Home", to = "Blog",
+    stringsAsFactors = FALSE
+  ),
   clean_edge_urls = FALSE
 )
 print(impact_all)

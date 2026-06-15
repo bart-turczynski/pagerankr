@@ -4,7 +4,7 @@ describe("export_graph GraphML format", {
   it("writes a valid GraphML file", {
     edges <- data.frame(
       from = c("A", "B", "C"),
-      to   = c("B", "C", "A"),
+      to = c("B", "C", "A"),
       stringsAsFactors = FALSE
     )
     pr <- pagerank(edges, clean_edge_urls = FALSE)
@@ -37,7 +37,7 @@ describe("export_graph DOT format", {
   it("writes a valid DOT file", {
     edges <- data.frame(
       from = c("A", "B", "C"),
-      to   = c("B", "C", "A"),
+      to = c("B", "C", "A"),
       stringsAsFactors = FALSE
     )
     pr <- pagerank(edges, clean_edge_urls = FALSE)
@@ -57,7 +57,7 @@ describe("export_graph DOT format", {
   it("handles URLs with special characters", {
     edges <- data.frame(
       from = c("http://example.com/a"),
-      to   = c("http://example.com/b"),
+      to = c("http://example.com/b"),
       stringsAsFactors = FALSE
     )
     pr <- pagerank(edges, clean_edge_urls = FALSE)
@@ -108,8 +108,10 @@ describe("export_graph with extra attributes", {
     tmp <- tempfile(fileext = ".graphml")
     on.exit(unlink(tmp))
 
-    export_graph(pr, edges, tmp, format = "graphml",
-                 edge_attrs = "weight")
+    export_graph(pr, edges, tmp,
+      format = "graphml",
+      edge_attrs = "weight"
+    )
     content <- paste(readLines(tmp), collapse = "\n")
     expect_true(grepl("weight", content))
   })
@@ -143,8 +145,10 @@ describe("export_graph node_attrs parameter", {
     tmp <- tempfile(fileext = ".graphml")
     on.exit(unlink(tmp))
 
-    export_graph(pr, edges, tmp, format = "graphml",
-                 node_attrs = list(rank = "my_rank"))
+    export_graph(pr, edges, tmp,
+      format = "graphml",
+      node_attrs = list(rank = "my_rank")
+    )
     content <- paste(readLines(tmp), collapse = "\n")
     expect_true(grepl("rank", content))
   })
@@ -210,7 +214,7 @@ describe("export_graph edgelist with no file extension", {
 describe("export_graph input validation", {
   it("errors on non-data-frame pagerank_df", {
     expect_error(
-      export_graph("bad", data.frame(from="A", to="B"), tempfile()),
+      export_graph("bad", data.frame(from = "A", to = "B"), tempfile()),
       "must be a data frame"
     )
   })

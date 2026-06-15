@@ -29,7 +29,7 @@ describe("resolve_links basic functionality", {
       stringsAsFactors = FALSE
     )
     result <- resolve_links(edges, clean_urls = FALSE)
-    expect_equal(nrow(result), 2)  # A->B deduped, B->C stays
+    expect_equal(nrow(result), 2) # A->B deduped, B->C stays
     expect_equal(sort(result$from), c("A", "B"))
   })
 
@@ -62,8 +62,10 @@ describe("resolve_links basic functionality", {
     redirects <- data.frame(
       from = "B", to = "A", stringsAsFactors = FALSE
     )
-    result <- resolve_links(edges, redirects, self_loops = "keep",
-                            clean_urls = FALSE)
+    result <- resolve_links(edges, redirects,
+      self_loops = "keep",
+      clean_urls = FALSE
+    )
     # A -> A self-loop should be present
     self_loops_present <- any(result$from == result$to)
     expect_true(self_loops_present)
@@ -117,8 +119,10 @@ describe("resolve_links policy passthrough", {
       regexp = "Ambiguous redirect"
     )
     # first_wins should not error
-    result <- resolve_links(edges, redirects, clean_urls = FALSE,
-                            duplicate_from_policy = "first_wins")
+    result <- resolve_links(edges, redirects,
+      clean_urls = FALSE,
+      duplicate_from_policy = "first_wins"
+    )
     expect_equal(result$to, "B")
   })
 
@@ -133,8 +137,10 @@ describe("resolve_links policy passthrough", {
       regexp = "Redirect cycle detected"
     )
     # prune_loop should not error
-    result <- resolve_links(edges, redirects, clean_urls = FALSE,
-                            loop_handling = "prune_loop")
+    result <- resolve_links(edges, redirects,
+      clean_urls = FALSE,
+      loop_handling = "prune_loop"
+    )
     expect_true(is.data.frame(result))
   })
 })
@@ -148,11 +154,13 @@ describe("resolve_links custom column names", {
     redirects <- data.frame(
       old_url = "B", new_url = "B_final", stringsAsFactors = FALSE
     )
-    result <- resolve_links(edges, redirects, clean_urls = FALSE,
-                            edge_from_col = "source",
-                            edge_to_col = "target",
-                            redirect_from_col = "old_url",
-                            redirect_to_col = "new_url")
+    result <- resolve_links(edges, redirects,
+      clean_urls = FALSE,
+      edge_from_col = "source",
+      edge_to_col = "target",
+      redirect_from_col = "old_url",
+      redirect_to_col = "new_url"
+    )
     expect_true("B_final" %in% c(result$source, result$target))
     expect_false("B" %in% c(result$source, result$target))
   })
@@ -164,7 +172,7 @@ describe("resolve_links with URL cleaning", {
     # Use real-looking URLs so rurl::clean_url can process them
     edges <- data.frame(
       from = c("http://example.com/a/", "http://example.com/b/"),
-      to   = c("http://example.com/b/", "http://example.com/c/"),
+      to = c("http://example.com/b/", "http://example.com/c/"),
       stringsAsFactors = FALSE
     )
     result <- resolve_links(edges, clean_urls = TRUE)
@@ -177,12 +185,12 @@ describe("resolve_links with URL cleaning", {
   it("cleans redirect URLs when clean_urls = TRUE", {
     edges <- data.frame(
       from = c("http://example.com/a/"),
-      to   = c("http://example.com/b/"),
+      to = c("http://example.com/b/"),
       stringsAsFactors = FALSE
     )
     redirects <- data.frame(
       from = "http://example.com/b/",
-      to   = "http://example.com/c/",
+      to = "http://example.com/c/",
       stringsAsFactors = FALSE
     )
     result <- resolve_links(edges, redirects, clean_urls = TRUE)

@@ -26,7 +26,8 @@ describe("pagerank main wrapper basic functionality", {
     ))
     if (nrow(pr_full) > 0) {
       expect_equal(
-        sum(pr_full$pagerank), 1, tolerance = 1e-9
+        sum(pr_full$pagerank), 1,
+        tolerance = 1e-9
       )
     }
 
@@ -81,7 +82,8 @@ describe("pagerank main wrapper basic functionality", {
     # Warning if query params present and cleaning off
     expect_warning(
       pr_no_clean <- pagerank(
-        edges_dirty, clean_edge_urls = FALSE
+        edges_dirty,
+        clean_edge_urls = FALSE
       ),
       regexp = "URLs in `edge_list_df` may contain"
     )
@@ -120,7 +122,8 @@ describe("pagerank main wrapper basic functionality", {
     )
     # A->A is dropped, B->A remains
     pr_drop_sl <- pagerank(
-      edges_sl, self_loops = "drop", drop_isolates_flag = FALSE
+      edges_sl,
+      self_loops = "drop", drop_isolates_flag = FALSE
     )
     # Node "b" points to "a". "a" has a self-loop.
     # If self-loop "a->a" is dropped, graph is "b" -> "a".
@@ -136,7 +139,8 @@ describe("pagerank main wrapper basic functionality", {
 
     # A->A kept, B->A kept.
     pr_keep_sl <- pagerank(
-      edges_sl, self_loops = "keep", drop_isolates_flag = FALSE
+      edges_sl,
+      self_loops = "keep", drop_isolates_flag = FALSE
     )
     expect_equal(nrow(pr_keep_sl), 2)
     # Expect different PR values
@@ -172,9 +176,11 @@ describe("pagerank main wrapper basic functionality", {
     )
     expect_equal(nrow(pr_keep_iso_keep_sl), 3)
     expect_true(all(
-      c("http://page.com/a",
+      c(
+        "http://page.com/a",
         "http://page.com/b",
-        "http://page.com/c") %in%
+        "http://page.com/c"
+      ) %in%
         pr_keep_iso_keep_sl$node_name
     ))
 
@@ -215,7 +221,8 @@ describe("pagerank main wrapper basic functionality", {
       stringsAsFactors = FALSE
     )
     pr <- pagerank(
-      edges_cust, redirects_df = redirects_cust,
+      edges_cust,
+      redirects_df = redirects_cust,
       edge_from_col = "source", edge_to_col = "target",
       redirect_from_col = "orig", redirect_to_col = "final"
     )
@@ -333,8 +340,10 @@ describe("pagerank nofollow handling", {
       nf = c(FALSE, TRUE, FALSE),
       stringsAsFactors = FALSE
     )
-    pr_keep <- pagerank(edges, nofollow_col = "nf", nofollow_action = "keep",
-                        clean_edge_urls = FALSE)
+    pr_keep <- pagerank(edges,
+      nofollow_col = "nf", nofollow_action = "keep",
+      clean_edge_urls = FALSE
+    )
     # All 3 nodes, PR sums to 1
     expect_equal(nrow(pr_keep), 3)
     expect_equal(sum(pr_keep$pagerank), 1, tolerance = 1e-9)
@@ -347,8 +356,10 @@ describe("pagerank nofollow handling", {
       nf = c(FALSE, TRUE, FALSE),
       stringsAsFactors = FALSE
     )
-    pr_drop <- pagerank(edges, nofollow_col = "nf", nofollow_action = "drop",
-                        clean_edge_urls = FALSE)
+    pr_drop <- pagerank(edges,
+      nofollow_col = "nf", nofollow_action = "drop",
+      clean_edge_urls = FALSE
+    )
     # C should get no direct link, but still present if drop_isolates_flag=TRUE
     # After dropping A->C: edges are A->B, B->A. C has no edges.
     # drop_isolates_flag=TRUE (default): C is dropped
@@ -367,7 +378,8 @@ describe("pagerank nofollow handling", {
       stringsAsFactors = FALSE
     )
     pr_evap <- pagerank(
-      edges, nofollow_col = "nf",
+      edges,
+      nofollow_col = "nf",
       nofollow_action = "evaporate",
       clean_edge_urls = FALSE, drop_isolates_flag = FALSE
     )
@@ -390,8 +402,10 @@ describe("pagerank nofollow handling", {
       nf = c(TRUE, TRUE),
       stringsAsFactors = FALSE
     )
-    pr <- pagerank(edges, nofollow_col = "nf", nofollow_action = "evaporate",
-                   clean_edge_urls = FALSE, drop_isolates_flag = FALSE)
+    pr <- pagerank(edges,
+      nofollow_col = "nf", nofollow_action = "evaporate",
+      clean_edge_urls = FALSE, drop_isolates_flag = FALSE
+    )
     expect_true(all(c("A", "B") %in% pr$node_name))
     # Sum should be well below 1 since all link value goes to sink
     expect_lt(sum(pr$pagerank), 1)
@@ -404,8 +418,10 @@ describe("pagerank nofollow handling", {
       nf = c(FALSE, FALSE),
       stringsAsFactors = FALSE
     )
-    pr <- pagerank(edges, nofollow_col = "nf", nofollow_action = "evaporate",
-                   clean_edge_urls = FALSE)
+    pr <- pagerank(edges,
+      nofollow_col = "nf", nofollow_action = "evaporate",
+      clean_edge_urls = FALSE
+    )
     expect_equal(sum(pr$pagerank), 1, tolerance = 1e-9)
   })
 
@@ -432,9 +448,11 @@ describe("pagerank indexability handling", {
       indexability_status = "noindex",
       stringsAsFactors = FALSE
     )
-    pr <- pagerank(edges, indexability_df = idx_df,
-                   nofollow_action = "evaporate",
-                   clean_edge_urls = FALSE, drop_isolates_flag = FALSE)
+    pr <- pagerank(edges,
+      indexability_df = idx_df,
+      nofollow_action = "evaporate",
+      clean_edge_urls = FALSE, drop_isolates_flag = FALSE
+    )
     expect_false("__pr_nofollow_sink__" %in% pr$node_name)
     # A's links are nofollow-evaporated, so PR from A doesn't flow to B or C
     # B still links to A, so A gets some PR
@@ -453,9 +471,11 @@ describe("pagerank indexability handling", {
       indexability_status = "noindex",
       stringsAsFactors = FALSE
     )
-    pr <- pagerank(edges, indexability_df = idx_df,
-                   nofollow_action = "drop",
-                   clean_edge_urls = FALSE, drop_isolates_flag = FALSE)
+    pr <- pagerank(edges,
+      indexability_df = idx_df,
+      nofollow_action = "drop",
+      clean_edge_urls = FALSE, drop_isolates_flag = FALSE
+    )
     # A->B and A->C dropped. Only B->A remains.
     expect_true(all(c("A", "B", "C") %in% pr$node_name))
     # C becomes an isolate (low PR)
@@ -477,9 +497,11 @@ describe("pagerank indexability handling", {
       indexability_status = "Blocked by robots.txt",
       stringsAsFactors = FALSE
     )
-    pr_trap <- pagerank(edges, indexability_df = idx_df,
-                        robots_blocked_action = "trap",
-                        clean_edge_urls = FALSE, drop_isolates_flag = TRUE)
+    pr_trap <- pagerank(edges,
+      indexability_df = idx_df,
+      robots_blocked_action = "trap",
+      clean_edge_urls = FALSE, drop_isolates_flag = TRUE
+    )
     # Blocked should appear with trapped PR
     expect_true("Blocked" %in% pr_trap$node_name)
     # C should have no inbound edges (Blocked -> C was removed)
@@ -499,9 +521,11 @@ describe("pagerank indexability handling", {
       indexability_status = "Blocked by robots.txt",
       stringsAsFactors = FALSE
     )
-    pr_vanish <- pagerank(edges, indexability_df = idx_df,
-                          robots_blocked_action = "vanish",
-                          clean_edge_urls = FALSE, drop_isolates_flag = TRUE)
+    pr_vanish <- pagerank(edges,
+      indexability_df = idx_df,
+      robots_blocked_action = "vanish",
+      clean_edge_urls = FALSE, drop_isolates_flag = TRUE
+    )
     # Blocked should NOT appear in results
     expect_false("Blocked" %in% pr_vanish$node_name)
     # PR sum < 1 because Blocked's share vanished
@@ -521,9 +545,11 @@ describe("pagerank indexability handling", {
     )
     # Should be treated as robots-blocked (outgoing edges removed + self-loop),
     # not just noindex (outgoing edges -> nofollow)
-    pr <- pagerank(edges, indexability_df = idx_df,
-                   robots_blocked_action = "trap",
-                   clean_edge_urls = FALSE, drop_isolates_flag = TRUE)
+    pr <- pagerank(edges,
+      indexability_df = idx_df,
+      robots_blocked_action = "trap",
+      clean_edge_urls = FALSE, drop_isolates_flag = TRUE
+    )
     # "Both" should trap PR (self-loop), C should have no inbound edges
     expect_true("Both" %in% pr$node_name)
     expect_false("C" %in% pr$node_name)
@@ -532,9 +558,11 @@ describe("pagerank indexability handling", {
   it("comma-separated status parsing works", {
     idx_df <- data.frame(
       url = c("PageA", "PageB", "PageC"),
-      indexability_status = c("Canonicalised,noindex",
-                              "Blocked by robots.txt",
-                              "indexable"),
+      indexability_status = c(
+        "Canonicalised,noindex",
+        "Blocked by robots.txt",
+        "indexable"
+      ),
       stringsAsFactors = FALSE
     )
     edges <- data.frame(
@@ -542,16 +570,18 @@ describe("pagerank indexability handling", {
       to = c("X", "Y", "Z"),
       stringsAsFactors = FALSE
     )
-    pr <- pagerank(edges, indexability_df = idx_df,
-                   nofollow_action = "drop",
-                   robots_blocked_action = "trap",
-                   clean_edge_urls = FALSE, drop_isolates_flag = TRUE)
+    pr <- pagerank(edges,
+      indexability_df = idx_df,
+      nofollow_action = "drop",
+      robots_blocked_action = "trap",
+      clean_edge_urls = FALSE, drop_isolates_flag = TRUE
+    )
     # PageA is noindex with drop: its outgoing edge removed
     # PageB is robots-blocked: outgoing edge removed, self-loop added
     # PageC is indexable: normal
     expect_true("PageB" %in% pr$node_name) # trapped
     expect_true("PageC" %in% pr$node_name) # normal
-    expect_true("Z" %in% pr$node_name)     # PageC -> Z works
+    expect_true("Z" %in% pr$node_name) # PageC -> Z works
     # X should not appear (PageA->X was nofollow-dropped, no other inbound)
     expect_false("X" %in% pr$node_name)
   })
@@ -591,7 +621,7 @@ describe("pagerank isolate handling with partial rows", {
     # but don't participate in complete edges.
     edges <- data.frame(
       from = c("A", "B", NA, "Dead"),
-      to =   c("B", "A", "Orphan", NA),
+      to = c("B", "A", "Orphan", NA),
       stringsAsFactors = FALSE
     )
     # Disable URL cleaning to keep URLs as-is for predictable results
@@ -613,7 +643,7 @@ describe("pagerank isolate handling with partial rows", {
   it("drop_isolates_flag=TRUE excludes nodes from partial rows", {
     edges <- data.frame(
       from = c("A", "B", NA, "Dead"),
-      to =   c("B", "A", "Orphan", NA),
+      to = c("B", "A", "Orphan", NA),
       stringsAsFactors = FALSE
     )
     pr <- pagerank(edges, clean_edge_urls = FALSE, drop_isolates_flag = TRUE)
@@ -630,15 +660,17 @@ describe("pagerank isolate handling with partial rows", {
   it("drop_isolates_flag produces different results with partial rows", {
     edges <- data.frame(
       from = c("X", "Y", "IsolatedNode"),
-      to =   c("Y", "X", NA),
+      to = c("Y", "X", NA),
       stringsAsFactors = FALSE
     )
     pr_keep <- pagerank(
-      edges, clean_edge_urls = FALSE,
+      edges,
+      clean_edge_urls = FALSE,
       drop_isolates_flag = FALSE
     )
     pr_drop <- pagerank(
-      edges, clean_edge_urls = FALSE,
+      edges,
+      clean_edge_urls = FALSE,
       drop_isolates_flag = TRUE
     )
 
@@ -652,8 +684,10 @@ describe("pagerank isolate handling with partial rows", {
 describe("pagerank validation coverage", {
   it("errors on invalid clean_redirect_urls", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    expect_error(pagerank(edges, clean_redirect_urls = "yes"),
-                 "single logical")
+    expect_error(
+      pagerank(edges, clean_redirect_urls = "yes"),
+      "single logical"
+    )
   })
 
   it("errors on invalid rurl_params", {
@@ -663,36 +697,46 @@ describe("pagerank validation coverage", {
 
   it("errors on invalid drop_isolates_flag", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    expect_error(pagerank(edges, drop_isolates_flag = "yes"),
-                 "single logical")
+    expect_error(
+      pagerank(edges, drop_isolates_flag = "yes"),
+      "single logical"
+    )
   })
 
   it("errors on invalid weight_col type", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    expect_error(pagerank(edges, weight_col = 123, clean_edge_urls = FALSE),
-                 "single character string")
+    expect_error(
+      pagerank(edges, weight_col = 123, clean_edge_urls = FALSE),
+      "single character string"
+    )
   })
 
   it("errors when weight_col not found", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
     expect_error(
-      pagerank(edges, weight_col = "missing",
-               clean_edge_urls = FALSE),
+      pagerank(edges,
+        weight_col = "missing",
+        clean_edge_urls = FALSE
+      ),
       "not found"
     )
   })
 
   it("errors on invalid nofollow_col type", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    expect_error(pagerank(edges, nofollow_col = TRUE, clean_edge_urls = FALSE),
-                 "single character string")
+    expect_error(
+      pagerank(edges, nofollow_col = TRUE, clean_edge_urls = FALSE),
+      "single character string"
+    )
   })
 
   it("errors when nofollow_col not found", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
     expect_error(
-      pagerank(edges, nofollow_col = "missing",
-               clean_edge_urls = FALSE),
+      pagerank(edges,
+        nofollow_col = "missing",
+        clean_edge_urls = FALSE
+      ),
       "not found"
     )
   })
@@ -700,19 +744,25 @@ describe("pagerank validation coverage", {
   it("errors on invalid indexability_df type", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
     expect_error(
-      pagerank(edges, indexability_df = "bad",
-               clean_edge_urls = FALSE),
+      pagerank(edges,
+        indexability_df = "bad",
+        clean_edge_urls = FALSE
+      ),
       "data frame or NULL"
     )
   })
 
   it("errors when indexability_url_col not found", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    idx <- data.frame(wrong = "A", indexability_status = "noindex",
-                      stringsAsFactors = FALSE)
+    idx <- data.frame(
+      wrong = "A", indexability_status = "noindex",
+      stringsAsFactors = FALSE
+    )
     expect_error(
-      pagerank(edges, indexability_df = idx,
-               clean_edge_urls = FALSE),
+      pagerank(edges,
+        indexability_df = idx,
+        clean_edge_urls = FALSE
+      ),
       "not found"
     )
   })
@@ -726,8 +776,10 @@ describe("pagerank validation coverage", {
       stringsAsFactors = FALSE
     )
     expect_error(
-      pagerank(edges, indexability_df = idx,
-               clean_edge_urls = FALSE),
+      pagerank(edges,
+        indexability_df = idx,
+        clean_edge_urls = FALSE
+      ),
       "not found"
     )
   })
@@ -743,12 +795,16 @@ describe("pagerank robots-blocked with extra columns", {
       label = c("x", "y"),
       stringsAsFactors = FALSE
     )
-    idx_df <- data.frame(url = "Blocked",
-                         indexability_status = "Blocked by robots.txt",
-                         stringsAsFactors = FALSE)
-    pr <- pagerank(edges, indexability_df = idx_df,
-                   robots_blocked_action = "trap",
-                   clean_edge_urls = FALSE, drop_isolates_flag = FALSE)
+    idx_df <- data.frame(
+      url = "Blocked",
+      indexability_status = "Blocked by robots.txt",
+      stringsAsFactors = FALSE
+    )
+    pr <- pagerank(edges,
+      indexability_df = idx_df,
+      robots_blocked_action = "trap",
+      clean_edge_urls = FALSE, drop_isolates_flag = FALSE
+    )
     # Blocked should be in results (trapped)
     expect_true("Blocked" %in% pr$node_name)
   })
@@ -764,8 +820,10 @@ describe("pagerank nofollow evaporate with extra columns", {
       tag = c("keep", "drop"),
       stringsAsFactors = FALSE
     )
-    pr <- pagerank(edges, nofollow_col = "nf", nofollow_action = "evaporate",
-                   clean_edge_urls = FALSE, drop_isolates_flag = FALSE)
+    pr <- pagerank(edges,
+      nofollow_col = "nf", nofollow_action = "evaporate",
+      clean_edge_urls = FALSE, drop_isolates_flag = FALSE
+    )
     expect_false("__pr_nofollow_sink__" %in% pr$node_name)
     expect_lt(sum(pr$pagerank), 1)
   })
@@ -778,18 +836,21 @@ describe("pagerank noindex creates nofollow_col when none exists", {
       to = c("B", "NI"),
       stringsAsFactors = FALSE
     )
-    idx_df <- data.frame(url = "NI",
-                         indexability_status = "noindex",
-                         stringsAsFactors = FALSE)
+    idx_df <- data.frame(
+      url = "NI",
+      indexability_status = "noindex",
+      stringsAsFactors = FALSE
+    )
     # nofollow_col is NULL, indexability creates __pr_nofollow__ internally
-    pr <- pagerank(edges, indexability_df = idx_df,
-                   nofollow_action = "evaporate",
-                   clean_edge_urls = FALSE, drop_isolates_flag = FALSE)
+    pr <- pagerank(edges,
+      indexability_df = idx_df,
+      nofollow_action = "evaporate",
+      clean_edge_urls = FALSE, drop_isolates_flag = FALSE
+    )
     expect_false("__pr_nofollow_sink__" %in% pr$node_name)
     # NI's outgoing edges are evaporated, so PR < 1
     expect_lt(sum(pr$pagerank), 1)
   })
-
 })
 
 describe("pagerank numeric nofollow column coercion", {
@@ -800,8 +861,10 @@ describe("pagerank numeric nofollow column coercion", {
       nf = c(0, 1),
       stringsAsFactors = FALSE
     )
-    pr <- pagerank(edges, nofollow_col = "nf", nofollow_action = "drop",
-                   clean_edge_urls = FALSE, drop_isolates_flag = TRUE)
+    pr <- pagerank(edges,
+      nofollow_col = "nf", nofollow_action = "drop",
+      clean_edge_urls = FALSE, drop_isolates_flag = TRUE
+    )
     # The nofollow edge (A->C) is dropped, only A->B remains
     expect_true("A" %in% pr$node_name)
     expect_true("B" %in% pr$node_name)
@@ -816,10 +879,14 @@ describe("pagerank numeric nofollow column coercion", {
 describe("pagerank() keep_domains parameter", {
   it("filters to internal links only", {
     edges <- data.frame(
-      from = c("http://example.com/a", "http://example.com/b",
-               "http://other.com/c"),
-      to   = c("http://example.com/b", "http://other.com/d",
-               "http://example.com/a"),
+      from = c(
+        "http://example.com/a", "http://example.com/b",
+        "http://other.com/c"
+      ),
+      to = c(
+        "http://example.com/b", "http://other.com/d",
+        "http://example.com/a"
+      ),
       stringsAsFactors = FALSE
     )
     pr <- pagerank(edges, keep_domains = "example.com")
@@ -830,7 +897,7 @@ describe("pagerank() keep_domains parameter", {
   it("returns fewer nodes than without filter", {
     edges <- data.frame(
       from = c("http://a.com/1", "http://a.com/2", "http://b.com/1"),
-      to   = c("http://a.com/2", "http://b.com/1", "http://a.com/1"),
+      to = c("http://a.com/2", "http://b.com/1", "http://a.com/1"),
       stringsAsFactors = FALSE
     )
     pr_all <- pagerank(edges)
@@ -842,10 +909,14 @@ describe("pagerank() keep_domains parameter", {
 describe("pagerank() exclude_domains parameter", {
   it("removes edges involving excluded domains", {
     edges <- data.frame(
-      from = c("http://example.com/a", "http://example.com/b",
-               "http://spam.com/x"),
-      to   = c("http://example.com/b", "http://spam.com/y",
-               "http://example.com/a"),
+      from = c(
+        "http://example.com/a", "http://example.com/b",
+        "http://spam.com/x"
+      ),
+      to = c(
+        "http://example.com/b", "http://spam.com/y",
+        "http://example.com/a"
+      ),
       stringsAsFactors = FALSE
     )
     pr <- pagerank(edges, exclude_domains = "spam.com")
@@ -858,7 +929,7 @@ describe("pagerank() domain filtering with NULL (default)", {
   it("no filtering when both are NULL", {
     edges <- data.frame(
       from = c("http://a.com/1", "http://b.com/1"),
-      to   = c("http://b.com/1", "http://a.com/1"),
+      to = c("http://b.com/1", "http://a.com/1"),
       stringsAsFactors = FALSE
     )
     pr <- pagerank(edges)

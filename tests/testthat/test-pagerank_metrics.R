@@ -33,7 +33,7 @@ describe("pr_gini", {
 describe("pr_entropy", {
   it("is maximised for uniform distribution", {
     n <- 10
-    uniform <- rep(1/n, n)
+    uniform <- rep(1 / n, n)
     max_entropy <- log(n) # theoretical maximum
     expect_equal(pr_entropy(uniform), max_entropy, tolerance = 1e-9)
   })
@@ -49,8 +49,9 @@ describe("pr_entropy", {
 
   it("normalises input to sum to 1", {
     # c(2, 2, 2) and c(1/3, 1/3, 1/3) should give the same entropy
-    expect_equal(pr_entropy(c(2, 2, 2)), pr_entropy(c(1/3, 1/3, 1/3)),
-                 tolerance = 1e-9)
+    expect_equal(pr_entropy(c(2, 2, 2)), pr_entropy(c(1 / 3, 1 / 3, 1 / 3)),
+      tolerance = 1e-9
+    )
   })
 })
 
@@ -60,7 +61,7 @@ describe("pr_top_k_share", {
   })
 
   it("top 10% of 10 nodes is the max value share", {
-    x <- c(0.5, rep(0.5/9, 9))
+    x <- c(0.5, rep(0.5 / 9, 9))
     share <- pr_top_k_share(x, k = 0.1)
     expect_equal(share, 0.5, tolerance = 1e-9)
   })
