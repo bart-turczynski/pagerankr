@@ -33,10 +33,14 @@
 #' @importFrom rurl get_host get_domain
 #' @examples
 #' links <- data.frame(
-#'   from = c("http://www.example.com/a", "http://example.com/b",
-#'            "http://cdn.tracker.com/c"),
-#'   to = c("http://example.com/b", "http://help.example.com/d",
-#'          "http://www.example.com/a"),
+#'   from = c(
+#'     "http://www.example.com/a", "http://example.com/b",
+#'     "http://cdn.tracker.com/c"
+#'   ),
+#'   to = c(
+#'     "http://example.com/b", "http://help.example.com/d",
+#'     "http://www.example.com/a"
+#'   ),
 #'   stringsAsFactors = FALSE
 #' )
 #'
@@ -47,8 +51,10 @@
 #' filter_links_by_domain(links, ignore_hosts = "cdn.tracker.com")
 #'
 #' # Get a report of what was filtered
-#' result <- filter_links_by_domain(links, keep_domains = "example.com",
-#'                                  return_report = TRUE)
+#' result <- filter_links_by_domain(links,
+#'   keep_domains = "example.com",
+#'   return_report = TRUE
+#' )
 #' result$report
 filter_links_by_domain <- function(edge_list_df,
                                    from_col = "from",
@@ -59,14 +65,16 @@ filter_links_by_domain <- function(edge_list_df,
                                    ignore_hosts = NULL,
                                    drop_third_party = TRUE,
                                    return_report = FALSE) {
-
   # --- Validation ---
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  if (nrow(edge_list_df) > 0 && !all(c(from_col, to_col) %in% names(edge_list_df))) {
-    stop("`edge_list_df` must have '", from_col, "' and '", to_col, "' columns.",
-         call. = FALSE)
+  if (nrow(edge_list_df) > 0 &&
+        !all(c(from_col, to_col) %in% names(edge_list_df))) {
+    stop(
+      "`edge_list_df` must have '", from_col, "' and '", to_col, "' columns.",
+      call. = FALSE
+    )
   }
   if (!is.null(keep_domains) && !is.character(keep_domains)) {
     stop("`keep_domains` must be a character vector or NULL.", call. = FALSE)
@@ -84,8 +92,10 @@ filter_links_by_domain <- function(edge_list_df,
   # --- Early return if empty ---
   if (nrow(edge_list_df) == 0) {
     if (return_report) {
-      return(list(filtered_df = edge_list_df,
-                  report = list(rows_before = 0L, rows_after = 0L, rows_dropped = 0L)))
+      return(list(
+        filtered_df = edge_list_df,
+        report = list(rows_before = 0L, rows_after = 0L, rows_dropped = 0L)
+      ))
     }
     return(edge_list_df)
   }
@@ -96,15 +106,19 @@ filter_links_by_domain <- function(edge_list_df,
   ignore_domains_resolved <- .resolve_domains(ignore_domains)
   ignore_hosts_resolved <- .resolve_hosts(ignore_hosts)
 
-  has_keep_list <- length(keep_domains_resolved) > 0 || length(keep_hosts_resolved) > 0
-  has_ignore_list <- length(ignore_domains_resolved) > 0 || length(ignore_hosts_resolved) > 0
+  has_keep_list <- length(keep_domains_resolved) > 0 ||
+    length(keep_hosts_resolved) > 0
+  has_ignore_list <- length(ignore_domains_resolved) > 0 ||
+    length(ignore_hosts_resolved) > 0
 
   # No filters active -- return as-is
   if (!has_keep_list && !has_ignore_list) {
     if (return_report) {
       n <- nrow(edge_list_df)
-      return(list(filtered_df = edge_list_df,
-                  report = list(rows_before = n, rows_after = n, rows_dropped = 0L)))
+      return(list(
+        filtered_df = edge_list_df,
+        report = list(rows_before = n, rows_after = n, rows_dropped = 0L)
+      ))
     }
     return(edge_list_df)
   }
@@ -115,14 +129,18 @@ filter_links_by_domain <- function(edge_list_df,
   url_maps <- .build_url_maps(c(from_urls, to_urls))
 
   # --- Classify each endpoint ---
-  keep_from <- .classify_url_vector(from_urls, url_maps,
-                                    keep_domains_resolved, keep_hosts_resolved,
-                                    ignore_domains_resolved, ignore_hosts_resolved,
-                                    has_keep_list, drop_third_party)
-  keep_to <- .classify_url_vector(to_urls, url_maps,
-                                  keep_domains_resolved, keep_hosts_resolved,
-                                  ignore_domains_resolved, ignore_hosts_resolved,
-                                  has_keep_list, drop_third_party)
+  keep_from <- .classify_url_vector(
+    from_urls, url_maps,
+    keep_domains_resolved, keep_hosts_resolved,
+    ignore_domains_resolved, ignore_hosts_resolved,
+    has_keep_list, drop_third_party
+  )
+  keep_to <- .classify_url_vector(
+    to_urls, url_maps,
+    keep_domains_resolved, keep_hosts_resolved,
+    ignore_domains_resolved, ignore_hosts_resolved,
+    has_keep_list, drop_third_party
+  )
 
   # Both endpoints must pass
   keep_mask <- keep_from & keep_to
@@ -154,8 +172,8 @@ filter_links_by_domain <- function(edge_list_df,
 .ensure_scheme <- function(urls) {
   urls <- as.character(urls)
   needs_scheme <- !grepl("^[a-zA-Z][a-zA-Z0-9+.-]*://", urls) &
-                  !grepl("^//", urls) &
-                  !is.na(urls)
+    !grepl("^//", urls) &
+    !is.na(urls)
   urls[needs_scheme] <- paste0("http://", urls[needs_scheme])
   # Handle scheme-relative //
   scheme_relative <- grepl("^//", urls) & !is.na(urls)
@@ -166,10 +184,14 @@ filter_links_by_domain <- function(edge_list_df,
 #' Resolve domain strings (clean + extract registrable domain)
 #' @noRd
 .resolve_domains <- function(domains) {
-  if (is.null(domains) || length(domains) == 0) return(character(0))
+  if (is.null(domains) || length(domains) == 0) {
+    return(character(0))
+  }
   domains <- trimws(as.character(domains))
   domains <- domains[!is.na(domains) & nzchar(domains)]
-  if (length(domains) == 0) return(character(0))
+  if (length(domains) == 0) {
+    return(character(0))
+  }
   with_scheme <- .ensure_scheme(domains)
   extracted <- rurl::get_domain(with_scheme)
   extracted <- tolower(extracted)
@@ -180,10 +202,14 @@ filter_links_by_domain <- function(edge_list_df,
 #' Resolve host strings (clean + extract host)
 #' @noRd
 .resolve_hosts <- function(hosts) {
-  if (is.null(hosts) || length(hosts) == 0) return(character(0))
+  if (is.null(hosts) || length(hosts) == 0) {
+    return(character(0))
+  }
   hosts <- trimws(as.character(hosts))
   hosts <- hosts[!is.na(hosts) & nzchar(hosts)]
-  if (length(hosts) == 0) return(character(0))
+  if (length(hosts) == 0) {
+    return(character(0))
+  }
   with_scheme <- .ensure_scheme(hosts)
   extracted <- rurl::get_host(with_scheme)
   extracted <- tolower(extracted)
@@ -219,7 +245,7 @@ filter_links_by_domain <- function(edge_list_df,
   domain <- url_maps$domain_map[urls]
 
   is_ignored <- (!is.na(host) & host %in% ignore_hosts) |
-                (!is.na(domain) & domain %in% ignore_domains)
+    (!is.na(domain) & domain %in% ignore_domains)
 
   if (!has_keep_list) {
     # No keep list: keep everything except ignored
@@ -227,7 +253,7 @@ filter_links_by_domain <- function(edge_list_df,
   }
 
   is_kept <- (!is.na(host) & host %in% keep_hosts) |
-             (!is.na(domain) & domain %in% keep_domains)
+    (!is.na(domain) & domain %in% keep_domains)
 
   # Ignore always overrides keep
   ifelse(is_ignored, FALSE, ifelse(is_kept, TRUE, !drop_third_party))

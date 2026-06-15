@@ -67,16 +67,18 @@
 #'   stringsAsFactors = FALSE
 #' )
 #' edges$weight <- transform_weights(edges$position, "zipf",
-#'                                    descending = FALSE)
+#'   descending = FALSE
+#' )
 #' # pagerank(edges, weight_col = "weight", clean_edge_urls = FALSE)
 transform_weights <- function(x,
-                              method = c("none", "rank_linear", "zipf",
-                                         "log", "minmax", "percentile"),
+                              method = c(
+                                "none", "rank_linear", "zipf",
+                                "log", "minmax", "percentile"
+                              ),
                               alpha = 1.0,
                               offset = 1,
                               floor_value = 0.01,
                               descending = TRUE) {
-
   method <- match.arg(method)
 
   # --- Validation ---
@@ -128,7 +130,7 @@ transform_weights <- function(x,
     } else {
       r <- rank(vals, ties.method = "average")
     }
-    result[non_na] <- 1 / (r ^ alpha)
+    result[non_na] <- 1 / (r^alpha)
     return(result)
   }
 

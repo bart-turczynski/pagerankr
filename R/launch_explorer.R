@@ -24,22 +24,29 @@
 launch_pagerank_explorer <- function(...) {
   if (!requireNamespace("shiny", quietly = TRUE)) {
     stop("The 'shiny' package is required. Install with: ",
-         "install.packages('shiny')", call. = FALSE)
+      "install.packages('shiny')",
+      call. = FALSE
+    )
   }
   if (!requireNamespace("DT", quietly = TRUE)) {
     stop("The 'DT' package is required. Install with: ",
-         "install.packages('DT')", call. = FALSE)
+      "install.packages('DT')",
+      call. = FALSE
+    )
   }
 
   app_dir <- system.file("shiny", "pagerank_explorer", package = "pagerankr")
   if (app_dir == "") {
     stop("Could not find the Shiny app. Try reinstalling pagerankr.",
-         call. = FALSE)
+      call. = FALSE
+    )
   }
 
   if (!requireNamespace("visNetwork", quietly = TRUE)) {
-    message("Tip: Install 'visNetwork' for interactive graph visualisation: ",
-            "install.packages('visNetwork')")
+    message(
+      "Tip: Install 'visNetwork' for interactive graph visualisation: ",
+      "install.packages('visNetwork')"
+    )
   }
 
   shiny::runApp(app_dir, ...)

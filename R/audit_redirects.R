@@ -39,7 +39,7 @@
 #' @examples
 #' redirects <- data.frame(
 #'   from = c("A", "B", "C", "D", "D", "E"),
-#'   to   = c("B", "C", "final", "X", "Y", "E"),
+#'   to = c("B", "C", "final", "X", "Y", "E"),
 #'   stringsAsFactors = FALSE
 #' )
 #' audit <- audit_redirects(redirects)
@@ -55,15 +55,16 @@ audit_redirects <- function(redirects_df,
                             redirect_to_col = "to",
                             edge_from_col = "from",
                             edge_to_col = "to") {
-
   # --- Validation ---
   if (!is.data.frame(redirects_df)) {
     stop("`redirects_df` must be a data frame.", call. = FALSE)
   }
   if (nrow(redirects_df) > 0 &&
-      !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
+        !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
     stop("`redirects_df` must have '", redirect_from_col, "' and '",
-         redirect_to_col, "' columns.", call. = FALSE)
+      redirect_to_col, "' columns.",
+      call. = FALSE
+    )
   }
   if (!is.null(edge_list_df) && !is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame or NULL.", call. = FALSE)
@@ -81,22 +82,30 @@ audit_redirects <- function(redirects_df,
 
   if (result$n_rules == 0) {
     result$n_self_refs <- 0L
-    result$self_refs <- data.frame(from = character(0), to = character(0),
-                                   stringsAsFactors = FALSE)
+    result$self_refs <- data.frame(
+      from = character(0), to = character(0),
+      stringsAsFactors = FALSE
+    )
     result$n_conflicts <- 0L
-    result$conflicts <- data.frame(source = character(0),
-                                   targets = character(0),
-                                   n_targets = integer(0),
-                                   stringsAsFactors = FALSE)
+    result$conflicts <- data.frame(
+      source = character(0),
+      targets = character(0),
+      n_targets = integer(0),
+      stringsAsFactors = FALSE
+    )
     result$n_loops <- 0L
     result$loops <- list()
-    result$chains <- data.frame(from = character(0), to_final = character(0),
-                                chain_length = integer(0),
-                                stringsAsFactors = FALSE)
+    result$chains <- data.frame(
+      from = character(0), to_final = character(0),
+      chain_length = integer(0),
+      stringsAsFactors = FALSE
+    )
     result$max_chain_length <- 0L
-    result$orphaned_redirects <- data.frame(from = character(0),
-                                            to = character(0),
-                                            stringsAsFactors = FALSE)
+    result$orphaned_redirects <- data.frame(
+      from = character(0),
+      to = character(0),
+      stringsAsFactors = FALSE
+    )
     class(result) <- "redirect_audit"
     return(result)
   }
@@ -125,24 +134,30 @@ audit_redirects <- function(redirects_df,
     if (length(dup_srcs) > 0) {
       conflict_rows <- lapply(dup_srcs, function(src) {
         tgts <- unique(u_targets[u_sources == src])
-        data.frame(source = src,
-                   targets = paste(tgts, collapse = ", "),
-                   n_targets = length(tgts),
-                   stringsAsFactors = FALSE)
+        data.frame(
+          source = src,
+          targets = paste(tgts, collapse = ", "),
+          n_targets = length(tgts),
+          stringsAsFactors = FALSE
+        )
       })
       result$conflicts <- do.call(rbind, conflict_rows)
     } else {
-      result$conflicts <- data.frame(source = character(0),
-                                     targets = character(0),
-                                     n_targets = integer(0),
-                                     stringsAsFactors = FALSE)
+      result$conflicts <- data.frame(
+        source = character(0),
+        targets = character(0),
+        n_targets = integer(0),
+        stringsAsFactors = FALSE
+      )
     }
   } else {
     result$n_conflicts <- 0L
-    result$conflicts <- data.frame(source = character(0),
-                                   targets = character(0),
-                                   n_targets = integer(0),
-                                   stringsAsFactors = FALSE)
+    result$conflicts <- data.frame(
+      source = character(0),
+      targets = character(0),
+      n_targets = integer(0),
+      stringsAsFactors = FALSE
+    )
   }
 
   # --- Loop detection and chain analysis via graph ---
@@ -201,7 +216,7 @@ audit_redirects <- function(redirects_df,
         if (length(out_n) == 0) break
         visited <- c(visited, current)
         current <- as.integer(out_n[1])
-        if (current %in% visited) break  # safety
+        if (current %in% visited) break # safety
         hops <- hops + 1L
       }
       chain_lengths[i] <- hops
@@ -218,8 +233,10 @@ audit_redirects <- function(redirects_df,
     # Mark loop members
     loop_members <- character(0)
     for (scc_id in loop_scc_ids) {
-      loop_members <- c(loop_members,
-                        igraph::V(g)$name[scc$membership == scc_id])
+      loop_members <- c(
+        loop_members,
+        igraph::V(g)$name[scc$membership == scc_id]
+      )
     }
     chains_df$in_loop <- chains_df$from %in% loop_members
 
@@ -228,10 +245,12 @@ audit_redirects <- function(redirects_df,
   } else {
     result$n_loops <- 0L
     result$loops <- list()
-    result$chains <- data.frame(from = character(0), to_final = character(0),
-                                chain_length = integer(0),
-                                in_loop = logical(0),
-                                stringsAsFactors = FALSE)
+    result$chains <- data.frame(
+      from = character(0), to_final = character(0),
+      chain_length = integer(0),
+      in_loop = logical(0),
+      stringsAsFactors = FALSE
+    )
     result$max_chain_length <- 0L
   }
 
@@ -243,12 +262,15 @@ audit_redirects <- function(redirects_df,
     ))
     orphan_mask <- !(clean_sources %in% edge_urls)
     # Deduplicate orphans
-    orphan_df <- data.frame(from = clean_sources[orphan_mask],
-                            to = clean_targets[orphan_mask],
-                            stringsAsFactors = FALSE)
+    orphan_df <- data.frame(
+      from = clean_sources[orphan_mask],
+      to = clean_targets[orphan_mask],
+      stringsAsFactors = FALSE
+    )
     orphan_key <- paste0(orphan_df$from, "\t", orphan_df$to)
     result$orphaned_redirects <- orphan_df[!duplicated(orphan_key), ,
-                                           drop = FALSE]
+      drop = FALSE
+    ]
   } else {
     result$orphaned_redirects <- NULL
   }
@@ -285,8 +307,10 @@ print.redirect_audit <- function(x, ...) {
   }
 
   if (!is.null(x$orphaned_redirects) && nrow(x$orphaned_redirects) > 0) {
-    cat("\nOrphaned redirects (not in edge list):",
-        nrow(x$orphaned_redirects), "\n")
+    cat(
+      "\nOrphaned redirects (not in edge list):",
+      nrow(x$orphaned_redirects), "\n"
+    )
   }
 
   if (nrow(x$chains) > 0) {

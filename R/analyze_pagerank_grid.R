@@ -45,7 +45,10 @@ analyze_pagerank_grid <- function(grid_result,
     stop("`grid_result` must be a data frame.", call. = FALSE)
   }
   if (!(model_id_col %in% names(grid_result))) {
-    stop("Column '", model_id_col, "' not found in `grid_result`.", call. = FALSE)
+    stop(
+      "Column '", model_id_col, "' not found in `grid_result`.",
+      call. = FALSE
+    )
   }
   if (!(pr_col %in% names(grid_result))) {
     stop("Column '", pr_col, "' not found in `grid_result`.", call. = FALSE)
@@ -59,7 +62,11 @@ analyze_pagerank_grid <- function(grid_result,
       model_id = mid,
       num_nodes = length(pr_vals),
       pr_sum = sum(pr_vals, na.rm = TRUE),
-      pr_max = if (length(pr_vals) > 0) max(pr_vals, na.rm = TRUE) else NA_real_,
+      pr_max = if (length(pr_vals) > 0) {
+        max(pr_vals, na.rm = TRUE)
+      } else {
+        NA_real_
+      },
       pr_gini = pr_gini(pr_vals),
       pr_entropy = pr_entropy(pr_vals),
       pr_top10_share = pr_top_k_share(pr_vals, k = 0.1),

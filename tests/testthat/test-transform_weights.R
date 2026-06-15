@@ -18,7 +18,7 @@ describe("transform_weights: rank_linear", {
     # Higher value = higher weight (rank 1)
     x <- c(100, 50, 10)
     result <- transform_weights(x, "rank_linear", descending = TRUE)
-    expect_equal(result[1], 1.0)       # rank 1 (highest value)
+    expect_equal(result[1], 1.0) # rank 1 (highest value)
     expect_true(result[1] > result[2])
     expect_true(result[2] > result[3])
   })
@@ -27,7 +27,7 @@ describe("transform_weights: rank_linear", {
     # Position 1 is most valuable (smallest number = rank 1)
     positions <- c(1, 2, 3, 4, 5)
     result <- transform_weights(positions, "rank_linear", descending = FALSE)
-    expect_equal(result[1], 1.0)       # position 1 = most valuable
+    expect_equal(result[1], 1.0) # position 1 = most valuable
     expect_true(result[1] > result[5])
     expect_equal(length(result), 5)
   })
@@ -48,10 +48,10 @@ describe("transform_weights: rank_linear", {
 
 describe("transform_weights: zipf", {
   it("applies Zipf's law with alpha = 1", {
-    x <- c(100, 50, 10)  # descending: 100 is rank 1
+    x <- c(100, 50, 10) # descending: 100 is rank 1
     result <- transform_weights(x, "zipf", alpha = 1, descending = TRUE)
-    expect_equal(result[1], 1.0)       # rank 1: weight is 1
-    expect_equal(result[2], 0.5)       # rank 2: weight is 0.5
+    expect_equal(result[1], 1.0) # rank 1: weight is 1
+    expect_equal(result[2], 0.5) # rank 2: weight is 0.5
     expect_true(result[3] < result[2]) # rank 3: even smaller
   })
 
@@ -65,8 +65,10 @@ describe("transform_weights: zipf", {
 
   it("works with descending = FALSE for positions", {
     positions <- c(1, 2, 3)
-    result <- transform_weights(positions, "zipf", alpha = 1,
-                                descending = FALSE)
+    result <- transform_weights(positions, "zipf",
+      alpha = 1,
+      descending = FALSE
+    )
     # Position 1 (smallest) should get rank 1 (highest weight)
     expect_equal(result[1], 1.0)
     expect_equal(result[2], 0.5)
@@ -88,7 +90,7 @@ describe("transform_weights: log", {
   it("handles zeros with default offset", {
     x <- c(0, 1, 10)
     result <- transform_weights(x, "log", offset = 1)
-    expect_equal(result[1], 0)  # log of (0 + offset) equals 0
+    expect_equal(result[1], 0) # log of (0 + offset) equals 0
     expect_true(result[2] > 0)
   })
 
@@ -96,7 +98,7 @@ describe("transform_weights: log", {
     x <- c(0, 1)
     r1 <- transform_weights(x, "log", offset = 1)
     r2 <- transform_weights(x, "log", offset = 10)
-    expect_true(r2[1] > r1[1])  # larger offset -> larger result
+    expect_true(r2[1] > r1[1]) # larger offset -> larger result
   })
 })
 
@@ -131,8 +133,8 @@ describe("transform_weights: percentile", {
     result <- transform_weights(x, "percentile", descending = TRUE)
     # Ascending ranks: 10=rank1, 50=rank5
     # Percentile equals rank divided by n
-    expect_equal(result[5], 1.0)  # 50 is highest = percentile 1.0
-    expect_equal(result[1], 0.2)  # 10 is lowest = percentile 0.2
+    expect_equal(result[5], 1.0) # 50 is highest = percentile 1.0
+    expect_equal(result[1], 0.2) # 10 is lowest = percentile 0.2
   })
 
   it("handles ties", {
@@ -178,13 +180,17 @@ describe("transform_weights: input validation", {
   })
 
   it("errors on invalid floor_value", {
-    expect_error(transform_weights(1:3, "minmax", floor_value = -0.1),
-                 "non-negative")
+    expect_error(
+      transform_weights(1:3, "minmax", floor_value = -0.1),
+      "non-negative"
+    )
   })
 
   it("errors on invalid descending", {
-    expect_error(transform_weights(1:3, "zipf", descending = "yes"),
-                 "must be TRUE or FALSE")
+    expect_error(
+      transform_weights(1:3, "zipf", descending = "yes"),
+      "must be TRUE or FALSE"
+    )
   })
 })
 

@@ -74,7 +74,8 @@
 #'   stringsAsFactors = FALSE
 #' )
 #' resolve_redirects(edges_conflict, redirects_conflict,
-#'                   duplicate_from_policy = "first_wins")
+#'   duplicate_from_policy = "first_wins"
+#' )
 #'
 #' # Example with different column names
 #' edges_custom <- data.frame(
@@ -84,10 +85,11 @@
 #'   original = "Page2", final = "Page2_resolved"
 #' )
 #' resolve_redirects(edges_custom, redirects_custom,
-#'                   edge_from_col = "source_url",
-#'                   edge_to_col = "target_url",
-#'                   redirect_from_col = "original",
-#'                   redirect_to_col = "final")
+#'   edge_from_col = "source_url",
+#'   edge_to_col = "target_url",
+#'   redirect_from_col = "original",
+#'   redirect_to_col = "final"
+#' )
 #' @details
 #' Self-referencing redirects (where from == to) and any redirects with NA
 #' in from or to are automatically filtered out before processing.
@@ -109,16 +111,19 @@ resolve_redirects <- function(edge_list_df,
                               edge_to_col = "to",
                               redirect_from_col = "from",
                               redirect_to_col = "to",
-                              duplicate_from_policy = c("strict",
-                                                        "first_wins",
-                                                        "last_wins",
-                                                        "most_frequent",
-                                                        "prune_source",
-                                                        "resolve_if_consistent"),
-                              loop_handling = c("error",
-                                                "prune_loop",
-                                                "break_arrow")) {
-
+                              duplicate_from_policy = c(
+                                "strict",
+                                "first_wins",
+                                "last_wins",
+                                "most_frequent",
+                                "prune_source",
+                                "resolve_if_consistent"
+                              ),
+                              loop_handling = c(
+                                "error",
+                                "prune_loop",
+                                "break_arrow"
+                              )) {
   duplicate_from_policy <- match.arg(duplicate_from_policy)
   loop_handling <- match.arg(loop_handling)
 
@@ -126,17 +131,23 @@ resolve_redirects <- function(edge_list_df,
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  if (nrow(edge_list_df) > 0 && !all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
-    stop(paste0("`edge_list_df` must have '", edge_from_col, "' and '",
-                edge_to_col, "' columns if not empty."), call. = FALSE)
+  if (nrow(edge_list_df) > 0 &&
+        !all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
+    stop(paste0(
+      "`edge_list_df` must have '", edge_from_col, "' and '",
+      edge_to_col, "' columns if not empty."
+    ), call. = FALSE)
   }
 
   if (!is.data.frame(redirects_df)) {
     stop("`redirects_df` must be a data frame.", call. = FALSE)
   }
-  if (nrow(redirects_df) > 0 && !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
+  if (nrow(redirects_df) > 0 &&
+        !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
     stop("`redirects_df` must have '", redirect_from_col, "' and '",
-         redirect_to_col, "' columns if not empty.", call. = FALSE)
+      redirect_to_col, "' columns if not empty.",
+      call. = FALSE
+    )
   }
 
   # If redirects_df is empty or has no valid rules, return edge_list_df as is.
@@ -146,12 +157,12 @@ resolve_redirects <- function(edge_list_df,
 
   # Filter out NA values and self-referencing redirects (from == to).
   na_mask <- !is.na(redirects_df[[redirect_from_col]]) &
-             !is.na(redirects_df[[redirect_to_col]])
+    !is.na(redirects_df[[redirect_to_col]])
   redirects_df <- redirects_df[na_mask, , drop = FALSE]
 
   if (nrow(redirects_df) > 0) {
     self_ref <- as.character(redirects_df[[redirect_from_col]]) ==
-                as.character(redirects_df[[redirect_to_col]])
+      as.character(redirects_df[[redirect_to_col]])
     redirects_df <- redirects_df[!self_ref, , drop = FALSE]
   }
 
@@ -167,10 +178,13 @@ resolve_redirects <- function(edge_list_df,
     return(edge_list_df)
   }
 
-  clean_df <- data.frame(from = redirect_sources, to = redirect_targets,
-                         stringsAsFactors = FALSE)
+  clean_df <- data.frame(
+    from = redirect_sources, to = redirect_targets,
+    stringsAsFactors = FALSE
+  )
   clean_df <- .preprocess_redirects(clean_df, "from", "to",
-                                    policy = duplicate_from_policy)
+    policy = duplicate_from_policy
+  )
 
   if (nrow(clean_df) == 0) {
     return(edge_list_df)
@@ -178,7 +192,8 @@ resolve_redirects <- function(edge_list_df,
 
   # --- Build canonical redirect map via graph ---
   canonical_map <- .resolve_via_graph(clean_df$from, clean_df$to,
-                                     loop_handling = loop_handling)
+    loop_handling = loop_handling
+  )
 
   # --- Apply map to edge list (vectorized) ---
   resolved_edge_list <- edge_list_df
@@ -194,7 +209,7 @@ resolve_redirects <- function(edge_list_df,
     }
   }
 
-  return(resolved_edge_list)
+  resolved_edge_list
 }
 
 
@@ -213,7 +228,6 @@ resolve_redirects <- function(edge_list_df,
 #'   resolved destination.
 #' @noRd
 .resolve_via_graph <- function(from, to, loop_handling = "error") {
-
   # Build redirect graph
   redirect_edges <- data.frame(from = from, to = to, stringsAsFactors = FALSE)
   g <- igraph::graph_from_data_frame(redirect_edges, directed = TRUE)
@@ -241,7 +255,8 @@ resolve_redirects <- function(edge_list_df,
         sl_ends <- igraph::ends(g, self_loop_eids[1])
         sl_name <- sl_ends[1, 1]
         stop("Redirect cycle detected: ", sl_name, " -> ", sl_name,
-             call. = FALSE)
+          call. = FALSE
+        )
       }
     }
 
@@ -399,7 +414,8 @@ resolve_redirects <- function(edge_list_df,
 #' Preprocess redirects to handle conflicting sources
 #'
 #' Given a two-column data frame of (from, to) redirect pairs (already cleaned
-#' of NAs and self-refs), detect conflicting sources and apply the chosen policy.
+#' of NAs and self-refs), detect conflicting sources and apply the chosen
+#' policy.
 #'
 #' @param redirects_df Data frame with columns named by `from_col` and `to_col`.
 #' @param from_col Character, name of the source column.
@@ -411,7 +427,6 @@ resolve_redirects <- function(edge_list_df,
 #' @noRd
 .preprocess_redirects <- function(redirects_df, from_col, to_col,
                                   policy = "strict") {
-
   sources <- redirects_df[[from_col]]
   targets <- redirects_df[[to_col]]
 
@@ -435,16 +450,20 @@ resolve_redirects <- function(edge_list_df,
     first_conflict <- conflicting_sources[1]
     conflict_targets <- unique(targets[sources == first_conflict])
     stop("Ambiguous redirect: URL '", first_conflict,
-         "' maps to multiple distinct targets: ",
-         paste(conflict_targets, collapse = ", "), call. = FALSE)
+      "' maps to multiple distinct targets: ",
+      paste(conflict_targets, collapse = ", "),
+      call. = FALSE
+    )
   }
 
   if (policy == "resolve_if_consistent") {
     first_conflict <- conflicting_sources[1]
     conflict_targets <- unique(targets[sources == first_conflict])
     stop("Ambiguous redirect: URL '", first_conflict,
-         "' maps to multiple distinct targets: ",
-         paste(conflict_targets, collapse = ", "), call. = FALSE)
+      "' maps to multiple distinct targets: ",
+      paste(conflict_targets, collapse = ", "),
+      call. = FALSE
+    )
   }
 
   if (policy == "first_wins") {
@@ -499,4 +518,4 @@ resolve_redirects <- function(edge_list_df,
 
   # Should not reach here due to match.arg in caller, but as safeguard
   stop("Unknown duplicate_from_policy: ", policy, call. = FALSE) # nocov
-} 
+}

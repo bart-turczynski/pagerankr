@@ -26,7 +26,7 @@
 #' @examples
 #' redirects <- data.frame(
 #'   from = c("A", "B", "C"),
-#'   to   = c("B", "C", "Final"),
+#'   to = c("B", "C", "Final"),
 #'   stringsAsFactors = FALSE
 #' )
 #'
@@ -38,16 +38,19 @@ resolve_urls <- function(urls,
                          redirects_df,
                          redirect_from_col = "from",
                          redirect_to_col = "to",
-                         duplicate_from_policy = c("strict",
-                                                   "first_wins",
-                                                   "last_wins",
-                                                   "most_frequent",
-                                                   "prune_source",
-                                                   "resolve_if_consistent"),
-                         loop_handling = c("error",
-                                           "prune_loop",
-                                           "break_arrow")) {
-
+                         duplicate_from_policy = c(
+                           "strict",
+                           "first_wins",
+                           "last_wins",
+                           "most_frequent",
+                           "prune_source",
+                           "resolve_if_consistent"
+                         ),
+                         loop_handling = c(
+                           "error",
+                           "prune_loop",
+                           "break_arrow"
+                         )) {
   duplicate_from_policy <- match.arg(duplicate_from_policy)
   loop_handling <- match.arg(loop_handling)
 
@@ -59,9 +62,11 @@ resolve_urls <- function(urls,
     stop("`redirects_df` must be a data frame.", call. = FALSE)
   }
   if (nrow(redirects_df) > 0 &&
-      !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
+        !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
     stop("`redirects_df` must have '", redirect_from_col, "' and '",
-         redirect_to_col, "' columns.", call. = FALSE)
+      redirect_to_col, "' columns.",
+      call. = FALSE
+    )
   }
 
   original <- urls
@@ -99,10 +104,13 @@ resolve_urls <- function(urls,
   }
 
   # Handle conflicts
-  clean_df <- data.frame(from = r_sources, to = r_targets,
-                         stringsAsFactors = FALSE)
+  clean_df <- data.frame(
+    from = r_sources, to = r_targets,
+    stringsAsFactors = FALSE
+  )
   clean_df <- .preprocess_redirects(clean_df, "from", "to",
-                                    policy = duplicate_from_policy)
+    policy = duplicate_from_policy
+  )
 
   if (nrow(clean_df) == 0) {
     return(data.frame(
@@ -115,7 +123,8 @@ resolve_urls <- function(urls,
 
   # --- Build canonical map ---
   canonical_map <- .resolve_via_graph(clean_df$from, clean_df$to,
-                                     loop_handling = loop_handling)
+    loop_handling = loop_handling
+  )
 
   # --- Apply map ---
   resolved <- urls

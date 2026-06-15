@@ -42,7 +42,8 @@ describe("simulate_changes adding links", {
     # Add A -> C (A now links to both B and C)
     add <- data.frame(from = "A", to = "C", stringsAsFactors = FALSE)
     result <- simulate_changes(
-      base_edges, add_links_df = add,
+      base_edges,
+      add_links_df = add,
       clean_edge_urls = FALSE,
       clean_redirect_urls = FALSE
     )
@@ -54,7 +55,8 @@ describe("simulate_changes adding links", {
   it("adding a new node introduces it in the proposed model", {
     add <- data.frame(from = "A", to = "NewPage", stringsAsFactors = FALSE)
     result <- simulate_changes(
-      base_edges, add_links_df = add,
+      base_edges,
+      add_links_df = add,
       clean_edge_urls = FALSE,
       clean_redirect_urls = FALSE
     )
@@ -75,7 +77,8 @@ describe("simulate_changes removing links", {
     # Remove A -> C
     remove <- data.frame(from = "A", to = "C", stringsAsFactors = FALSE)
     result <- simulate_changes(
-      base_edges, remove_links_df = remove,
+      base_edges,
+      remove_links_df = remove,
       clean_edge_urls = FALSE,
       clean_redirect_urls = FALSE
     )
@@ -89,9 +92,11 @@ describe("simulate_changes removing links", {
     remove <- data.frame(
       from = c("A", "B"), to = c("C", "C"), stringsAsFactors = FALSE
     )
-    result <- simulate_changes(base_edges, remove_links_df = remove,
-                               clean_edge_urls = FALSE,
-                               drop_isolates_flag = TRUE)
+    result <- simulate_changes(base_edges,
+      remove_links_df = remove,
+      clean_edge_urls = FALSE,
+      drop_isolates_flag = TRUE
+    )
     s <- attr(result, "summary")
     # C might be lost (no inbound links, drop_isolates=TRUE keeps only
     # nodes in edges, but C still has outgoing C->A)
@@ -114,7 +119,8 @@ describe("simulate_changes adding redirects", {
       from = "OldPage", to = "NewPage", stringsAsFactors = FALSE
     )
     result <- simulate_changes(
-      base_edges, add_redirects_df = new_redir,
+      base_edges,
+      add_redirects_df = new_redir,
       clean_edge_urls = FALSE,
       clean_redirect_urls = FALSE
     )
@@ -132,10 +138,11 @@ describe("simulate_changes adding redirects", {
       from = "OldPage", to = "B", stringsAsFactors = FALSE
     )
     result <- simulate_changes(base_edges,
-                               redirects_df = existing_redir,
-                               add_redirects_df = new_redir,
-                               clean_edge_urls = FALSE,
-                               clean_redirect_urls = FALSE)
+      redirects_df = existing_redir,
+      add_redirects_df = new_redir,
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
     expect_true(is.data.frame(result))
   })
 })
@@ -153,11 +160,12 @@ describe("simulate_changes combined changes", {
     redir <- data.frame(from = "Old", to = "A", stringsAsFactors = FALSE)
 
     result <- simulate_changes(base_edges,
-                               add_links_df = add,
-                               remove_links_df = remove,
-                               add_redirects_df = redir,
-                               clean_edge_urls = FALSE,
-                               clean_redirect_urls = FALSE)
+      add_links_df = add,
+      remove_links_df = remove,
+      add_redirects_df = redir,
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
     expect_true(is.data.frame(result))
     expect_true(nrow(result) > 0)
   })
@@ -170,15 +178,19 @@ describe("simulate_changes passthrough args", {
 
   it("passes ... to pagerank()", {
     # Use custom damping via ...
-    result <- simulate_changes(base_edges, clean_edge_urls = FALSE,
-                               damping = 0.5)
+    result <- simulate_changes(base_edges,
+      clean_edge_urls = FALSE,
+      damping = 0.5
+    )
     expect_true(is.data.frame(result))
   })
 
   it("uses custom labels", {
-    result <- simulate_changes(base_edges, clean_edge_urls = FALSE,
-                               label_baseline = "before",
-                               label_proposed = "after")
+    result <- simulate_changes(base_edges,
+      clean_edge_urls = FALSE,
+      label_baseline = "before",
+      label_proposed = "after"
+    )
     expect_true("pagerank_before" %in% names(result))
     expect_true("pagerank_after" %in% names(result))
   })
@@ -191,39 +203,51 @@ describe("simulate_changes validation", {
 
   it("errors on non-dataframe add_links_df", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    expect_error(simulate_changes(edges, add_links_df = "bad"),
-                 "data frame")
+    expect_error(
+      simulate_changes(edges, add_links_df = "bad"),
+      "data frame"
+    )
   })
 
   it("errors on non-dataframe remove_links_df", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    expect_error(simulate_changes(edges, remove_links_df = 42),
-                 "data frame")
+    expect_error(
+      simulate_changes(edges, remove_links_df = 42),
+      "data frame"
+    )
   })
 
   it("errors on non-dataframe add_redirects_df", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    expect_error(simulate_changes(edges, add_redirects_df = "bad"),
-                 "data frame")
+    expect_error(
+      simulate_changes(edges, add_redirects_df = "bad"),
+      "data frame"
+    )
   })
 
   it("errors on non-dataframe redirects_df", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    expect_error(simulate_changes(edges, redirects_df = "bad"),
-                 "data frame")
+    expect_error(
+      simulate_changes(edges, redirects_df = "bad"),
+      "data frame"
+    )
   })
 
   it("errors when add_links_df is missing required columns", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
     bad_add <- data.frame(x = "A", y = "B", stringsAsFactors = FALSE)
-    expect_error(simulate_changes(edges, add_links_df = bad_add),
-                 "columns")
+    expect_error(
+      simulate_changes(edges, add_links_df = bad_add),
+      "columns"
+    )
   })
 
   it("errors when remove_links_df is missing required columns", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
     bad_remove <- data.frame(x = "A", y = "B", stringsAsFactors = FALSE)
-    expect_error(simulate_changes(edges, remove_links_df = bad_remove),
-                 "columns")
+    expect_error(
+      simulate_changes(edges, remove_links_df = bad_remove),
+      "columns"
+    )
   })
 })

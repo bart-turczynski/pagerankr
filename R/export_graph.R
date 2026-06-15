@@ -28,7 +28,7 @@
 #' @examples
 #' edges <- data.frame(
 #'   from = c("A", "B", "C"),
-#'   to   = c("B", "C", "A"),
+#'   to = c("B", "C", "A"),
 #'   stringsAsFactors = FALSE
 #' )
 #' pr <- pagerank(edges, clean_edge_urls = FALSE)
@@ -50,7 +50,6 @@ export_graph <- function(pagerank_df,
                          pr_score_col = "pagerank",
                          node_attrs = NULL,
                          edge_attrs = NULL) {
-
   format <- match.arg(format)
 
   # --- Validation ---
@@ -62,14 +61,17 @@ export_graph <- function(pagerank_df,
   }
   if (!pr_score_col %in% names(pagerank_df)) {
     stop("`pagerank_df` must have a '", pr_score_col, "' column.",
-         call. = FALSE)
+      call. = FALSE
+    )
   }
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
   if (!all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
     stop("`edge_list_df` must have '", edge_from_col, "' and '",
-         edge_to_col, "' columns.", call. = FALSE)
+      edge_to_col, "' columns.",
+      call. = FALSE
+    )
   }
   if (!is.character(file) || length(file) != 1) {
     stop("`file` must be a single file path string.", call. = FALSE)
@@ -115,8 +117,10 @@ export_graph <- function(pagerank_df,
     vertices <- rbind(vertices, extra)
   }
 
-  g <- igraph::graph_from_data_frame(edges_for_graph, directed = TRUE,
-                                     vertices = vertices)
+  g <- igraph::graph_from_data_frame(edges_for_graph,
+    directed = TRUE,
+    vertices = vertices
+  )
 
   # --- Export ---
   if (format == "graphml") {

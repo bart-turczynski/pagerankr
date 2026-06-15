@@ -59,17 +59,20 @@ resolve_links <- function(edge_list_df,
                           edge_to_col = "to",
                           redirect_from_col = "from",
                           redirect_to_col = "to",
-                          duplicate_from_policy = c("strict",
-                                                    "first_wins",
-                                                    "last_wins",
-                                                    "most_frequent",
-                                                    "prune_source",
-                                                    "resolve_if_consistent"),
-                          loop_handling = c("error",
-                                            "prune_loop",
-                                            "break_arrow"),
+                          duplicate_from_policy = c(
+                            "strict",
+                            "first_wins",
+                            "last_wins",
+                            "most_frequent",
+                            "prune_source",
+                            "resolve_if_consistent"
+                          ),
+                          loop_handling = c(
+                            "error",
+                            "prune_loop",
+                            "break_arrow"
+                          ),
                           rurl_params = list()) {
-
   self_loops <- match.arg(self_loops)
   duplicate_from_policy <- match.arg(duplicate_from_policy)
   loop_handling <- match.arg(loop_handling)
@@ -80,7 +83,9 @@ resolve_links <- function(edge_list_df,
   }
   if (!all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
     stop("`edge_list_df` must have '", edge_from_col, "' and '",
-         edge_to_col, "' columns.", call. = FALSE)
+      edge_to_col, "' columns.",
+      call. = FALSE
+    )
   }
   if (!is.null(redirects_df) && !is.data.frame(redirects_df)) {
     stop("`redirects_df` must be a data frame or NULL.", call. = FALSE)
@@ -103,8 +108,10 @@ resolve_links <- function(edge_list_df,
       redirect_url_cols <- c(redirect_from_col, redirect_to_col)
       current_redirects <- do.call(
         clean_url_columns,
-        c(list(data_frame = current_redirects, columns = redirect_url_cols),
-          rurl_params)
+        c(
+          list(data_frame = current_redirects, columns = redirect_url_cols),
+          rurl_params
+        )
       )
     }
   }

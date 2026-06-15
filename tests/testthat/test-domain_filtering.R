@@ -13,10 +13,14 @@ describe("filter_links_by_domain basic functionality", {
 
   it("filters by keep_domains", {
     links <- data.frame(
-      from = c("http://www.example.com/a", "http://example.com/b",
-               "http://google.com/c"),
-      to = c("http://example.com/d", "http://help.example.com/e",
-             "http://www.example.com/f"),
+      from = c(
+        "http://www.example.com/a", "http://example.com/b",
+        "http://google.com/c"
+      ),
+      to = c(
+        "http://example.com/d", "http://help.example.com/e",
+        "http://www.example.com/f"
+      ),
       stringsAsFactors = FALSE
     )
     result <- filter_links_by_domain(links, keep_domains = "example.com")
@@ -45,10 +49,12 @@ describe("filter_links_by_domain basic functionality", {
       stringsAsFactors = FALSE
     )
     result <- filter_links_by_domain(links,
-                                     keep_domains = "example.com",
-                                     ignore_hosts = "cdn.example.com")
+      keep_domains = "example.com",
+      ignore_hosts = "cdn.example.com"
+    )
     # Row 1: www.example.com -> example.com (keep)
-    # Row 2: cdn.example.com -> example.com (cdn ignored even though domain matches)
+    # Row 2: cdn.example.com -> example.com
+    #        (cdn ignored even though domain matches)
     expect_equal(nrow(result), 1)
   })
 
@@ -72,8 +78,9 @@ describe("filter_links_by_domain basic functionality", {
       stringsAsFactors = FALSE
     )
     result <- filter_links_by_domain(links,
-                                     keep_domains = "example.com",
-                                     drop_third_party = FALSE)
+      keep_domains = "example.com",
+      drop_third_party = FALSE
+    )
     # Both rows kept: other.com is not in keep list but third-party not dropped
     expect_equal(nrow(result), 2)
   })
@@ -99,8 +106,9 @@ describe("filter_links_by_domain report and edge cases", {
       stringsAsFactors = FALSE
     )
     result <- filter_links_by_domain(links,
-                                     keep_domains = "a.com",
-                                     return_report = TRUE)
+      keep_domains = "a.com",
+      return_report = TRUE
+    )
     expect_true(is.list(result))
     expect_true("filtered_df" %in% names(result))
     expect_true("report" %in% names(result))
@@ -110,8 +118,10 @@ describe("filter_links_by_domain report and edge cases", {
   })
 
   it("handles empty data frame", {
-    empty <- data.frame(from = character(0), to = character(0),
-                        stringsAsFactors = FALSE)
+    empty <- data.frame(
+      from = character(0), to = character(0),
+      stringsAsFactors = FALSE
+    )
     result <- filter_links_by_domain(empty, keep_domains = "example.com")
     expect_equal(nrow(result), 0)
   })
@@ -140,11 +150,16 @@ describe("filter_links_by_domain report and edge cases", {
 
   it("errors on invalid inputs", {
     expect_error(filter_links_by_domain(list()), "data frame")
-    expect_error(filter_links_by_domain(data.frame(x = 1), from_col = "from"),
-                 "columns")
-    expect_error(filter_links_by_domain(data.frame(from = "a", to = "b"),
-                                        keep_domains = 123),
-                 "character")
+    expect_error(
+      filter_links_by_domain(data.frame(x = 1), from_col = "from"),
+      "columns"
+    )
+    expect_error(
+      filter_links_by_domain(data.frame(from = "a", to = "b"),
+        keep_domains = 123
+      ),
+      "character"
+    )
   })
 
   it("errors on invalid keep_hosts type", {
@@ -159,14 +174,21 @@ describe("filter_links_by_domain report and edge cases", {
 
   it("errors on invalid ignore_hosts type", {
     df <- data.frame(from = "a", to = "b", stringsAsFactors = FALSE)
-    expect_error(filter_links_by_domain(df, ignore_hosts = list("x")), "character")
+    expect_error(
+      filter_links_by_domain(df, ignore_hosts = list("x")),
+      "character"
+    )
   })
 
   it("returns report for empty df with return_report=TRUE", {
-    empty <- data.frame(from = character(0), to = character(0),
-                        stringsAsFactors = FALSE)
-    result <- filter_links_by_domain(empty, keep_domains = "x.com",
-                                     return_report = TRUE)
+    empty <- data.frame(
+      from = character(0), to = character(0),
+      stringsAsFactors = FALSE
+    )
+    result <- filter_links_by_domain(empty,
+      keep_domains = "x.com",
+      return_report = TRUE
+    )
     expect_true(is.list(result))
     expect_equal(result$report$rows_before, 0)
   })
@@ -201,14 +223,17 @@ describe("filter_links_by_domain report and edge cases", {
     expect_equal(nrow(result), 1)
   })
 
-  it("handles edge list where all URLs are NA/empty (build_url_maps empty path)", {
-    links <- data.frame(
-      from = c(NA_character_), to = c(NA_character_),
-      stringsAsFactors = FALSE
-    )
-    # With keep_domains set, the function will try to map URLs. All NAs means
-    # the map is empty. After filtering, no rows should remain.
-    result <- filter_links_by_domain(links, keep_domains = "example.com")
-    expect_equal(nrow(result), 0)
-  })
+  it(
+    "handles edge list where all URLs are NA/empty (build_url_maps empty path)",
+    {
+      links <- data.frame(
+        from = c(NA_character_), to = c(NA_character_),
+        stringsAsFactors = FALSE
+      )
+      # With keep_domains set, the function will try to map URLs. All NAs means
+      # the map is empty. After filtering, no rows should remain.
+      result <- filter_links_by_domain(links, keep_domains = "example.com")
+      expect_equal(nrow(result), 0)
+    }
+  )
 })

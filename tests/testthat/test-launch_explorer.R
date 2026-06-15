@@ -7,7 +7,9 @@ describe("launch_pagerank_explorer validation", {
     fn <- launch_pagerank_explorer
     env <- new.env(parent = environment(fn))
     env$requireNamespace <- function(pkg, ...) {
-      if (pkg == "shiny") return(FALSE)
+      if (pkg == "shiny") {
+        return(FALSE)
+      }
       base::requireNamespace(pkg, ...)
     }
     environment(fn) <- env
@@ -18,7 +20,9 @@ describe("launch_pagerank_explorer validation", {
     fn <- launch_pagerank_explorer
     env <- new.env(parent = environment(fn))
     env$requireNamespace <- function(pkg, ...) {
-      if (pkg == "DT") return(FALSE)
+      if (pkg == "DT") {
+        return(FALSE)
+      }
       base::requireNamespace(pkg, ...)
     }
     environment(fn) <- env
@@ -37,7 +41,9 @@ describe("launch_pagerank_explorer validation", {
     fn <- launch_pagerank_explorer
     env <- new.env(parent = environment(fn))
     env$requireNamespace <- function(pkg, ...) {
-      if (pkg == "visNetwork") return(FALSE)
+      if (pkg == "visNetwork") {
+        return(FALSE)
+      }
       base::requireNamespace(pkg, ...)
     }
     env$system.file <- function(...) "/fake/app/path"
