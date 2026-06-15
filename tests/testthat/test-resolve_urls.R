@@ -4,7 +4,7 @@ describe("resolve_urls basic functionality", {
   it("resolves simple redirects", {
     redirects <- data.frame(
       from = c("A", "B"),
-      to   = c("B", "Final"),
+      to = c("B", "Final"),
       stringsAsFactors = FALSE
     )
     result <- resolve_urls(c("A", "B"), redirects)
@@ -22,7 +22,7 @@ describe("resolve_urls basic functionality", {
   it("resolves multi-hop chains", {
     redirects <- data.frame(
       from = c("A", "B", "C"),
-      to   = c("B", "C", "Final"),
+      to = c("B", "C", "Final"),
       stringsAsFactors = FALSE
     )
     result <- resolve_urls("A", redirects)
@@ -43,8 +43,10 @@ describe("resolve_urls basic functionality", {
   })
 
   it("handles empty redirects", {
-    redirects <- data.frame(from = character(0), to = character(0),
-                            stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = character(0), to = character(0),
+      stringsAsFactors = FALSE
+    )
     result <- resolve_urls(c("A", "B"), redirects)
     expect_equal(result$resolved, c("A", "B"))
     expect_false(any(result$changed))
@@ -65,7 +67,8 @@ describe("resolve_urls policy passthrough", {
       from = c("A", "A"), to = c("B", "C"), stringsAsFactors = FALSE
     )
     result <- resolve_urls("A", redirects,
-                           duplicate_from_policy = "first_wins")
+      duplicate_from_policy = "first_wins"
+    )
     expect_equal(result$resolved, "B")
   })
 
@@ -109,7 +112,7 @@ describe("resolve_urls edge cases with empty results after preprocessing", {
   it("returns unchanged when all redirects are self-referencing", {
     redirects <- data.frame(
       from = c("A", "B"),
-      to   = c("A", "B"),
+      to = c("A", "B"),
       stringsAsFactors = FALSE
     )
     result <- resolve_urls(c("A", "B"), redirects)
@@ -121,7 +124,7 @@ describe("resolve_urls edge cases with empty results after preprocessing", {
     # prune_source removes ALL redirects from conflicting sources
     redirects <- data.frame(
       from = c("A", "A"),
-      to   = c("B", "C"),
+      to = c("B", "C"),
       stringsAsFactors = FALSE
     )
     result <- resolve_urls(
@@ -138,7 +141,7 @@ describe("resolve_urls self-referencing handling", {
   it("filters self-referencing redirects silently", {
     redirects <- data.frame(
       from = c("A", "B"),
-      to   = c("A", "C"),
+      to = c("A", "C"),
       stringsAsFactors = FALSE
     )
     result <- resolve_urls(c("A", "B"), redirects)

@@ -1,4 +1,4 @@
 library(testthat)
 library(pagerankr)
 
-test_check("pagerankr") 
+test_check("pagerankr")

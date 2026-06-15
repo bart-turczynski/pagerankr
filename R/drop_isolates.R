@@ -15,7 +15,8 @@
 #'   and to are non-NA in the same row). If `FALSE` (default), returns a
 #'   single-column data frame of all unique non-NA node names present in either
 #'   column of `edge_list_df` (the full vertex universe, including isolates).
-#' @param from_col Name of the source node column in `edge_list_df`. Default "from".
+#' @param from_col Name of the source node column in `edge_list_df`.
+#'   Default "from".
 #' @param to_col Name of the target node column in `edge_list_df`. Default "to".
 #' @param node_col_name Name for the output column containing node names.
 #'   Default "node_name". When used with [compute_pagerank()], this should match
@@ -29,69 +30,89 @@
 #'   the criteria or if the input edge list is empty/all NAs.
 #' @export
 #' @examples
-#' # Edge list with partial rows (NA in one column = known node, not a complete edge)
+#' # Edge list with partial rows
+#' # (NA in one column = known node, not a complete edge)
 #' edges <- data.frame(
 #'   from = c("A", "B", "C", NA, "D"),
 #'   to = c("B", "C", "A", "E", NA),
 #'   stringsAsFactors = FALSE
 #' )
-#' # Complete edges: A->B, B->C, C->A. Partial rows: NA->E (E is isolate), D->NA (D is isolate).
-#' 
+#' # Complete edges: A->B, B->C, C->A.
+#' # Partial rows: NA->E (E is isolate), D->NA (D is isolate).
+#'
 #' # Get only nodes participating in complete edges (A, B, C)
 #' active_nodes <- drop_isolates(edges, drop = TRUE)
 #' print(active_nodes)
-#' 
+#'
 #' # Get all unique nodes including isolates from partial rows (A, B, C, D, E)
 #' all_nodes <- drop_isolates(edges, drop = FALSE)
 #' print(all_nodes)
-#' 
+#'
 #' # Edge list with no isolates (all rows are complete edges)
 #' edges_complete <- data.frame(
-#'   from = c("X", "Y"), 
-#'   to = c("Y", "X"), 
+#'   from = c("X", "Y"),
+#'   to = c("Y", "X"),
 #'   stringsAsFactors = FALSE
 #' )
-#' drop_isolates(edges_complete, drop = TRUE)  # X, Y
+#' drop_isolates(edges_complete, drop = TRUE) # X, Y
 #' drop_isolates(edges_complete, drop = FALSE) # X, Y (same, no partial rows)
-#' 
+#'
 #' # Empty edge list
-#' empty_edges <- data.frame(from = character(0), to = character(0), stringsAsFactors = FALSE)
+#' empty_edges <- data.frame(
+#'   from = character(0), to = character(0), stringsAsFactors = FALSE
+#' )
 #' drop_isolates(empty_edges, drop = TRUE)
 #' drop_isolates(empty_edges, drop = FALSE)
 #'
 #' # Edge list with only NAs
-#' na_edges <- data.frame(from = NA_character_, to = NA_character_, stringsAsFactors = FALSE)
+#' na_edges <- data.frame(
+#'   from = NA_character_, to = NA_character_, stringsAsFactors = FALSE
+#' )
 #' drop_isolates(na_edges, drop = TRUE)
 #' drop_isolates(na_edges, drop = FALSE)
 #'
 #' # Custom column names
-#' custom_edges <- data.frame(source = c("S1"), target = c("T1"), stringsAsFactors = FALSE)
-#' drop_isolates(custom_edges, from_col = "source", to_col = "target", node_col_name = "vertex")
-
+#' custom_edges <- data.frame(
+#'   source = c("S1"), target = c("T1"), stringsAsFactors = FALSE
+#' )
+#' drop_isolates(
+#'   custom_edges,
+#'   from_col = "source", to_col = "target", node_col_name = "vertex"
+#' )
 drop_isolates <- function(edge_list_df,
                           drop = FALSE,
                           from_col = "from",
                           to_col = "to",
                           node_col_name = "node_name") {
-
   # --- Input Validation ---
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  if (nrow(edge_list_df) > 0 && !all(c(from_col, to_col) %in% names(edge_list_df))) {
-    stop("`edge_list_df` must have specified 'from' and 'to' columns if not empty.", call. = FALSE)
+  if (nrow(edge_list_df) > 0 &&
+        !all(c(from_col, to_col) %in% names(edge_list_df))) {
+    stop(
+      "`edge_list_df` must have specified 'from' and 'to' ",
+      "columns if not empty.",
+      call. = FALSE
+    )
   }
   if (!is.logical(drop) || length(drop) != 1) {
     stop("`drop` must be a single logical value.", call. = FALSE)
   }
-  if (!is.character(node_col_name) || length(node_col_name) != 1 || nchar(node_col_name) == 0) {
-    stop("`node_col_name` must be a non-empty single character string.", call. = FALSE)
+  if (!is.character(node_col_name) || length(node_col_name) != 1 ||
+        nchar(node_col_name) == 0) {
+    stop(
+      "`node_col_name` must be a non-empty single character string.",
+      call. = FALSE
+    )
   }
 
   # --- Prepare Empty Result Frame ---
   # This structure is returned if no nodes are found or input is empty.
-  empty_result_df <- stats::setNames(data.frame(character(0), stringsAsFactors = FALSE),
-                                     node_col_name)
+  empty_result_df <- stats::setNames(
+    data.frame(character(0), stringsAsFactors = FALSE),
+    node_col_name
+  )
 
   if (nrow(edge_list_df) == 0) {
     return(empty_result_df)
@@ -127,18 +148,21 @@ drop_isolates <- function(edge_list_df,
   }
 
   if (length(nodes_to_return) == 0) {
-      return(empty_result_df)
+    return(empty_result_df)
   }
-  
+
   # --- Format Output Data Frame ---
-  result_df <- stats::setNames(data.frame(nodes_to_return, stringsAsFactors = FALSE),
-                               node_col_name)
-  
-  # Sort for consistency, though not strictly required by spec (can be helpful for tests)
-  if(nrow(result_df) > 0) {
-      result_df <- result_df[order(result_df[[node_col_name]]), , drop = FALSE]
-      row.names(result_df) <- NULL
+  result_df <- stats::setNames(
+    data.frame(nodes_to_return, stringsAsFactors = FALSE),
+    node_col_name
+  )
+
+  # Sort for consistency, though not strictly required by spec
+  # (can be helpful for tests)
+  if (nrow(result_df) > 0) {
+    result_df <- result_df[order(result_df[[node_col_name]]), , drop = FALSE]
+    row.names(result_df) <- NULL
   }
-  
-  return(result_df)
-} 
+
+  result_df
+}

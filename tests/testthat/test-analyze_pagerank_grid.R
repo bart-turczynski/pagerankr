@@ -16,9 +16,11 @@ describe("analyze_pagerank_grid", {
 
     expect_true(is.data.frame(analysis))
     expect_equal(nrow(analysis), 2)
-    expect_true(all(c("model_id", "num_nodes", "pr_sum", "pr_max",
-                       "pr_gini", "pr_entropy", "pr_top10_share") %in%
-                    names(analysis)))
+    expect_true(all(c(
+      "model_id", "num_nodes", "pr_sum", "pr_max",
+      "pr_gini", "pr_entropy", "pr_top10_share"
+    ) %in%
+      names(analysis)))
     expect_equal(sort(analysis$model_id), c("high", "low"))
     # Each model has 3 nodes
     expect_true(all(analysis$num_nodes == 3))

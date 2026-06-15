@@ -58,8 +58,10 @@ describe("pagerank_grid basic functionality", {
     params <- list(
       m1 = list(damping = 0.85)
     )
-    grid <- pagerank_grid(edges, params, redirects_df = redirects,
-                          clean_edge_urls = FALSE)
+    grid <- pagerank_grid(edges, params,
+      redirects_df = redirects,
+      clean_edge_urls = FALSE
+    )
     expect_true(nrow(grid) > 0)
     expect_equal(grid$model_id[1], "m1")
   })
@@ -68,7 +70,10 @@ describe("pagerank_grid basic functionality", {
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
     expect_error(pagerank_grid(edges, list()), "non-empty")
     expect_error(pagerank_grid(edges, list(list())), "must be named")
-    expect_error(pagerank_grid(edges, list(m1 = "not a list")), "must be a list")
+    expect_error(
+      pagerank_grid(edges, list(m1 = "not a list")),
+      "must be a list"
+    )
   })
 
   it("works with single-model grid", {
@@ -90,10 +95,12 @@ describe("pagerank_grid basic functionality", {
   it("handles model that returns empty results", {
     # An edge list that, after cleaning, has no valid edges for a model
     edges <- data.frame(from = c("A"), to = c(NA), stringsAsFactors = FALSE)
-    params <- list(m1 = list(clean_edge_urls = FALSE, drop_isolates_flag = TRUE))
+    params <- list(
+      m1 = list(clean_edge_urls = FALSE, drop_isolates_flag = TRUE)
+    )
     grid <- pagerank_grid(edges, params)
-    # A->NA is not a complete edge, so with drop_isolates=TRUE the result may be empty
-    # or contain just A. Either way it should not error.
+    # A->NA is not a complete edge, so with drop_isolates=TRUE the result
+    # may be empty or contain just A. Either way it should not error.
     expect_true(is.data.frame(grid))
   })
 })

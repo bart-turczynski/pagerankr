@@ -12,52 +12,71 @@
 #' @noRd
 .create_memoized_cleaner <- function() {
   cache <- new.env(hash = TRUE, parent = emptyenv())
-  
+
   memoized_clean_url <- function(url_string, ...) {
     args_list <- list(...)
-    
+
     # Create a unique key component from ... arguments.
     # Arguments are sorted by name to ensure that calls with the same arguments
     # in a different order produce the same cache key.
     if (length(args_list) > 0) {
       arg_names <- names(args_list)
-      
-      # Handle cases where ... might not have all named arguments (though unlikely for rurl::clean_url options)
+
+      # Handle cases where ... might not have all named arguments
+      # (though unlikely for rurl::clean_url options)
       if (is.null(arg_names)) { # If args_list has no names attribute at all
         # Fallback to deparse for unnamed lists; might be slow or very long.
         # This scenario is less likely for rurl::clean_url parameters.
-        warning("Memoization key created from unnamed list in ...; consider naming all arguments.", call. = FALSE)
-        key_args_part <- paste(deparse(args_list, width.cutoff = 500L), collapse = "\\n")
+        warning(
+          paste(
+            "Memoization key created from unnamed list in ...;",
+            "consider naming all arguments."
+          ),
+          call. = FALSE
+        )
+        key_args_part <- paste(
+          deparse(args_list, width.cutoff = 500L),
+          collapse = "\\n"
+        )
       } else {
-        # Ensure consistent ordering for arguments, including those with potentially empty names
+        # Ensure consistent ordering for arguments, including those with
+        # potentially empty names
         sorted_indices <- order(arg_names)
         sorted_names <- arg_names[sorted_indices]
-        # Extract values from the original list using the sorted order of names/indices
-        # and convert them to character for the key.
-        # sapply is used here assuming arguments are simple enough for as.character.
+        # Extract values from the original list using the sorted order of
+        # names/indices and convert them to character for the key.
+        # sapply is used here assuming arguments are simple enough for
+        # as.character.
         sorted_values_char <- sapply(args_list[sorted_indices], as.character)
-        key_args_part <- paste(sorted_names, sorted_values_char, sep = "=", collapse = "|")
+        key_args_part <- paste(
+          sorted_names, sorted_values_char,
+          sep = "=", collapse = "|"
+        )
       }
     } else {
       key_args_part <- "NO_ARGS" # Explicitly denote no extra arguments
     }
-    
+
     # Combine URL string and arguments part for the final cache key.
-    # Using as.character for url_string handles potential factors or other types.
-    cache_key <- paste(as.character(url_string), key_args_part, sep = "::ARGS_SEP::")
-    
+    # Using as.character for url_string handles potential factors or other
+    # types.
+    cache_key <- paste(
+      as.character(url_string), key_args_part,
+      sep = "::ARGS_SEP::"
+    )
+
     if (exists(cache_key, envir = cache, inherits = FALSE)) {
       return(get(cache_key, envir = cache, inherits = FALSE))
     }
-    
+
     # If not in cache, compute using rurl::clean_url, store, and return.
     # rurl::clean_url must be available (e.g. via Imports in DESCRIPTION).
     cleaned_url <- rurl::get_clean_url(url_string, ...)
     assign(cache_key, cleaned_url, envir = cache)
-    return(cleaned_url)
+    cleaned_url
   }
-  
-  return(memoized_clean_url)
+
+  memoized_clean_url
 }
 
 
@@ -82,23 +101,26 @@
     # Cycle detected
     # Corrected cycle representation (start from the cycled URL)
     path_start_index <- match(url, path)
-    actual_cycle_str <- paste(c(path[path_start_index:length(path)], url), collapse = " -> ")
-    
+    actual_cycle_str <- paste(
+      c(path[path_start_index:length(path)], url),
+      collapse = " -> "
+    )
+
     stop(
       "Redirect cycle detected for URL '", url, "'. Path: ", actual_cycle_str,
       call. = FALSE
     )
   }
-  
+
   current_path <- c(path, url)
-  
+
   if (url %in% names(redirect_map)) {
     next_url <- redirect_map[[url]]
     # Recursive call to trace further
-    return(.trace_redirect_path(next_url, redirect_map, current_path))
+    .trace_redirect_path(next_url, redirect_map, current_path)
   } else {
     # No further redirect for this URL, it's a final destination in this chain
-    return(url)
+    url
   }
 }
 
@@ -121,12 +143,13 @@
       urls <- stats::na.omit(data_frame[[col_name]])
       if (length(urls) > 0) {
         # Check for presence of '?’ or '&' characters
-        # Using grepl for vectorized check
-        if (any(grepl("[?&]", urls, useBytes = TRUE))) { # useBytes for potentially non-ASCII URLs
+        # Using grepl for vectorized check.
+        # useBytes for potentially non-ASCII URLs
+        if (any(grepl("[?&]", urls, useBytes = TRUE))) {
           return(TRUE)
         }
       }
     }
   }
-  return(FALSE)
-} 
+  FALSE
+}

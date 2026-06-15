@@ -45,20 +45,28 @@ pagerank_grid <- function(edge_list_df,
                           ...,
                           edge_from_col = "from",
                           edge_to_col = "to") {
-
   # --- Validation ---
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
   if (!is.list(params_grid) || length(params_grid) == 0) {
-    stop("`params_grid` must be a non-empty named list of parameter lists.", call. = FALSE)
+    stop(
+      "`params_grid` must be a non-empty named list of parameter lists.",
+      call. = FALSE
+    )
   }
   if (is.null(names(params_grid)) || any(names(params_grid) == "")) {
-    stop("All entries in `params_grid` must be named (these become model IDs).", call. = FALSE)
+    stop(
+      "All entries in `params_grid` must be named (these become model IDs).",
+      call. = FALSE
+    )
   }
   for (nm in names(params_grid)) {
     if (!is.list(params_grid[[nm]])) {
-      stop("Each entry in `params_grid` must be a list. '", nm, "' is not.", call. = FALSE)
+      stop(
+        "Each entry in `params_grid` must be a list. '", nm, "' is not.",
+        call. = FALSE
+      )
     }
   }
 
@@ -75,10 +83,12 @@ pagerank_grid <- function(edge_list_df,
 
     # Merge: model_params override common_args
     call_args <- c(
-      list(edge_list_df = edge_list_df,
-           redirects_df = redirects_df,
-           edge_from_col = edge_from_col,
-           edge_to_col = edge_to_col),
+      list(
+        edge_list_df = edge_list_df,
+        redirects_df = redirects_df,
+        edge_from_col = edge_from_col,
+        edge_to_col = edge_to_col
+      ),
       common_args
     )
     # Override with model-specific params

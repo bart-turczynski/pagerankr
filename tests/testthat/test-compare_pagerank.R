@@ -16,9 +16,11 @@ describe("compare_pagerank basic functionality", {
 
     expect_true(is.data.frame(result))
     expect_equal(nrow(result), 4) # A, B, C, D
-    expect_true(all(c("node_name", "pagerank_a", "pagerank_b",
-                       "delta", "pct_change", "rank_a", "rank_b",
-                       "rank_delta") %in% names(result)))
+    expect_true(all(c(
+      "node_name", "pagerank_a", "pagerank_b",
+      "delta", "pct_change", "rank_a", "rank_b",
+      "rank_delta"
+    ) %in% names(result)))
 
     # A is in both: delta = 0.4 - 0.5 = -0.1
     a_row <- result[result$node_name == "A", ]
@@ -60,9 +62,9 @@ describe("compare_pagerank basic functionality", {
     expect_equal(y_row$rank_b, 1)
 
     # rank_delta: rank_a - rank_b, positive = improved in b
-    # Y: 2 - 1 = 1 (improved)
+    # For Y, rank_a minus rank_b yields one, meaning improved.
     expect_equal(y_row$rank_delta, 1)
-    # X: 1 - 3 = -2 (worsened)
+    # For X, rank_a minus rank_b yields negative two, meaning worsened.
     expect_equal(x_row$rank_delta, -2)
   })
 
@@ -81,10 +83,12 @@ describe("compare_pagerank basic functionality", {
     summary <- attr(result, "summary")
 
     expect_true(is.list(summary))
-    expect_true(all(c("spearman_rho", "mean_abs_delta",
-                       "nodes_gained", "nodes_lost") %in% names(summary)))
+    expect_true(all(c(
+      "spearman_rho", "mean_abs_delta",
+      "nodes_gained", "nodes_lost"
+    ) %in% names(summary)))
     expect_equal(summary$nodes_gained, 1) # D
-    expect_equal(summary$nodes_lost, 1)   # C
+    expect_equal(summary$nodes_lost, 1) # C
     expect_true(is.numeric(summary$spearman_rho))
     expect_true(is.numeric(summary$mean_abs_delta))
     expect_gt(summary$mean_abs_delta, 0)
@@ -93,8 +97,10 @@ describe("compare_pagerank basic functionality", {
   it("handles custom column names and labels", {
     pr_a <- data.frame(url = c("X"), pr = c(0.5), stringsAsFactors = FALSE)
     pr_b <- data.frame(url = c("X"), pr = c(0.8), stringsAsFactors = FALSE)
-    result <- compare_pagerank(pr_a, pr_b, node_col = "url", pr_col = "pr",
-                               label_a = "base", label_b = "new")
+    result <- compare_pagerank(pr_a, pr_b,
+      node_col = "url", pr_col = "pr",
+      label_a = "base", label_b = "new"
+    )
     expect_true("pr_base" %in% names(result))
     expect_true("pr_new" %in% names(result))
     expect_true("rank_base" %in% names(result))
@@ -118,25 +124,41 @@ describe("compare_pagerank basic functionality", {
 
   it("errors on missing columns", {
     bad <- data.frame(x = 1)
-    good <- data.frame(node_name = "A", pagerank = 0.5, stringsAsFactors = FALSE)
+    good <- data.frame(
+      node_name = "A",
+      pagerank = 0.5,
+      stringsAsFactors = FALSE
+    )
     expect_error(compare_pagerank(bad, good), "not found")
     expect_error(compare_pagerank(good, bad), "not found")
   })
 
   it("errors on non-dataframe inputs", {
     expect_error(compare_pagerank("not_a_df", data.frame()), "data frame")
-    good <- data.frame(node_name = "A", pagerank = 0.5, stringsAsFactors = FALSE)
+    good <- data.frame(
+      node_name = "A",
+      pagerank = 0.5,
+      stringsAsFactors = FALSE
+    )
     expect_error(compare_pagerank(good, "not_a_df"), "data frame")
   })
 
   it("errors when pr_col is missing from pr_a", {
     pr_a <- data.frame(node_name = "A", wrong = 0.5, stringsAsFactors = FALSE)
-    pr_b <- data.frame(node_name = "A", pagerank = 0.5, stringsAsFactors = FALSE)
+    pr_b <- data.frame(
+      node_name = "A",
+      pagerank = 0.5,
+      stringsAsFactors = FALSE
+    )
     expect_error(compare_pagerank(pr_a, pr_b), "not found")
   })
 
   it("errors when pr_col is missing from pr_b", {
-    pr_a <- data.frame(node_name = "A", pagerank = 0.5, stringsAsFactors = FALSE)
+    pr_a <- data.frame(
+      node_name = "A",
+      pagerank = 0.5,
+      stringsAsFactors = FALSE
+    )
     pr_b <- data.frame(node_name = "A", wrong = 0.5, stringsAsFactors = FALSE)
     expect_error(compare_pagerank(pr_a, pr_b), "not found")
   })

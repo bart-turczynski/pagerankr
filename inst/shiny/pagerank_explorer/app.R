@@ -1,7 +1,7 @@
 # pagerankr PageRank Explorer -- Shiny App
 #
-# Launch with: pagerankr::launch_pagerank_explorer()
-# Or: shiny::runApp(system.file("shiny/pagerank_explorer", package = "pagerankr"))
+# Launch with the launch_pagerank_explorer helper from the pagerankr package,
+# or point shiny runApp at this app directory inside the installed package.
 
 library(shiny)
 
@@ -9,11 +9,14 @@ library(shiny)
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
-      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+      body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI',
+             Roboto, sans-serif; }
       .sidebar-panel { background: #f8f9fa; border-right: 1px solid #dee2e6; }
-      .metric-box { background: #fff; border: 1px solid #dee2e6; border-radius: 8px;
+      .metric-box { background: #fff; border: 1px solid #dee2e6;
+                    border-radius: 8px;
                     padding: 16px; margin: 8px 0; text-align: center; }
-      .metric-box h4 { color: #6c757d; font-size: 12px; text-transform: uppercase;
+      .metric-box h4 { color: #6c757d; font-size: 12px;
+                        text-transform: uppercase;
                         letter-spacing: 1px; margin-bottom: 4px; }
       .metric-box .value { font-size: 24px; font-weight: 700; color: #212529; }
       #graph_container { min-height: 500px; }
@@ -71,14 +74,22 @@ ui <- fluidPage(
         tabPanel(
           "Graph",
           fluidRow(
-            column(3, div(class = "metric-box",
-              h4("Nodes"), div(class = "value", textOutput("n_nodes")))),
-            column(3, div(class = "metric-box",
-              h4("Edges"), div(class = "value", textOutput("n_edges")))),
-            column(3, div(class = "metric-box",
-              h4("Gini"), div(class = "value", textOutput("gini_val")))),
-            column(3, div(class = "metric-box",
-              h4("Max PR"), div(class = "value", textOutput("max_pr_val"))))
+            column(3, div(
+              class = "metric-box",
+              h4("Nodes"), div(class = "value", textOutput("n_nodes"))
+            )),
+            column(3, div(
+              class = "metric-box",
+              h4("Edges"), div(class = "value", textOutput("n_edges"))
+            )),
+            column(3, div(
+              class = "metric-box",
+              h4("Gini"), div(class = "value", textOutput("gini_val"))
+            )),
+            column(3, div(
+              class = "metric-box",
+              h4("Max PR"), div(class = "value", textOutput("max_pr_val"))
+            ))
           ),
           div(id = "graph_container",
             conditionalPanel(
@@ -137,7 +148,10 @@ server <- function(input, output, session) {
 
   # Load redirects CSV
   observeEvent(input$redirects_file, {
-    df <- utils::read.csv(input$redirects_file$datapath, stringsAsFactors = FALSE)
+    df <- utils::read.csv(
+      input$redirects_file$datapath,
+      stringsAsFactors = FALSE
+    )
     redirects_data(df)
   })
 
@@ -363,7 +377,10 @@ server <- function(input, output, session) {
     pr$pagerank <- round(pr$pagerank, 8)
     pr$rank <- rank(-pr$pagerank, ties.method = "min")
     pr <- pr[order(pr$rank), ]
-    DT::datatable(pr, options = list(pageLength = 25, order = list(list(2, "asc"))))
+    DT::datatable(
+      pr,
+      options = list(pageLength = 25, order = list(list(2, "asc")))
+    )
   })
 
   # --- Distribution ---
@@ -392,7 +409,10 @@ server <- function(input, output, session) {
   output$audit_report <- renderPrint({
     redir <- redirects_data()
     if (is.null(redir) || nrow(redir) == 0) {
-      cat("No redirects loaded. Upload a redirects CSV to see the audit report.")
+      cat(
+        "No redirects loaded.",
+        "Upload a redirects CSV to see the audit report."
+      )
       return(invisible(NULL))
     }
 
@@ -410,7 +430,8 @@ server <- function(input, output, session) {
   output$dl_graphml <- downloadHandler(
     filename = function() "pagerank_graph.graphml",
     content = function(file) {
-      pr <- pr_data(); edges <- edges_data()
+      pr <- pr_data()
+      edges <- edges_data()
       req(pr, edges)
       pagerankr::export_graph(pr, edges, file, format = "graphml",
                               edge_from_col = input$from_col,
@@ -421,7 +442,8 @@ server <- function(input, output, session) {
   output$dl_dot <- downloadHandler(
     filename = function() "pagerank_graph.dot",
     content = function(file) {
-      pr <- pr_data(); edges <- edges_data()
+      pr <- pr_data()
+      edges <- edges_data()
       req(pr, edges)
       pagerankr::export_graph(pr, edges, file, format = "dot",
                               edge_from_col = input$from_col,
@@ -432,7 +454,8 @@ server <- function(input, output, session) {
   output$dl_edgelist <- downloadHandler(
     filename = function() "pagerank_edges.csv",
     content = function(file) {
-      pr <- pr_data(); edges <- edges_data()
+      pr <- pr_data()
+      edges <- edges_data()
       req(pr, edges)
       pagerankr::export_graph(pr, edges, file, format = "edgelist",
                               edge_from_col = input$from_col,

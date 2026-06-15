@@ -4,7 +4,7 @@ describe("audit_redirects basic functionality", {
   it("reports chain lengths correctly", {
     redirects <- data.frame(
       from = c("A", "B", "C"),
-      to   = c("B", "C", "Final"),
+      to = c("B", "C", "Final"),
       stringsAsFactors = FALSE
     )
     audit <- audit_redirects(redirects)
@@ -19,7 +19,7 @@ describe("audit_redirects basic functionality", {
   it("detects self-referencing redirects", {
     redirects <- data.frame(
       from = c("A", "B", "C"),
-      to   = c("A", "X", "Y"),
+      to = c("A", "X", "Y"),
       stringsAsFactors = FALSE
     )
     audit <- audit_redirects(redirects)
@@ -30,7 +30,7 @@ describe("audit_redirects basic functionality", {
   it("detects conflicting sources", {
     redirects <- data.frame(
       from = c("A", "A", "B"),
-      to   = c("X", "Y", "Z"),
+      to = c("X", "Y", "Z"),
       stringsAsFactors = FALSE
     )
     audit <- audit_redirects(redirects)
@@ -42,7 +42,7 @@ describe("audit_redirects basic functionality", {
   it("detects loops", {
     redirects <- data.frame(
       from = c("A", "B", "C"),
-      to   = c("B", "C", "A"),
+      to = c("B", "C", "A"),
       stringsAsFactors = FALSE
     )
     audit <- audit_redirects(redirects)
@@ -57,7 +57,7 @@ describe("audit_redirects basic functionality", {
   it("detects orphaned redirects", {
     redirects <- data.frame(
       from = c("A", "B"),
-      to   = c("X", "Y"),
+      to = c("X", "Y"),
       stringsAsFactors = FALSE
     )
     edges <- data.frame(
@@ -72,7 +72,7 @@ describe("audit_redirects basic functionality", {
   it("marks loop members in chains", {
     redirects <- data.frame(
       from = c("A", "B", "C"),
-      to   = c("B", "C", "A"),
+      to = c("B", "C", "A"),
       stringsAsFactors = FALSE
     )
     audit <- audit_redirects(redirects)
@@ -83,8 +83,10 @@ describe("audit_redirects basic functionality", {
 
 describe("audit_redirects edge cases", {
   it("handles empty redirects", {
-    redirects <- data.frame(from = character(0), to = character(0),
-                            stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = character(0), to = character(0),
+      stringsAsFactors = FALSE
+    )
     audit <- audit_redirects(redirects)
     expect_equal(audit$n_rules, 0)
     expect_equal(audit$n_self_refs, 0)
@@ -93,8 +95,10 @@ describe("audit_redirects edge cases", {
   })
 
   it("handles all-NA redirects", {
-    redirects <- data.frame(from = c(NA, NA), to = c(NA, NA),
-                            stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = c(NA, NA), to = c(NA, NA),
+      stringsAsFactors = FALSE
+    )
     audit <- audit_redirects(redirects)
     expect_equal(audit$n_rules, 0)
   })
@@ -121,7 +125,7 @@ describe("audit_redirects edge cases", {
   it("print method works without error", {
     redirects <- data.frame(
       from = c("A", "B", "C", "D", "D", "E"),
-      to   = c("B", "C", "A", "X", "Y", "E"),
+      to = c("B", "C", "A", "X", "Y", "E"),
       stringsAsFactors = FALSE
     )
     audit <- audit_redirects(redirects)
@@ -134,7 +138,7 @@ describe("audit_redirects print method coverage", {
   it("prints orphaned redirects info when present", {
     redirects <- data.frame(
       from = c("A", "B"),
-      to   = c("X", "Y"),
+      to = c("X", "Y"),
       stringsAsFactors = FALSE
     )
     edges <- data.frame(
@@ -147,7 +151,7 @@ describe("audit_redirects print method coverage", {
   it("prints long chains when present", {
     redirects <- data.frame(
       from = c("A", "B", "C"),
-      to   = c("B", "C", "Final"),
+      to = c("B", "C", "Final"),
       stringsAsFactors = FALSE
     )
     audit <- audit_redirects(redirects)
@@ -171,7 +175,7 @@ describe("audit_redirects print method coverage", {
   it("prints all sections for complex redirects", {
     redirects <- data.frame(
       from = c("A", "B", "C", "D", "D", "E"),
-      to   = c("B", "C", "A", "X", "Y", "E"),
+      to = c("B", "C", "A", "X", "Y", "E"),
       stringsAsFactors = FALSE
     )
     audit <- audit_redirects(redirects)
@@ -183,8 +187,10 @@ describe("audit_redirects print method coverage", {
   })
 
   it("prints empty report for zero-rule audit", {
-    redirects <- data.frame(from = character(0), to = character(0),
-                            stringsAsFactors = FALSE)
+    redirects <- data.frame(
+      from = character(0), to = character(0),
+      stringsAsFactors = FALSE
+    )
     audit <- audit_redirects(redirects)
     expect_output(print(audit), "Total rules.*0")
   })
@@ -195,7 +201,7 @@ describe("audit_redirects only self-referencing redirects", {
   it("handles case where all redirects are self-refs", {
     redirects <- data.frame(
       from = c("A", "B"),
-      to   = c("A", "B"),
+      to = c("A", "B"),
       stringsAsFactors = FALSE
     )
     audit <- audit_redirects(redirects)
@@ -218,7 +224,9 @@ describe("audit_redirects input validation", {
 
   it("errors on non-data-frame edge_list_df", {
     redirects <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    expect_error(audit_redirects(redirects, edge_list_df = "bad"),
-                 "must be a data frame or NULL")
+    expect_error(
+      audit_redirects(redirects, edge_list_df = "bad"),
+      "must be a data frame or NULL"
+    )
   })
 })

@@ -1,6 +1,6 @@
 #' @title Compare Two PageRank Results
-#' @description Performs a full outer join on two PageRank result data frames and
-#'   computes deltas, percentage changes, and rank changes for each node.
+#' @description Performs a full outer join on two PageRank result data frames
+#'   and computes deltas, percentage changes, and rank changes for each node.
 #'   Summary statistics are attached as an attribute.
 #'
 #' @param pr_a A data frame of PageRank results (model A / baseline).
@@ -20,7 +20,8 @@
 #'     \item{pagerank_a, pagerank_b}{PageRank scores from each model (`NA` when
 #'       the node is absent from that model)}
 #'     \item{delta}{`pagerank_b - pagerank_a`}
-#'     \item{pct_change}{Percentage change from a to b (`NA` when a is `NA` or 0)}
+#'     \item{pct_change}{Percentage change from a to b (`NA` when a is `NA` or
+#'       0)}
 #'     \item{rank_a, rank_b}{Ordinal rank (1 = highest PageRank) within each
 #'       model (`NA` when the node is absent)}
 #'     \item{rank_delta}{`rank_a - rank_b` (positive = improved in b)}
@@ -36,12 +37,16 @@
 #'
 #' @export
 #' @examples
-#' pr_a <- data.frame(node_name = c("A", "B", "C"),
-#'                    pagerank = c(0.5, 0.3, 0.2),
-#'                    stringsAsFactors = FALSE)
-#' pr_b <- data.frame(node_name = c("A", "B", "D"),
-#'                    pagerank = c(0.4, 0.35, 0.25),
-#'                    stringsAsFactors = FALSE)
+#' pr_a <- data.frame(
+#'   node_name = c("A", "B", "C"),
+#'   pagerank = c(0.5, 0.3, 0.2),
+#'   stringsAsFactors = FALSE
+#' )
+#' pr_b <- data.frame(
+#'   node_name = c("A", "B", "D"),
+#'   pagerank = c(0.4, 0.35, 0.25),
+#'   stringsAsFactors = FALSE
+#' )
 #' result <- compare_pagerank(pr_a, pr_b)
 #' print(result)
 #' attr(result, "summary")
@@ -50,7 +55,6 @@ compare_pagerank <- function(pr_a, pr_b,
                              pr_col = "pagerank",
                              label_a = "a",
                              label_b = "b") {
-
   # --- Validation ---
   if (!is.data.frame(pr_a)) stop("`pr_a` must be a data frame.", call. = FALSE)
   if (!is.data.frame(pr_b)) stop("`pr_b` must be a data frame.", call. = FALSE)
@@ -80,7 +84,7 @@ compare_pagerank <- function(pr_a, pr_b,
   )
 
   # Ordinal rank: 1 = highest PR
- a$rank_a <- rank(-a$pr_a, ties.method = "min")
+  a$rank_a <- rank(-a$pr_a, ties.method = "min")
   b$rank_b <- rank(-b$pr_b, ties.method = "min")
 
   # --- Full Outer Join ---
@@ -113,8 +117,10 @@ compare_pagerank <- function(pr_a, pr_b,
     rank_delta = merged$rank_delta,
     stringsAsFactors = FALSE
   )
-  names(result) <- c(node_col, pr_col_a, pr_col_b, "delta", "pct_change",
-                      rank_col_a, rank_col_b, "rank_delta")
+  names(result) <- c(
+    node_col, pr_col_a, pr_col_b, "delta", "pct_change",
+    rank_col_a, rank_col_b, "rank_delta"
+  )
 
   # --- Sort by absolute delta descending ---
   abs_delta <- abs(result$delta)

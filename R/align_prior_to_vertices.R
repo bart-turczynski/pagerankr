@@ -8,9 +8,9 @@
 #'
 #'   The prior URLs are expected to already share the vertex namespace (i.e.
 #'   canonicalized with the same \code{rurl} settings and folded through the
-#'   same redirect map as the edges). [pagerank()] performs that canonicalization
-#'   and redirect-fold before calling this function; call it directly only when
-#'   your prior URLs already match \code{vertex_names}.
+#'   same redirect map as the edges). [pagerank()] performs that
+#'   canonicalization and redirect-fold before calling this function; call it
+#'   directly only when your prior URLs already match \code{vertex_names}.
 #'
 #' @param vertex_names Character vector of the graph's vertex names, in graph
 #'   order (typically \code{igraph::V(graph)$name}).
@@ -40,9 +40,10 @@
 #'   prior contribute zero to the authority component.
 #' @param alpha Numeric in \code{[0, 1]}, the mixture weight between a uniform
 #'   teleport and the authority-weighted teleport:
-#'   \code{p = alpha * uniform + (1 - alpha) * authority_share}. \code{alpha = 0}
-#'   (default) is pure authority teleport (pages with no external authority get
-#'   no teleport mass, though they still receive rank via inlinks);
+#'   \code{p = alpha * uniform + (1 - alpha) * authority_share}.
+#'   \code{alpha = 0} (default) is pure authority teleport (pages with no
+#'   external authority get no teleport mass, though they still receive rank
+#'   via inlinks);
 #'   \code{alpha = 1} reproduces standard uniform PageRank. \code{alpha} is a
 #'   smoothing knob, \emph{not} a dead-node mechanism — isolate/self-loop
 #'   handling owns dead nodes.
@@ -56,7 +57,8 @@
 #'   \code{TRUE}.
 #'
 #' @return A numeric vector the same length as \code{vertex_names}, in the same
-#'   order, summing to 1 (suitable for \code{igraph::page_rank(personalized = )}).
+#'   order, summing to 1 (suitable for
+#'   \code{igraph::page_rank(personalized = )}).
 #'   Excluded vertices get exactly 0. If the prior matches no vertex and
 #'   \code{alpha = 0}, the function falls back to a uniform vector over the
 #'   non-excluded vertices and warns.
@@ -81,25 +83,32 @@
 #'   stringsAsFactors = FALSE
 #' )
 #' # Pure linear authority share; sink excluded
-#' align_prior_to_vertices(v, prior, exclude_nodes = "__pr_nofollow_sink__",
-#'                         verbose = FALSE)
+#' align_prior_to_vertices(v, prior,
+#'   exclude_nodes = "__pr_nofollow_sink__",
+#'   verbose = FALSE
+#' )
 #' # Compress the dynamic range
-#' align_prior_to_vertices(v, prior, transform = "log",
-#'                         exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE)
+#' align_prior_to_vertices(v, prior,
+#'   transform = "log",
+#'   exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE
+#' )
 #' # Authority-tilted uniform (every real page keeps a baseline)
-#' align_prior_to_vertices(v, prior, alpha = 0.15,
-#'                         exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE)
+#' align_prior_to_vertices(v, prior,
+#'   alpha = 0.15,
+#'   exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE
+#' )
 align_prior_to_vertices <- function(vertex_names,
                                     prior_df,
                                     prior_url_col = "url",
                                     prior_weight_col = "weight",
-                                    transform = c("none", "log", "percentile",
-                                                  "minmax", "zipf",
-                                                  "rank_linear"),
+                                    transform = c(
+                                      "none", "log", "percentile",
+                                      "minmax", "zipf",
+                                      "rank_linear"
+                                    ),
                                     alpha = 0,
                                     exclude_nodes = character(0),
                                     verbose = TRUE) {
-
   transform <- match.arg(transform)
 
   # --- Validation ---
@@ -108,12 +117,14 @@ align_prior_to_vertices <- function(vertex_names,
     stop("`prior_df` must be a data frame.", call. = FALSE)
   }
   if (nrow(prior_df) > 0 &&
-      !all(c(prior_url_col, prior_weight_col) %in% names(prior_df))) {
+        !all(c(prior_url_col, prior_weight_col) %in% names(prior_df))) {
     stop("`prior_df` must have '", prior_url_col, "' and '", prior_weight_col,
-         "' columns.", call. = FALSE)
+      "' columns.",
+      call. = FALSE
+    )
   }
   if (!is.numeric(alpha) || length(alpha) != 1 || is.na(alpha) ||
-      alpha < 0 || alpha > 1) {
+        alpha < 0 || alpha > 1) {
     stop("`alpha` must be a single number between 0 and 1.", call. = FALSE)
   }
 
@@ -146,7 +157,7 @@ align_prior_to_vertices <- function(vertex_names,
   # --- Match onto vertices (absent vertices -> raw 0) ---
   idx <- match(vertex_names, prior_urls)
   raw <- ifelse(is.na(idx), 0, prior_w[idx])
-  raw[!real] <- 0  # excluded nodes never carry authority
+  raw[!real] <- 0 # excluded nodes never carry authority
 
   # --- Transform authority (only where authority is present) ---
   authority <- rep(0, n)
@@ -173,10 +184,12 @@ align_prior_to_vertices <- function(vertex_names,
       p <- uniform
       if (verbose) {
         warning("Prior matched no vertices; falling back to uniform teleport ",
-                "over the ", n_real, " non-excluded vertices.", call. = FALSE)
+          "over the ", n_real, " non-excluded vertices.",
+          call. = FALSE
+        )
       }
     } else {
-      p <- rep(1 / n, n)  # degenerate: everything excluded
+      p <- rep(1 / n, n) # degenerate: everything excluded
     }
   } else {
     p <- p / s
@@ -191,12 +204,15 @@ align_prior_to_vertices <- function(vertex_names,
     w_unmatched <- sum(prior_w[unmatched_mask])
     uniform_mass <- if (auth_sum > 0) alpha else 1
     message(sprintf(
-      paste0("TIPR prior aligned: %d/%d real vertices carry authority; ",
-             "transform='%s', alpha=%.3g (uniform mass ~%.1f%%). ",
-             "%d prior URL(s) (sum weight %.0f) did not fold onto any vertex ",
-             "and were dropped."),
+      paste0(
+        "TIPR prior aligned: %d/%d real vertices carry authority; ",
+        "transform='%s', alpha=%.3g (uniform mass ~%.1f%%). ",
+        "%d prior URL(s) (sum weight %.0f) did not fold onto any vertex ",
+        "and were dropped."
+      ),
       n_auth, n_real, transform, alpha, uniform_mass * 100,
-      n_unmatched, w_unmatched))
+      n_unmatched, w_unmatched
+    ))
   }
 
   p
