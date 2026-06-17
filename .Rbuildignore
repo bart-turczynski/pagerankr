@@ -2,6 +2,7 @@
 ^\.Rproj\.user$
 ^\.git$
 ^\.github$
+^\.githooks$
 ^\.gitignore$
 ^\.Rbuildignore$
 ^README\.Rmd$
