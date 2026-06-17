@@ -14,7 +14,13 @@
 #' @param clean_redirect_urls Logical, whether to clean URLs in the redirect
 #'   list. Defaults to TRUE. Only effective if `redirects_df` is provided.
 #' @param rurl_params A list of parameters to pass to `rurl::clean_url`.
-#'   Defaults to an empty list.
+#'   Defaults to an empty list. `protocol_handling` defaults to `"keep"` and
+#'   `case_handling` to `"lower_host"` for cross-project canonicalization
+#'   consistency. If you set `host_encoding` (`"idna"` or `"unicode"`) to fold
+#'   internationalized (IDN) hosts, that same value is also passed to the
+#'   domain-filtering step so its comparisons stay consistent with the cleaned
+#'   node keys. (Registrable-domain matching is encoding-independent, so this
+#'   only matters if host-level filtering is involved.)
 #' @param self_loops A character string specifying how to handle self-loops.
 #'   Either "drop" (default) or "keep".
 #' @param drop_isolates_flag Logical, whether to drop isolated nodes before
@@ -448,12 +454,19 @@ pagerank <- function(edge_list_df,
 
   # --- 2.7. Domain filtering ---
   if (!is.null(keep_domains) || !is.null(exclude_domains)) {
+    # Match the host_encoding used when cleaning so filter keys and the
+    # (already cleaned) node keys fold IDN hosts the same way.
+    filter_host_encoding <- effective_rurl_params$host_encoding
+    if (is.null(filter_host_encoding)) {
+      filter_host_encoding <- "keep"
+    }
     current_edge_list <- filter_links_by_domain(
       edge_list_df = current_edge_list,
       from_col = edge_from_col,
       to_col = edge_to_col,
       keep_domains = keep_domains,
-      ignore_domains = exclude_domains
+      ignore_domains = exclude_domains,
+      host_encoding = filter_host_encoding
     )
   }
 

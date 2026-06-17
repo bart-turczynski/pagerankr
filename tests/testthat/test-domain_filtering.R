@@ -186,6 +186,65 @@ describe("filter_links_by_domain report and edge cases", {
     expect_equal(nrow(icann_res), 1)
   })
 
+  it("host_encoding folds IDN hosts for host-based matching", {
+    links <- data.frame(
+      from = c("http://münchen.de/a", "http://xn--mnchen-3ya.de/b"),
+      to = c("http://xn--mnchen-3ya.de/b", "http://münchen.de/a"),
+      stringsAsFactors = FALSE
+    )
+    # keep (default): the two spellings are compared as written and differ, so
+    # a single-spelling keep_hosts cannot keep an edge whose other endpoint
+    # uses the alternate spelling.
+    expect_equal(
+      nrow(filter_links_by_domain(links, keep_hosts = "münchen.de")),
+      0
+    )
+    # idna: both spellings (and the filter value) fold to Punycode, so all
+    # edges match.
+    expect_equal(
+      nrow(filter_links_by_domain(
+        links,
+        keep_hosts = "münchen.de", host_encoding = "idna"
+      )),
+      2
+    )
+    # unicode: both fold to Unicode; a Punycode filter value folds too.
+    expect_equal(
+      nrow(filter_links_by_domain(
+        links,
+        keep_hosts = "xn--mnchen-3ya.de", host_encoding = "unicode"
+      )),
+      2
+    )
+  })
+
+  it("registrable-domain matching is encoding-independent", {
+    links <- data.frame(
+      from = c("http://münchen.de/a", "http://xn--mnchen-3ya.de/b"),
+      to = c("http://xn--mnchen-3ya.de/b", "http://münchen.de/a"),
+      stringsAsFactors = FALSE
+    )
+    # The registrable domain is the same regardless of host_encoding, so a
+    # domain keep matches both spellings under any encoding.
+    for (he in c("keep", "idna", "unicode")) {
+      expect_equal(
+        nrow(filter_links_by_domain(
+          links,
+          keep_domains = "münchen.de", host_encoding = he
+        )),
+        2
+      )
+    }
+  })
+
+  it("rejects an invalid host_encoding", {
+    links <- data.frame(from = "http://a.com", to = "http://b.com")
+    expect_error(
+      filter_links_by_domain(links, keep_domains = "a.com",
+                             host_encoding = "bogus")
+    )
+  })
+
   it("rejects an invalid psl_section", {
     links <- data.frame(from = "http://a.com", to = "http://b.com")
     expect_error(

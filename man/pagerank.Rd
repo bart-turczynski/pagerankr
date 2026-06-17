@@ -52,7 +52,13 @@ Defaults to TRUE.}
 Defaults to TRUE. Only effective if `redirects_df` is provided.}
 
 \item{rurl_params}{A list of parameters to pass to `rurl::clean_url`.
-Defaults to an empty list.}
+Defaults to an empty list. `protocol_handling` defaults to `"keep"` and
+`case_handling` to `"lower_host"` for cross-project canonicalization
+consistency. If you set `host_encoding` (`"idna"` or `"unicode"`) to fold
+internationalized (IDN) hosts, that same value is also passed to the
+domain-filtering step so its comparisons stay consistent with the cleaned
+node keys. (Registrable-domain matching is encoding-independent, so this
+only matters if host-level filtering is involved.)}
 
 \item{self_loops}{A character string specifying how to handle self-loops.
 Either "drop" (default) or "keep".}
