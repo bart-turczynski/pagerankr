@@ -166,22 +166,13 @@ filter_links_by_domain <- function(edge_list_df,
 
 
 # --- Internal helpers ---
+#
+# These helpers pass raw strings straight to rurl. rurl's default
+# `protocol_handling = "keep"` adds a scheme to scheme-less input (and handles
+# scheme-relative `//`), and its default `case_handling = "lower_host"`
+# lowercases the host, so no local scheme-prepending or lower-casing is needed.
 
-#' Ensure URLs have a scheme (needed for rurl::get_host / get_domain)
-#' @noRd
-.ensure_scheme <- function(urls) {
-  urls <- as.character(urls)
-  needs_scheme <- !grepl("^[a-zA-Z][a-zA-Z0-9+.-]*://", urls) &
-    !grepl("^//", urls) &
-    !is.na(urls)
-  urls[needs_scheme] <- paste0("http://", urls[needs_scheme])
-  # Handle scheme-relative //
-  scheme_relative <- grepl("^//", urls) & !is.na(urls)
-  urls[scheme_relative] <- paste0("http:", urls[scheme_relative])
-  urls
-}
-
-#' Resolve domain strings (clean + extract registrable domain)
+#' Resolve domain strings (extract registrable domain)
 #' @noRd
 .resolve_domains <- function(domains) {
   if (is.null(domains) || length(domains) == 0) {
@@ -192,14 +183,12 @@ filter_links_by_domain <- function(edge_list_df,
   if (length(domains) == 0) {
     return(character(0))
   }
-  with_scheme <- .ensure_scheme(domains)
-  extracted <- rurl::get_domain(with_scheme)
-  extracted <- tolower(extracted)
+  extracted <- rurl::get_domain(domains)
   extracted <- extracted[!is.na(extracted) & nzchar(extracted)]
   sort(unique(extracted))
 }
 
-#' Resolve host strings (clean + extract host)
+#' Resolve host strings (extract host)
 #' @noRd
 .resolve_hosts <- function(hosts) {
   if (is.null(hosts) || length(hosts) == 0) {
@@ -210,9 +199,7 @@ filter_links_by_domain <- function(edge_list_df,
   if (length(hosts) == 0) {
     return(character(0))
   }
-  with_scheme <- .ensure_scheme(hosts)
-  extracted <- rurl::get_host(with_scheme)
-  extracted <- tolower(extracted)
+  extracted <- rurl::get_host(hosts)
   extracted <- extracted[!is.na(extracted) & nzchar(extracted)]
   sort(unique(extracted))
 }
@@ -226,9 +213,8 @@ filter_links_by_domain <- function(edge_list_df,
   if (length(unique_urls) == 0) {
     return(list(host_map = character(0), domain_map = character(0)))
   }
-  with_scheme <- .ensure_scheme(unique_urls)
-  hosts <- tolower(rurl::get_host(with_scheme))
-  domains <- tolower(rurl::get_domain(with_scheme))
+  hosts <- rurl::get_host(unique_urls)
+  domains <- rurl::get_domain(unique_urls)
   list(
     host_map = stats::setNames(hosts, unique_urls),
     domain_map = stats::setNames(domains, unique_urls)
