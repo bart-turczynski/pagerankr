@@ -12,6 +12,7 @@ pagerank(
   rurl_params = list(),
   self_loops = c("drop", "keep"),
   drop_isolates_flag = TRUE,
+  reverse = FALSE,
   weight_col = NULL,
   nofollow_col = NULL,
   nofollow_action = c("evaporate", "drop", "keep"),
@@ -67,6 +68,12 @@ Either "drop" (default) or "keep".}
 
 \item{drop_isolates_flag}{Logical, whether to drop isolated nodes before
 PageRank computation. Defaults to TRUE.}
+
+\item{reverse}{Logical. If `TRUE`, PageRank is computed on the transposed
+(edge-reversed) graph, yielding reverse / inverse PageRank instead of the
+usual inflow score. Default `FALSE`. See the "Reverse / inverse PageRank"
+section in Details for what it measures and which other arguments are
+compatible.}
 
 \item{weight_col}{Optional name of a numeric column in `edge_list_df`
 containing edge weights. Higher weights make edges more likely to be
@@ -220,6 +227,42 @@ are removed (`"vanish"`).
 
 **Priority rule:** robots.txt always takes precedence over noindex. If a
 page is both robots-blocked and noindex, it is treated as robots-blocked.
+
+\subsection{Reverse / inverse PageRank (`reverse = TRUE`)}{
+
+Standard PageRank measures **inflow** importance ("who points to me"). With
+`reverse = TRUE` the link graph is transposed before computation, yielding
+**outflow centrality** ("does this page funnel authority outward"). This is
+the *reverse PageRank* of Bar-Yossef & Mashiach (CIKM 2008), equivalent to
+the **CheiRank** of the transposed Google matrix, and the PageRank-flavoured
+analogue of the *hub* score in Kleinberg's HITS. The sibling `semantic`
+project consumes this as an outflow signal.
+
+Only edge orientation is flipped; URL cleaning, redirect folding, dedup,
+edge weights, domain/host filtering, and the teleport prior all behave
+identically (they are direction-agnostic). To obtain it directly from an
+edge list, swapping the from/to columns and running ordinary `pagerank()` is
+equivalent — `reverse = TRUE` just performs that flip internally so weight,
+redirect, and sink handling cannot be mis-wired by a manual swap.
+
+**This is unrelated to the TIPR / personalized-prior feature (`prior_df`).**
+That seeds the *teleport* vector with external authority (e.g. backlinks) but
+still computes inflow PageRank on the forward graph; `reverse` is a pure
+*graph operation* on edge direction. The two are orthogonal and may be
+combined.
+
+**Direction-sensitive features are rejected under `reverse = TRUE`** because
+their semantics do not transpose:
+\describe{
+  \item{`nofollow_action = "evaporate"`}{Errors. The evaporation sink models
+    a *source* wasting its outgoing budget; reversed, it would inject rank
+    instead. Use `"drop"` — the correct treatment of a nofollowed link for
+    outflow centrality, since it funnels no authority outward — or `"keep"`.}
+  \item{`indexability_df`}{Errors. noindex (outlinks-as-nofollow) and
+    robots.txt blocking (drop outlinks + trap self-loop) encode forward
+    crawl/index behaviour with no meaningful transpose.}
+}
+}
 }
 \examples{
 # Basic example
@@ -255,4 +298,9 @@ edges_nf <- data.frame(
 pr_nf <- pagerank(edges_nf, nofollow_col = "nofollow",
                   nofollow_action = "evaporate", clean_edge_urls = FALSE)
 print(pr_nf)
+
+# Reverse / inverse PageRank (outflow centrality, a.k.a. CheiRank):
+# a page that funnels authority outward scores high.
+pr_reverse <- pagerank(edges, redirects_df = redirects, reverse = TRUE)
+print(pr_reverse)
 }

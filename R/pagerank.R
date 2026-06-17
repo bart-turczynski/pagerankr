@@ -25,6 +25,11 @@
 #'   Either "drop" (default) or "keep".
 #' @param drop_isolates_flag Logical, whether to drop isolated nodes before
 #'   PageRank computation. Defaults to TRUE.
+#' @param reverse Logical. If `TRUE`, PageRank is computed on the transposed
+#'   (edge-reversed) graph, yielding reverse / inverse PageRank instead of the
+#'   usual inflow score. Default `FALSE`. See the "Reverse / inverse PageRank"
+#'   section in Details for what it measures and which other arguments are
+#'   compatible.
 #' @param weight_col Optional name of a numeric column in `edge_list_df`
 #'   containing edge weights. Higher weights make edges more likely to be
 #'   followed. If `NULL` (default), all edges have equal weight.
@@ -145,6 +150,41 @@
 #' **Priority rule:** robots.txt always takes precedence over noindex. If a
 #' page is both robots-blocked and noindex, it is treated as robots-blocked.
 #'
+#' ## Reverse / inverse PageRank (`reverse = TRUE`)
+#'
+#' Standard PageRank measures **inflow** importance ("who points to me"). With
+#' `reverse = TRUE` the link graph is transposed before computation, yielding
+#' **outflow centrality** ("does this page funnel authority outward"). This is
+#' the *reverse PageRank* of Bar-Yossef & Mashiach (CIKM 2008), equivalent to
+#' the **CheiRank** of the transposed Google matrix, and the PageRank-flavoured
+#' analogue of the *hub* score in Kleinberg's HITS. The sibling `semantic`
+#' project consumes this as an outflow signal.
+#'
+#' Only edge orientation is flipped; URL cleaning, redirect folding, dedup,
+#' edge weights, domain/host filtering, and the teleport prior all behave
+#' identically (they are direction-agnostic). To obtain it directly from an
+#' edge list, swapping the from/to columns and running ordinary `pagerank()` is
+#' equivalent — `reverse = TRUE` just performs that flip internally so weight,
+#' redirect, and sink handling cannot be mis-wired by a manual swap.
+#'
+#' **This is unrelated to the TIPR / personalized-prior feature (`prior_df`).**
+#' That seeds the *teleport* vector with external authority (e.g. backlinks) but
+#' still computes inflow PageRank on the forward graph; `reverse` is a pure
+#' *graph operation* on edge direction. The two are orthogonal and may be
+#' combined.
+#'
+#' **Direction-sensitive features are rejected under `reverse = TRUE`** because
+#' their semantics do not transpose:
+#' \describe{
+#'   \item{`nofollow_action = "evaporate"`}{Errors. The evaporation sink models
+#'     a *source* wasting its outgoing budget; reversed, it would inject rank
+#'     instead. Use `"drop"` — the correct treatment of a nofollowed link for
+#'     outflow centrality, since it funnels no authority outward — or `"keep"`.}
+#'   \item{`indexability_df`}{Errors. noindex (outlinks-as-nofollow) and
+#'     robots.txt blocking (drop outlinks + trap self-loop) encode forward
+#'     crawl/index behaviour with no meaningful transpose.}
+#' }
+#'
 #' @return A data frame with node names and their PageRank scores. When
 #'   nofollow evaporation, indexability handling, or `robots_blocked_action =
 #'   "vanish"` is active, scores may sum to less than 1 (the difference is
@@ -193,6 +233,11 @@
 #'   nofollow_action = "evaporate", clean_edge_urls = FALSE
 #' )
 #' print(pr_nf)
+#'
+#' # Reverse / inverse PageRank (outflow centrality, a.k.a. CheiRank):
+#' # a page that funnels authority outward scores high.
+#' pr_reverse <- pagerank(edges, redirects_df = redirects, reverse = TRUE)
+#' print(pr_reverse)
 pagerank <- function(edge_list_df,
                      redirects_df = NULL,
                      clean_edge_urls = TRUE,
@@ -200,6 +245,7 @@ pagerank <- function(edge_list_df,
                      rurl_params = list(),
                      self_loops = c("drop", "keep"),
                      drop_isolates_flag = TRUE,
+                     reverse = FALSE,
                      weight_col = NULL,
                      nofollow_col = NULL,
                      nofollow_action = c("evaporate", "drop", "keep"),
@@ -266,6 +312,43 @@ pagerank <- function(edge_list_df,
   }
   if (!is.logical(drop_isolates_flag) || length(drop_isolates_flag) != 1) {
     stop("`drop_isolates_flag` must be a single logical value.", call. = FALSE)
+  }
+  if (!is.logical(reverse) || length(reverse) != 1 || is.na(reverse)) {
+    stop("`reverse` must be a single logical value.", call. = FALSE)
+  }
+
+  # --- Reverse / inverse PageRank (CheiRank) compatibility guards ---
+  # Reversal transposes only the link graph. Features whose semantics depend on
+  # the *direction of authority flow* do not transpose cleanly and are rejected
+  # rather than silently producing misleading scores:
+  #   * nofollow "evaporate": the sink device models the SOURCE wasting its
+  #     outgoing budget (a forward concept); reversed, the sink would inject
+  #     rank instead. Use "drop" (the correct CheiRank treatment: a nofollowed
+  #     link funnels no authority outward) or "keep".
+  #   * indexability: noindex => outlinks-as-nofollow and robots-blocked =>
+  #     drop-outlinks + trap-self-loop both encode forward crawl/index
+  #     behaviour with no meaningful transpose.
+  # Direction-agnostic features (cleaning, redirect folding, dedup, weights,
+  # domain/host filtering, TIPR prior) remain fully supported under reverse.
+  if (isTRUE(reverse)) {
+    if (!is.null(indexability_df) && nrow(indexability_df) > 0) {
+      stop(
+        "`indexability_df` is not supported with `reverse = TRUE`: noindex ",
+        "and robots.txt handling encode forward crawl semantics that do not ",
+        "transpose. Drop `indexability_df` or set `reverse = FALSE`.",
+        call. = FALSE
+      )
+    }
+    if (!is.null(nofollow_col) && nofollow_action == "evaporate") {
+      stop(
+        "`nofollow_action = \"evaporate\"` is not supported with ",
+        "`reverse = TRUE`: the evaporation sink models a source wasting its ",
+        "outgoing budget and does not transpose. Use `nofollow_action = ",
+        "\"drop\"` (a nofollowed link funnels no authority outward) or ",
+        "\"keep\", or set `reverse = FALSE`.",
+        call. = FALSE
+      )
+    }
   }
 
   # Validate weight_col
@@ -721,6 +804,7 @@ pagerank <- function(edge_list_df,
     from_col = edge_from_col,
     to_col = edge_to_col,
     vertex_col_name = temp_node_col_name,
+    reverse = reverse,
     weight_col = weight_col,
     prior_df = folded_prior_df,
     prior_url_col = prior_url_col,
