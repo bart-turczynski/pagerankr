@@ -937,6 +937,46 @@ describe("pagerank() domain filtering with NULL (default)", {
   })
 })
 
+describe("pagerank() host-level filtering", {
+  edges <- data.frame(
+    from = c("http://www.ex.com/a", "http://www.ex.com/a"),
+    to = c("http://www.ex.com/b", "http://cdn.ex.com/c"),
+    stringsAsFactors = FALSE
+  )
+
+  it("keep_hosts restricts to an exact host", {
+    pr <- pagerank(edges, keep_hosts = "www.ex.com")
+    expect_setequal(
+      pr$node_name,
+      c("http://www.ex.com/a", "http://www.ex.com/b")
+    )
+  })
+
+  it("exclude_hosts drops edges touching a host", {
+    pr <- pagerank(edges, exclude_hosts = "cdn.ex.com")
+    expect_false(any(grepl("cdn.ex.com", pr$node_name)))
+    expect_equal(nrow(pr), 2)
+  })
+
+  it("host filtering folds IDN under a matching host_encoding", {
+    idn <- data.frame(
+      from = c("http://münchen.de/a", "http://münchen.de/a"),
+      to = c("http://xn--mnchen-3ya.de/b", "http://other.de/c"),
+      stringsAsFactors = FALSE
+    )
+    # With idna folding, the Punycode `to` endpoint matches the Unicode
+    # keep_hosts value, so that edge survives (2 nodes).
+    folded <- pagerank(
+      idn,
+      keep_hosts = "münchen.de", rurl_params = list(host_encoding = "idna")
+    )
+    expect_equal(nrow(folded), 2)
+    # Without folding, the Punycode endpoint does not match -> dropped.
+    unfolded <- pagerank(idn, keep_hosts = "münchen.de")
+    expect_equal(nrow(unfolded), 0)
+  })
+})
+
 describe("pagerank() IDN host_encoding", {
   edges <- data.frame(
     from = c("http://münchen.de/a", "http://xn--mnchen-3ya.de/a"),

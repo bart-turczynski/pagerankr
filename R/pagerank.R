@@ -75,6 +75,14 @@
 #' @param exclude_domains Optional character vector of domains to exclude.
 #'   Edges where either endpoint belongs to one of these domains are removed.
 #'   Default `NULL` (no exclusion).
+#' @param keep_hosts Optional character vector of exact hosts to keep (e.g.
+#'   `"www.example.com"`), as opposed to registrable domains. Matched on the
+#'   exact host using the same canonicalization profile as cleaning, so IDN
+#'   folding (`host_encoding` in `rurl_params`) applies consistently. Default
+#'   `NULL`.
+#' @param exclude_hosts Optional character vector of exact hosts to exclude.
+#'   Edges where either endpoint matches one of these hosts are removed. Ignore
+#'   rules override keep rules. Default `NULL`.
 #' @param prior_df Optional per-URL external-authority prior for TIPR
 #'   (authority-weighted teleport). A data frame with one row per URL and a
 #'   numeric weight. The prior URLs are canonicalized with the same
@@ -218,6 +226,8 @@ pagerank <- function(edge_list_df,
                      ),
                      keep_domains = NULL,
                      exclude_domains = NULL,
+                     keep_hosts = NULL,
+                     exclude_hosts = NULL,
                      prior_df = NULL,
                      prior_url_col = "url",
                      prior_weight_col = "weight",
@@ -446,8 +456,9 @@ pagerank <- function(edge_list_df,
     )
   }
 
-  # --- 2.7. Domain filtering ---
-  if (!is.null(keep_domains) || !is.null(exclude_domains)) {
+  # --- 2.7. Domain / host filtering ---
+  if (!is.null(keep_domains) || !is.null(exclude_domains) ||
+        !is.null(keep_hosts) || !is.null(exclude_hosts)) {
     # Forward the same resolved canonicalization profile used for cleaning, so
     # the filter extracts hosts/domains exactly as the (already cleaned) node
     # keys were derived (host_encoding, www_handling, subdomain levels, etc.).
@@ -457,6 +468,8 @@ pagerank <- function(edge_list_df,
       to_col = edge_to_col,
       keep_domains = keep_domains,
       ignore_domains = exclude_domains,
+      keep_hosts = keep_hosts,
+      ignore_hosts = exclude_hosts,
       rurl_params = effective_rurl_params
     )
   }

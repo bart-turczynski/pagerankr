@@ -28,6 +28,8 @@ pagerank(
   loop_handling = c("error", "prune_loop", "break_arrow"),
   keep_domains = NULL,
   exclude_domains = NULL,
+  keep_hosts = NULL,
+  exclude_hosts = NULL,
   prior_df = NULL,
   prior_url_col = "url",
   prior_weight_col = "weight",
@@ -128,6 +130,16 @@ to internal links. Default `NULL` (no domain filtering).}
 \item{exclude_domains}{Optional character vector of domains to exclude.
 Edges where either endpoint belongs to one of these domains are removed.
 Default `NULL` (no exclusion).}
+
+\item{keep_hosts}{Optional character vector of exact hosts to keep (e.g.
+`"www.example.com"`), as opposed to registrable domains. Matched on the
+exact host using the same canonicalization profile as cleaning, so IDN
+folding (`host_encoding` in `rurl_params`) applies consistently. Default
+`NULL`.}
+
+\item{exclude_hosts}{Optional character vector of exact hosts to exclude.
+Edges where either endpoint matches one of these hosts are removed. Ignore
+rules override keep rules. Default `NULL`.}
 
 \item{prior_df}{Optional per-URL external-authority prior for TIPR
   (authority-weighted teleport). A data frame with one row per URL and a
