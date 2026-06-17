@@ -14,7 +14,8 @@ filter_links_by_domain(
   ignore_hosts = NULL,
   drop_third_party = TRUE,
   return_report = FALSE,
-  psl_section = c("all", "icann", "private")
+  psl_section = c("all", "icann", "private"),
+  host_encoding = c("keep", "idna", "unicode")
 )
 }
 \arguments{
@@ -49,6 +50,14 @@ domains, passed to `rurl::get_domain()` / `rurl::safe_parse_urls()`. One of
 Affects domain-based (not host-based) keep/ignore matching; e.g. under
 `"icann"`, `user.github.io` has registrable domain `github.io`, while under
 `"all"` it is `user.github.io`.}
+
+\item{host_encoding}{How internationalized (IDN) hosts are folded for
+host-based keep/ignore matching, passed to `rurl::safe_parse_urls()`. One
+of `"keep"` (default, compare hosts as written -- `münchen.de` and
+`xn--mnchen-3ya.de` are distinct), `"idna"` (fold to ASCII/Punycode), or
+`"unicode"` (fold to Unicode). To match a graph whose URLs were cleaned
+with a given `host_encoding`, use the same value here. Registrable-domain
+matching is encoding-independent and unaffected.}
 }
 \value{
 If `return_report = FALSE` (default), the filtered data frame

@@ -936,3 +936,26 @@ describe("pagerank() domain filtering with NULL (default)", {
     expect_equal(nrow(pr), 2)
   })
 })
+
+describe("pagerank() IDN host_encoding", {
+  edges <- data.frame(
+    from = c("http://münchen.de/a", "http://xn--mnchen-3ya.de/a"),
+    to = c("http://example.com/x", "http://example.com/y"),
+    stringsAsFactors = FALSE
+  )
+
+  it("keeps IDN spellings distinct by default (host_encoding = keep)", {
+    pr <- pagerank(edges)
+    expect_true(all(c(
+      "http://münchen.de/a", "http://xn--mnchen-3ya.de/a"
+    ) %in% pr$node_name))
+  })
+
+  it("folds IDN spellings to one node under host_encoding = idna", {
+    pr <- pagerank(edges, rurl_params = list(host_encoding = "idna"))
+    expect_false("http://münchen.de/a" %in% pr$node_name)
+    expect_true("http://xn--mnchen-3ya.de/a" %in% pr$node_name)
+    # München folded into one node; example.com/x and /y remain distinct
+    expect_equal(nrow(pr), 3)
+  })
+})
