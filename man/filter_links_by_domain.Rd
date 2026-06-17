@@ -15,7 +15,7 @@ filter_links_by_domain(
   drop_third_party = TRUE,
   return_report = FALSE,
   psl_section = c("all", "icann", "private"),
-  host_encoding = c("keep", "idna", "unicode")
+  rurl_params = list()
 )
 }
 \arguments{
@@ -51,13 +51,15 @@ Affects domain-based (not host-based) keep/ignore matching; e.g. under
 `"icann"`, `user.github.io` has registrable domain `github.io`, while under
 `"all"` it is `user.github.io`.}
 
-\item{host_encoding}{How internationalized (IDN) hosts are folded for
-host-based keep/ignore matching, passed to `rurl::safe_parse_urls()`. One
-of `"keep"` (default, compare hosts as written -- `münchen.de` and
-`xn--mnchen-3ya.de` are distinct), `"idna"` (fold to ASCII/Punycode), or
-`"unicode"` (fold to Unicode). To match a graph whose URLs were cleaned
-with a given `host_encoding`, use the same value here. Registrable-domain
-matching is encoding-independent and unaffected.}
+\item{rurl_params}{A list of `rurl` canonicalization arguments overriding
+pagerankr's profile per key, used when extracting hosts/domains from both
+the edge URLs and the keep/ignore values. Pass the **same** profile used to
+clean the graph so the comparison keys are derived identically. The
+host-relevant knobs are `host_encoding` (`"keep"`/`"idna"`/`"unicode"` --
+IDN folding; e.g. `"idna"` makes `münchen.de` and `xn--mnchen-3ya.de`
+match), `www_handling`, `subdomain_levels_to_keep`, `case_handling`, and
+`protocol_handling`. Registrable-domain matching is encoding-independent.
+When called from \code{\link{pagerank}}, this is forwarded automatically.}
 }
 \value{
 If `return_report = FALSE` (default), the filtered data frame

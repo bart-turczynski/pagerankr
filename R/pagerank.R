@@ -377,24 +377,18 @@ pagerank <- function(edge_list_df,
     character(0)
   }
 
-  # Default rurl_params for internal consistency if not overridden by user.
-  # These mirror the cross-project canonicalization contract (semantic FR-05):
-  #   - case_handling = "lower_host": scheme + host are case-insensitive
-  #     (RFC 3986), so WWW.Tidio.COM and www.tidio.com fold to one node; the
-  #     path keeps its case (paths are case-sensitive).
-  #   - protocol_handling = "keep": add a scheme to scheme-less URLs but do NOT
-  #     rewrite an existing one. (The old "http" default silently downgraded
-  #     https -> http, merging distinct scheme variants and breaking byte-parity
-  #     with the semantic side's node keys.)
-  effective_rurl_params <- rurl_params
-  if (is.null(effective_rurl_params$protocol_handling)) {
-    effective_rurl_params$protocol_handling <- "keep"
-  }
-  if (is.null(effective_rurl_params$case_handling)) {
-    effective_rurl_params$case_handling <- "lower_host"
-  }
-  # rurl::get_clean_url applies its own defaults for remaining params
-  # (www_handling, trailing_slash_handling, encoding, etc.).
+  # Resolve the full canonicalization profile once: every rurl knob pinned
+  # explicitly (see .canonical_profile()), with user `rurl_params` overriding
+  # per key. This single resolved profile drives BOTH the cleaning path below
+  # and the domain-filtering step (2.7), so the two cannot drift apart, and
+  # node identities never depend on rurl's own (version-dependent) defaults.
+  # It mirrors the cross-project canonicalization contract (semantic FR-05):
+  #   - case_handling = "lower_host": scheme + host fold case-insensitively
+  #     (RFC 3986); the path keeps its case.
+  #   - protocol_handling = "keep": add a scheme to scheme-less URLs but never
+  #     rewrite an existing one (an http->https redirect folds via the redirect
+  #     map, not by rewriting the scheme).
+  effective_rurl_params <- .resolve_rurl_params(rurl_params)
 
   # rurl::get_clean_url memoizes parses internally and the cache is shared
   # across calls, so edge and redirect URLs that overlap are canonicalized once
@@ -454,19 +448,16 @@ pagerank <- function(edge_list_df,
 
   # --- 2.7. Domain filtering ---
   if (!is.null(keep_domains) || !is.null(exclude_domains)) {
-    # Match the host_encoding used when cleaning so filter keys and the
-    # (already cleaned) node keys fold IDN hosts the same way.
-    filter_host_encoding <- effective_rurl_params$host_encoding
-    if (is.null(filter_host_encoding)) {
-      filter_host_encoding <- "keep"
-    }
+    # Forward the same resolved canonicalization profile used for cleaning, so
+    # the filter extracts hosts/domains exactly as the (already cleaned) node
+    # keys were derived (host_encoding, www_handling, subdomain levels, etc.).
     current_edge_list <- filter_links_by_domain(
       edge_list_df = current_edge_list,
       from_col = edge_from_col,
       to_col = edge_to_col,
       keep_domains = keep_domains,
       ignore_domains = exclude_domains,
-      host_encoding = filter_host_encoding
+      rurl_params = effective_rurl_params
     )
   }
 
