@@ -11,6 +11,7 @@ compute_pagerank(
   from_col = "from",
   to_col = "to",
   vertex_col_name = "node_name",
+  reverse = FALSE,
   weight_col = NULL,
   pr_node_col = "node_name",
   pr_value_col = "pagerank",
@@ -43,6 +44,15 @@ The column name is specified by `vertex_col_name`.}
 
 \item{vertex_col_name}{Name of the column in `vertices_df` containing node names.
 Default "node_name".}
+
+\item{reverse}{Logical. If `TRUE`, edge orientation is flipped before the
+graph is built, so PageRank is computed on the transposed graph. This is
+the reverse / inverse PageRank (a.k.a. CheiRank): instead of inflow
+importance ("who points to me"), it measures outflow centrality ("does this
+page funnel authority outward"). Vertices, weights, and the teleport prior
+are unaffected by the flip; only edge direction is reversed. Default
+`FALSE`. See [pagerank()] for the higher-level wrapper and the caveats on
+combining `reverse = TRUE` with direction-sensitive features.}
 
 \item{weight_col}{Optional name of a numeric column in `edge_list_df` containing
 edge weights. Higher weights make edges more likely to be followed in the

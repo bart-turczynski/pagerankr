@@ -20,6 +20,14 @@
 #' @param vertex_col_name Name of the column in `vertices_df` containing node
 #'   names.
 #'   Default "node_name".
+#' @param reverse Logical. If `TRUE`, edge orientation is flipped before the
+#'   graph is built, so PageRank is computed on the transposed graph. This is
+#'   the reverse / inverse PageRank (a.k.a. CheiRank): instead of inflow
+#'   importance ("who points to me"), it measures outflow centrality ("does this
+#'   page funnel authority outward"). Vertices, weights, and the teleport prior
+#'   are unaffected by the flip; only edge direction is reversed. Default
+#'   `FALSE`. See [pagerank()] for the higher-level wrapper and the caveats on
+#'   combining `reverse = TRUE` with direction-sensitive features.
 #' @param weight_col Optional name of a numeric column in `edge_list_df`
 #'   containing
 #'   edge weights. Higher weights make edges more likely to be followed in the
@@ -109,6 +117,7 @@ compute_pagerank <- function(edge_list_df,
                              from_col = "from",
                              to_col = "to",
                              vertex_col_name = "node_name",
+                             reverse = FALSE,
                              weight_col = NULL,
                              pr_node_col = "node_name",
                              pr_value_col = "pagerank",
@@ -148,6 +157,9 @@ compute_pagerank <- function(edge_list_df,
       "`damping` must be a single numeric value between 0 and 1.",
       call. = FALSE
     )
+  }
+  if (!is.logical(reverse) || length(reverse) != 1 || is.na(reverse)) {
+    stop("`reverse` must be a single logical value.", call. = FALSE)
   }
   if (!is.character(pr_node_col) || length(pr_node_col) != 1 ||
         nchar(pr_node_col) == 0) {
@@ -238,11 +250,21 @@ compute_pagerank <- function(edge_list_df,
 
   current_graph <- NULL
   if (nrow(valid_edges_df) > 0) {
+    # Reverse / inverse PageRank (CheiRank): flip edge orientation by feeding
+    # graph_from_data_frame the columns in (to, from) order. It keys on column
+    # POSITION (1 = source, 2 = target), not name, so swapping the order
+    # transposes the graph. Weights are aligned by row and the vertex set is
+    # order-independent, so neither is affected by the flip.
+    edges_for_construction <- if (reverse) {
+      valid_edges_df[, c(to_col, from_col), drop = FALSE]
+    } else {
+      valid_edges_df
+    }
     # If defined_nodes is NULL, igraph infers vertices from valid_edges_df.
     # If defined_nodes is provided, it uses them (and adds any from
     # valid_edges_df not in defined_nodes).
     current_graph <- igraph::graph_from_data_frame(
-      d = valid_edges_df,
+      d = edges_for_construction,
       directed = TRUE,
       vertices = defined_nodes
     )
