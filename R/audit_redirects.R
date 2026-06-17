@@ -55,13 +55,56 @@ audit_redirects <- function(redirects_df,
                             redirect_to_col = "to",
                             edge_from_col = "from",
                             edge_to_col = "to") {
+  result <- .audit_signal(
+    signal_df = redirects_df,
+    edge_list_df = edge_list_df,
+    from_col = redirect_from_col,
+    to_col = redirect_to_col,
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col,
+    what = "redirects_df"
+  )
+  class(result) <- "redirect_audit"
+  result
+}
+
+
+# --- Internal: neutral, signal-agnostic audit core ---
+
+#' Audit a single URL fold signal (redirects or canonicals)
+#'
+#' Signal-agnostic engine shared by [audit_redirects()] and
+#' [audit_canonicals()]: computes rule counts, self-references, conflicting
+#' sources, cycles, chain
+#' lengths, and (optionally) orphaned rules against an edge list. Knows nothing
+#' about whether the pairs are 3xx redirects or declared canonicals; callers
+#' attach the appropriate S3 class.
+#'
+#' @param signal_df Data frame of (from, to) pairs for one signal.
+#' @param edge_list_df Optional edge list for orphan detection.
+#' @param from_col,to_col Column names in `signal_df`.
+#' @param edge_from_col,edge_to_col Column names in `edge_list_df`.
+#' @param what Label used in validation error messages (e.g. `"redirects_df"`).
+#' @return An unclassed list with the audit fields (see [audit_redirects()]).
+#' @noRd
+.audit_signal <- function(signal_df,
+                          edge_list_df = NULL,
+                          from_col = "from",
+                          to_col = "to",
+                          edge_from_col = "from",
+                          edge_to_col = "to",
+                          what = "redirects_df") {
+  redirects_df <- signal_df
+  redirect_from_col <- from_col
+  redirect_to_col <- to_col
+
   # --- Validation ---
   if (!is.data.frame(redirects_df)) {
-    stop("`redirects_df` must be a data frame.", call. = FALSE)
+    stop("`", what, "` must be a data frame.", call. = FALSE)
   }
   if (nrow(redirects_df) > 0 &&
         !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
-    stop("`redirects_df` must have '", redirect_from_col, "' and '",
+    stop("`", what, "` must have '", redirect_from_col, "' and '",
       redirect_to_col, "' columns.",
       call. = FALSE
     )
@@ -106,7 +149,6 @@ audit_redirects <- function(redirects_df,
       to = character(0),
       stringsAsFactors = FALSE
     )
-    class(result) <- "redirect_audit"
     return(result)
   }
 
@@ -275,7 +317,6 @@ audit_redirects <- function(redirects_df,
     result$orphaned_redirects <- NULL
   }
 
-  class(result) <- "redirect_audit"
   result
 }
 

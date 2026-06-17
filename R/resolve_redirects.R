@@ -178,38 +178,111 @@ resolve_redirects <- function(edge_list_df,
     return(edge_list_df)
   }
 
-  clean_df <- data.frame(
-    from = redirect_sources, to = redirect_targets,
-    stringsAsFactors = FALSE
-  )
-  clean_df <- .preprocess_redirects(clean_df, "from", "to",
-    policy = duplicate_from_policy
-  )
-
-  if (nrow(clean_df) == 0) {
-    return(edge_list_df)
-  }
-
-  # --- Build canonical redirect map via graph ---
-  canonical_map <- .resolve_via_graph(clean_df$from, clean_df$to,
+  # --- Build canonical redirect map via the neutral signal-agnostic builder ---
+  canonical_map <- .build_terminal_map(
+    redirect_sources, redirect_targets,
+    duplicate_from_policy = duplicate_from_policy,
     loop_handling = loop_handling
   )
+
+  if (length(canonical_map) == 0) {
+    return(edge_list_df)
+  }
 
   # --- Apply map to edge list (vectorized) ---
   resolved_edge_list <- edge_list_df
 
   for (col_name in c(edge_from_col, edge_to_col)) {
     if (col_name %in% names(resolved_edge_list)) {
-      original_urls <- as.character(resolved_edge_list[[col_name]])
-      idx <- match(original_urls, names(canonical_map))
-      resolved_urls <- ifelse(!is.na(idx), canonical_map[idx], original_urls)
-      # Preserve original NAs
-      resolved_urls[is.na(original_urls)] <- NA_character_
-      resolved_edge_list[[col_name]] <- resolved_urls
+      resolved_edge_list[[col_name]] <- .apply_fold_map(
+        resolved_edge_list[[col_name]], canonical_map
+      )
     }
   }
 
   resolved_edge_list
+}
+
+
+# --- Internal: neutral, signal-agnostic terminal-map builder ---
+
+#' Build a terminal fold map from raw (from, to) pairs of any URL signal
+#'
+#' This is the reusable graph machinery shared by redirect resolution and
+#' canonical folding. It is deliberately signal-agnostic: it knows nothing
+#' about whether the pairs are 3xx redirects or declared rel=canonicals. Given
+#' source/target vectors it strips NAs and self-references, applies the chosen
+#' duplicate-source policy via [.preprocess_redirects()], then resolves chains
+#' and cycles to terminal destinations via [.resolve_via_graph()].
+#'
+#' @param from Character vector of source URLs.
+#' @param to Character vector of target URLs.
+#' @param duplicate_from_policy How to handle a source with multiple distinct
+#'   targets. See [resolve_redirects()].
+#' @param loop_handling How to handle cycles. See [resolve_redirects()].
+#' @return A named character vector mapping every reachable source URL to its
+#'   final terminal destination. Entries where a URL maps to itself are
+#'   retained (callers filter via [.apply_fold_map()] / `match()`). Returns an
+#'   empty named vector when there are no effective rules.
+#' @noRd
+.build_terminal_map <- function(from, to,
+                                duplicate_from_policy = "strict",
+                                loop_handling = "error") {
+  from <- as.character(from)
+  to <- as.character(to)
+
+  valid <- !is.na(from) & !is.na(to)
+  from <- from[valid]
+  to <- to[valid]
+
+  if (length(from) == 0) {
+    return(stats::setNames(character(0), character(0)))
+  }
+
+  # Drop self-references (no-op folds, e.g. self-canonicals / self-redirects).
+  self_ref <- from == to
+  from <- from[!self_ref]
+  to <- to[!self_ref]
+
+  if (length(from) == 0) {
+    return(stats::setNames(character(0), character(0)))
+  }
+
+  clean_df <- data.frame(from = from, to = to, stringsAsFactors = FALSE)
+  clean_df <- .preprocess_redirects(clean_df, "from", "to",
+    policy = duplicate_from_policy
+  )
+
+  if (nrow(clean_df) == 0) {
+    return(stats::setNames(character(0), character(0)))
+  }
+
+  .resolve_via_graph(clean_df$from, clean_df$to, loop_handling = loop_handling)
+}
+
+
+#' Apply a terminal fold map to a vector of URLs
+#'
+#' Replaces each URL with its mapped representative, leaving unmapped URLs and
+#' NAs untouched. Mirrors the vectorised replacement used throughout the
+#' redirect/canonical machinery so edges, priors, and externally reported maps
+#' all fold identically.
+#'
+#' @param urls Character vector (or coercible) of URLs to fold.
+#' @param map Named character vector (source -> representative), e.g. from
+#'   [.build_terminal_map()] or [.compose_fold_map()].
+#' @return Character vector the same length as `urls`, with mapped entries
+#'   replaced and original NAs preserved.
+#' @noRd
+.apply_fold_map <- function(urls, map) {
+  original <- as.character(urls)
+  if (length(map) == 0) {
+    return(original)
+  }
+  idx <- match(original, names(map))
+  resolved <- ifelse(!is.na(idx), unname(map)[idx], original)
+  resolved[is.na(original)] <- NA_character_
+  resolved
 }
 
 

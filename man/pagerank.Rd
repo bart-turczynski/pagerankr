@@ -27,6 +27,14 @@ pagerank(
   duplicate_from_policy = c("strict", "first_wins", "last_wins", "most_frequent",
     "prune_source", "resolve_if_consistent"),
   loop_handling = c("error", "prune_loop", "break_arrow"),
+  canonicals_df = NULL,
+  canonical_from_col = "from",
+  canonical_to_col = "to",
+  clean_canonical_urls = TRUE,
+  canonical_duplicate_from_policy = c("strict", "first_wins", "last_wins",
+    "most_frequent", "prune_source", "resolve_if_consistent"),
+  canonical_loop_handling = c("error", "prune_loop", "break_arrow"),
+  canonical_conflict_policy = c("redirect_wins", "error", "canonical_wins"),
   keep_domains = NULL,
   exclude_domains = NULL,
   keep_hosts = NULL,
@@ -127,6 +135,36 @@ available policies.}
 \item{loop_handling}{How to handle redirect cycles. Passed through to
 [resolve_redirects()]. Default `"error"`. See [resolve_redirects()] for
 all available policies.}
+
+\item{canonicals_df}{An optional data frame of declared `rel=canonical`
+links, with `from`/`to` columns (or as set by `canonical_from_col` /
+`canonical_to_col`) pairing a source URL with the canonical it declares.
+Default `NULL` (opt-in; the default preserves current behaviour). Canonicals
+are a **distinct, advisory** signal from enforced 3xx `redirects_df`: they
+are tracked separately and audited via [audit_canonicals()] /
+[audit_fold()], then folded into the same composed map as redirects (see
+[build_fold_map()]). Self-canonicals are dropped as no-ops.}
+
+\item{canonical_from_col, canonical_to_col}{From/to columns in `canonicals_df`.
+Default `"from"` / `"to"`.}
+
+\item{clean_canonical_urls}{Logical, whether to clean URLs in `canonicals_df`
+using the same resolved `rurl_params` profile as edge and redirect cleaning.
+Default `TRUE`. Only effective when `canonicals_df` is provided.}
+
+\item{canonical_duplicate_from_policy}{How to handle a canonical source that
+declares multiple distinct canonicals. Reuses the `duplicate_from_policy`
+enum (see [resolve_redirects()]). Default `"strict"`.}
+
+\item{canonical_loop_handling}{How to handle cycles among declared
+canonicals. Reuses the `loop_handling` enum. Default `"error"`.}
+
+\item{canonical_conflict_policy}{How to resolve a redirect-vs-canonical
+disagreement on the **same source** URL. One of `"redirect_wins"` (default;
+the 3xx wins and the canonical on a redirecting source is ignored and
+flagged), `"error"` (error on genuine disagreement), or `"canonical_wins"`
+(the declared canonical wins for that source, still flagged). See
+[build_fold_map()].}
 
 \item{keep_domains}{Optional character vector of domains to keep. When
 provided, edges are filtered via [filter_links_by_domain()] before

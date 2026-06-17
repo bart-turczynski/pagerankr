@@ -3,6 +3,11 @@ linters: linters_with_defaults(
     # expect_*) that the static usage linter misreads as undefined globals.
     # Disable it here so the scaffold lints clean out of the box; re-enable it
     # once the package has real code if you want the extra coverage.
-    object_usage_linter = NULL
+    object_usage_linter = NULL,
+    # The canonical-fold API mirrors the redirect API by prefixing existing
+    # argument names with `canonical_` (e.g. `canonical_duplicate_from_policy`,
+    # 31 chars). The pairing is part of the public contract, so allow the few
+    # names that run just past the default 30-character limit.
+    object_length_linter = object_length_linter(length = 40L)
   )
 encoding: "UTF-8"
