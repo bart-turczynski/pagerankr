@@ -164,6 +164,36 @@ describe("filter_links_by_domain report and edge cases", {
     expect_equal(nrow(by_host), 1)
   })
 
+  it("psl_section selects the registrable-domain PSL section", {
+    # github.io is a PRIVATE suffix: under "all" the registrable domain of
+    # user.github.io is user.github.io, but under "icann" (suffix "io") it is
+    # github.io. So a keep on user.github.io scopes to that one subdomain under
+    # "all" but folds all *.github.io together under "icann".
+    links <- data.frame(
+      from = "https://user.github.io/a",
+      to = "https://other.github.io/b",
+      stringsAsFactors = FALSE
+    )
+    all_res <- filter_links_by_domain(
+      links,
+      keep_domains = "user.github.io", psl_section = "all"
+    )
+    expect_equal(nrow(all_res), 0)
+    icann_res <- filter_links_by_domain(
+      links,
+      keep_domains = "user.github.io", psl_section = "icann"
+    )
+    expect_equal(nrow(icann_res), 1)
+  })
+
+  it("rejects an invalid psl_section", {
+    links <- data.frame(from = "http://a.com", to = "http://b.com")
+    expect_error(
+      filter_links_by_domain(links, keep_domains = "a.com",
+                             psl_section = "bogus")
+    )
+  })
+
   it("errors on invalid inputs", {
     expect_error(filter_links_by_domain(list()), "data frame")
     expect_error(
