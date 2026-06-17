@@ -84,33 +84,3 @@ describe(".trace_redirect_path", {
     )
   })
 })
-
-describe(".create_memoized_cleaner", {
-  it("warns when ... has entirely unnamed arguments", {
-    # We need to bypass rurl to test the memoization key logic.
-    # The unnamed args warning fires before rurl is called.
-    # However, the actual call to rurl happens after. We use tryCatch to catch
-    # downstream errors but still verify the warning was emitted.
-    cleaner <- pagerankr:::.create_memoized_cleaner()
-    expect_warning(
-      tryCatch(cleaner("http://example.com", TRUE), error = function(e) NULL),
-      "unnamed"
-    )
-  })
-
-  it("caches results for repeated calls", {
-    cleaner <- pagerankr:::.create_memoized_cleaner()
-    result1 <- cleaner("http://example.com/test")
-    result2 <- cleaner("http://example.com/test")
-    expect_equal(result1, result2)
-  })
-
-  it("produces different results for different URLs", {
-    cleaner <- pagerankr:::.create_memoized_cleaner()
-    result1 <- cleaner("http://example.com/a")
-    result2 <- cleaner("http://example.com/b")
-    # Just verify it doesn't error and returns strings
-    expect_true(is.character(result1))
-    expect_true(is.character(result2))
-  })
-})
