@@ -204,7 +204,7 @@ describe("filter_links_by_domain report and edge cases", {
     expect_equal(
       nrow(filter_links_by_domain(
         links,
-        keep_hosts = "münchen.de", host_encoding = "idna"
+        keep_hosts = "münchen.de", rurl_params = list(host_encoding = "idna")
       )),
       2
     )
@@ -212,7 +212,8 @@ describe("filter_links_by_domain report and edge cases", {
     expect_equal(
       nrow(filter_links_by_domain(
         links,
-        keep_hosts = "xn--mnchen-3ya.de", host_encoding = "unicode"
+        keep_hosts = "xn--mnchen-3ya.de",
+        rurl_params = list(host_encoding = "unicode")
       )),
       2
     )
@@ -230,18 +231,40 @@ describe("filter_links_by_domain report and edge cases", {
       expect_equal(
         nrow(filter_links_by_domain(
           links,
-          keep_domains = "münchen.de", host_encoding = he
+          keep_domains = "münchen.de", rurl_params = list(host_encoding = he)
         )),
         2
       )
     }
   })
 
-  it("rejects an invalid host_encoding", {
+  it("rejects an invalid host_encoding in rurl_params", {
     links <- data.frame(from = "http://a.com", to = "http://b.com")
     expect_error(
       filter_links_by_domain(links, keep_domains = "a.com",
-                             host_encoding = "bogus")
+                             rurl_params = list(host_encoding = "bogus"))
+    )
+  })
+
+  it("filter honors a www_handling cleaning profile (clean/filter symmetry)", {
+    # A graph cleaned with www_handling = "strip" yields www-less node hosts.
+    # Passing the same profile lets a bare-host keep match those nodes.
+    links <- data.frame(
+      from = "http://www.ex.com/a", to = "http://www.ex.com/b",
+      stringsAsFactors = FALSE
+    )
+    # Default profile keeps www -> bare-host keep does not match.
+    expect_equal(
+      nrow(filter_links_by_domain(links, keep_hosts = "ex.com")),
+      0
+    )
+    # Same www_handling as cleaning -> hosts fold to ex.com and match.
+    expect_equal(
+      nrow(filter_links_by_domain(
+        links,
+        keep_hosts = "ex.com", rurl_params = list(www_handling = "strip")
+      )),
+      1
     )
   })
 
