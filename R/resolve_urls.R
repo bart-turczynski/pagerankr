@@ -81,57 +81,18 @@ resolve_urls <- function(urls,
     ))
   }
 
-  # --- Clean redirects (same preprocessing as resolve_redirects) ---
-  r_sources <- as.character(redirects_df[[redirect_from_col]])
-  r_targets <- as.character(redirects_df[[redirect_to_col]])
-
-  valid <- !is.na(r_sources) & !is.na(r_targets)
-  r_sources <- r_sources[valid]
-  r_targets <- r_targets[valid]
-
-  # Remove self-refs
-  self_ref <- r_sources == r_targets
-  r_sources <- r_sources[!self_ref]
-  r_targets <- r_targets[!self_ref]
-
-  if (length(r_sources) == 0) {
-    return(data.frame(
-      original = original,
-      resolved = original,
-      changed = rep(FALSE, length(original)),
-      stringsAsFactors = FALSE
-    ))
-  }
-
-  # Handle conflicts
-  clean_df <- data.frame(
-    from = r_sources, to = r_targets,
-    stringsAsFactors = FALSE
-  )
-  clean_df <- .preprocess_redirects(clean_df, "from", "to",
-    policy = duplicate_from_policy
-  )
-
-  if (nrow(clean_df) == 0) {
-    return(data.frame(
-      original = original,
-      resolved = original,
-      changed = rep(FALSE, length(original)),
-      stringsAsFactors = FALSE
-    ))
-  }
-
-  # --- Build canonical map ---
-  canonical_map <- .resolve_via_graph(clean_df$from, clean_df$to,
+  # --- Build canonical map via the neutral signal-agnostic builder ---
+  # (NA stripping, self-ref removal, and conflict preprocessing all live there,
+  # shared with resolve_redirects() and canonical folding.)
+  canonical_map <- .build_terminal_map(
+    redirects_df[[redirect_from_col]],
+    redirects_df[[redirect_to_col]],
+    duplicate_from_policy = duplicate_from_policy,
     loop_handling = loop_handling
   )
 
   # --- Apply map ---
-  resolved <- urls
-  idx <- match(urls, names(canonical_map))
-  resolved[!is.na(idx)] <- canonical_map[idx[!is.na(idx)]]
-  # Preserve NAs
-  resolved[is.na(urls)] <- NA_character_
+  resolved <- .apply_fold_map(urls, canonical_map)
 
   data.frame(
     original = original,

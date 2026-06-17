@@ -72,6 +72,30 @@
 #' @param loop_handling How to handle redirect cycles. Passed through to
 #'   [resolve_redirects()]. Default `"error"`. See [resolve_redirects()] for
 #'   all available policies.
+#' @param canonicals_df An optional data frame of declared `rel=canonical`
+#'   links, with `from`/`to` columns (or as set by `canonical_from_col` /
+#'   `canonical_to_col`) pairing a source URL with the canonical it declares.
+#'   Default `NULL` (opt-in; the default preserves current behaviour).
+#'   Canonicals are a **distinct, advisory** signal from enforced 3xx
+#'   `redirects_df`: they are tracked separately and audited via
+#'   [audit_canonicals()] / [audit_fold()], then folded into the same composed
+#'   map as redirects (see [build_fold_map()]). Self-canonicals drop as no-ops.
+#' @param canonical_from_col,canonical_to_col From/to columns in
+#'   `canonicals_df`. Default `"from"` / `"to"`.
+#' @param clean_canonical_urls Logical, whether to clean URLs in `canonicals_df`
+#'   using the same resolved `rurl_params` profile as edge and redirect
+#'   cleaning. Default `TRUE`. Only effective when `canonicals_df` is provided.
+#' @param canonical_duplicate_from_policy How to handle a canonical source that
+#'   declares multiple distinct canonicals. Reuses the `duplicate_from_policy`
+#'   enum (see [resolve_redirects()]). Default `"strict"`.
+#' @param canonical_loop_handling How to handle cycles among declared
+#'   canonicals. Reuses the `loop_handling` enum. Default `"error"`.
+#' @param canonical_conflict_policy How to resolve a redirect-vs-canonical
+#'   disagreement on the **same source** URL. One of `"redirect_wins"` (default;
+#'   the 3xx wins and the canonical on a redirecting source is ignored and
+#'   flagged), `"error"` (error on genuine disagreement), or `"canonical_wins"`
+#'   (the declared canonical wins for that source, still flagged). See
+#'   [build_fold_map()].
 #' @param keep_domains Optional character vector of domains to keep. When
 #'   provided, edges are filtered via [filter_links_by_domain()] before
 #'   PageRank calculation so that only links where both endpoints belong
@@ -270,6 +294,28 @@ pagerank <- function(edge_list_df,
                        "prune_loop",
                        "break_arrow"
                      ),
+                     canonicals_df = NULL,
+                     canonical_from_col = "from",
+                     canonical_to_col = "to",
+                     clean_canonical_urls = TRUE,
+                     canonical_duplicate_from_policy = c(
+                       "strict",
+                       "first_wins",
+                       "last_wins",
+                       "most_frequent",
+                       "prune_source",
+                       "resolve_if_consistent"
+                     ),
+                     canonical_loop_handling = c(
+                       "error",
+                       "prune_loop",
+                       "break_arrow"
+                     ),
+                     canonical_conflict_policy = c(
+                       "redirect_wins",
+                       "error",
+                       "canonical_wins"
+                     ),
                      keep_domains = NULL,
                      exclude_domains = NULL,
                      keep_hosts = NULL,
@@ -291,6 +337,9 @@ pagerank <- function(edge_list_df,
   robots_blocked_action <- match.arg(robots_blocked_action)
   duplicate_from_policy <- match.arg(duplicate_from_policy)
   loop_handling <- match.arg(loop_handling)
+  canonical_duplicate_from_policy <- match.arg(canonical_duplicate_from_policy)
+  canonical_loop_handling <- match.arg(canonical_loop_handling)
+  canonical_conflict_policy <- match.arg(canonical_conflict_policy)
   prior_transform <- match.arg(prior_transform)
 
   if (!is.data.frame(edge_list_df)) {
@@ -300,6 +349,23 @@ pagerank <- function(edge_list_df,
 
   if (!is.null(redirects_df) && !is.data.frame(redirects_df)) {
     stop("`redirects_df` must be a data frame or NULL.", call. = FALSE)
+  }
+  if (!is.null(canonicals_df) && !is.data.frame(canonicals_df)) {
+    stop("`canonicals_df` must be a data frame or NULL.", call. = FALSE)
+  }
+  if (!is.logical(clean_canonical_urls) || length(clean_canonical_urls) != 1) {
+    stop(
+      "`clean_canonical_urls` must be a single logical value.",
+      call. = FALSE
+    )
+  }
+  canonical_cols <- c(canonical_from_col, canonical_to_col)
+  if (!is.null(canonicals_df) && nrow(canonicals_df) > 0 &&
+        !all(canonical_cols %in% names(canonicals_df))) {
+    stop("`canonicals_df` must have '", canonical_from_col, "' and '",
+      canonical_to_col, "' columns.",
+      call. = FALSE
+    )
   }
   if (!is.logical(clean_edge_urls) || length(clean_edge_urls) != 1) {
     stop("`clean_edge_urls` must be a single logical value.", call. = FALSE)
@@ -450,6 +516,7 @@ pagerank <- function(edge_list_df,
   # --- Initialize working copies of data frames ---
   current_edge_list <- edge_list_df
   current_redirects_list <- redirects_df
+  current_canonicals_list <- canonicals_df
 
   # --- 1. URL Cleaning (Potentially Shared Memoization) ---
   # As per Spec: "ensures that all unique URLs from both the edge list and
@@ -465,6 +532,14 @@ pagerank <- function(edge_list_df,
     intersect(
       c(redirect_from_col, redirect_to_col),
       names(current_redirects_list)
+    )
+  } else {
+    character(0)
+  }
+  canonical_url_cols <- if (!is.null(current_canonicals_list)) {
+    intersect(
+      c(canonical_from_col, canonical_to_col),
+      names(current_canonicals_list)
     )
   } else {
     character(0)
@@ -505,6 +580,18 @@ pagerank <- function(edge_list_df,
       ), effective_rurl_params)
     )
   }
+  # Canonicals are cleaned through the SAME resolved profile as edges and
+  # redirects, so the composed fold map operates in one node namespace.
+  if (clean_canonical_urls && !is.null(current_canonicals_list) &&
+        nrow(current_canonicals_list) > 0 && length(canonical_url_cols) > 0) {
+    current_canonicals_list <- do.call(
+      clean_url_columns,
+      c(list(
+        data_frame = current_canonicals_list,
+        columns = canonical_url_cols
+      ), effective_rurl_params)
+    )
+  }
 
   # --- Warning for Uncleaned Edge URLs with Query Parameters ---
   # Per spec: when edge URL cleaning is disabled and edge URLs still contain
@@ -527,16 +614,43 @@ pagerank <- function(edge_list_df,
     }
   }
 
-  # --- 2. Redirect Resolution ---
-  if (!is.null(current_redirects_list) && nrow(current_redirects_list) > 0) {
-    current_edge_list <- resolve_redirects(
-      edge_list_df = current_edge_list,
-      redirects_df = current_redirects_list,
-      edge_from_col = edge_from_col, edge_to_col = edge_to_col,
-      redirect_from_col = redirect_from_col, redirect_to_col = redirect_to_col,
+  # --- 2. Redirect + canonical resolution (one composed fold map) ---
+  # Build the single composed fold map ONCE from both signals (it is the empty
+  # map when neither is supplied, and the plain redirect map when canonicals are
+  # absent -- preserving prior behaviour). This same map is the source of truth
+  # for BOTH edge folding here and TIPR prior folding (step 2.8), and matches
+  # what build_fold_map() exports downstream.
+  has_redirects <- !is.null(current_redirects_list) &&
+    nrow(current_redirects_list) > 0
+  has_canonicals <- !is.null(current_canonicals_list) &&
+    nrow(current_canonicals_list) > 0
+
+  fold_map <- character(0)
+  if (has_redirects || has_canonicals) {
+    fold <- .compose_fold_map(
+      redirects_df = if (has_redirects) current_redirects_list else NULL,
+      canonicals_df = if (has_canonicals) current_canonicals_list else NULL,
+      redirect_from_col = redirect_from_col,
+      redirect_to_col = redirect_to_col,
+      canonical_from_col = canonical_from_col,
+      canonical_to_col = canonical_to_col,
       duplicate_from_policy = duplicate_from_policy,
-      loop_handling = loop_handling
+      loop_handling = loop_handling,
+      canonical_duplicate_from_policy = canonical_duplicate_from_policy,
+      canonical_loop_handling = canonical_loop_handling,
+      canonical_conflict_policy = canonical_conflict_policy
     )
+    fold_map <- fold$map
+
+    if (length(fold_map) > 0) {
+      for (col_name in c(edge_from_col, edge_to_col)) {
+        if (col_name %in% names(current_edge_list)) {
+          current_edge_list[[col_name]] <- .apply_fold_map(
+            current_edge_list[[col_name]], fold_map
+          )
+        }
+      }
+    }
   }
 
   # --- 2.7. Domain / host filtering ---
@@ -592,23 +706,13 @@ pagerank <- function(edge_list_df,
       )
     }
 
-    # Fold through the same canonical redirect map (same policies).
-    if (!is.null(current_redirects_list) && nrow(current_redirects_list) > 0) {
-      fold_tmp <- data.frame(
-        .pr_url = folded_prior_df[[prior_url_col]],
-        .pr_dst = folded_prior_df[[prior_url_col]],
-        stringsAsFactors = FALSE
+    # Fold through the SAME composed map (redirects + canonicals) used for the
+    # edges above -- single source of truth, so prior URLs land on the same
+    # representatives as the vertices.
+    if (length(fold_map) > 0) {
+      folded_prior_df[[prior_url_col]] <- .apply_fold_map(
+        folded_prior_df[[prior_url_col]], fold_map
       )
-      fold_tmp <- resolve_redirects(
-        edge_list_df = fold_tmp,
-        redirects_df = current_redirects_list,
-        edge_from_col = ".pr_url", edge_to_col = ".pr_dst",
-        redirect_from_col = redirect_from_col,
-        redirect_to_col = redirect_to_col,
-        duplicate_from_policy = duplicate_from_policy,
-        loop_handling = loop_handling
-      )
-      folded_prior_df[[prior_url_col]] <- fold_tmp$.pr_url
     }
   }
 
