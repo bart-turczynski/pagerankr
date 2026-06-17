@@ -390,60 +390,27 @@ pagerank <- function(edge_list_df,
   # rurl::get_clean_url applies its own defaults for remaining params
   # (www_handling, trailing_slash_handling, encoding, etc.).
 
-  shared_cleaner <- NULL
-  # Condition for shared cleaning: both flags TRUE, redirects present, and
-  # columns exist for cleaning
-  use_shared_cleaning <- clean_edge_urls && clean_redirect_urls &&
-    !is.null(current_redirects_list) && nrow(current_redirects_list) > 0 &&
-    length(edge_url_cols) > 0 && length(redirect_url_cols) > 0
-
-  if (use_shared_cleaning) {
-    shared_cleaner <- .create_memoized_cleaner()
-
-    if (length(edge_url_cols) > 0) {
-      current_edge_list <- do.call(
-        clean_url_columns,
-        c(
-          list(
-            data_frame = current_edge_list,
-            columns = edge_url_cols,
-            .memoized_clean_url = shared_cleaner
-          ),
-          effective_rurl_params
-        )
-      )
-    }
-    if (length(redirect_url_cols) > 0) {
-      current_redirects_list <- do.call(
-        clean_url_columns,
-        c(list(
-          data_frame = current_redirects_list,
-          columns = redirect_url_cols,
-          .memoized_clean_url = shared_cleaner
-        ), effective_rurl_params)
-      )
-    }
-  } else {
-    # No shared cleaning, apply individually if flags are set
-    if (clean_edge_urls && length(edge_url_cols) > 0) {
-      current_edge_list <- do.call(
-        clean_url_columns,
-        c(list(
-          data_frame = current_edge_list,
-          columns = edge_url_cols
-        ), effective_rurl_params)
-      )
-    }
-    if (clean_redirect_urls && !is.null(current_redirects_list) &&
-          nrow(current_redirects_list) > 0 && length(redirect_url_cols) > 0) {
-      current_redirects_list <- do.call(
-        clean_url_columns,
-        c(list(
-          data_frame = current_redirects_list,
-          columns = redirect_url_cols
-        ), effective_rurl_params)
-      )
-    }
+  # rurl::get_clean_url memoizes parses internally and the cache is shared
+  # across calls, so edge and redirect URLs that overlap are canonicalized once
+  # per unique string without any local memoizer.
+  if (clean_edge_urls && length(edge_url_cols) > 0) {
+    current_edge_list <- do.call(
+      clean_url_columns,
+      c(list(
+        data_frame = current_edge_list,
+        columns = edge_url_cols
+      ), effective_rurl_params)
+    )
+  }
+  if (clean_redirect_urls && !is.null(current_redirects_list) &&
+        nrow(current_redirects_list) > 0 && length(redirect_url_cols) > 0) {
+    current_redirects_list <- do.call(
+      clean_url_columns,
+      c(list(
+        data_frame = current_redirects_list,
+        columns = redirect_url_cols
+      ), effective_rurl_params)
+    )
   }
 
   # --- Warning for Uncleaned Edge URLs with Query Parameters ---

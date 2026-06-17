@@ -148,6 +148,22 @@ describe("filter_links_by_domain report and edge cases", {
     expect_equal(nrow(result), 1)
   })
 
+  it("resolves bare (scheme-less) keep_domains and keep_hosts via rurl", {
+    # Regression: rurl's default protocol_handling = "keep" prepends a scheme
+    # to scheme-less filter values, so .ensure_scheme() is no longer needed.
+    links <- data.frame(
+      from = c("http://www.example.com/a", "http://other.com/b"),
+      to = c("http://www.example.com/c", "http://other.com/d"),
+      stringsAsFactors = FALSE
+    )
+    # Bare registrable domain (no scheme) keeps example.com, drops other.com
+    by_domain <- filter_links_by_domain(links, keep_domains = "example.com")
+    expect_equal(nrow(by_domain), 1)
+    # Bare host with subdomain (no scheme) resolves to the exact host
+    by_host <- filter_links_by_domain(links, keep_hosts = "www.example.com")
+    expect_equal(nrow(by_host), 1)
+  })
+
   it("errors on invalid inputs", {
     expect_error(filter_links_by_domain(list()), "data frame")
     expect_error(

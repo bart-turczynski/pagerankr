@@ -10,7 +10,7 @@ LazyData: true
 RoxygenNote: 7.3.3
 Imports:
     igraph,
-    rurl
+    rurl (>= 1.3.0)
 Remotes:
     bart-turczynski/rurl
 Suggests:

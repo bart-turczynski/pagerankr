@@ -6,14 +6,8 @@
 #' @param columns A character vector specifying the names of the columns
 #'   containing URLs. Defaults to `c("from", "to")`.
 #' @param ... Additional arguments passed to `rurl::get_clean_url`.
-#' @param .memoized_clean_url An optional pre-existing memoized
-#' `rurl::get_clean_url` function.
-#' If NULL (default), a new memoization cache is created for this function call.
-#' This is mostly for internal use by the `pagerank()` wrapper to share a cache.
 #'
-#' @return A data frame with the specified URL columns cleaned. An attribute
-#'   `url_map` containing the mapping from original to cleaned URLs might be
-#'   attached invisibly (currently not implemented but noted from spec).
+#' @return A data frame with the specified URL columns cleaned.
 #' @export
 #' @importFrom rurl get_clean_url
 #' @examples
@@ -47,8 +41,7 @@
 #' will automatically drop any edge where either from or to is NA.
 clean_url_columns <- function(data_frame,
                               columns = c("from", "to"),
-                              ...,
-                              .memoized_clean_url = NULL) {
+                              ...) {
   if (!is.data.frame(data_frame)) {
     stop("`data_frame` must be a data frame.", call. = FALSE)
   }
@@ -72,14 +65,6 @@ clean_url_columns <- function(data_frame,
     )
   }
 
-  if (is.null(.memoized_clean_url)) {
-    # If no shared memoizer is passed, create one for the scope of this call.
-    # .create_memoized_cleaner is an internal util function (e.g. from utils.R)
-    active_clean_url <- .create_memoized_cleaner()
-  } else {
-    active_clean_url <- .memoized_clean_url
-  }
-
   rurl_args <- list(...)
   cleaned_data_frame <- data_frame
 
@@ -89,36 +74,24 @@ clean_url_columns <- function(data_frame,
     unique_urls_to_clean <- unique(stats::na.omit(original_column_as_char))
 
     if (length(unique_urls_to_clean) > 0) {
-      # Create a named vector to map unique original URLs to their cleaned
-      # versions.
+      # Clean each unique URL once. rurl::get_clean_url is vectorized and
+      # memoizes parses internally (the cache is shared across columns and
+      # calls), so no local memoization is needed here.
+      cleaned_unique <- do.call(
+        rurl::get_clean_url,
+        c(list(unique_urls_to_clean), rurl_args)
+      )
       cleaned_url_lookup <- stats::setNames(
-        vector("character", length(unique_urls_to_clean)),
-        unique_urls_to_clean
+        cleaned_unique, unique_urls_to_clean
       )
 
-      for (url_to_clean in unique_urls_to_clean) {
-        # Apply active_clean_url (which is memoized rurl::get_clean_url) with
-        # extra arguments.
-        cleaned_version <- do.call(
-          active_clean_url, c(list(url_to_clean), rurl_args)
-        )
-        cleaned_url_lookup[url_to_clean] <- cleaned_version
-      }
-
       # Apply the map back to the original column structure, preserving NAs.
-      # Initialize a new vector for the cleaned column values.
       new_column_values <- character(length(original_column_as_char))
       is_na_in_original <- is.na(original_column_as_char)
-
-      # Get cleaned URLs for non-NA original URLs
-      # The names of cleaned_url_lookup are the non-NA original_column_as_char
-      # values. So, we can use original_column_as_char[!is_na_in_original] to
-      # index the lookup table.
       if (any(!is_na_in_original)) {
         new_column_values[!is_na_in_original] <-
           cleaned_url_lookup[original_column_as_char[!is_na_in_original]]
       }
-      # Set NA values in the new column where they were in the original.
       new_column_values[is_na_in_original] <- NA_character_
 
       cleaned_data_frame[[col_name]] <- new_column_values
@@ -126,9 +99,6 @@ clean_url_columns <- function(data_frame,
     # If length(unique_urls_to_clean) == 0, the column was all NAs or empty,
     # no cleaning needed.
   }
-
-  # As per spec: "Attaches url_map invisibly if useful." - Not implementing
-  # attachment in this pass.
 
   cleaned_data_frame
 }

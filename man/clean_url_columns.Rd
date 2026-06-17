@@ -4,12 +4,7 @@
 \alias{clean_url_columns}
 \title{Clean URL Columns in a Data Frame}
 \usage{
-clean_url_columns(
-  data_frame,
-  columns = c("from", "to"),
-  ...,
-  .memoized_clean_url = NULL
-)
+clean_url_columns(data_frame, columns = c("from", "to"), ...)
 }
 \arguments{
 \item{data_frame}{A data frame containing URL columns to be cleaned.}
@@ -18,15 +13,9 @@ clean_url_columns(
 containing URLs. Defaults to `c("from", "to")`.}
 
 \item{...}{Additional arguments passed to `rurl::get_clean_url`.}
-
-\item{.memoized_clean_url}{An optional pre-existing memoized `rurl::get_clean_url` function.
-If NULL (default), a new memoization cache is created for this function call.
-This is mostly for internal use by the `pagerank()` wrapper to share a cache.}
 }
 \value{
-A data frame with the specified URL columns cleaned. An attribute
-  `url_map` containing the mapping from original to cleaned URLs might be
-  attached invisibly (currently not implemented but noted from spec).
+A data frame with the specified URL columns cleaned.
 }
 \description{
 Applies `rurl::get_clean_url` to specified columns of a data frame,
