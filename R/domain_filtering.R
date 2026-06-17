@@ -25,6 +25,12 @@
 #'   only explicitly ignored URLs are dropped.
 #' @param return_report Logical. If `TRUE`, returns a list with the filtered
 #'   data frame and a filter report. Default `FALSE`.
+#' @param psl_section Public Suffix List section used to derive registrable
+#'   domains, passed to `rurl::get_domain()` / `rurl::safe_parse_urls()`. One of
+#'   `"all"` (default, ICANN + private suffixes), `"icann"`, or `"private"`.
+#'   Affects domain-based (not host-based) keep/ignore matching; e.g. under
+#'   `"icann"`, `user.github.io` has registrable domain `github.io`, while under
+#'   `"all"` it is `user.github.io`.
 #'
 #' @return If `return_report = FALSE` (default), the filtered data frame
 #'   (preserving all columns). If `TRUE`, a list with elements
@@ -64,7 +70,9 @@ filter_links_by_domain <- function(edge_list_df,
                                    ignore_domains = NULL,
                                    ignore_hosts = NULL,
                                    drop_third_party = TRUE,
-                                   return_report = FALSE) {
+                                   return_report = FALSE,
+                                   psl_section = c("all", "icann", "private")) {
+  psl_section <- match.arg(psl_section)
   # --- Validation ---
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
@@ -101,9 +109,9 @@ filter_links_by_domain <- function(edge_list_df,
   }
 
   # --- Build filter lists ---
-  keep_domains_resolved <- .resolve_domains(keep_domains)
+  keep_domains_resolved <- .resolve_domains(keep_domains, psl_section)
   keep_hosts_resolved <- .resolve_hosts(keep_hosts)
-  ignore_domains_resolved <- .resolve_domains(ignore_domains)
+  ignore_domains_resolved <- .resolve_domains(ignore_domains, psl_section)
   ignore_hosts_resolved <- .resolve_hosts(ignore_hosts)
 
   has_keep_list <- length(keep_domains_resolved) > 0 ||
@@ -126,7 +134,7 @@ filter_links_by_domain <- function(edge_list_df,
   # --- Extract host/domain for all unique URLs ---
   from_urls <- as.character(edge_list_df[[from_col]])
   to_urls <- as.character(edge_list_df[[to_col]])
-  url_maps <- .build_url_maps(c(from_urls, to_urls))
+  url_maps <- .build_url_maps(c(from_urls, to_urls), psl_section)
 
   # --- Classify each endpoint ---
   keep_from <- .classify_url_vector(
@@ -174,7 +182,7 @@ filter_links_by_domain <- function(edge_list_df,
 
 #' Resolve domain strings (extract registrable domain)
 #' @noRd
-.resolve_domains <- function(domains) {
+.resolve_domains <- function(domains, psl_section = "all") {
   if (is.null(domains) || length(domains) == 0) {
     return(character(0))
   }
@@ -183,7 +191,7 @@ filter_links_by_domain <- function(edge_list_df,
   if (length(domains) == 0) {
     return(character(0))
   }
-  extracted <- rurl::get_domain(domains)
+  extracted <- rurl::get_domain(domains, source = psl_section)
   extracted <- extracted[!is.na(extracted) & nzchar(extracted)]
   sort(unique(extracted))
 }
@@ -205,19 +213,23 @@ filter_links_by_domain <- function(edge_list_df,
 }
 
 #' Build named host/domain lookup maps for a vector of URLs
+#'
+#' Parses each unique URL once via `rurl::safe_parse_urls()` and reads the
+#' `host` and `domain` columns, rather than calling `get_host()` and
+#' `get_domain()` separately. `tld_source` selects the PSL section used to
+#' derive the registrable domain.
 #' @noRd
-.build_url_maps <- function(urls) {
+.build_url_maps <- function(urls, psl_section = "all") {
   urls <- as.character(urls)
   urls <- urls[!is.na(urls) & nzchar(urls)]
   unique_urls <- unique(urls)
   if (length(unique_urls) == 0) {
     return(list(host_map = character(0), domain_map = character(0)))
   }
-  hosts <- rurl::get_host(unique_urls)
-  domains <- rurl::get_domain(unique_urls)
+  parsed <- rurl::safe_parse_urls(unique_urls, tld_source = psl_section)
   list(
-    host_map = stats::setNames(hosts, unique_urls),
-    domain_map = stats::setNames(domains, unique_urls)
+    host_map = stats::setNames(parsed$host, unique_urls),
+    domain_map = stats::setNames(parsed$domain, unique_urls)
   )
 }
 
