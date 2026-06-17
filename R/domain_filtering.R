@@ -31,13 +31,15 @@
 #'   Affects domain-based (not host-based) keep/ignore matching; e.g. under
 #'   `"icann"`, `user.github.io` has registrable domain `github.io`, while under
 #'   `"all"` it is `user.github.io`.
-#' @param host_encoding How internationalized (IDN) hosts are folded for
-#'   host-based keep/ignore matching, passed to `rurl::safe_parse_urls()`. One
-#'   of `"keep"` (default, compare hosts as written — `münchen.de` and
-#'   `xn--mnchen-3ya.de` are distinct), `"idna"` (fold to ASCII/Punycode), or
-#'   `"unicode"` (fold to Unicode). To match a graph whose URLs were cleaned
-#'   with a given `host_encoding`, use the same value here. Registrable-domain
-#'   matching is encoding-independent and unaffected.
+#' @param rurl_params A list of `rurl` canonicalization arguments overriding
+#'   pagerankr's profile per key, used when extracting hosts/domains from both
+#'   the edge URLs and the keep/ignore values. Pass the **same** profile used to
+#'   clean the graph so the comparison keys are derived identically. The
+#'   host-relevant knobs are `host_encoding` (`"keep"`/`"idna"`/`"unicode"` —
+#'   IDN folding; e.g. `"idna"` makes `münchen.de` and `xn--mnchen-3ya.de`
+#'   match), `www_handling`, `subdomain_levels_to_keep`, `case_handling`, and
+#'   `protocol_handling`. Registrable-domain matching is encoding-independent.
+#'   When called from [pagerank()], this is forwarded automatically.
 #'
 #' @return If `return_report = FALSE` (default), the filtered data frame
 #'   (preserving all columns). If `TRUE`, a list with elements
@@ -79,11 +81,11 @@ filter_links_by_domain <- function(edge_list_df,
                                    drop_third_party = TRUE,
                                    return_report = FALSE,
                                    psl_section = c("all", "icann", "private"),
-                                   host_encoding = c(
-                                     "keep", "idna", "unicode"
-                                   )) {
+                                   rurl_params = list()) {
   psl_section <- match.arg(psl_section)
-  host_encoding <- match.arg(host_encoding)
+  # Resolve the canonicalization profile (user rurl_params override per key) so
+  # host/domain extraction here matches how node URLs were (or will be) cleaned.
+  rurl_profile <- .resolve_rurl_params(rurl_params)
   # --- Validation ---
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
@@ -120,10 +122,14 @@ filter_links_by_domain <- function(edge_list_df,
   }
 
   # --- Build filter lists ---
-  keep_domains_resolved <- .resolve_domains(keep_domains, psl_section)
-  keep_hosts_resolved <- .resolve_hosts(keep_hosts, host_encoding)
-  ignore_domains_resolved <- .resolve_domains(ignore_domains, psl_section)
-  ignore_hosts_resolved <- .resolve_hosts(ignore_hosts, host_encoding)
+  keep_domains_resolved <- .resolve_domains(
+    keep_domains, psl_section, rurl_profile
+  )
+  keep_hosts_resolved <- .resolve_hosts(keep_hosts, rurl_profile)
+  ignore_domains_resolved <- .resolve_domains(
+    ignore_domains, psl_section, rurl_profile
+  )
+  ignore_hosts_resolved <- .resolve_hosts(ignore_hosts, rurl_profile)
 
   has_keep_list <- length(keep_domains_resolved) > 0 ||
     length(keep_hosts_resolved) > 0
@@ -145,7 +151,7 @@ filter_links_by_domain <- function(edge_list_df,
   # --- Extract host/domain for all unique URLs ---
   from_urls <- as.character(edge_list_df[[from_col]])
   to_urls <- as.character(edge_list_df[[to_col]])
-  url_maps <- .build_url_maps(c(from_urls, to_urls), psl_section, host_encoding)
+  url_maps <- .build_url_maps(c(from_urls, to_urls), psl_section, rurl_profile)
 
   # --- Classify each endpoint ---
   keep_from <- .classify_url_vector(
@@ -186,14 +192,26 @@ filter_links_by_domain <- function(edge_list_df,
 
 # --- Internal helpers ---
 #
-# These helpers pass raw strings straight to rurl. rurl's default
+# All extraction routes through `rurl::safe_parse_urls()` under the resolved
+# canonicalization profile (`rurl_profile`), the SAME knobs that clean the node
+# URLs, so filter keys and node keys are derived identically. The profile's
 # `protocol_handling = "keep"` adds a scheme to scheme-less input (and handles
-# scheme-relative `//`), and its default `case_handling = "lower_host"`
-# lowercases the host, so no local scheme-prepending or lower-casing is needed.
+# scheme-relative `//`) and `case_handling = "lower_host"` lowercases the host,
+# so no local scheme-prepending or lower-casing is needed. `tld_source`
+# (= `psl_section`) selects the PSL section for the registrable domain.
+
+#' Parse a vector of strings for filtering under the canonicalization profile
+#' @noRd
+.parse_for_filter <- function(urls, psl_section, rurl_profile) {
+  do.call(
+    rurl::safe_parse_urls,
+    c(list(urls), rurl_profile, list(tld_source = psl_section))
+  )
+}
 
 #' Resolve domain strings (extract registrable domain)
 #' @noRd
-.resolve_domains <- function(domains, psl_section = "all") {
+.resolve_domains <- function(domains, psl_section, rurl_profile) {
   if (is.null(domains) || length(domains) == 0) {
     return(character(0))
   }
@@ -202,19 +220,18 @@ filter_links_by_domain <- function(edge_list_df,
   if (length(domains) == 0) {
     return(character(0))
   }
-  extracted <- rurl::get_domain(domains, source = psl_section)
+  extracted <- .parse_for_filter(domains, psl_section, rurl_profile)$domain
   extracted <- extracted[!is.na(extracted) & nzchar(extracted)]
   sort(unique(extracted))
 }
 
 #' Resolve host strings (extract host)
 #'
-#' Reads the `host` column from `rurl::safe_parse_urls()` so that
-#' `host_encoding` (IDN handling) governs the comparison form the same way it
-#' does for `.build_url_maps()`. The registrable domain is encoding-independent,
-#' so `.resolve_domains()` does not take `host_encoding`.
+#' Reads the `host` column so the profile's host knobs (`host_encoding`,
+#' `www_handling`, subdomain levels, case) govern the comparison form the same
+#' way they do for the node URLs.
 #' @noRd
-.resolve_hosts <- function(hosts, host_encoding = "keep") {
+.resolve_hosts <- function(hosts, rurl_profile) {
   if (is.null(hosts) || length(hosts) == 0) {
     return(character(0))
   }
@@ -223,7 +240,7 @@ filter_links_by_domain <- function(edge_list_df,
   if (length(hosts) == 0) {
     return(character(0))
   }
-  extracted <- rurl::safe_parse_urls(hosts, host_encoding = host_encoding)$host
+  extracted <- .parse_for_filter(hosts, "all", rurl_profile)$host
   extracted <- extracted[!is.na(extracted) & nzchar(extracted)]
   sort(unique(extracted))
 }
@@ -231,22 +248,16 @@ filter_links_by_domain <- function(edge_list_df,
 #' Build named host/domain lookup maps for a vector of URLs
 #'
 #' Parses each unique URL once via `rurl::safe_parse_urls()` and reads the
-#' `host` and `domain` columns, rather than calling `get_host()` and
-#' `get_domain()` separately. `tld_source` selects the PSL section used to
-#' derive the registrable domain; `host_encoding` selects the IDN comparison
-#' form of the host (the registrable domain is encoding-independent).
+#' `host` and `domain` columns under the resolved canonicalization profile.
 #' @noRd
-.build_url_maps <- function(urls, psl_section = "all", host_encoding = "keep") {
+.build_url_maps <- function(urls, psl_section, rurl_profile) {
   urls <- as.character(urls)
   urls <- urls[!is.na(urls) & nzchar(urls)]
   unique_urls <- unique(urls)
   if (length(unique_urls) == 0) {
     return(list(host_map = character(0), domain_map = character(0)))
   }
-  parsed <- rurl::safe_parse_urls(
-    unique_urls,
-    tld_source = psl_section, host_encoding = host_encoding
-  )
+  parsed <- .parse_for_filter(unique_urls, psl_section, rurl_profile)
   list(
     host_map = stats::setNames(parsed$host, unique_urls),
     domain_map = stats::setNames(parsed$domain, unique_urls)

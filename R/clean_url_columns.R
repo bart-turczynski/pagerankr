@@ -1,11 +1,16 @@
 #' @title Clean URL Columns in a Data Frame
 #' @description Applies `rurl::get_clean_url` to specified columns of a data
-#'   frame, using internal memoization for efficiency.
+#'   frame. URLs are cleaned under pagerankr's explicit canonicalization profile
+#'   (see Details), with any arguments in `...` overriding individual knobs.
 #'
 #' @param data_frame A data frame containing URL columns to be cleaned.
 #' @param columns A character vector specifying the names of the columns
 #'   containing URLs. Defaults to `c("from", "to")`.
-#' @param ... Additional arguments passed to `rurl::get_clean_url`.
+#' @param ... `rurl::get_clean_url` arguments that override the canonicalization
+#'   profile per key. Recognized knobs: `protocol_handling`, `case_handling`,
+#'   `www_handling`, `trailing_slash_handling`, `index_page_handling`,
+#'   `path_normalization`, `scheme_relative_handling`,
+#'   `subdomain_levels_to_keep`, `host_encoding`, `path_encoding`.
 #'
 #' @return A data frame with the specified URL columns cleaned.
 #' @export
@@ -36,6 +41,13 @@
 #' print(cleaned_df_custom)
 #'
 #' @details
+#' The canonicalization profile pins every `rurl` knob explicitly
+#' (`protocol_handling = "keep"`, `case_handling = "lower_host"`, and the
+#' remaining knobs at their faithful defaults) so node identities do not depend
+#' on `rurl`'s own (version-dependent) defaults. The values mirror `rurl`'s
+#' current defaults, so this is behaviour-preserving; it guards against future
+#' default drift and keeps the cleaning and domain-filtering paths symmetrical.
+#'
 #' NA values in the specified columns are preserved in the output. Downstream
 #' functions in the pagerankr workflow (such as get_unique_edges and pagerank)
 #' will automatically drop any edge where either from or to is NA.
@@ -65,7 +77,10 @@ clean_url_columns <- function(data_frame,
     )
   }
 
-  rurl_args <- list(...)
+  # Apply pagerankr's explicit canonicalization profile, letting any `...`
+  # arguments override individual knobs. Pinning every knob keeps node
+  # identities independent of rurl's own (version-dependent) defaults.
+  rurl_args <- .resolve_rurl_params(list(...))
   cleaned_data_frame <- data_frame
 
   for (col_name in columns) {

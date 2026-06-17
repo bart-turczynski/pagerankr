@@ -12,16 +12,28 @@ clean_url_columns(data_frame, columns = c("from", "to"), ...)
 \item{columns}{A character vector specifying the names of the columns
 containing URLs. Defaults to `c("from", "to")`.}
 
-\item{...}{Additional arguments passed to `rurl::get_clean_url`.}
+\item{...}{`rurl::get_clean_url` arguments that override the canonicalization
+profile per key. Recognized knobs: `protocol_handling`, `case_handling`,
+`www_handling`, `trailing_slash_handling`, `index_page_handling`,
+`path_normalization`, `scheme_relative_handling`, `subdomain_levels_to_keep`,
+`host_encoding`, `path_encoding`.}
 }
 \value{
 A data frame with the specified URL columns cleaned.
 }
 \description{
-Applies `rurl::get_clean_url` to specified columns of a data frame,
-  using internal memoization for efficiency.
+Applies `rurl::get_clean_url` to specified columns of a data frame. URLs are
+  cleaned under pagerankr's explicit canonicalization profile (see Details),
+  with any arguments in `...` overriding individual knobs.
 }
 \details{
+The canonicalization profile pins every `rurl` knob explicitly
+(`protocol_handling = "keep"`, `case_handling = "lower_host"`, and the
+remaining knobs at their faithful defaults) so node identities do not depend
+on `rurl`'s own (version-dependent) defaults. The values mirror `rurl`'s
+current defaults, so this is behaviour-preserving; it guards against future
+default drift and keeps the cleaning and domain-filtering paths symmetrical.
+
 NA values in the specified columns are preserved in the output. Downstream functions in the pagerankr workflow (such as get_unique_edges and pagerank) will automatically drop any edge where either from or to is NA.
 }
 \examples{
