@@ -13,7 +13,8 @@ filter_links_by_domain(
   ignore_domains = NULL,
   ignore_hosts = NULL,
   drop_third_party = TRUE,
-  return_report = FALSE
+  return_report = FALSE,
+  psl_section = c("all", "icann", "private")
 )
 }
 \arguments{
@@ -41,6 +42,13 @@ only explicitly ignored URLs are dropped.}
 
 \item{return_report}{Logical. If `TRUE`, returns a list with the filtered
 data frame and a filter report. Default `FALSE`.}
+
+\item{psl_section}{Public Suffix List section used to derive registrable
+domains, passed to `rurl::get_domain()` / `rurl::safe_parse_urls()`. One of
+`"all"` (default, ICANN + private suffixes), `"icann"`, or `"private"`.
+Affects domain-based (not host-based) keep/ignore matching; e.g. under
+`"icann"`, `user.github.io` has registrable domain `github.io`, while under
+`"all"` it is `user.github.io`.}
 }
 \value{
 If `return_report = FALSE` (default), the filtered data frame
