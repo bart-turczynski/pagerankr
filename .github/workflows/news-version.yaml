@@ -2,11 +2,20 @@
 # The top NEWS.md heading must be either "(development version)" or exactly
 # match the DESCRIPTION Version. This catches a stale "(development version)"
 # heading left in place at release time (as happened for 1.0.0).
+#
+# TEMPORARY (GitHub-hosted runners disabled on this account): this check also
+# runs in the local .githooks/pre-push gate (see CONTRIBUTING.md). Remote runs
+# only on demand or at CRAN-submission prep (release tags 'v*'); since the guard
+# exists to catch a stale heading at release time, the tag trigger covers its
+# real purpose. To restore per-push/PR remote runs, uncomment the triggers below.
 on:
+  workflow_dispatch:
   push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
+    tags: ['v*']
+  # push:
+  #   branches: [main, master]
+  # pull_request:
+  #   branches: [main, master]
 
 name: news-version.yaml
 
