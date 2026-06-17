@@ -9,11 +9,11 @@ CRAN-submission prep only** — they run on `workflow_dispatch` and release tags
 on this account.
 
 So the routine gate runs **locally**, as a committed pre-push hook in
-`.githooks/pre-push`. It mirrors those workflows exactly:
+`.githooks/pre-push`. It is the **light, deterministic** gate — the two cheap
+checks that need no extra toolchain:
 
 - top `NEWS.md` heading matches `DESCRIPTION` `Version:` (or is `(development version)`)
 - `lintr::lint_package()` reports no lints
-- a standard `R CMD check` (`--no-manual`) passes
 
 Enable it once per clone:
 
@@ -21,12 +21,20 @@ Enable it once per clone:
 git config core.hooksPath .githooks
 ```
 
-It blocks a push whose tree would turn those workflows red. Emergency bypass:
-`SKIP_VERIFY=1 git push`.
+It blocks a push that would turn the `lint` / `news-version` workflows red.
+Emergency bypass: `SKIP_VERIFY=1 git push`.
 
-The strict cross-platform `--as-cran` matrix (`full-check.yml`) and R-hub
-(`rhub.yaml`) still run remotely on demand / at release-tag time — that's the
-"send for remote testing when submitting to CRAN" path.
+### Heavyweight checks live at CRAN-submission time
+
+`R CMD check`, the cross-platform matrix (`full-check.yml`), and R-hub
+(`rhub.yaml`) are the **"remote testing when submitting to CRAN"** path — they
+run on demand / at release-tag time and require the full `Suggests` set
+(`covr`, `goodpractice`, `DT`, `visNetwork`, ...). The pre-push hook
+deliberately does **not** run `R CMD check`: without those packages installed a
+local check fails on optional-dependency artefacts (e.g. the `visNetwork`
+explorer tests) that are green in CI. Before tagging a release, install the
+Suggests and run `R CMD check` (or `rcmdcheck::rcmdcheck()`) locally as a
+pre-flight.
 
 ### Restoring per-push/PR remote CI
 

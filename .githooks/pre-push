@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
 # Pre-push verify gate — the routine local stand-in for the GitHub-hosted
-# `Verify` and `news-version` workflows, which are TEMPORARILY gated to
+# `Verify (lint)` and `news-version` workflows, which are TEMPORARILY gated to
 # CRAN-submission prep only (workflow_dispatch + release tags 'v*') because
-# GitHub-hosted runners are disabled on this account. This hook runs the same
-# checks locally so a tree that would turn those workflows red can't be pushed.
+# GitHub-hosted runners are disabled on this account.
 #
-# Mirrors:
-#   - news-version.yaml : top NEWS.md heading vs DESCRIPTION Version
-#   - Verify / lint     : lintr::lint_package() (error on any lint)
-#   - Verify / check    : standard R CMD check (--no-manual)
-# The strict cross-platform --as-cran pass still lives in full-check.yml (run on
-# release tags / on demand at CRAN time).
+# This is the LIGHT, deterministic gate — the two cheap checks that catch the
+# common mistakes without needing the full Suggests toolchain installed:
+#   - news-version.yaml  : top NEWS.md heading vs DESCRIPTION Version
+#   - Verify / lint      : lintr::lint_package() (fails on any lint)
+#
+# The heavyweight correctness checks — `R CMD check`, the cross-platform matrix
+# (full-check.yml), and R-hub (rhub.yaml) — are the "remote testing at CRAN
+# submission" path: they run on release tags / on demand, and require the full
+# Suggests set (covr, goodpractice, DT, visNetwork, ...). Run `R CMD check`
+# locally yourself before tagging a release if you want a pre-flight.
 #
 # Enable once per clone:   git config core.hooksPath .githooks
 # Emergency bypass:        SKIP_VERIFY=1 git push
@@ -38,22 +41,4 @@ fi
 echo "pre-push: lintr::lint_package() ..." >&2
 Rscript -e 'l <- lintr::lint_package(); if (length(l)) { print(l); quit(status = 1L) }'
 
-# 3. R CMD check (mirrors the Verify `check` job: standard --no-manual pass).
-#    Prefer rcmdcheck (errors on WARNING, like the r-lib CI action); fall back to
-#    base `R CMD build` + `R CMD check` (errors on ERROR only) when it's absent.
-#    `_R_CHECK_FORCE_SUGGESTS_=false` so a local clone missing optional Suggests
-#    (covr, goodpractice, DT, visNetwork, ...) doesn't fail the gate — CI installs
-#    them for the full check; the local gate covers lint + the core check.
-echo "pre-push: R CMD check (--no-manual) ..." >&2
-export _R_CHECK_FORCE_SUGGESTS_=false
-if Rscript -e 'quit(status = as.integer(!requireNamespace("rcmdcheck", quietly = TRUE)))'; then
-  Rscript -e 'rcmdcheck::rcmdcheck(args = "--no-manual", error_on = "warning")'
-else
-  echo "pre-push: rcmdcheck not installed — using base R CMD build + check (errors on ERROR only)" >&2
-  R CMD build . --no-build-vignettes >&2
-  tarball="$(ls -t pagerankr_*.tar.gz | head -n1)"
-  R CMD check "$tarball" --no-manual
-  rm -f "$tarball"
-fi
-
-echo "pre-push: all checks passed ✓" >&2
+echo "pre-push: lint + NEWS checks passed ✓" >&2
