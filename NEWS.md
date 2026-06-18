@@ -1,5 +1,19 @@
 # pagerankr (development version)
 
+* New `pagerank_screaming_frog()` scores a `screaming_frog_bundle()` through
+  the existing `pagerank()` pipeline, feeding only graph-eligible hyperlink
+  edges while attaching Screaming Frog import diagnostics beside the transition
+  audit. Placement/origin filtering and placement-derived weighting are
+  explicit opt-ins (PAGE-sgyfclym).
+* New `screaming_frog_bundle()` composes Internal: All and All Inlinks/Outlinks
+  adapters into the stable crawl handoff object with raw observations, graph
+  edges, node signals, cross-table reconciliation diagnostics, provenance, and
+  concise print/summary methods (PAGE-uggwyfop).
+* New canonical and composed URL-resolution helpers:
+  `resolve_canonicals()`, `resolve_canonical_urls()`, and
+  `resolve_folded_urls()` expose the existing fold-map engine for rel=canonical
+  and redirect+canonical URL folding without duplicating resolver logic
+  (PAGE-mhtjirux).
 * Documented the indexed-corpus assumption used by `pagerank()`: noindex
   pages may receive authority but their outlinks are treated as nofollow for
   propagation within the indexed graph. The docs now distinguish
