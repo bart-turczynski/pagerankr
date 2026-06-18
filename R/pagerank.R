@@ -211,12 +211,18 @@
 #'
 #' @return A data frame with node names and their PageRank scores. When
 #'   nofollow evaporation, indexability handling, or `robots_blocked_action =
-#'   "vanish"` is active, scores may sum to less than 1 (the difference is
-#'   the wasted/evaporated share).
+#'   "vanish"` is active, the returned scores may sum to less than 1. The
+#'   difference is not undifferentiated "leakage": it is decomposed into
+#'   **evaporated mass** (authority sent to the nofollow sink) and **hidden
+#'   mass** (authority trapped on robots-blocked nodes removed from the
+#'   results). The full breakdown — reported / evaporated (sink) / hidden /
+#'   total (= 1) — is recorded in the `mass` field of the transition audit
+#'   (see below).
 #'
 #'   The data frame additionally carries a `"transition_audit"` attribute (a
 #'   [transition_audit] object) recording how the transition graph was built:
-#'   row/edge counts, behavioral-weight coverage, normalization totals, dropped
+#'   row/edge counts, behavioral-weight coverage, normalization totals, the
+#'   page-mass decomposition (reported / evaporated / hidden / total), dropped
 #'   data (rows lost to NA / dedup / self-loops, unmatched prior URLs), and the
 #'   model configuration used. Retrieve it with
 #'   `attr(result, "transition_audit")`. This attribute is backward-compatible:
@@ -979,23 +985,41 @@ pagerank <- function(edge_list_df,
   )
 
   # --- 6. Post-processing: remove internal nodes from results ---
+  #
+  # The stationary vector computed in step 5 spans EVERY node — including the
+  # synthetic nofollow-evaporation sink and any robots-blocked nodes that the
+  # caller asked to vanish — so it sums to 1 by construction. The visible
+  # result only carries real, reported pages, so its scores can sum to < 1.
+  # Before dropping the internal nodes we measure how much stationary mass
+  # each carried away, so the difference is fully accounted for rather than
+  # written off as undifferentiated "leakage":
+  #   * evaporated mass = stationary mass parked on the nofollow sink (the
+  #     authority a source wasted on nofollowed outlinks);
+  #   * hidden mass      = stationary mass trapped on robots-blocked nodes that
+  #     were removed under `robots_blocked_action = "vanish"`.
+  # Captured here, fed into the transition audit's mass$ fields in step 7.
+  mass_evaporated <- 0
+  mass_hidden <- 0
   if (nrow(pagerank_results) > 0) {
     pr_node_col <- names(pagerank_results)[1]
+    pr_value_col <- names(pagerank_results)[2]
 
-    # Remove nofollow sink node
+    # Remove nofollow sink node (measure its evaporated mass first)
     if (used_nofollow_sink) {
-      pagerank_results <- pagerank_results[
-        pagerank_results[[pr_node_col]] != nofollow_sink_name, ,
-        drop = FALSE
-      ]
+      sink_mask <- pagerank_results[[pr_node_col]] == nofollow_sink_name
+      mass_evaporated <- sum(pagerank_results[[pr_value_col]][sink_mask],
+        na.rm = TRUE
+      )
+      pagerank_results <- pagerank_results[!sink_mask, , drop = FALSE]
     }
 
-    # Remove robots-blocked nodes if vanish action
+    # Remove robots-blocked nodes if vanish action (measure hidden mass first)
     if (robots_blocked_action == "vanish" && length(robots_blocked_urls) > 0) {
-      pagerank_results <- pagerank_results[
-        !(pagerank_results[[pr_node_col]] %in% robots_blocked_urls), ,
-        drop = FALSE
-      ]
+      hidden_mask <- pagerank_results[[pr_node_col]] %in% robots_blocked_urls
+      mass_hidden <- sum(pagerank_results[[pr_value_col]][hidden_mask],
+        na.rm = TRUE
+      )
+      pagerank_results <- pagerank_results[!hidden_mask, , drop = FALSE]
     }
 
     row.names(pagerank_results) <- NULL
@@ -1045,6 +1069,9 @@ pagerank <- function(edge_list_df,
     n_prior_unmatched = audit_n_prior_unmatched,
     n_robots_blocked = length(robots_blocked_urls),
     pagerank_total = audit_pagerank_total,
+    mass_reported = audit_pagerank_total,
+    mass_evaporated = mass_evaporated,
+    mass_hidden = mass_hidden,
     config = list(
       self_loops = self_loops,
       drop_isolates_flag = drop_isolates_flag,
