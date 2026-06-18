@@ -5,6 +5,11 @@
   behavioral-weight coverage, normalization total, dropped data (NA / dedup /
   self-loop rows, unmatched prior URLs), robots-blocked count, and the model
   configuration used. Has a `print` method (PAGE-czbpthiz).
+* The `transition_audit` object's `mass` field now decomposes the page-mass
+  deficit precisely into `reported` (visible page mass), `sink` (evaporated
+  nofollow-sink mass), `hidden` (robots-blocked mass), and `total` (= 1 by
+  construction) — replacing undifferentiated "leakage" language with precise
+  evaporated/hidden accounting (PAGE-mqsxrcdz).
 * New `aggregate_edges()`: loss-aware post-fold edge aggregation with explicit
   per-column semantics (sum counts, boolean conflict policy `any`/`all`/
   `majority`/`error`, `preserve_cols` list-columns for placement features)

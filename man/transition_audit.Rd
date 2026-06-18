@@ -52,10 +52,18 @@ fields are **stable**; callers may rely on them being present.
     logical flags `has_redirects` / `has_canonicals` (whether that signal
     *materially* folded an edge — an effective no-op such as a self-canonical
     reads `FALSE`), `has_indexability`, and `has_prior`.}
-  \item{mass}{A list of page-mass accounting fields. **Stubbed here as `NULL`
-    placeholders** — they are populated by the mass-accounting feature
-    (B2); the keys (`reported`, `sink`, `hidden`, `total`) are reserved so
-    that work can fill them without changing this object's shape.}
+  \item{mass}{A list decomposing the internal stationary vector (which
+    always sums to 1) into its accounted-for components: `reported` (the
+    mass on returned, visible pages — equals the summed result scores),
+    `sink` (the **evaporated mass**: authority sent to the synthetic
+    nofollow-evaporation sink under `nofollow_action = "evaporate"`),
+    `hidden` (the **hidden mass**: authority trapped on hidden /
+    robots-blocked nodes removed under `robots_blocked_action = "vanish"`),
+    and `total` (their sum, which reconciles to 1 by construction). These
+    are the precise components of the deficit between the reported scores
+    and 1 — it is evaporated and hidden mass, not undifferentiated
+    "leakage". Each is `NULL` when the stationary vector is undefined (e.g.
+    an empty graph).}
 }
 
 The constructor [new_transition_audit()] is internal plumbing for

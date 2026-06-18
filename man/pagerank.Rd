@@ -59,8 +59,8 @@ with "from" and "to" columns. Defaults to NULL.}
 \item{clean_edge_urls}{Logical, whether to clean URLs in the edge list.
 Defaults to TRUE.}
 
-\item{clean_redirect_urls}{Logical, whether to clean URLs in the redirect list.
-Defaults to TRUE. Only effective if `redirects_df` is provided.}
+\item{clean_redirect_urls}{Logical, whether to clean URLs in the redirect
+list. Defaults to TRUE. Only effective if `redirects_df` is provided.}
 
 \item{rurl_params}{A list of parameters to pass to `rurl::clean_url`.
 Defaults to an empty list. `protocol_handling` defaults to `"keep"` and
@@ -139,18 +139,18 @@ all available policies.}
 \item{canonicals_df}{An optional data frame of declared `rel=canonical`
 links, with `from`/`to` columns (or as set by `canonical_from_col` /
 `canonical_to_col`) pairing a source URL with the canonical it declares.
-Default `NULL` (opt-in; the default preserves current behaviour). Canonicals
-are a **distinct, advisory** signal from enforced 3xx `redirects_df`: they
-are tracked separately and audited via [audit_canonicals()] /
-[audit_fold()], then folded into the same composed map as redirects (see
-[build_fold_map()]). Self-canonicals are dropped as no-ops.}
+Default `NULL` (opt-in; the default preserves current behaviour).
+Canonicals are a **distinct, advisory** signal from enforced 3xx
+`redirects_df`: they are tracked separately and audited via
+[audit_canonicals()] / [audit_fold()], then folded into the same composed
+map as redirects (see [build_fold_map()]). Self-canonicals drop as no-ops.}
 
-\item{canonical_from_col, canonical_to_col}{From/to columns in `canonicals_df`.
-Default `"from"` / `"to"`.}
+\item{canonical_from_col, canonical_to_col}{From/to columns in
+`canonicals_df`. Default `"from"` / `"to"`.}
 
 \item{clean_canonical_urls}{Logical, whether to clean URLs in `canonicals_df`
-using the same resolved `rurl_params` profile as edge and redirect cleaning.
-Default `TRUE`. Only effective when `canonicals_df` is provided.}
+using the same resolved `rurl_params` profile as edge and redirect
+cleaning. Default `TRUE`. Only effective when `canonicals_df` is provided.}
 
 \item{canonical_duplicate_from_policy}{How to handle a canonical source that
 declares multiple distinct canonicals. Reuses the `duplicate_from_policy`
@@ -237,8 +237,22 @@ to `igraph::page_rank` (e.g., `damping`).}
 \value{
 A data frame with node names and their PageRank scores. When
   nofollow evaporation, indexability handling, or `robots_blocked_action =
-  "vanish"` is active, scores may sum to less than 1 (the difference is
-  the wasted/evaporated share).
+  "vanish"` is active, the returned scores may sum to less than 1. The
+  difference is not undifferentiated "leakage": it is decomposed into
+  **evaporated mass** (authority sent to the nofollow sink) and **hidden
+  mass** (authority trapped on robots-blocked nodes removed from the
+  results). The full breakdown — reported / evaporated (sink) / hidden /
+  total (= 1) — is recorded in the `mass` field of the transition audit
+  (see below).
+
+  The data frame additionally carries a `"transition_audit"` attribute (a
+  [transition_audit] object) recording how the transition graph was built:
+  row/edge counts, behavioral-weight coverage, normalization totals, the
+  page-mass decomposition (reported / evaporated / hidden / total), dropped
+  data (rows lost to NA / dedup / self-loops, unmatched prior URLs), and the
+  model configuration used. Retrieve it with
+  `attr(result, "transition_audit")`. This attribute is backward-compatible:
+  the data frame itself (its columns and rows) is unchanged.
 }
 \description{
 Orchestrates the complete PageRank calculation workflow,
@@ -266,7 +280,7 @@ are removed (`"vanish"`).
 **Priority rule:** robots.txt always takes precedence over noindex. If a
 page is both robots-blocked and noindex, it is treated as robots-blocked.
 
-\subsection{Reverse / inverse PageRank (`reverse = TRUE`)}{
+## Reverse / inverse PageRank (`reverse = TRUE`)
 
 Standard PageRank measures **inflow** importance ("who points to me"). With
 `reverse = TRUE` the link graph is transposed before computation, yielding
@@ -301,30 +315,36 @@ their semantics do not transpose:
     crawl/index behaviour with no meaningful transpose.}
 }
 }
-}
 \examples{
 # Basic example
 edges <- data.frame(
-  from = c("http://A.com/", "B", "C?q=1", "D"), 
+  from = c("http://A.com/", "B", "C?q=1", "D"),
   to = c("B", "http://A.com", "D#frag", "D"),
   stringsAsFactors = FALSE
 )
 redirects <- data.frame(
-  from = c("C?q=1", "B"), 
+  from = c("C?q=1", "B"),
   to = c("http://C_resolved.com", "A"), # B redirects to A, C to C_resolved
   stringsAsFactors = FALSE
 )
 
 # Run full pipeline
-pr_full <- pagerank(edges, redirects_df = redirects, self_loops="drop", drop_isolates_flag=TRUE)
+pr_full <- pagerank(
+  edges,
+  redirects_df = redirects, self_loops = "drop", drop_isolates_flag = TRUE
+)
 print(pr_full)
 
-# Run without URL cleaning for edges (warning expected if query params present)
-pr_no_edge_clean <- pagerank(edges, redirects_df = redirects, clean_edge_urls = FALSE)
+# Run without URL cleaning for edges
+# (warning expected if query params present)
+pr_no_edge_clean <- pagerank(
+  edges,
+  redirects_df = redirects, clean_edge_urls = FALSE
+)
 print(pr_no_edge_clean)
 
 # Keep isolates
-edges_isol <- rbind(edges, data.frame(from="ISO", to="LAND"))
+edges_isol <- rbind(edges, data.frame(from = "ISO", to = "LAND"))
 pr_keep_isolates <- pagerank(edges_isol, drop_isolates_flag = FALSE)
 print(pr_keep_isolates)
 
@@ -333,8 +353,10 @@ edges_nf <- data.frame(
   from = c("A", "A", "B"), to = c("B", "C", "A"),
   nofollow = c(FALSE, TRUE, FALSE), stringsAsFactors = FALSE
 )
-pr_nf <- pagerank(edges_nf, nofollow_col = "nofollow",
-                  nofollow_action = "evaporate", clean_edge_urls = FALSE)
+pr_nf <- pagerank(edges_nf,
+  nofollow_col = "nofollow",
+  nofollow_action = "evaporate", clean_edge_urls = FALSE
+)
 print(pr_nf)
 
 # Reverse / inverse PageRank (outflow centrality, a.k.a. CheiRank):
