@@ -88,6 +88,7 @@ edges <- data.frame(
   stringsAsFactors = FALSE
 )
 edges$weight <- transform_weights(edges$position, "zipf",
-                                   descending = FALSE)
+  descending = FALSE
+)
 # pagerank(edges, weight_col = "weight", clean_edge_urls = FALSE)
 }

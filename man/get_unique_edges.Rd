@@ -18,22 +18,25 @@ columns "from" and "to" (or as specified by `from_col`, `to_col`).}
 \item{self_loops}{A character string specifying how to handle self-loops.
 Must be one of "drop" (default) or "keep".}
 
-\item{from_col}{Name of the source node column in `edge_list_df`. Default "from".}
+\item{from_col}{Name of the source node column in `edge_list_df`.
+Default "from".}
 
 \item{to_col}{Name of the target node column in `edge_list_df`. Default "to".}
 }
 \value{
 A data frame with unique edges, with self-loops handled according to
-  the `self_loops` argument. The from/to columns are coerced to character; all
-  other columns in the input are preserved (first occurrence kept on dedup).
-  If input columns are factors, they are converted to characters in the output.
+  the `self_loops` argument. The from/to columns are coerced to character;
+  all other columns in the input are preserved (first occurrence kept on
+  dedup). If input columns are factors, they are converted to characters in
+  the output.
 }
 \description{
 Removes duplicate edge rows from an edge list data frame and
   provides control over how self-loops (e.g., a -> a) are handled.
 }
 \details{
-Any edge where either from or to is NA is automatically dropped before deduplication and self-loop handling.
+Any edge where either from or to is NA is automatically dropped before
+deduplication and self-loop handling.
 }
 \examples{
 edges <- data.frame(
@@ -50,14 +53,16 @@ edges_custom <- data.frame(
   target = c("Y", "Y", "Y"),
   stringsAsFactors = FALSE
 )
-get_unique_edges(edges_custom, from_col="source", to_col="target")
+get_unique_edges(edges_custom, from_col = "source", to_col = "target")
 
-# With NAs (NAs are preserved as they are, duplicates involving NAs are also removed)
+# With NAs (NAs are preserved as they are,
+# duplicates involving NAs are also removed)
 edges_na <- data.frame(
   from = c("A", NA, "A", "B", NA),
   to = c("B", "C", "B", "D", "C"),
   stringsAsFactors = FALSE
 )
 get_unique_edges(edges_na, self_loops = "keep")
-get_unique_edges(edges_na, self_loops = "drop") # No self-loops with NA to drop
+# No self-loops with NA to drop
+get_unique_edges(edges_na, self_loops = "drop")
 }

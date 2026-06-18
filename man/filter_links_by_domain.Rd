@@ -55,11 +55,11 @@ Affects domain-based (not host-based) keep/ignore matching; e.g. under
 pagerankr's profile per key, used when extracting hosts/domains from both
 the edge URLs and the keep/ignore values. Pass the **same** profile used to
 clean the graph so the comparison keys are derived identically. The
-host-relevant knobs are `host_encoding` (`"keep"`/`"idna"`/`"unicode"` --
+host-relevant knobs are `host_encoding` (`"keep"`/`"idna"`/`"unicode"` —
 IDN folding; e.g. `"idna"` makes `münchen.de` and `xn--mnchen-3ya.de`
 match), `www_handling`, `subdomain_levels_to_keep`, `case_handling`, and
 `protocol_handling`. Registrable-domain matching is encoding-independent.
-When called from \code{\link{pagerank}}, this is forwarded automatically.}
+When called from [pagerank()], this is forwarded automatically.}
 }
 \value{
 If `return_report = FALSE` (default), the filtered data frame
@@ -78,10 +78,14 @@ or exclude CDN / tracking domains.
 }
 \examples{
 links <- data.frame(
-  from = c("http://www.example.com/a", "http://example.com/b",
-           "http://cdn.tracker.com/c"),
-  to = c("http://example.com/b", "http://help.example.com/d",
-         "http://www.example.com/a"),
+  from = c(
+    "http://www.example.com/a", "http://example.com/b",
+    "http://cdn.tracker.com/c"
+  ),
+  to = c(
+    "http://example.com/b", "http://help.example.com/d",
+    "http://www.example.com/a"
+  ),
   stringsAsFactors = FALSE
 )
 
@@ -92,7 +96,9 @@ filter_links_by_domain(links, keep_domains = "example.com")
 filter_links_by_domain(links, ignore_hosts = "cdn.tracker.com")
 
 # Get a report of what was filtered
-result <- filter_links_by_domain(links, keep_domains = "example.com",
-                                 return_report = TRUE)
+result <- filter_links_by_domain(links,
+  keep_domains = "example.com",
+  return_report = TRUE
+)
 result$report
 }

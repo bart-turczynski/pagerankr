@@ -15,16 +15,16 @@ containing URLs. Defaults to `c("from", "to")`.}
 \item{...}{`rurl::get_clean_url` arguments that override the canonicalization
 profile per key. Recognized knobs: `protocol_handling`, `case_handling`,
 `www_handling`, `trailing_slash_handling`, `index_page_handling`,
-`path_normalization`, `scheme_relative_handling`, `subdomain_levels_to_keep`,
-`host_encoding`, `path_encoding`.}
+`path_normalization`, `scheme_relative_handling`,
+`subdomain_levels_to_keep`, `host_encoding`, `path_encoding`.}
 }
 \value{
 A data frame with the specified URL columns cleaned.
 }
 \description{
-Applies `rurl::get_clean_url` to specified columns of a data frame. URLs are
-  cleaned under pagerankr's explicit canonicalization profile (see Details),
-  with any arguments in `...` overriding individual knobs.
+Applies `rurl::get_clean_url` to specified columns of a data
+  frame. URLs are cleaned under pagerankr's explicit canonicalization profile
+  (see Details), with any arguments in `...` overriding individual knobs.
 }
 \details{
 The canonicalization profile pins every `rurl` knob explicitly
@@ -34,15 +34,21 @@ on `rurl`'s own (version-dependent) defaults. The values mirror `rurl`'s
 current defaults, so this is behaviour-preserving; it guards against future
 default drift and keeps the cleaning and domain-filtering paths symmetrical.
 
-NA values in the specified columns are preserved in the output. Downstream functions in the pagerankr workflow (such as get_unique_edges and pagerank) will automatically drop any edge where either from or to is NA.
+NA values in the specified columns are preserved in the output. Downstream
+functions in the pagerankr workflow (such as get_unique_edges and pagerank)
+will automatically drop any edge where either from or to is NA.
 }
 \examples{
 df <- data.frame(
-  from = c("http://example.com/path", 
-           "HTTPS://Example.com/PATH#frag", NA, 
-           "http://example.com/path"),
-  to = c("www.another.com?q=1", "another.com/?q=1&b=2", 
-         "http://foo.bar", NA),
+  from = c(
+    "http://example.com/path",
+    "HTTPS://Example.com/PATH#frag", NA,
+    "http://example.com/path"
+  ),
+  to = c(
+    "www.another.com?q=1", "another.com/?q=1&b=2",
+    "http://foo.bar", NA
+  ),
   other_col = 1:4,
   stringsAsFactors = FALSE # Added for consistency
 )

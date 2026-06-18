@@ -1,5 +1,20 @@
 # pagerankr (development version)
 
+* Documented the indexed-corpus assumption used by `pagerank()`: noindex
+  pages may receive authority but their outlinks are treated as nofollow for
+  propagation within the indexed graph. The docs now distinguish
+  slot-consuming `"evaporate"`, slot-removing `"drop"`, and normally followed
+  `"keep"` without attributing this package model to Google (PAGE-aniklatq).
+* New `screaming_frog_links()` imports **All Inlinks** and **All Outlinks**
+  with identical Source-to-Destination orientation, preserving raw duplicate
+  observations while deriving explicit Hyperlink-only graph edges with
+  nofollow, placement, origin, endpoint, and exclusion diagnostics
+  (PAGE-gzitxahc).
+* New `screaming_frog_internal()` imports UTF-8/BOM **Internal: All** exports
+  with alias-insensitive schema detection and selective file reads. It returns
+  deterministic node, redirect, canonical, and indexability tables while
+  preserving raw URLs and reporting missing, duplicate, invalid, and ignored
+  input facts (PAGE-bleererh).
 * `pagerank()` now attaches a `transition_audit` provenance object to its result
   as `attr(result, "transition_audit")` (backward-compatible): row/edge counts,
   behavioral-weight coverage, normalization total, dropped data (NA / dedup /

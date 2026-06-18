@@ -36,9 +36,11 @@ configurations.
 }
 \section{Functions}{
 \itemize{
-\item \code{pr_gini()}: Gini coefficient (0 = perfectly equal, 1 = maximally concentrated).
+\item \code{pr_gini()}: Gini coefficient (0 = perfectly equal,
+1 = maximally concentrated).
 
-\item \code{pr_entropy()}: Shannon entropy (higher = more uniform distribution).
+\item \code{pr_entropy()}: Shannon entropy (higher = more uniform
+distribution).
 
 \item \code{pr_top_k_share()}: Share of total PageRank held by the top-k
 fraction of nodes (e.g., top 10 percent).
@@ -47,8 +49,8 @@ fraction of nodes (e.g., top 10 percent).
 \examples{
 pr_gini(c(0.5, 0.3, 0.2))
 pr_gini(c(1, 0, 0))
-pr_entropy(c(1/3, 1/3, 1/3))  # maximum entropy for 3 nodes
-pr_entropy(c(1, 0, 0))         # minimum entropy
+pr_entropy(c(1 / 3, 1 / 3, 1 / 3)) # maximum entropy for 3 nodes
+pr_entropy(c(1, 0, 0)) # minimum entropy
 pr_top_k_share(c(0.5, 0.3, 0.1, 0.05, 0.05))
 pr_top_k_share(c(0.5, 0.3, 0.1, 0.05, 0.05), k = 0.4)
 }
