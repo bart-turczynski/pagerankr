@@ -1,5 +1,10 @@
 # pagerankr (development version)
 
+* `pagerank()` now attaches a `transition_audit` provenance object to its result
+  as `attr(result, "transition_audit")` (backward-compatible): row/edge counts,
+  behavioral-weight coverage, normalization total, dropped data (NA / dedup /
+  self-loop rows, unmatched prior URLs), robots-blocked count, and the model
+  configuration used. Has a `print` method (PAGE-czbpthiz).
 * New `aggregate_edges()`: loss-aware post-fold edge aggregation with explicit
   per-column semantics (sum counts, boolean conflict policy `any`/`all`/
   `majority`/`error`, `preserve_cols` list-columns for placement features)
