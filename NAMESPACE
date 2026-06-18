@@ -3,6 +3,7 @@
 S3method(print,canonical_audit)
 S3method(print,fold_audit)
 S3method(print,redirect_audit)
+S3method(print,transition_audit)
 export(aggregate_edges)
 export(align_prior_to_vertices)
 export(analyze_pagerank_grid)
