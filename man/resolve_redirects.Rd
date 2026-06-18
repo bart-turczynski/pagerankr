@@ -116,7 +116,8 @@ redirects_conflict <- data.frame(
   stringsAsFactors = FALSE
 )
 resolve_redirects(edges_conflict, redirects_conflict,
-                  duplicate_from_policy = "first_wins")
+  duplicate_from_policy = "first_wins"
+)
 
 # Example with different column names
 edges_custom <- data.frame(
@@ -126,8 +127,9 @@ redirects_custom <- data.frame(
   original = "Page2", final = "Page2_resolved"
 )
 resolve_redirects(edges_custom, redirects_custom,
-                  edge_from_col = "source_url",
-                  edge_to_col = "target_url",
-                  redirect_from_col = "original",
-                  redirect_to_col = "final")
+  edge_from_col = "source_url",
+  edge_to_col = "target_url",
+  redirect_from_col = "original",
+  redirect_to_col = "final"
+)
 }

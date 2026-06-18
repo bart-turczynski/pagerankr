@@ -6,10 +6,10 @@
 \alias{pagerankr}
 \title{pagerankr: A Modular Toolkit for PageRank Calculation}
 \description{
-The pagerankr package provides a set of modular, pipeable functions 
-to calculate PageRank scores from edge lists and redirect reports, 
-common in SEO analysis. Functions handle URL cleaning, redirect resolution, 
-edge deduplication, isolate handling, and PageRank computation using base R 
+The pagerankr package provides a set of modular, pipeable functions
+to calculate PageRank scores from edge lists and redirect reports,
+common in SEO analysis. Functions handle URL cleaning, redirect resolution,
+edge deduplication, isolate handling, and PageRank computation using base R
 for data manipulation and 'igraph' for core PageRank calculation.
 }
 \seealso{
@@ -22,6 +22,11 @@ Useful links:
 }
 \author{
 \strong{Maintainer}: Bart Turczynski \email{bartek@turczynski.pl}
+
+Authors:
+\itemize{
+  \item Bart Turczynski \email{bartek@turczynski.pl}
+}
 
 }
 \keyword{internal}

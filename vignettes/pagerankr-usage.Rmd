@@ -153,9 +153,18 @@ resolve_links(edges, redirects, clean_urls = FALSE)
 
 ## Nofollow Handling
 
-Google splits PageRank across all outgoing links, including nofollow.
-The nofollow share simply vanishes (the "evaporate" model). `pagerankr`
-supports this natively:
+`pagerankr` provides three explicit propagation policies for links marked
+nofollow:
+
+- `"evaporate"` (the default) keeps each nofollow link as an outgoing slot.
+  It consumes its weighted share of the source page's budget, but that share
+  reaches a sink rather than the target.
+- `"drop"` removes nofollow links before allocating the outgoing budget. They
+  consume no slots, and followed links divide the full budget.
+- `"keep"` follows the links normally, so their targets receive their shares.
+
+These are package modeling choices; they are not claims about a search
+engine's current implementation.
 
 ```{r nofollow}
 edges <- data.frame(
@@ -186,8 +195,19 @@ print(pr_drop)
 
 ### noindex pages
 
-A `noindex` page cannot pass PageRank because it's not in Google's index.
-All outgoing links from a noindex page are treated as nofollow:
+`pagerankr` assumes that the ranked corpus consists of indexed documents.
+Under this indexed-corpus assumption, a `noindex` page is outside the ranked
+corpus. It may receive authority through inlinks, but cannot redistribute that
+authority within the indexed graph. The package therefore treats its outgoing
+links as nofollow for propagation, applying the selected `nofollow_action`:
+slot-consuming `"evaporate"`, slot-removing `"drop"`, or normally followed
+`"keep"`.
+
+This is strictly a `pagerankr` PageRank assumption. It does not mean that
+Google or another search engine defines `noindex` as an explicit nofollow
+directive. A noindex page can remain visible in the result to make its received
+authority auditable; hiding it would be an optional reporting choice, not a
+change required for correct propagation under this model.
 
 ```{r indexability_noindex}
 edges <- data.frame(

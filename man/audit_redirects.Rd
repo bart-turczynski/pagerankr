@@ -60,7 +60,7 @@ Analyses a redirect data frame and returns a diagnostic report
 \examples{
 redirects <- data.frame(
   from = c("A", "B", "C", "D", "D", "E"),
-  to   = c("B", "C", "final", "X", "Y", "E"),
+  to = c("B", "C", "final", "X", "Y", "E"),
   stringsAsFactors = FALSE
 )
 audit <- audit_redirects(redirects)

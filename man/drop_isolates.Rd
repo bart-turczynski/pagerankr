@@ -25,7 +25,8 @@ and to are non-NA in the same row). If `FALSE` (default), returns a
 single-column data frame of all unique non-NA node names present in either
 column of `edge_list_df` (the full vertex universe, including isolates).}
 
-\item{from_col}{Name of the source node column in `edge_list_df`. Default "from".}
+\item{from_col}{Name of the source node column in `edge_list_df`.
+Default "from".}
 
 \item{to_col}{Name of the target node column in `edge_list_df`. Default "to".}
 
@@ -49,13 +50,15 @@ From an edge list, identifies isolated nodes (nodes that do not
   partial/incomplete rows).
 }
 \examples{
-# Edge list with partial rows (NA in one column = known node, not a complete edge)
+# Edge list with partial rows
+# (NA in one column = known node, not a complete edge)
 edges <- data.frame(
   from = c("A", "B", "C", NA, "D"),
   to = c("B", "C", "A", "E", NA),
   stringsAsFactors = FALSE
 )
-# Complete edges: A->B, B->C, C->A. Partial rows: NA->E (E is isolate), D->NA (D is isolate).
+# Complete edges: A->B, B->C, C->A.
+# Partial rows: NA->E (E is isolate), D->NA (D is isolate).
 
 # Get only nodes participating in complete edges (A, B, C)
 active_nodes <- drop_isolates(edges, drop = TRUE)
@@ -67,24 +70,33 @@ print(all_nodes)
 
 # Edge list with no isolates (all rows are complete edges)
 edges_complete <- data.frame(
-  from = c("X", "Y"), 
-  to = c("Y", "X"), 
+  from = c("X", "Y"),
+  to = c("Y", "X"),
   stringsAsFactors = FALSE
 )
-drop_isolates(edges_complete, drop = TRUE)  # X, Y
+drop_isolates(edges_complete, drop = TRUE) # X, Y
 drop_isolates(edges_complete, drop = FALSE) # X, Y (same, no partial rows)
 
 # Empty edge list
-empty_edges <- data.frame(from = character(0), to = character(0), stringsAsFactors = FALSE)
+empty_edges <- data.frame(
+  from = character(0), to = character(0), stringsAsFactors = FALSE
+)
 drop_isolates(empty_edges, drop = TRUE)
 drop_isolates(empty_edges, drop = FALSE)
 
 # Edge list with only NAs
-na_edges <- data.frame(from = NA_character_, to = NA_character_, stringsAsFactors = FALSE)
+na_edges <- data.frame(
+  from = NA_character_, to = NA_character_, stringsAsFactors = FALSE
+)
 drop_isolates(na_edges, drop = TRUE)
 drop_isolates(na_edges, drop = FALSE)
 
 # Custom column names
-custom_edges <- data.frame(source = c("S1"), target = c("T1"), stringsAsFactors = FALSE)
-drop_isolates(custom_edges, from_col = "source", to_col = "target", node_col_name = "vertex")
+custom_edges <- data.frame(
+  source = c("S1"), target = c("T1"), stringsAsFactors = FALSE
+)
+drop_isolates(
+  custom_edges,
+  from_col = "source", to_col = "target", node_col_name = "vertex"
+)
 }

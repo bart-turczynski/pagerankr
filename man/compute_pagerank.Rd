@@ -13,6 +13,9 @@ compute_pagerank(
   vertex_col_name = "node_name",
   reverse = FALSE,
   weight_col = NULL,
+  weight_validation = c("error", "warning", "none"),
+  weight_expected_total = NULL,
+  weight_tolerance = sqrt(.Machine$double.eps),
   pr_node_col = "node_name",
   pr_value_col = "pagerank",
   prior_df = NULL,
@@ -27,22 +30,27 @@ compute_pagerank(
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the processed edge list,
-typically with columns "from" and "to" (or as specified by `from_col`, `to_col`).
+typically with columns "from" and "to" (or as specified by `from_col`,
+`to_col`).
 It should contain only edges to be included in the graph. NAs in these
 columns will be omitted before graph construction.}
 
-\item{vertices_df}{An optional single-column data frame of node names to define
-the set of vertices for the graph. If `NULL` (default), all unique non-NA nodes
-present in `edge_list_df` (after NA removal from edges) are used. 
+\item{vertices_df}{An optional single-column data frame of node names to
+define
+the set of vertices for the graph. If `NULL` (default), all unique non-NA
+nodes
+present in `edge_list_df` (after NA removal from edges) are used.
 The column name is specified by `vertex_col_name`.}
 
 \item{damping}{The damping factor for PageRank. Default is 0.85.}
 
-\item{from_col}{Name of the source node column in `edge_list_df`. Default "from".}
+\item{from_col}{Name of the source node column in `edge_list_df`. Default
+"from".}
 
 \item{to_col}{Name of the target node column in `edge_list_df`. Default "to".}
 
-\item{vertex_col_name}{Name of the column in `vertices_df` containing node names.
+\item{vertex_col_name}{Name of the column in `vertices_df` containing node
+names.
 Default "node_name".}
 
 \item{reverse}{Logical. If `TRUE`, edge orientation is flipped before the
@@ -54,14 +62,29 @@ are unaffected by the flip; only edge direction is reversed. Default
 `FALSE`. See [pagerank()] for the higher-level wrapper and the caveats on
 combining `reverse = TRUE` with direction-sensitive features.}
 
-\item{weight_col}{Optional name of a numeric column in `edge_list_df` containing
+\item{weight_col}{Optional name of a numeric column in `edge_list_df`
+containing
 edge weights. Higher weights make edges more likely to be followed in the
 random surfer model. If `NULL` (default), all edges have equal weight
 (unweighted PageRank).}
 
-\item{pr_node_col}{Name for the node column in the output PageRank data frame. Default "node_name".}
+\item{weight_validation}{How invalid edge weights are handled when
+`weight_col` is supplied: `"error"` (default), `"warning"`, or `"none"`.
+Validation covers negative and non-finite values plus sources whose
+outgoing weights are all zero. See [validate_edge_weights()].}
 
-\item{pr_value_col}{Name for the PageRank value column in the output data frame. Default "pagerank".}
+\item{weight_expected_total}{Optional expected per-source weight total.
+Leave `NULL` (default) for ordinary raw edge weights. Set to `1` when
+`weight_col` contains pre-normalized transition probabilities.}
+
+\item{weight_tolerance}{Non-negative tolerance used with
+`weight_expected_total`.}
+
+\item{pr_node_col}{Name for the node column in the output PageRank data
+frame. Default "node_name".}
+
+\item{pr_value_col}{Name for the PageRank value column in the output data
+frame. Default "pagerank".}
 
 \item{prior_df}{Optional per-URL external-authority prior (TIPR). When
 supplied, a personalization/teleport vector is built via
@@ -80,9 +103,10 @@ to [align_prior_to_vertices()] as `transform`, `alpha`, `exclude_nodes`,
 \item{...}{Additional arguments passed to `igraph::page_rank()`.}
 }
 \value{
-A data frame with two columns: one for node names (named by `pr_node_col`)
+A data frame with two columns: one for node names (named by
+  `pr_node_col`)
   and one for their PageRank scores (named by `pr_value_col`), which sum to 1
-  for non-empty graphs. Returns an empty data frame with correct column names 
+  for non-empty graphs. Returns an empty data frame with correct column names
   if the graph is empty or has no nodes after processing.
 }
 \description{
@@ -90,32 +114,57 @@ Builds a graph from a processed edge list and computes PageRank
   scores using `igraph::page_rank()`.
 }
 \examples{
-edges <- data.frame(from = c("A", "B", "C"), to = c("B", "C", "A"), stringsAsFactors = FALSE)
+edges <- data.frame(
+  from = c("A", "B", "C"), to = c("B", "C", "A"),
+  stringsAsFactors = FALSE
+)
 pr_results <- compute_pagerank(edges)
 print(pr_results)
-if(nrow(pr_results) > 0) sum(pr_results$pagerank)
+if (nrow(pr_results) > 0) sum(pr_results$pagerank)
 
 # With specified vertices (e.g., from drop_isolates)
-vertices <- data.frame(node_name = c("A", "B", "C", "D"), 
-                       stringsAsFactors = FALSE) # D is an isolate
+vertices <- data.frame(
+  node_name = c("A", "B", "C", "D"),
+  stringsAsFactors = FALSE
+) # D is an isolate
 pr_results_isolates_kept <- compute_pagerank(edges, vertices_df = vertices)
 print(pr_results_isolates_kept)
-if(nrow(pr_results_isolates_kept) > 0) sum(pr_results_isolates_kept$pagerank)
+if (nrow(pr_results_isolates_kept) > 0) {
+  sum(pr_results_isolates_kept$pagerank)
+}
 
 # Single node graph with self-loop
-single_node_edges <- data.frame(from="A", to="A", stringsAsFactors = FALSE)
+single_node_edges <- data.frame(
+  from = "A", to = "A",
+  stringsAsFactors = FALSE
+)
 compute_pagerank(single_node_edges)
 
 # Single node, no edges, defined by vertices_df
-single_node_no_loop <- data.frame(from=character(0), to=character(0), stringsAsFactors = FALSE)
-compute_pagerank(single_node_no_loop, vertices_df = data.frame(node_name="A"))
+single_node_no_loop <- data.frame(
+  from = character(0), to = character(0),
+  stringsAsFactors = FALSE
+)
+compute_pagerank(
+  single_node_no_loop,
+  vertices_df = data.frame(node_name = "A")
+)
 
 # Empty graph (no edges, no vertices defined)
-empty_edges <- data.frame(from = character(), to = character(), stringsAsFactors = FALSE)
+empty_edges <- data.frame(
+  from = character(), to = character(),
+  stringsAsFactors = FALSE
+)
 compute_pagerank(empty_edges)
 
 # Edges with NAs (these edges will be dropped)
-edges_with_na <- data.frame(from=c("A", NA, "C"), to=c("B", "D", NA), stringsAsFactors = FALSE)
+edges_with_na <- data.frame(
+  from = c("A", NA, "C"), to = c("B", "D", NA),
+  stringsAsFactors = FALSE
+)
 compute_pagerank(edges_with_na) # Should only process A->B
-compute_pagerank(edges_with_na, vertices_df = data.frame(node_name=c("A","B","C","D")))
+compute_pagerank(
+  edges_with_na,
+  vertices_df = data.frame(node_name = c("A", "B", "C", "D"))
+)
 }

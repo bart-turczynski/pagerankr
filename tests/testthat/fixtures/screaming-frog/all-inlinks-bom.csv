@@ -1,0 +1,6 @@
+﻿Type,Source,Source Segments,Destination,Destination Segments,Size (Bytes),Alt Text,Anchor,Status Code,Status,Crawlability,Follow,Target,Rel,Path Type,Link Path,Link Position,Link Origin,Ignored Extra
+Hyperlink,https://example.com/,0,https://example.com/a,1,120,,A,200,OK,Crawlable,TRUE,_self,,Absolute,/html/body/a[1],Navigation,HTML & Rendered HTML,x
+Hyperlink,https://example.com/,0,https://example.com/a,1,120,,A duplicate,200,OK,Crawlable,false,_self,nofollow,Absolute,/html/body/a[2],Content,Rendered HTML,x
+Image,https://example.com/,0,https://example.com/logo.png,1,1024,Logo,,200,OK,Crawlable,TRUE,,,Absolute,/html/body/img[1],Head,HTML,x
+HTML Canonical,https://example.com/a,1,https://example.com/canonical,1,,,canonical,200,OK,Crawlable,TRUE,,canonical,Absolute,/html/head/link[1],Head,HTML,x
+Hyperlink,https://example.com/a,1,,0,,,blank destination,0,,Non-Crawlable,,,,Absolute,/html/body/a[3],,Unknown,x

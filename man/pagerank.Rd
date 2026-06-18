@@ -94,12 +94,15 @@ no nofollow handling is performed.}
 \item{nofollow_action}{How to handle nofollow edges when `nofollow_col` is
 provided. One of:
 \describe{
-  \item{`"evaporate"`}{(default, Google-like) Nofollow links consume their
-    share of the source node's outgoing PR budget but pass nothing to the
-    target. Implemented via a sink node that absorbs the wasted PR.}
-  \item{`"drop"`}{Remove nofollow edges entirely. Follow edges share the
-    full PR budget among themselves.}
-  \item{`"keep"`}{Treat nofollow edges identically to follow edges.}
+  \item{`"evaporate"`}{(default) Nofollow links remain outgoing slots:
+    they consume their weighted share of the source node's outgoing PR
+    budget but pass nothing to their targets. Implemented via a sink node
+    that absorbs the unpropagated PR.}
+  \item{`"drop"`}{Remove nofollow edges before allocating the outgoing
+    budget. They consume no slots, so followed edges divide the full
+    budget among themselves.}
+  \item{`"keep"`}{Retain and follow these edges normally, so their targets
+    receive their allocated shares.}
 }}
 
 \item{indexability_df}{Optional data frame mapping URLs to their indexability
@@ -266,10 +269,18 @@ PageRank computation.
 When `indexability_df` is provided, two types of pages receive special
 treatment:
 
-**noindex pages:** All outgoing links from a noindex page are treated as
-nofollow (the page is not in Google's index, so it cannot pass PageRank).
-These edges are then processed by the nofollow mechanism according to
-`nofollow_action`.
+**Indexed-corpus assumption and noindex pages:** `pagerankr` models the
+ranked corpus as the set of indexed documents. Under this package assumption,
+a noindex page is outside that corpus: it may receive authority through
+inlinks, but it cannot redistribute that authority within the indexed graph.
+Its outgoing links are therefore treated as nofollow for propagation and
+processed according to `nofollow_action`: `"evaporate"` leaves them as
+slot-consuming links whose shares reach the sink, `"drop"` removes them
+before shares are allocated, and `"keep"` follows them normally. This is a
+PageRank modeling choice in `pagerankr`; it does not assert that Google
+defines noindex as a nofollow directive. Noindex pages may still appear in
+the returned results so their received authority remains auditable. Hiding
+them would be an optional reporting choice, not a propagation correction.
 
 **robots.txt-blocked pages:** Google cannot access the page content, so
 there are no visible outgoing links. All outgoing edges are removed and a

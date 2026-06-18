@@ -37,7 +37,8 @@ A data frame with columns:
     \item{pagerank_a, pagerank_b}{PageRank scores from each model (`NA` when
       the node is absent from that model)}
     \item{delta}{`pagerank_b - pagerank_a`}
-    \item{pct_change}{Percentage change from a to b (`NA` when a is `NA` or 0)}
+    \item{pct_change}{Percentage change from a to b (`NA` when a is `NA` or
+      0)}
     \item{rank_a, rank_b}{Ordinal rank (1 = highest PageRank) within each
       model (`NA` when the node is absent)}
     \item{rank_delta}{`rank_a - rank_b` (positive = improved in b)}
@@ -52,17 +53,21 @@ A data frame with columns:
   }
 }
 \description{
-Performs a full outer join on two PageRank result data frames and
-  computes deltas, percentage changes, and rank changes for each node.
+Performs a full outer join on two PageRank result data frames
+  and computes deltas, percentage changes, and rank changes for each node.
   Summary statistics are attached as an attribute.
 }
 \examples{
-pr_a <- data.frame(node_name = c("A", "B", "C"),
-                   pagerank = c(0.5, 0.3, 0.2),
-                   stringsAsFactors = FALSE)
-pr_b <- data.frame(node_name = c("A", "B", "D"),
-                   pagerank = c(0.4, 0.35, 0.25),
-                   stringsAsFactors = FALSE)
+pr_a <- data.frame(
+  node_name = c("A", "B", "C"),
+  pagerank = c(0.5, 0.3, 0.2),
+  stringsAsFactors = FALSE
+)
+pr_b <- data.frame(
+  node_name = c("A", "B", "D"),
+  pagerank = c(0.4, 0.35, 0.25),
+  stringsAsFactors = FALSE
+)
 result <- compare_pagerank(pr_a, pr_b)
 print(result)
 attr(result, "summary")

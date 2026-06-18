@@ -35,8 +35,9 @@ Default `"from"` / `"to"`.}
 \item{duplicate_from_policy}{How to handle a redirect source with multiple
 distinct targets. See [resolve_redirects()]. Default `"strict"`.}
 
-\item{loop_handling}{How to handle redirect cycles. See [resolve_redirects()].
-Default `"error"`. Also governs cross-signal cycles in the composed graph.}
+\item{loop_handling}{How to handle redirect cycles. See
+[resolve_redirects()]. Default `"error"`. Also governs cross-signal cycles
+in the composed graph.}
 
 \item{canonical_duplicate_from_policy}{How to handle a canonical source with
 multiple distinct declared canonicals. Reuses the `duplicate_from_policy`
@@ -86,27 +87,24 @@ Composes a single URL fold map from two distinct web signals --
   self-canonicals) are dropped as no-ops.
 }
 \details{
-\subsection{Composition semantics}{
+## Composition semantics
 
-\enumerate{
-\item The redirect rules are resolved to terminal destinations using
-`duplicate_from_policy` / `loop_handling`; the canonical rules are
-resolved **independently** using `canonical_duplicate_from_policy` /
-`canonical_loop_handling`. The two terminal maps are kept separate.
-\item They are then composed into one graph and resolved to terminals, so
-that a **canonical target is itself redirect-resolved** before folding (a
-canonical may point at a URL that 3xx's), and chains spanning both signals
-collapse to a single representative.
-\item For the **same source**, `canonical_conflict_policy` decides the
-winner. Under the default `"redirect_wins"`, the canonical declared on a
-redirecting source is dropped and recorded in the audit.
-}
+1. The redirect rules are resolved to terminal destinations using
+   `duplicate_from_policy` / `loop_handling`; the canonical rules are
+   resolved **independently** using `canonical_duplicate_from_policy` /
+   `canonical_loop_handling`. The two terminal maps are kept separate.
+2. They are then composed into one graph and resolved to terminals, so that:
+   a **canonical target is itself redirect-resolved** before folding (a
+   canonical may point at a URL that 3xx's), and chains spanning both signals
+   collapse to a single representative.
+3. For the **same source**, `canonical_conflict_policy` decides the winner.
+   Under the default `"redirect_wins"`, the canonical declared on a
+   redirecting source is dropped and recorded in the audit.
 
 Inputs are expected to be **already canonicalized** to the node namespace
 (e.g. via the same `rurl` profile used for edges). [pagerank()] cleans
 redirects and canonicals before composing; call this directly only when your
 URLs already share that namespace.
-}
 }
 \examples{
 redirects <- data.frame(from = "http://a", to = "http://b")

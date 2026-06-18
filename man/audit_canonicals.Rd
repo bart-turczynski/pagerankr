@@ -40,7 +40,8 @@ Analyses a `rel=canonical` data frame and returns a diagnostic
   as a pre-flight check before passing `canonicals_df` to [pagerank()].
 
   Declared canonicals are an **advisory** signal, distinct from enforced 3xx
-  redirects. To see how the two interact -- which one wins on a shared source,
+  redirects. To see how the two interact -- which one wins on a shared
+  source,
   and which canonicals are ignored because their source also redirects -- use
   [audit_fold()].
 }

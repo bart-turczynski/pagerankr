@@ -104,6 +104,9 @@ covr_report.html
 .claude/
 docs/
 
+# Scratch / research notes (not part of package or repo)
+_scratch/
+
 # Fiberplane local issue tracking
 .fp/*
 !.fp/config.toml

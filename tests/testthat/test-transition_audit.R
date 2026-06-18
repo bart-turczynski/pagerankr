@@ -137,9 +137,9 @@ describe("transition_audit coverage and normalization", {
 
   it("reports behavioral-weight coverage when a weight_col is supplied", {
     edges <- data.frame(
-      from = c("A", "B", "C"),
-      to = c("B", "C", "A"),
-      w = c(2, 0, 5),
+      from = c("A", "B", "B", "C"),
+      to = c("B", "C", "A", "A"),
+      w = c(2, 0, 1, 5),
       stringsAsFactors = FALSE
     )
     audit <- attr(
@@ -148,9 +148,10 @@ describe("transition_audit coverage and normalization", {
     )
     expect_true(audit$coverage$weighted)
     expect_equal(audit$coverage$weight_col, "w")
-    # Two of three edges carry a finite positive weight.
-    expect_equal(audit$coverage$n_edges_weighted, 2L)
-    expect_equal(audit$coverage$coverage, 2 / 3)
+    # Three of four edges carry a finite positive weight. Source B's choice set
+    # still has positive total weight despite containing one zero-weight edge.
+    expect_equal(audit$coverage$n_edges_weighted, 3L)
+    expect_equal(audit$coverage$coverage, 3 / 4)
   })
 
   it("records the PageRank normalization total", {

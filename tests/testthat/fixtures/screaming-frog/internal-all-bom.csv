@@ -1,0 +1,4 @@
+﻿Address,Segments,Content Type,Status Code,Status,Indexability,Indexability Status,Canonical Link Element 1,Redirect URL,Redirect Type,Crawl Allowed,Indexing Allowed,Ignored Enrichment
+https://example.com/,0,text/html; charset=UTF-8,200,OK,Indexable,,https://example.com/,,,Allowed,Allowed,extra
+https://example.com/old,1,text/html,301,Moved Permanently,Non-Indexable,Redirected,,https://example.com/new,Permanent,Allowed,Allowed,extra
+https://example.com/private,1,text/html,200,OK,Non-Indexable,noindex,,,,Allowed,Not Allowed,extra

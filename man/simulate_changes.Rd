@@ -75,8 +75,10 @@ edges <- data.frame(
 new_links <- data.frame(
   from = "Blog", to = "About", stringsAsFactors = FALSE
 )
-result <- simulate_changes(edges, add_links_df = new_links,
-                           clean_edge_urls = FALSE)
+result <- simulate_changes(edges,
+  add_links_df = new_links,
+  clean_edge_urls = FALSE
+)
 print(result)
 attr(result, "summary")
 }

@@ -35,8 +35,11 @@ str(grid)
 # $`damping=0.95_self_loops=keep`
 
 # Use with pagerank_grid()
-edges <- data.frame(from = c("A", "B"), to = c("B", "A"),
-                    stringsAsFactors = FALSE)
+edges <- data.frame(
+  from = c("A", "B"), to = c("B", "A"),
+  stringsAsFactors = FALSE
+)
 results <- pagerank_grid(edges, auto_grid(damping = c(0.5, 0.85, 0.95)),
-                         clean_edge_urls = FALSE)
+  clean_edge_urls = FALSE
+)
 }

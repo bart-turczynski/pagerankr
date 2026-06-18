@@ -49,9 +49,10 @@ prior contribute zero to the authority component.}
 
 \item{alpha}{Numeric in \code{[0, 1]}, the mixture weight between a uniform
 teleport and the authority-weighted teleport:
-\code{p = alpha * uniform + (1 - alpha) * authority_share}. \code{alpha = 0}
-(default) is pure authority teleport (pages with no external authority get
-no teleport mass, though they still receive rank via inlinks);
+\code{p = alpha * uniform + (1 - alpha) * authority_share}.
+\code{alpha = 0} (default) is pure authority teleport (pages with no
+external authority get no teleport mass, though they still receive rank
+via inlinks);
 \code{alpha = 1} reproduces standard uniform PageRank. \code{alpha} is a
 smoothing knob, \emph{not} a dead-node mechanism — isolate/self-loop
 handling owns dead nodes.}
@@ -68,7 +69,8 @@ their dropped weight, and the realized uniform mass fraction). Default
 }
 \value{
 A numeric vector the same length as \code{vertex_names}, in the same
-  order, summing to 1 (suitable for \code{igraph::page_rank(personalized = )}).
+  order, summing to 1 (suitable for
+  \code{igraph::page_rank(personalized = )}).
   Excluded vertices get exactly 0. If the prior matches no vertex and
   \code{alpha = 0}, the function falls back to a uniform vector over the
   non-excluded vertices and warns.
@@ -83,9 +85,9 @@ Builds a personalization / teleport vector for
 
   The prior URLs are expected to already share the vertex namespace (i.e.
   canonicalized with the same \code{rurl} settings and folded through the
-  same redirect map as the edges). [pagerank()] performs that canonicalization
-  and redirect-fold before calling this function; call it directly only when
-  your prior URLs already match \code{vertex_names}.
+  same redirect map as the edges). [pagerank()] performs that
+  canonicalization and redirect-fold before calling this function; call it
+  directly only when your prior URLs already match \code{vertex_names}.
 }
 \details{
 Alignment proceeds as: sum raw weights per URL -> match onto
@@ -105,14 +107,20 @@ prior <- data.frame(
   stringsAsFactors = FALSE
 )
 # Pure linear authority share; sink excluded
-align_prior_to_vertices(v, prior, exclude_nodes = "__pr_nofollow_sink__",
-                        verbose = FALSE)
+align_prior_to_vertices(v, prior,
+  exclude_nodes = "__pr_nofollow_sink__",
+  verbose = FALSE
+)
 # Compress the dynamic range
-align_prior_to_vertices(v, prior, transform = "log",
-                        exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE)
+align_prior_to_vertices(v, prior,
+  transform = "log",
+  exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE
+)
 # Authority-tilted uniform (every real page keeps a baseline)
-align_prior_to_vertices(v, prior, alpha = 0.15,
-                        exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE)
+align_prior_to_vertices(v, prior,
+  alpha = 0.15,
+  exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE
+)
 }
 \seealso{
 [pagerank()], [transform_weights()]
