@@ -213,6 +213,14 @@
 #'   nofollow evaporation, indexability handling, or `robots_blocked_action =
 #'   "vanish"` is active, scores may sum to less than 1 (the difference is
 #'   the wasted/evaporated share).
+#'
+#'   The data frame additionally carries a `"transition_audit"` attribute (a
+#'   [transition_audit] object) recording how the transition graph was built:
+#'   row/edge counts, behavioral-weight coverage, normalization totals, dropped
+#'   data (rows lost to NA / dedup / self-loops, unmatched prior URLs), and the
+#'   model configuration used. Retrieve it with
+#'   `attr(result, "transition_audit")`. This attribute is backward-compatible:
+#'   the data frame itself (its columns and rows) is unchanged.
 #' @export
 #' @examples
 #' # Basic example
@@ -518,6 +526,12 @@ pagerank <- function(edge_list_df,
   current_redirects_list <- redirects_df
   current_canonicals_list <- canonicals_df
 
+  # --- Transition audit / provenance: capture the raw input size up front. ---
+  # Counts accumulated along the aggregation / validation / cleaning path are
+  # assembled into a `transition_audit` object at the end and attached to the
+  # result (see R/transition_audit.R).
+  audit_n_input_rows <- nrow(edge_list_df)
+
   # --- 1. URL Cleaning (Potentially Shared Memoization) ---
   # As per Spec: "ensures that all unique URLs from both the edge list and
   # redirect list are canonicalized *once* per unique string using a shared
@@ -625,6 +639,13 @@ pagerank <- function(edge_list_df,
   has_canonicals <- !is.null(current_canonicals_list) &&
     nrow(current_canonicals_list) > 0
 
+  # Audit: whether each signal *materially* folded an edge (contributed an
+  # entry to the composed fold map). Mere presence of a no-op signal (e.g. a
+  # self-canonical) leaves the graph -- and these flags -- untouched, so the
+  # audit of an effective no-op matches a call with no signal at all.
+  audit_has_redirects <- FALSE
+  audit_has_canonicals <- FALSE
+
   fold_map <- character(0)
   if (has_redirects || has_canonicals) {
     fold <- .compose_fold_map(
@@ -641,6 +662,11 @@ pagerank <- function(edge_list_df,
       canonical_conflict_policy = canonical_conflict_policy
     )
     fold_map <- fold$map
+
+    if (length(fold$signal) > 0) {
+      audit_has_redirects <- any(fold$signal == "redirect")
+      audit_has_canonicals <- any(fold$signal == "canonical")
+    }
 
     if (length(fold_map) > 0) {
       for (col_name in c(edge_from_col, edge_to_col)) {
@@ -716,6 +742,33 @@ pagerank <- function(edge_list_df,
     }
   }
 
+  # --- Transition audit: account for rows dropped (dedup / NA / self-loops) ---
+  # Measured against the post-fold/post-filter edge list, mirroring exactly what
+  # get_unique_edges() removes, so the audit reflects the data that actually
+  # reached the deduplication step.
+  audit_n_rows_na <- 0L
+  audit_n_self_loops <- 0L
+  audit_n_rows_duplicate <- 0L
+  if (nrow(current_edge_list) > 0 &&
+        all(c(edge_from_col, edge_to_col) %in% names(current_edge_list))) {
+    .pre_from <- as.character(current_edge_list[[edge_from_col]])
+    .pre_to <- as.character(current_edge_list[[edge_to_col]])
+    .na_mask <- is.na(.pre_from) | is.na(.pre_to)
+    audit_n_rows_na <- sum(.na_mask)
+    .nn_from <- .pre_from[!.na_mask]
+    .nn_to <- .pre_to[!.na_mask]
+    .self_mask <- .nn_from == .nn_to
+    if (self_loops == "drop") {
+      audit_n_self_loops <- sum(.self_mask)
+      .nn_from <- .nn_from[!.self_mask]
+      .nn_to <- .nn_to[!.self_mask]
+    }
+    if (length(.nn_from) > 0) {
+      .dup_mask <- duplicated(paste0(.nn_from, "\t", .nn_to))
+      audit_n_rows_duplicate <- sum(.dup_mask)
+    }
+  }
+
   # --- 3. Get Unique Edges (handles self-loops) ---
   current_edge_list <- get_unique_edges(
     edge_list_df = current_edge_list,
@@ -723,6 +776,11 @@ pagerank <- function(edge_list_df,
     from_col = edge_from_col,
     to_col = edge_to_col
   )
+
+  # Edges actually scored (after folding, dedup and self-loop handling).
+  # Synthetic rows added later (nofollow sink, robots-blocked self-loops) are
+  # graph-construction devices, not input edges, so n_edges is fixed here.
+  audit_n_edges <- nrow(current_edge_list)
 
   # --- 3.5. Indexability handling ---
   # Must come after dedup (step 3) but before nofollow (step 3.6) so that
@@ -942,6 +1000,75 @@ pagerank <- function(edge_list_df,
 
     row.names(pagerank_results) <- NULL
   }
+
+  # --- 7. Transition audit / provenance object ---
+  # Assembled from the counts captured along the path above and attached to the
+  # result as an attribute (attr(result, "transition_audit")). The attribute
+  # approach is backward-compatible: the return value is still the same data
+  # frame with the same columns, so existing callers and tests are unaffected,
+  # while reproducibility metadata travels alongside the result.
+
+  # Behavioral-weight coverage: how many scored edges carry a usable weight.
+  audit_weighted <- !is.null(weight_col) &&
+    weight_col %in% names(current_edge_list)
+  audit_n_edges_weighted <- 0L
+  if (audit_weighted && nrow(current_edge_list) > 0) {
+    .w <- suppressWarnings(as.numeric(current_edge_list[[weight_col]]))
+    audit_n_edges_weighted <- sum(!is.na(.w) & is.finite(.w) & .w > 0)
+  }
+
+  # Authority-prior URLs that never folded onto a vertex (unmatched).
+  audit_n_prior_unmatched <- NA_integer_
+  if (!is.null(folded_prior_df) && !is.null(vertices_for_pagerank_df)) {
+    .final_nodes <- vertices_for_pagerank_df[[temp_node_col_name]]
+    .prior_dests <- unique(stats::na.omit(folded_prior_df[[prior_url_col]]))
+    audit_n_prior_unmatched <- length(setdiff(.prior_dests, .final_nodes))
+  }
+
+  audit_pagerank_total <- if (nrow(pagerank_results) > 0 &&
+                                ncol(pagerank_results) >= 2) {
+    sum(pagerank_results[[2]], na.rm = TRUE)
+  } else {
+    NA_real_
+  }
+
+  transition_audit <- new_transition_audit(
+    n_input_rows = audit_n_input_rows,
+    n_edges = audit_n_edges,
+    n_vertices = nrow(pagerank_results),
+    weighted = audit_weighted,
+    weight_col = if (audit_weighted) weight_col else NULL,
+    n_edges_weighted = audit_n_edges_weighted,
+    n_rows_na = audit_n_rows_na,
+    n_rows_duplicate = audit_n_rows_duplicate,
+    n_self_loops = audit_n_self_loops,
+    n_prior_unmatched = audit_n_prior_unmatched,
+    n_robots_blocked = length(robots_blocked_urls),
+    pagerank_total = audit_pagerank_total,
+    config = list(
+      self_loops = self_loops,
+      drop_isolates_flag = drop_isolates_flag,
+      reverse = reverse,
+      weight_col = weight_col,
+      nofollow_col = if (identical(nofollow_col, "__pr_nofollow__")) {
+        NULL
+      } else {
+        nofollow_col
+      },
+      nofollow_action = nofollow_action,
+      robots_blocked_action = robots_blocked_action,
+      prior_alpha = prior_alpha,
+      prior_transform = prior_transform,
+      prior_inject_unmatched = prior_inject_unmatched,
+      has_redirects = isTRUE(audit_has_redirects),
+      has_canonicals = isTRUE(audit_has_canonicals),
+      has_indexability = !is.null(indexability_df) &&
+        nrow(indexability_df) > 0,
+      has_prior = !is.null(folded_prior_df)
+    )
+  )
+
+  attr(pagerank_results, "transition_audit") <- transition_audit
 
   pagerank_results
 }
