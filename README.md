@@ -8,11 +8,13 @@ pagerankr: SEO-Focused PageRank Modelling Toolkit
   - [1.3 Current Capabilities](#13-current-capabilities)
     - [1.3.1 Crawl Data Prep and Redirect
       QA](#131-crawl-data-prep-and-redirect-qa)
-    - [1.3.2 PageRank Modelling
-      Controls](#132-pagerank-modelling-controls)
-    - [1.3.3 Comparison, Grid Search, and
-      Simulation](#133-comparison-grid-search-and-simulation)
-    - [1.3.4 Export and Exploration](#134-export-and-exploration)
+    - [1.3.2 Screaming Frog Crawl
+      Imports](#132-screaming-frog-crawl-imports)
+    - [1.3.3 PageRank Modelling
+      Controls](#133-pagerank-modelling-controls)
+    - [1.3.4 Comparison, Grid Search, and
+      Simulation](#134-comparison-grid-search-and-simulation)
+    - [1.3.5 Export and Exploration](#135-export-and-exploration)
   - [1.4 Key Functions](#14-key-functions)
   - [1.5 Further Information](#15-further-information)
   - [1.6 Code of Conduct](#16-code-of-conduct)
@@ -38,6 +40,7 @@ The package currently includes:
 - Redirect diagnostics and resolution policies
 - Nofollow and indexability-aware PageRank modelling
 - Domain/host filtering and edge-weight transformations
+- Screaming Frog Internal: All plus All Inlinks/Outlinks import adapters
 - Model comparison, parameter sweeps, and what-if simulations
 - Graph export utilities and an optional interactive Shiny explorer
 
@@ -100,7 +103,39 @@ resolve_urls(
 )
 ```
 
-### 1.3.2 PageRank Modelling Controls
+### 1.3.2 Screaming Frog Crawl Imports
+
+Use `screaming_frog_bundle()` with an **Internal: All** export and either
+**All Inlinks** or **All Outlinks**. The node export supplies page facts,
+redirects, canonicals, and indexability. The link export supplies raw link
+observations and graph-eligible Hyperlink edges. Resource, canonical,
+hreflang, and other non-Hyperlink link rows are retained in diagnostics
+but excluded from the PageRank graph by default.
+
+``` r
+bundle <- screaming_frog_bundle(
+  internal = "internal_all.csv",
+  links = "all_outlinks.csv",
+  link_export_kind = "all_outlinks"
+)
+
+pr <- pagerank_screaming_frog(bundle)
+attr(pr, "screaming_frog_import")
+attr(pr, "transition_audit")
+```
+
+Placement and rendered-vs-HTML policies are explicit scoring choices:
+
+``` r
+pagerank_screaming_frog(
+  bundle,
+  accepted_placements = c("nav", "content"),
+  link_origins = c("html", "html_rendered"),
+  placement_weights = c(nav = 2, content = 1)
+)
+```
+
+### 1.3.3 PageRank Modelling Controls
 
 - `pagerank()` supports weighted edges via `weight_col`
 - `nofollow_col` + `nofollow_action = c("evaporate", "drop", "keep")`
@@ -129,7 +164,7 @@ edges_w$weight <- transform_weights(
 pagerank(edges_w, weight_col = "weight", clean_edge_urls = FALSE)
 ```
 
-### 1.3.3 Comparison, Grid Search, and Simulation
+### 1.3.4 Comparison, Grid Search, and Simulation
 
 - `compare_pagerank()` calculates deltas, rank shifts, and summary stats
 - `auto_grid()` and `pagerank_grid()` run parameter sweeps
@@ -149,7 +184,7 @@ grid_results <- pagerank_grid(edges, params_grid = grid, clean_edge_urls = FALSE
 analyze_pagerank_grid(grid_results)
 ```
 
-### 1.3.4 Export and Exploration
+### 1.3.5 Export and Exploration
 
 - `export_graph()` writes outputs in `graphml`, `dot`, `edgelist`, or
   `pajek` formats
@@ -174,7 +209,11 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 | `resolve_links()` | Resolve redirects and deduplicate graph without PR |
 | `resolve_redirects()` | Apply redirect rules to an edge list |
 | `resolve_urls()` | Resolve standalone URL vectors through redirects |
+| `resolve_canonicals()` | Apply rel=canonical folds to edge endpoints |
+| `resolve_folded_urls()` | Resolve URL vectors through redirects plus canonicals |
 | `audit_redirects()` | Diagnose redirect chains, loops, and conflicts |
+| `screaming_frog_bundle()` | Compose Screaming Frog node and link exports |
+| `pagerank_screaming_frog()` | Score a Screaming Frog bundle via `pagerank()` |
 | `clean_url_columns()` | Canonicalise URL columns in data frames |
 | `get_unique_edges()` | Deduplicate edges and handle self-loops |
 | `drop_isolates()` | Build vertex sets with or without isolates |

@@ -66,6 +66,52 @@ pr <- pagerank(edges)
 print(pr)
 ```
 
+## Screaming Frog crawl exports
+
+`pagerankr` can score a Screaming Frog crawl directly when you export:
+
+- **Internal: All** for node facts, redirects, canonicals, and indexability.
+- **All Inlinks** or **All Outlinks** for link observations.
+
+The package keeps those contracts separate. Internal: All is node-only and is
+never treated as an edge list. The link export preserves raw observations, but
+only `Type == "Hyperlink"` rows with valid source and destination become graph
+edges. Resource, canonical, hreflang, and other link-row types stay available
+through import diagnostics.
+
+```{r screaming_frog_example, eval = FALSE}
+bundle <- screaming_frog_bundle(
+  internal = "internal_all.csv",
+  links = "all_outlinks.csv",
+  link_export_kind = "all_outlinks"
+)
+
+pr <- pagerank_screaming_frog(bundle)
+
+summary(bundle)
+attr(pr, "screaming_frog_import")
+attr(pr, "transition_audit")
+```
+
+By default, all graph-eligible Hyperlink edges are scored. HTML/rendered origin
+filtering, placement selection, and placement-derived weights are opt-in
+scoring policy:
+
+```{r screaming_frog_policy, eval = FALSE}
+pagerank_screaming_frog(
+  bundle,
+  accepted_placements = c("nav", "content"),
+  link_origins = c("html", "html_rendered"),
+  placement_weights = c(nav = 2, content = 1)
+)
+```
+
+For large crawls, the import adapters read only the columns used by the stable
+contract. If an export is degraded, missing optional columns become typed `NA`
+values and are reported in diagnostics; missing required columns error early.
+The bundle provenance includes detected column aliases and contract version, so
+production pipelines should pin the expected `contract_version`.
+
 ## Redirect Resolution
 
 ### Basic redirect handling

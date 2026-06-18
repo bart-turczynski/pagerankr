@@ -28,6 +28,7 @@ The package currently includes:
 - Redirect diagnostics and resolution policies
 - Nofollow and indexability-aware PageRank modelling
 - Domain/host filtering and edge-weight transformations
+- Screaming Frog Internal: All plus All Inlinks/Outlinks import adapters
 - Model comparison, parameter sweeps, and what-if simulations
 - Graph export utilities and an optional interactive Shiny explorer
 
@@ -84,6 +85,38 @@ print(audit)
 resolve_urls(
   c("http://example.com/old-blog", "http://example.com/home"),
   redirects
+)
+```
+
+### Screaming Frog Crawl Imports
+
+Use `screaming_frog_bundle()` with an **Internal: All** export and either
+**All Inlinks** or **All Outlinks**. The node export supplies page facts,
+redirects, canonicals, and indexability. The link export supplies raw link
+observations and graph-eligible Hyperlink edges. Resource, canonical, hreflang,
+and other non-Hyperlink link rows are retained in diagnostics but excluded from
+the PageRank graph by default.
+
+```r
+bundle <- screaming_frog_bundle(
+  internal = "internal_all.csv",
+  links = "all_outlinks.csv",
+  link_export_kind = "all_outlinks"
+)
+
+pr <- pagerank_screaming_frog(bundle)
+attr(pr, "screaming_frog_import")
+attr(pr, "transition_audit")
+```
+
+Placement and rendered-vs-HTML policies are explicit scoring choices:
+
+```r
+pagerank_screaming_frog(
+  bundle,
+  accepted_placements = c("nav", "content"),
+  link_origins = c("html", "html_rendered"),
+  placement_weights = c(nav = 2, content = 1)
 )
 ```
 
@@ -158,7 +191,11 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 | `resolve_links()` | Resolve redirects and deduplicate graph without PR |
 | `resolve_redirects()` | Apply redirect rules to an edge list |
 | `resolve_urls()` | Resolve standalone URL vectors through redirects |
+| `resolve_canonicals()` | Apply rel=canonical folds to edge endpoints |
+| `resolve_folded_urls()` | Resolve URL vectors through redirects plus canonicals |
 | `audit_redirects()` | Diagnose redirect chains, loops, and conflicts |
+| `screaming_frog_bundle()` | Compose Screaming Frog node and link exports |
+| `pagerank_screaming_frog()` | Score a Screaming Frog bundle via `pagerank()` |
 | `clean_url_columns()` | Canonicalise URL columns in data frames |
 | `get_unique_edges()` | Deduplicate edges and handle self-loops |
 | `drop_isolates()` | Build vertex sets with or without isolates |

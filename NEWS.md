@@ -1,5 +1,9 @@
 # pagerankr (development version)
 
+* Recorded representative Screaming Frog crawl acceptance results and added
+  package-level operational documentation for required exports, default graph
+  policy, optional origin/placement policies, and contract pinning
+  (PAGE-ikcyjqic).
 * New `pagerank_screaming_frog()` scores a `screaming_frog_bundle()` through
   the existing `pagerank()` pipeline, feeding only graph-eligible hyperlink
   edges while attaching Screaming Frog import diagnostics beside the transition
