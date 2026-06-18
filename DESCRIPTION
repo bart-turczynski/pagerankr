@@ -7,7 +7,6 @@ Description: Provides a set of modular, pipeable functions to calculate PageRank
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.3.3
 Imports:
     igraph,
     rurl (>= 1.3.0),
@@ -29,3 +28,4 @@ Config/Needs/build: local
 VignetteBuilder: knitr
 URL: https://github.com/bart-turczynski/pagerankr
 BugReports: https://github.com/bart-turczynski/pagerankr/issues
+Config/roxygen2/version: 8.0.0

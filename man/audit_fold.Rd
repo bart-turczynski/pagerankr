@@ -41,8 +41,9 @@ Default `"from"` / `"to"`.}
 \item{duplicate_from_policy}{How to handle a redirect source with multiple
 distinct targets. See [resolve_redirects()]. Default `"strict"`.}
 
-\item{loop_handling}{How to handle redirect cycles. See [resolve_redirects()].
-Default `"error"`. Also governs cross-signal cycles in the composed graph.}
+\item{loop_handling}{How to handle redirect cycles. See
+[resolve_redirects()]. Default `"error"`. Also governs cross-signal cycles
+in the composed graph.}
 
 \item{canonical_duplicate_from_policy}{How to handle a canonical source with
 multiple distinct declared canonicals. Reuses the `duplicate_from_policy`
@@ -85,7 +86,7 @@ Audits how 3xx **redirects** and declared **rel=canonical**
   signals interact. Wraps [audit_redirects()] and [audit_canonicals()] for
   the per-signal views and adds the cross-signal tables from
   [build_fold_map()]: same-source disagreements, canonicals ignored because
-  their source also redirects, and the outcome of `canonical_conflict_policy`.
+  their source also redirects, and the `canonical_conflict_policy` outcome.
 
   Disagreements are never silently resolved -- they are always reported here,
   regardless of which policy decides the winner.
@@ -93,7 +94,7 @@ Audits how 3xx **redirects** and declared **rel=canonical**
 \examples{
 redirects <- data.frame(from = "http://a", to = "http://b")
 canonicals <- data.frame(from = "http://a", to = "http://d")
-# a redirects to b but also declares canonical d => disagreement, redirect wins
+# a redirects to b but also declares canonical d => disagreement
 audit_fold(redirects, canonicals)
 }
 \seealso{

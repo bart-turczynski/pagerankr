@@ -33,6 +33,15 @@
 #'   edge weights. Higher weights make edges more likely to be followed in the
 #'   random surfer model. If `NULL` (default), all edges have equal weight
 #'   (unweighted PageRank).
+#' @param weight_validation How invalid edge weights are handled when
+#'   `weight_col` is supplied: `"error"` (default), `"warning"`, or `"none"`.
+#'   Validation covers negative and non-finite values plus sources whose
+#'   outgoing weights are all zero. See [validate_edge_weights()].
+#' @param weight_expected_total Optional expected per-source weight total.
+#'   Leave `NULL` (default) for ordinary raw edge weights. Set to `1` when
+#'   `weight_col` contains pre-normalized transition probabilities.
+#' @param weight_tolerance Non-negative tolerance used with
+#'   `weight_expected_total`.
 #' @param pr_node_col Name for the node column in the output PageRank data
 #'   frame. Default "node_name".
 #' @param pr_value_col Name for the PageRank value column in the output data
@@ -119,6 +128,9 @@ compute_pagerank <- function(edge_list_df,
                              vertex_col_name = "node_name",
                              reverse = FALSE,
                              weight_col = NULL,
+                             weight_validation = c("error", "warning", "none"),
+                             weight_expected_total = NULL,
+                             weight_tolerance = sqrt(.Machine$double.eps),
                              pr_node_col = "node_name",
                              pr_value_col = "pagerank",
                              prior_df = NULL,
@@ -129,6 +141,8 @@ compute_pagerank <- function(edge_list_df,
                              prior_exclude_nodes = character(0),
                              prior_verbose = TRUE,
                              ...) {
+  weight_validation <- match.arg(weight_validation)
+
   # --- Input Validation ---
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
@@ -228,6 +242,14 @@ compute_pagerank <- function(edge_list_df,
 
     # Extract aligned weight vector after NA removal
     if (!is.null(weight_col) && nrow(valid_edges_df) > 0) {
+      validate_edge_weights(
+        edge_list_df = valid_edges_df,
+        weight_col = weight_col,
+        from_col = from_col,
+        expected_total = weight_expected_total,
+        tolerance = weight_tolerance,
+        action = weight_validation
+      )
       weight_vector <- valid_edges_df[[weight_col]]
       # Pass only from/to to graph_from_data_frame (weights set via edge attr)
       valid_edges_df <- valid_edges_df[, c(from_col, to_col), drop = FALSE]
