@@ -48,10 +48,18 @@
 #'     logical flags `has_redirects` / `has_canonicals` (whether that signal
 #'     *materially* folded an edge — an effective no-op such as a self-canonical
 #'     reads `FALSE`), `has_indexability`, and `has_prior`.}
-#'   \item{mass}{A list of page-mass accounting fields. **Stubbed here as `NULL`
-#'     placeholders** — they are populated by the mass-accounting feature
-#'     (B2); the keys (`reported`, `sink`, `hidden`, `total`) are reserved so
-#'     that work can fill them without changing this object's shape.}
+#'   \item{mass}{A list decomposing the internal stationary vector (which
+#'     always sums to 1) into its accounted-for components: `reported` (the
+#'     mass on returned, visible pages — equals the summed result scores),
+#'     `sink` (the **evaporated mass**: authority sent to the synthetic
+#'     nofollow-evaporation sink under `nofollow_action = "evaporate"`),
+#'     `hidden` (the **hidden mass**: authority trapped on hidden /
+#'     robots-blocked nodes removed under `robots_blocked_action = "vanish"`),
+#'     and `total` (their sum, which reconciles to 1 by construction). These
+#'     are the precise components of the deficit between the reported scores
+#'     and 1 — it is evaporated and hidden mass, not undifferentiated
+#'     "leakage". Each is `NULL` when the stationary vector is undefined (e.g.
+#'     an empty graph).}
 #' }
 #'
 #' The constructor [new_transition_audit()] is internal plumbing for
@@ -82,6 +90,13 @@ NULL
 #'   vertex.
 #' @param n_robots_blocked Integer, URLs treated as robots.txt-blocked.
 #' @param pagerank_total Numeric, sum of the returned PageRank scores.
+#' @param mass_reported Numeric, stationary mass on returned/visible pages
+#'   (typically equal to `pagerank_total`).
+#' @param mass_evaporated Numeric, stationary mass sent to the nofollow
+#'   evaporation sink (authority wasted on nofollowed outlinks). `0` when no
+#'   evaporation occurred.
+#' @param mass_hidden Numeric, stationary mass trapped on hidden / vanished
+#'   robots-blocked nodes that were removed from the results. `0` when none.
 #' @param config A named list of the relevant [pagerank()] configuration.
 #' @return An object of class `"transition_audit"` (see [transition_audit]).
 #' @noRd
@@ -97,6 +112,9 @@ new_transition_audit <- function(n_input_rows = 0L,
                                  n_prior_unmatched = NA_integer_,
                                  n_robots_blocked = 0L,
                                  pagerank_total = NA_real_,
+                                 mass_reported = NA_real_,
+                                 mass_evaporated = NA_real_,
+                                 mass_hidden = NA_real_,
                                  config = list()) {
   n_input_rows <- as.integer(n_input_rows)
   n_edges <- as.integer(n_edges)
@@ -105,6 +123,25 @@ new_transition_audit <- function(n_input_rows = 0L,
     as.numeric(n_edges_weighted) / as.numeric(n_edges)
   } else {
     NA_real_
+  }
+
+  # Page-mass accounting. The internal stationary vector sums to 1; we split
+  # it into reported (visible) mass, evaporated (nofollow-sink) mass, and
+  # hidden (robots-blocked vanish) mass, whose total reconciles to 1. When the
+  # stationary vector is undefined (empty graph -> reported is NA) we leave the
+  # reserved NULL stubs in place rather than fabricating a decomposition.
+  mass <- if (is.na(mass_reported)) {
+    list(reported = NULL, sink = NULL, hidden = NULL, total = NULL)
+  } else {
+    reported <- as.numeric(mass_reported)
+    sink <- if (is.na(mass_evaporated)) 0 else as.numeric(mass_evaporated)
+    hidden <- if (is.na(mass_hidden)) 0 else as.numeric(mass_hidden)
+    list(
+      reported = reported,
+      sink = sink,
+      hidden = hidden,
+      total = reported + sink + hidden
+    )
   }
 
   audit <- list(
@@ -135,15 +172,14 @@ new_transition_audit <- function(n_input_rows = 0L,
       n_robots_blocked = as.integer(n_robots_blocked)
     ),
     config = config,
-    # --- Mass accounting (B2 / PAGE-mqsxrcdz): stubbed placeholders. ---
-    # Reserved keys so mass accounting can fill them without reshaping this
-    # object. Do not populate here.
-    mass = list(
-      reported = NULL,
-      sink = NULL,
-      hidden = NULL,
-      total = NULL
-    )
+    # --- Mass accounting (B2 / PAGE-mqsxrcdz). ---
+    # Decomposes the internal stationary vector (which always sums to 1) into
+    # its accounted-for components. `reported` is the visible page mass;
+    # `sink` is the EVAPORATED mass (authority sent to the nofollow sink);
+    # `hidden` is the mass trapped on hidden/vanished robots-blocked nodes;
+    # `total` is their sum, which reconciles to 1 by construction. Left as the
+    # reserved NULL stubs when the stationary vector is undefined (empty graph).
+    mass = mass
   )
 
   class(audit) <- "transition_audit"
@@ -205,13 +241,14 @@ print.transition_audit <- function(x, ...) {
     "\n"
   )
 
-  # Mass accounting is stubbed (B2); only report once populated.
+  # Mass accounting: only report once the stationary vector is defined.
   if (!is.null(x$mass$total)) {
-    cat("\nPage mass\n")
-    cat("  Reported:           ", x$mass$reported, "\n")
-    cat("  Sink:               ", x$mass$sink, "\n")
-    cat("  Hidden:             ", x$mass$hidden, "\n")
-    cat("  Total:              ", x$mass$total, "\n")
+    fmt_mass <- function(v) formatC(v, digits = 6, format = "f")
+    cat("\nPage mass (stationary vector sums to 1)\n")
+    cat("  Reported (visible): ", fmt_mass(x$mass$reported), "\n")
+    cat("  Evaporated (sink):  ", fmt_mass(x$mass$sink), "\n")
+    cat("  Hidden (robots):    ", fmt_mass(x$mass$hidden), "\n")
+    cat("  Total:              ", fmt_mass(x$mass$total), "\n")
   }
 
   invisible(x)

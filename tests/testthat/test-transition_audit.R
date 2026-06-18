@@ -48,13 +48,15 @@ describe("transition_audit structure", {
     )
   })
 
-  it("stubs the mass-accounting fields as NULL (B2 territory)", {
+  it("populates the mass-accounting fields (reported/sink/hidden/total)", {
+    # B2 fills the reserved mass$ keys: with no evaporation or vanish, all the
+    # stationary mass is reported and the total reconciles to 1.
     edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
     audit <- attr(pagerank(edges, clean_edge_urls = FALSE), "transition_audit")
-    expect_null(audit$mass$reported)
-    expect_null(audit$mass$sink)
-    expect_null(audit$mass$hidden)
-    expect_null(audit$mass$total)
+    expect_equal(audit$mass$reported, 1, tolerance = 1e-8)
+    expect_equal(audit$mass$sink, 0)
+    expect_equal(audit$mass$hidden, 0)
+    expect_equal(audit$mass$total, 1, tolerance = 1e-8)
   })
 
   it("has a print method that returns its input invisibly", {
