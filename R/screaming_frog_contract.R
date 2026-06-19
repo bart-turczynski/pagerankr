@@ -53,6 +53,8 @@
 #' @name screaming_frog_bundle
 NULL
 
+#' @noRd
+#' @export
 .sf_contract <- function() {
   list(
     version = 1L,
@@ -185,6 +187,8 @@ NULL
   )
 }
 
+#' @noRd
+#' @export
 .sf_read_input <- function(x, export_kind, fields = NULL) {
   export_kind <- match.arg(export_kind, .sf_contract()$export_kinds)
   schema <- .sf_schema(export_kind)
@@ -258,6 +262,8 @@ NULL
   out
 }
 
+#' @noRd
+#' @export
 .sf_parse_follow <- function(x) {
   value <- tolower(trimws(as.character(x)))
   out <- rep(NA, length(value))
@@ -267,6 +273,8 @@ NULL
   out
 }
 
+#' @noRd
+#' @export
 .sf_rel_nofollow <- function(x) {
   value <- tolower(trimws(as.character(x)))
   out <- vapply(strsplit(value, "[,[:space:]]+"), function(tokens) {
@@ -276,6 +284,8 @@ NULL
   out
 }
 
+#' @noRd
+#' @export
 .sf_normalize_position <- function(x) {
   value <- tolower(trimws(as.character(x)))
   normalized <- c(
@@ -290,6 +300,8 @@ NULL
   out
 }
 
+#' @noRd
+#' @export
 .sf_graph_eligible <- function(type) {
   trimws(as.character(type)) %in% .sf_contract()$graph_eligible_types
 }

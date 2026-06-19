@@ -252,7 +252,7 @@ describe("transition_audit print method branches", {
   })
 
   it("prints robots-blocked URL count when n_robots_blocked > 0", {
-    audit <- pagerankr:::new_transition_audit(
+    audit <- pagerankr::new_transition_audit(
       n_robots_blocked = 2L,
       mass_reported = 0.8, mass_hidden = 0.2,
       pagerank_total = 0.8
@@ -273,7 +273,7 @@ describe("transition_audit print method branches", {
   })
 
   it("prints NA coverage when weighted but zero edges", {
-    audit <- pagerankr:::new_transition_audit(
+    audit <- pagerankr::new_transition_audit(
       weighted = TRUE, weight_col = "w", n_edges = 0L
     )
     out <- capture.output(print(audit))
@@ -281,7 +281,7 @@ describe("transition_audit print method branches", {
   })
 
   it("prints NA pagerank total for an empty audit", {
-    audit <- pagerankr:::new_transition_audit()
+    audit <- pagerankr::new_transition_audit()
     expect_output(print(audit), "NA")
   })
 
