@@ -1,0 +1,142 @@
+---
+title: "TrustRank: seed-biased PageRank in pagerankr"
+author: "Bart Turczynski"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{TrustRank: seed-biased PageRank in pagerankr}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(pagerankr)
+```
+
+## What TrustRank is
+
+**TrustRank** (Gyöngyi, Garcia-Molina & Pedersen, 2004) is ordinary PageRank
+with one change: instead of the random surfer teleporting to a *uniform* random
+page, it teleports back into a set of **trusted seed** pages. Trust then
+propagates outward along links and *attenuates with distance* — the further a
+page is from the trusted core, the less trust reaches it. The PageRank damping
+factor is exactly that attenuation mechanism, so no extra machinery is needed.
+
+The original motivation was web spam: pick a small set of human-vetted "good"
+pages, and let trust flow from them so that link farms — which good pages rarely
+link to — stay low. The same mechanic is useful on a single site for any
+"authority radiates from these known-good pages" question: your editorial hubs,
+your hand-picked cornerstone content, or a manually curated quality set.
+
+This is **seed-biased PageRank**, not a spam classifier. `pagerankr` supplies
+the biased-propagation core; *which* pages are trustworthy is your call.
+
+## It reuses the personalization path — no new solver
+
+A trusted-seed set is just a teleport (personalization) prior. `pagerankr`
+already builds personalized PageRank from a per-URL prior via
+`pagerank(prior_df = ...)` (the TIPR path). TrustRank is therefore two small
+helpers over that engine:
+
+- `trust_seed_prior()` turns a seed set into a `prior_df`.
+- `trustrank()` is the one-call convenience wrapper.
+
+## A worked example
+
+```{r}
+edges <- data.frame(
+  from = c("/", "/", "/hub", "/hub", "/good", "/spam", "/spam"),
+  to = c("/hub", "/good", "/good", "/deep", "/hub", "/sink", "/good"),
+  stringsAsFactors = FALSE
+)
+```
+
+Here `/` and `/hub` are our trusted editorial core. `/spam` links into the good
+neighborhood (a classic spam tactic) but nothing trusted links *to* it, and it
+feeds an off-topic `/sink`.
+
+### Build the seed prior explicitly
+
+```{r}
+prior <- trust_seed_prior(c("/", "/hub"))
+prior
+```
+
+Equal weights reproduce TrustRank's uniform distribution over the trusted set.
+Run it through `pagerank()` like any other prior:
+
+```{r}
+pr_manual <- pagerank(edges, prior_df = prior, clean_edge_urls = FALSE)
+pr_manual[order(-pr_manual$pagerank), c("node_name", "pagerank")]
+```
+
+### Or use the convenience wrapper
+
+```{r}
+tr <- trustrank(edges, c("/", "/hub"), clean_edge_urls = FALSE)
+tr[order(-tr$pagerank), c("node_name", "pagerank", "prior_weight")]
+```
+
+`trustrank()` is identical to the manual call — it just builds the prior for
+you. Two things to read in the output:
+
+- **`prior_weight`** is the teleport mass each page receives. The seeds carry
+  it; `/spam` and `/sink`, outside the trusted neighborhood, get exactly `0`.
+- A non-seed page reachable *from* the trusted core (e.g. `/deep`, linked from
+  `/hub`) still earns trust through inheritance, while the seed-unreachable
+  `/spam` region stays suppressed relative to plain PageRank.
+
+### Compare against uniform PageRank
+
+```{r}
+uni <- pagerank(edges, clean_edge_urls = FALSE)
+compare_pagerank(uni, tr)[, c("node_name", "pagerank_a", "pagerank_b", "delta")]
+```
+
+`pagerank_a` is uniform PageRank, `pagerank_b` is TrustRank. The trusted core
+and what it links to gain; the untrusted region loses.
+
+## Graded trust and a teleport floor
+
+Trust need not be all-or-nothing. Give some seeds more weight than others:
+
+```{r}
+trustrank(
+  edges,
+  data.frame(url = c("/", "/hub"), weight = c(3, 1)),
+  clean_edge_urls = FALSE
+)[, c("node_name", "pagerank", "prior_weight")]
+```
+
+By default untrusted, seed-unreachable pages receive no teleport mass at all.
+To give every page a small floor (a blend of trust teleport and uniform
+teleport), pass `prior_alpha`:
+
+```{r}
+trustrank(
+  edges, c("/", "/hub"),
+  prior_alpha = 0.15, clean_edge_urls = FALSE
+)[, c("node_name", "pagerank", "prior_weight")]
+```
+
+`prior_alpha = 0` (the default) is pure trust teleport; `prior_alpha = 1`
+reproduces uniform PageRank.
+
+## Notes
+
+- Seed weights are an **additive trust budget**: if two seed URLs fold onto the
+  same vertex (redirect or canonical variants), their weights sum — consistent
+  with the prior contract in `pagerank()` and `align_prior_to_vertices()`.
+- Everything `pagerank()` accepts flows through `trustrank()` via `...`:
+  redirects, canonicals, URL cleaning, domain/host filtering, edge weights, and
+  duplicate-edge policy. Trusted seeds are canonicalized and folded into the
+  same vertex namespace as the edges before alignment.
+- For *topic*-biased authority (multiple content clusters, blended), see
+  `topic_sensitive_pagerank()`; it uses the same personalization path with a
+  per-topic prior instead of a single trusted set.
