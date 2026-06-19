@@ -32,8 +32,7 @@ Defaults `"from"` / `"to"`.}
 `"node_name"`.}
 
 \item{pr_node_col}{Name for the node column in the output. Default
-`"node_name"` (kept consistent with [compute_pagerank()] and
-[compute_hits()]).}
+`"node_name"` (kept consistent with [compute_pagerank()]).}
 
 \item{hub_col, authority_col}{Names for the hub and authority score columns in
 the output. Defaults `"hub"` / `"authority"`.}
