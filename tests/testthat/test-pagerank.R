@@ -999,3 +999,28 @@ describe("pagerank() IDN host_encoding", {
     expect_equal(nrow(pr), 3)
   })
 })
+
+test_that("damping is a first-class argument: validated and effective", {
+  edges <- data.frame(
+    from = c("A", "B", "C", "A", "D"),
+    to = c("B", "C", "A", "C", "A"),
+    stringsAsFactors = FALSE
+  )
+
+  # Validation at the wrapper (not just compute_pagerank).
+  expect_error(pagerank(edges, damping = 1.5), "between 0 and 1")
+  expect_error(pagerank(edges, damping = -0.1), "between 0 and 1")
+  expect_error(pagerank(edges, damping = c(0.8, 0.9)), "single numeric")
+  expect_error(pagerank(edges, damping = NA_real_), "single numeric")
+
+  # The factor actually changes the scores.
+  low <- pagerank(edges, damping = 0.50, clean_edge_urls = FALSE)
+  high <- pagerank(edges, damping = 0.95, clean_edge_urls = FALSE)
+  m <- merge(low, high, by = "node_name", suffixes = c("_lo", "_hi"))
+  expect_false(isTRUE(all.equal(m$pagerank_lo, m$pagerank_hi)))
+  # Default matches an explicit 0.85.
+  expect_equal(
+    pagerank(edges, clean_edge_urls = FALSE)$pagerank,
+    pagerank(edges, damping = 0.85, clean_edge_urls = FALSE)$pagerank
+  )
+})
