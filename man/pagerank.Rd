@@ -254,8 +254,10 @@ vertices so they appear in results carrying their teleport prior. Default
 \item{prior_verbose}{Logical, whether to emit prior-alignment coverage
 diagnostics. Default `TRUE`. Only relevant when `prior_df` is supplied.}
 
-\item{...}{Additional arguments passed to `compute_pagerank` and subsequently
-to `igraph::page_rank` (e.g., `damping`).}
+\item{...}{Additional arguments passed to [compute_pagerank()] and
+subsequently to `igraph::page_rank()`. Besides `damping`, the recognized
+convergence controls `algo` (`"prpack"` / `"arpack"`), `eps`, and `niter`
+are forwarded here; see the "Convergence controls" section below.}
 }
 \value{
 A data frame with node names and their PageRank scores. When
@@ -276,6 +278,9 @@ A data frame with node names and their PageRank scores. When
   model configuration used. Retrieve it with
   `attr(result, "transition_audit")`. This attribute is backward-compatible:
   the data frame itself (its columns and rows) is unchanged.
+
+  The result additionally carries a `"convergence"` attribute (a
+  [pagerank_convergence] object); see the "Convergence controls" section.
 }
 \description{
 Orchestrates the complete PageRank calculation workflow,
@@ -284,6 +289,32 @@ indexability handling, nofollow handling, isolate handling, and
 PageRank computation.
 }
 \details{
+## Convergence controls
+
+`igraph::page_rank()` is called through one of two solver back-ends, selected
+with `algo` (forwarded via `...`):
+\describe{
+  \item{`"prpack"`}{(default) A fast, exact direct solver. It has **no**
+    tunable tolerance or iteration cap, and reports no iteration count.}
+  \item{`"arpack"`}{An iterative eigensolver that honours `eps` (the L1
+    tolerance) and `niter` (the maximum iterations), and reports how many
+    iterations it used.}
+}
+
+Modern `igraph` (2.x) removed the legacy `page_rank()` `eps` / `niter`
+arguments; this package re-exposes them as friendly aliases for the ARPACK
+`options$tol` / `options$maxiter` controls. Because PRPACK ignores them,
+supplying either `eps` or `niter` transparently switches `algo` to
+`"arpack"`. As a rule of thumb a power-iteration solve needs about
+`log10(eps) / log10(damping)` iterations, so raise `niter` when you push
+`damping` toward 1.
+
+Every non-empty result carries a `"convergence"` attribute (a
+[pagerank_convergence] object) reporting the solver, iteration count (when
+the solver exposes it), and the solver-independent post-hoc L1 residual
+\eqn{\|G x - x\|_1} of the returned vector. Retrieve it with
+`attr(result, "convergence")`.
+
 ## Indexability handling
 
 When `indexability_df` is provided, two types of pages receive special
