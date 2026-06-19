@@ -154,7 +154,9 @@ NULL
 .sf_resolve_schema <- function(column_names, export_kind) {
   schema <- .sf_schema(export_kind)
   input_keys <- .sf_header_key(column_names)
-  resolved <- stats::setNames(rep(NA_character_, length(schema$order)), schema$order)
+  resolved <- stats::setNames(
+    rep(NA_character_, length(schema$order)), schema$order
+  )
 
   for (field in schema$order) {
     alias_keys <- .sf_header_key(c(field, schema$aliases[[field]]))
