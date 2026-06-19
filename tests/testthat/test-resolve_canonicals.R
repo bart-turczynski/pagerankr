@@ -142,14 +142,12 @@ describe("resolve_folded_urls()", {
     urls <- c("A", "B", "X", "Z")
 
     result <- resolve_folded_urls(urls, redirects, canonicals)
-    fold_map <- build_fold_map(redirects, canonicals)
-    manual <- pagerankr:::.apply_fold_map(
-      urls,
-      stats::setNames(fold_map$to, fold_map$from)
-    )
 
-    expect_identical(result$resolved, manual)
-    expect_identical(attr(result, "fold_map"), fold_map)
+    expect_identical(result$resolved, c("C", "C", "E", "Z"))
+    expect_identical(
+      attr(result, "fold_map"),
+      build_fold_map(redirects, canonicals)
+    )
   })
 
   it("uses canonical_conflict_policy for same-source conflicts", {

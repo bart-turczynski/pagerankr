@@ -116,6 +116,7 @@ NULL
 #' @param config A named list of the relevant [pagerank()] configuration.
 #' @return An object of class `"transition_audit"` (see [transition_audit]).
 #' @noRd
+#' @export
 new_transition_audit <- function(n_input_rows = 0L,
                                  n_edges = 0L,
                                  n_vertices = 0L,
