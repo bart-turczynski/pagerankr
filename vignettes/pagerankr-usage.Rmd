@@ -819,7 +819,7 @@ prior <- ga4_entrance_teleport(
   vertex_names   = NULL
 )
 print(prior)
-# Returns a two-column data frame: url + weight, ready for pagerank(prior_df = .)
+# Returns: url + weight data frame, ready for pagerank(prior_df = .)
 ```
 
 ### End-to-end example
