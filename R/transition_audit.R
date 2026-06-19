@@ -302,4 +302,8 @@ print.transition_audit <- function(x, ...) {
     "print", "transition_audit", print.transition_audit,
     envir = asNamespace(pkgname)
   )
+  registerS3method(
+    "print", "pagerank_convergence", print.pagerank_convergence,
+    envir = asNamespace(pkgname)
+  )
 }

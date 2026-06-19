@@ -8,6 +8,9 @@ compute_pagerank(
   edge_list_df,
   vertices_df = NULL,
   damping = 0.85,
+  algo = c("prpack", "arpack"),
+  eps = NULL,
+  niter = NULL,
   from_col = "from",
   to_col = "to",
   vertex_col_name = "node_name",
@@ -43,6 +46,25 @@ present in `edge_list_df` (after NA removal from edges) are used.
 The column name is specified by `vertex_col_name`.}
 
 \item{damping}{The damping factor for PageRank. Default is 0.85.}
+
+\item{algo}{Solver back-end passed to `igraph::page_rank()`. Either
+`"prpack"` (default; a fast, exact direct solver with no tunable
+convergence controls) or `"arpack"` (an iterative eigensolver that honours
+`eps` / `niter` and reports its iteration count). Supplying `eps` or
+`niter` while leaving `algo` at its default transparently switches to
+`"arpack"`, since PRPACK ignores those controls. See [pagerank_convergence]
+for the trade-offs.}
+
+\item{eps}{Optional convergence tolerance (L1, the ARPACK `options$tol`).
+When supplied, the solver switches to `"arpack"` and iterates until the
+residual is at or below `eps`. `NULL` (default) uses the solver's own
+default.}
+
+\item{niter}{Optional maximum iteration count (the ARPACK `options$maxiter`).
+When supplied, the solver switches to `"arpack"`. `NULL` (default) uses the
+solver's own default. As a rule of thumb, power-iteration PageRank needs
+about `log10(eps) / log10(damping)` iterations, so raise `niter` when you
+raise `damping` toward 1. `NULL` (default) uses the solver's own default.}
 
 \item{from_col}{Name of the source node column in `edge_list_df`. Default
 "from".}
@@ -108,6 +130,11 @@ A data frame with two columns: one for node names (named by
   and one for their PageRank scores (named by `pr_value_col`), which sum to 1
   for non-empty graphs. Returns an empty data frame with correct column names
   if the graph is empty or has no nodes after processing.
+
+  For non-empty graphs the result carries a `"convergence"` attribute (a
+  [pagerank_convergence] object) recording the solver used, iterations (when
+  the solver exposes them), and the post-hoc L1 residual of the returned
+  vector. Retrieve it with `attr(result, "convergence")`.
 }
 \description{
 Builds a graph from a processed edge list and computes PageRank
