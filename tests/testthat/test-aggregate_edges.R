@@ -44,7 +44,7 @@ describe("aggregate_edges backward compatibility (unweighted)", {
     )
     res <- aggregate_edges(df_empty)
     expect_equal(nrow(res), 0)
-    expect_equal(names(res), c("from", "to"))
+    expect_named(res, c("from", "to"))
 
     bare <- data.frame()
     res2 <- aggregate_edges(bare, from_col = "src", to_col = "dst")
@@ -233,7 +233,7 @@ describe("aggregate_edges configurable per-column aggregation", {
       nofollow = c(FALSE, TRUE)
     )
     res <- aggregate_edges(edges)
-    expect_equal(names(res), c("from", "to", "clicks", "nofollow"))
+    expect_named(res, c("from", "to", "clicks", "nofollow"))
   })
 })
 
