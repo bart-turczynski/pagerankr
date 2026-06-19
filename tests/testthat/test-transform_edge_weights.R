@@ -5,8 +5,7 @@ multi_source_edges <- function() {
   data.frame(
     from = c("A", "A", "A", "B", "B"),
     to = c("B", "C", "D", "C", "D"),
-    position = c(1, 2, 3, 1, 2),
-    stringsAsFactors = FALSE
+    position = c(1, 2, 3, 1, 2)
   )
 }
 
@@ -25,7 +24,7 @@ describe("transform_edge_weights: structure", {
     expect_equal(out$position, edges$position)
   })
 
-  it("honours custom output column names", {
+  it("honors custom output column names", {
     edges <- multi_source_edges()
     out <- transform_edge_weights(edges, "position",
       method = "zipf", descending = FALSE,
@@ -98,8 +97,7 @@ describe("transform_edge_weights: transition_probability", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "C", "C"),
-      position = c(NA_real_, NA_real_, 1),
-      stringsAsFactors = FALSE
+      position = c(NA_real_, NA_real_, 1)
     )
     out <- transform_edge_weights(edges, "position",
       method = "zipf", descending = FALSE
@@ -118,8 +116,7 @@ describe("transform_edge_weights: single-group equivalence", {
     edges <- data.frame(
       from = rep("A", 5),
       to = c("B", "C", "D", "E", "F"),
-      clicks = c(50000, 12000, 800, 150, 3),
-      stringsAsFactors = FALSE
+      clicks = c(50000, 12000, 800, 150, 3)
     )
     for (m in c("none", "rank_linear", "zipf", "log", "minmax", "percentile")) {
       out <- transform_edge_weights(edges, "clicks", method = m)
@@ -132,8 +129,7 @@ describe("transform_edge_weights: single-group equivalence", {
     edges <- data.frame(
       from = rep("A", 3),
       to = c("B", "C", "D"),
-      position = c(1, 2, 3),
-      stringsAsFactors = FALSE
+      position = c(1, 2, 3)
     )
     out <- transform_edge_weights(edges, "position",
       method = "zipf", alpha = 2, descending = FALSE
@@ -196,6 +192,6 @@ describe("transform_edge_weights: integration with pagerank", {
     )
     pr <- pagerank(out, weight_col = "weight", clean_edge_urls = FALSE)
     expect_true(is.data.frame(pr))
-    expect_true(nrow(pr) > 0)
+    expect_gt(nrow(pr), 0)
   })
 })

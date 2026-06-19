@@ -24,8 +24,7 @@ sf_bundle_internal_fixture <- function() {
     `Canonical Link Element` = c(
       "", "", "", "", "https://example.com/missing-canonical", ""
     ),
-    check.names = FALSE,
-    stringsAsFactors = FALSE
+    check.names = FALSE
   )
 }
 
@@ -56,8 +55,7 @@ sf_bundle_links_fixture <- function() {
       "HTML", "Rendered HTML", "HTML & Rendered HTML", "HTML",
       "HTML", "HTML", "HTML"
     ),
-    check.names = FALSE,
-    stringsAsFactors = FALSE
+    check.names = FALSE
   )
 }
 
@@ -106,8 +104,7 @@ describe("screaming_frog_bundle()", {
       diagnostics$inputs$observations_by_type,
       data.frame(
         type = c("Hyperlink", "Image"),
-        n = c(6L, 1L),
-        stringsAsFactors = FALSE
+        n = c(6L, 1L)
       )
     )
     expect_true(any(

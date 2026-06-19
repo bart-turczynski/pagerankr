@@ -42,7 +42,7 @@
 #' and read
 #' off the top non-seed rows, or filter `prior_weight == 0`.
 #'
-#' ## Relationship to neighbouring tools
+#' ## Relationship to neighboring tools
 #' \describe{
 #'   \item{[pagerank()] (forward)}{Global inflow authority. Feeder PageRank is
 #'     its transpose, biased to a cluster.}

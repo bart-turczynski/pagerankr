@@ -21,8 +21,7 @@ sf_pr_internal_fixture <- function() {
     `Canonical Link Element` = c(
       "", "", "", "", "", "", "https://example.com/c"
     ),
-    check.names = FALSE,
-    stringsAsFactors = FALSE
+    check.names = FALSE
   )
 }
 
@@ -60,8 +59,7 @@ sf_pr_links_fixture <- function() {
       "HTML", "Rendered HTML", "HTML", "HTML", "HTML & Rendered HTML",
       "Rendered HTML", "HTML"
     ),
-    check.names = FALSE,
-    stringsAsFactors = FALSE
+    check.names = FALSE
   )
 }
 

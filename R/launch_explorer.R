@@ -1,7 +1,7 @@
 #' @title Launch PageRank Explorer
 #' @description Opens an interactive Shiny application for exploring PageRank
 #'   results. Upload CSV files for edge lists, redirects, and PageRank scores,
-#'   then visualise the graph interactively, inspect distributions, audit
+#'   then visualize the graph interactively, inspect distributions, audit
 #'   redirects, and export in multiple formats.
 #'
 #' @param ... Additional arguments passed to \code{shiny::runApp} (e.g.,
@@ -9,7 +9,7 @@
 #'
 #' @details
 #' The app requires the \code{shiny} and \code{DT} packages. For interactive
-#' network visualisation, \code{visNetwork} is recommended (the app falls back
+#' network visualization, \code{visNetwork} is recommended (the app falls back
 #' to a static igraph plot if visNetwork is not installed).
 #'
 #' Install optional dependencies with:
@@ -44,7 +44,7 @@ launch_pagerank_explorer <- function(...) {
 
   if (!requireNamespace("visNetwork", quietly = TRUE)) {
     message(
-      "Tip: Install 'visNetwork' for interactive graph visualisation: ",
+      "Tip: Install 'visNetwork' for interactive graph visualization: ",
       "install.packages('visNetwork')"
     )
   }

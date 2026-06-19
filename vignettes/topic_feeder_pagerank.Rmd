@@ -92,7 +92,7 @@ feeders
 ```
 
 `/hub` tops the feeder list exactly as designed, and the off-topic `/sports`
-neighbourhood earns no feeder credit.
+neighborhood earns no feeder credit.
 
 ## Contrast with the forward (authority) view
 

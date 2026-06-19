@@ -20,7 +20,7 @@ smooth_transitions(
 \arguments{
 \item{empirical_df}{A data frame of observed transitions: a `from`/`to` edge
 list with a numeric count column. Typically the output of
-[ga4_page_transitions()] (or [aggregate_edges()] over behavioural counts).
+[ga4_page_transitions()] (or [aggregate_edges()] over behavioral counts).
 Duplicate `from`/`to` rows are summed.}
 
 \item{structural_df}{A data frame of crawl-graph links forming the structural
@@ -107,9 +107,9 @@ By default \eqn{\lambda_i = n_i / (n_i + k)}, the standard
 Dirichlet / pseudocount shrinkage rule: it is monotonically increasing in the
 source-page sample size `n_i` and equals `1/2` at `n_i = k`. Equivalently,
 the model adds `k` pseudo-observations distributed according to the
-structural prior, then renormalises — a Dirichlet prior with concentration
+structural prior, then renormalizes — a Dirichlet prior with concentration
 `k`. A high-traffic source (large `n_i`) is trusted almost entirely to its
-own behaviour; a barely-sampled source leans on the crawl structure. `k`
+own behavior; a barely-sampled source leans on the crawl structure. `k`
 must be strictly positive: this is precisely what guarantees
 \eqn{\lambda_i < 1} for any sampled source, hence a non-zero
 \eqn{(1 - \lambda_i)} weight on every crawled link (see *Guarantees*).
@@ -117,7 +117,7 @@ must be strictly positive: this is precisely what guarantees
 ## Per-source special cases
 
 Sources are matched between the two inputs and resolved as follows:
-- **No empirical data** (`n_i = 0`; crawled link absent from behavioural
+- **No empirical data** (`n_i = 0`; crawled link absent from behavioral
   data): \eqn{\lambda_i = 0}, so `P(i -> .)` is the pure structural
   prior. The crawl link still receives mass.
 - **No structural prior** (observed transition whose source has no crawled
@@ -134,7 +134,7 @@ Sources are matched between the two inputs and resolved as follows:
 The output covers the **union** of empirical and structural out-edges per
 source, with an `origin` column flagging each as `"both"`,
 `"empirical_only"` (an observed transition absent from the crawl graph), or
-`"structural_only"` (a crawled link never observed behaviourally). Edges
+`"structural_only"` (a crawled link never observed behaviorally). Edges
 whose smoothed probability is exactly zero — only possible for an
 `empirical_only` edge from a below-`min_support` source — are dropped, since
 they carry no transition mass.
@@ -162,7 +162,7 @@ weight on the prior is positive. Within each source, the returned
 probabilities sum to 1.
 }
 \examples{
-# Sparse behavioural data: only A->B was ever observed.
+# Sparse behavioral data: only A->B was ever observed.
 empirical <- data.frame(
   from = c("A", "A"),
   to = c("B", "C"),
@@ -179,12 +179,12 @@ smoothed <- smooth_transitions(empirical, structural, k = 5)
 smoothed
 # A->C keeps a non-zero probability despite never being observed.
 
-# Feed to pagerank() as a smoothed behavioural transition model:
+# Feed to pagerank() as a smoothed behavioral transition model:
 # pagerank(smoothed, weight_col = "transition_probability",
 #          clean_edge_urls = FALSE)
 }
 \seealso{
 [ga4_page_transitions()] for the empirical input,
-  [aggregate_edges()] for collapsing behavioural counts, and [pagerank()]
+  [aggregate_edges()] for collapsing behavioral counts, and [pagerank()]
   for consuming the smoothed probabilities via `weight_col = prob_col`.
 }

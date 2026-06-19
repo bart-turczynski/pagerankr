@@ -4,13 +4,11 @@ describe("compare_pagerank basic functionality", {
   it("performs full outer join and computes deltas", {
     pr_a <- data.frame(
       node_name = c("A", "B", "C"),
-      pagerank = c(0.5, 0.3, 0.2),
-      stringsAsFactors = FALSE
+      pagerank = c(0.5, 0.3, 0.2)
     )
     pr_b <- data.frame(
       node_name = c("A", "B", "D"),
-      pagerank = c(0.4, 0.35, 0.25),
-      stringsAsFactors = FALSE
+      pagerank = c(0.4, 0.35, 0.25)
     )
     result <- compare_pagerank(pr_a, pr_b)
 
@@ -43,13 +41,11 @@ describe("compare_pagerank basic functionality", {
   it("computes ranks correctly (1 = highest)", {
     pr_a <- data.frame(
       node_name = c("X", "Y", "Z"),
-      pagerank = c(0.5, 0.3, 0.2),
-      stringsAsFactors = FALSE
+      pagerank = c(0.5, 0.3, 0.2)
     )
     pr_b <- data.frame(
       node_name = c("X", "Y", "Z"),
-      pagerank = c(0.2, 0.5, 0.3),
-      stringsAsFactors = FALSE
+      pagerank = c(0.2, 0.5, 0.3)
     )
     result <- compare_pagerank(pr_a, pr_b)
 
@@ -71,13 +67,11 @@ describe("compare_pagerank basic functionality", {
   it("attaches summary statistics as attribute", {
     pr_a <- data.frame(
       node_name = c("A", "B", "C"),
-      pagerank = c(0.5, 0.3, 0.2),
-      stringsAsFactors = FALSE
+      pagerank = c(0.5, 0.3, 0.2)
     )
     pr_b <- data.frame(
       node_name = c("A", "B", "D"),
-      pagerank = c(0.4, 0.35, 0.25),
-      stringsAsFactors = FALSE
+      pagerank = c(0.4, 0.35, 0.25)
     )
     result <- compare_pagerank(pr_a, pr_b)
     summary <- attr(result, "summary")
@@ -95,8 +89,8 @@ describe("compare_pagerank basic functionality", {
   })
 
   it("handles custom column names and labels", {
-    pr_a <- data.frame(url = c("X"), pr = c(0.5), stringsAsFactors = FALSE)
-    pr_b <- data.frame(url = c("X"), pr = c(0.8), stringsAsFactors = FALSE)
+    pr_a <- data.frame(url = c("X"), pr = c(0.5))
+    pr_b <- data.frame(url = c("X"), pr = c(0.8))
     result <- compare_pagerank(pr_a, pr_b,
       node_col = "url", pr_col = "pr",
       label_a = "base", label_b = "new"
@@ -110,8 +104,7 @@ describe("compare_pagerank basic functionality", {
   it("handles identical data frames", {
     pr <- data.frame(
       node_name = c("A", "B"),
-      pagerank = c(0.6, 0.4),
-      stringsAsFactors = FALSE
+      pagerank = c(0.6, 0.4)
     )
     result <- compare_pagerank(pr, pr)
     expect_true(all(result$delta == 0))
@@ -126,8 +119,7 @@ describe("compare_pagerank basic functionality", {
     bad <- data.frame(x = 1)
     good <- data.frame(
       node_name = "A",
-      pagerank = 0.5,
-      stringsAsFactors = FALSE
+      pagerank = 0.5
     )
     expect_error(compare_pagerank(bad, good), "not found")
     expect_error(compare_pagerank(good, bad), "not found")
@@ -137,18 +129,16 @@ describe("compare_pagerank basic functionality", {
     expect_error(compare_pagerank("not_a_df", data.frame()), "data frame")
     good <- data.frame(
       node_name = "A",
-      pagerank = 0.5,
-      stringsAsFactors = FALSE
+      pagerank = 0.5
     )
     expect_error(compare_pagerank(good, "not_a_df"), "data frame")
   })
 
   it("errors when pr_col is missing from pr_a", {
-    pr_a <- data.frame(node_name = "A", wrong = 0.5, stringsAsFactors = FALSE)
+    pr_a <- data.frame(node_name = "A", wrong = 0.5)
     pr_b <- data.frame(
       node_name = "A",
-      pagerank = 0.5,
-      stringsAsFactors = FALSE
+      pagerank = 0.5
     )
     expect_error(compare_pagerank(pr_a, pr_b), "not found")
   })
@@ -156,10 +146,9 @@ describe("compare_pagerank basic functionality", {
   it("errors when pr_col is missing from pr_b", {
     pr_a <- data.frame(
       node_name = "A",
-      pagerank = 0.5,
-      stringsAsFactors = FALSE
+      pagerank = 0.5
     )
-    pr_b <- data.frame(node_name = "A", wrong = 0.5, stringsAsFactors = FALSE)
+    pr_b <- data.frame(node_name = "A", wrong = 0.5)
     expect_error(compare_pagerank(pr_a, pr_b), "not found")
   })
 })

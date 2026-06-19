@@ -9,7 +9,7 @@
 #' @param redirects_df A data frame containing redirect rules with 'from' and
 #'   'to' columns (or as specified by `redirect_from_col`/`redirect_to_col`).
 #'   If `NULL`, no redirects are applied.
-#' @param clean_urls Logical, whether to clean/normalise URLs using
+#' @param clean_urls Logical, whether to clean/normalize URLs using
 #'   \code{rurl::clean_url} before resolving. Default `TRUE`.
 #' @param self_loops Character, how to handle self-loops created after
 #'   redirect resolution. One of `"drop"` (default) or `"keep"`.

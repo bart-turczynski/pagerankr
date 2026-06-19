@@ -3,8 +3,7 @@ context("audit_canonicals / audit_fold")
 describe("audit_canonicals mirrors audit_redirects structure", {
   canonicals <- data.frame(
     from = c("A", "B", "C", "D", "D", "E"),
-    to   = c("B", "C", "final", "X", "Y", "E"),
-    stringsAsFactors = FALSE
+    to   = c("B", "C", "final", "X", "Y", "E")
   )
 
   it("returns a canonical_audit object with the expected fields", {
@@ -32,9 +31,9 @@ describe("audit_canonicals mirrors audit_redirects structure", {
   })
 
   it("identifies orphaned canonicals against an edge list", {
-    edges <- data.frame(from = "Z", to = "A", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "Z", to = "A")
     audit <- audit_canonicals(canonicals, edge_list_df = edges)
-    expect_true(!is.null(audit$orphaned_redirects))
+    expect_false(is.null(audit$orphaned_redirects))
     expect_gt(nrow(audit$orphaned_redirects), 0)
   })
 
@@ -50,8 +49,7 @@ describe("audit_canonicals mirrors audit_redirects structure", {
 
 describe("audit_redirects still works after the refactor", {
   redirects <- data.frame(
-    from = c("A", "B", "C"), to = c("B", "C", "final"),
-    stringsAsFactors = FALSE
+    from = c("A", "B", "C"), to = c("B", "C", "final")
   )
   it("keeps its class and report header", {
     audit <- audit_redirects(redirects)
@@ -61,8 +59,8 @@ describe("audit_redirects still works after the refactor", {
 })
 
 describe("audit_fold combined cross-signal view", {
-  redirects <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-  canonicals <- data.frame(from = "A", to = "D", stringsAsFactors = FALSE)
+  redirects <- data.frame(from = "A", to = "B")
+  canonicals <- data.frame(from = "A", to = "D")
 
   it("exposes per-signal audits and the conflict tables", {
     af <- audit_fold(redirects, canonicals)

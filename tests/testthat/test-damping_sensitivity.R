@@ -1,7 +1,6 @@
 edges <- data.frame(
   from = c("A", "B", "C", "A", "D"),
-  to = c("B", "C", "A", "C", "A"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "A", "C", "A")
 )
 
 test_that("returns tidy frame keyed by (url, alpha) with documented cols", {
@@ -132,8 +131,7 @@ test_that("input validation", {
 
 test_that("empty graph yields an empty tidy frame with correct columns", {
   empty <- data.frame(
-    from = character(0), to = character(0),
-    stringsAsFactors = FALSE
+    from = character(0), to = character(0)
   )
   sens <- damping_sensitivity(empty, alphas = c(0.85, 0.95))
   expect_identical(nrow(sens), 0L)

@@ -3,7 +3,7 @@ context("auto_grid")
 describe("auto_grid", {
   it("generates all combinations of parameters", {
     grid <- auto_grid(damping = c(0.85, 0.95), self_loops = c("drop", "keep"))
-    expect_equal(length(grid), 4)
+    expect_length(grid, 4)
     expect_true(all(vapply(grid, is.list, logical(1))))
     # Check all combinations exist
     dampings <- vapply(grid, function(x) x$damping, numeric(1))
@@ -20,14 +20,13 @@ describe("auto_grid", {
 
   it("works with a single parameter", {
     grid <- auto_grid(damping = c(0.7, 0.85, 0.95))
-    expect_equal(length(grid), 3)
+    expect_length(grid, 3)
   })
 
   it("integrates with pagerank_grid()", {
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "A")
     )
     grid_params <- auto_grid(damping = c(0.5, 0.85))
     result <- pagerank_grid(edges, grid_params, clean_edge_urls = FALSE)

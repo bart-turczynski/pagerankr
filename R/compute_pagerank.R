@@ -16,7 +16,7 @@
 #' @param damping The damping factor for PageRank. Default is 0.85.
 #' @param algo Solver back-end passed to `igraph::page_rank()`. Either
 #'   `"prpack"` (default; a fast, exact direct solver with no tunable
-#'   convergence controls) or `"arpack"` (an iterative eigensolver that honours
+#'   convergence controls) or `"arpack"` (an iterative eigensolver that honors
 #'   `eps` / `niter` and reports its iteration count). Supplying `eps` or
 #'   `niter` while leaving `algo` at its default transparently switches to
 #'   `"arpack"`, since PRPACK ignores those controls. See [pagerank_convergence]
