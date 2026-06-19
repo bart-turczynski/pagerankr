@@ -24,7 +24,10 @@ describe("transition_audit structure", {
 
     expect_setequal(
       names(audit),
-      c("counts", "coverage", "normalization", "dropped", "config", "mass")
+      c(
+        "counts", "coverage", "normalization", "dropped", "duplicates",
+        "config", "mass"
+      )
     )
     expect_setequal(
       names(audit$counts),
@@ -40,6 +43,13 @@ describe("transition_audit structure", {
       c(
         "n_rows_na", "n_rows_duplicate", "n_self_loops",
         "n_rows_collapsed", "n_prior_unmatched", "n_robots_blocked"
+      )
+    )
+    expect_setequal(
+      names(audit$duplicates),
+      c(
+        "policy", "n_duplicate_rows", "instance_count_col",
+        "n_duplicate_instances", "duplicate_edges"
       )
     )
     expect_setequal(

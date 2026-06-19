@@ -48,7 +48,7 @@
 #' }
 #'
 #' This topic freezes the contract consumed by the SF1-SF5 implementation
-#' tickets; it does not itself construct the complete bundle.
+#' tickets. The complete object is constructed by [screaming_frog_bundle()].
 #'
 #' @name screaming_frog_bundle
 NULL

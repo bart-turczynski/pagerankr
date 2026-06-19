@@ -33,6 +33,24 @@
 #' @param weight_col Optional name of a numeric column in `edge_list_df`
 #'   containing edge weights. Higher weights make edges more likely to be
 #'   followed. If `NULL` (default), all edges have equal weight.
+#' @param duplicate_edge_policy How repeated `from -> to` rows are represented
+#'   after URL cleaning, redirect/canonical folding, and domain filtering. One
+#'   of:
+#'   \describe{
+#'     \item{`"collapse"`}{(default) Destination-level surfer: repeated rows
+#'       collapse to one unweighted destination edge, preserving legacy
+#'       `get_unique_edges()` behaviour and the common binary PageRank
+#'       convention.}
+#'     \item{`"aggregate"`}{Collapse each `from -> to` pair with
+#'       [aggregate_edges()] semantics. Numeric columns, including
+#'       `weight_col`, are summed; logical columns such as `nofollow` use the
+#'       default `"any"` conflict policy.}
+#'     \item{`"count_instances"`}{Link-slot / edge-level surfer: repeated
+#'       rows increase transition probability. With no `weight_col`, each
+#'       surviving `from -> to` pair receives an internal weight equal to its
+#'       duplicate-row count. With `weight_col`, weights are summed and an
+#'       `instance_count` audit column is retained.}
+#'   }
 #' @param nofollow_col Optional name of a logical or 0/1 column in
 #'   `edge_list_df` indicating nofollow edges. If `NULL` (default),
 #'   no nofollow handling is performed.
@@ -195,12 +213,13 @@
 #' analogue of the *hub* score in Kleinberg's HITS. The sibling `semantic`
 #' project consumes this as an outflow signal.
 #'
-#' Only edge orientation is flipped; URL cleaning, redirect folding, dedup,
-#' edge weights, domain/host filtering, and the teleport prior all behave
-#' identically (they are direction-agnostic). To obtain it directly from an
-#' edge list, swapping the from/to columns and running ordinary `pagerank()` is
-#' equivalent — `reverse = TRUE` just performs that flip internally so weight,
-#' redirect, and sink handling cannot be mis-wired by a manual swap.
+#' Only edge orientation is flipped; URL cleaning, redirect folding,
+#' duplicate-edge policy, edge weights, domain/host filtering, and the teleport
+#' prior all behave identically (they are direction-agnostic). To obtain it
+#' directly from an edge list, swapping the from/to columns and running ordinary
+#' `pagerank()` is equivalent — `reverse = TRUE` just performs that flip
+#' internally so weight, redirect, and sink handling cannot be mis-wired by a
+#' manual swap.
 #'
 #' **This is unrelated to the TIPR / personalized-prior feature (`prior_df`).**
 #' That seeds the *teleport* vector with external authority (e.g. backlinks) but
@@ -219,6 +238,25 @@
 #'     robots.txt blocking (drop outlinks + trap self-loop) encode forward
 #'     crawl/index behaviour with no meaningful transpose.}
 #' }
+#'
+#' ## Duplicate edge policy
+#'
+#' The original PageRank papers define a page's vote as divided by its outgoing
+#' link count but do not pin down how repeated hyperlinks from one source page
+#' to the same target are represented. The standard textbook / binary
+#' operationalization treats the outgoing set as a destination relation, so
+#' multiple `A -> C` rows collapse to one destination edge. `pagerankr` keeps
+#' that as the default (`duplicate_edge_policy = "collapse"`) for backward
+#' compatibility and as the less spam-sensitive model.
+#'
+#' Weighted / multigraph PageRank is also valid when repeated link slots are
+#' the intended unit. Use `duplicate_edge_policy = "count_instances"` for a
+#' link-slot surfer: `A -> B, A -> C, A -> C` sends twice as much outgoing mass
+#' to `C` as to `B`, equivalent to explicit weights `B = 1, C = 2` and to
+#' igraph's treatment of parallel edges. Use `"aggregate"` when duplicate rows
+#' should be collapsed loss-aware, especially with an existing `weight_col`;
+#' numeric duplicate weights are summed instead of silently keeping the first
+#' row.
 #'
 #' @return A data frame with node names and their PageRank scores. When
 #'   nofollow evaporation, indexability handling, or `robots_blocked_action =
@@ -296,6 +334,9 @@ pagerank <- function(edge_list_df,
                      drop_isolates_flag = TRUE,
                      reverse = FALSE,
                      weight_col = NULL,
+                     duplicate_edge_policy = c(
+                       "collapse", "aggregate", "count_instances"
+                     ),
                      nofollow_col = NULL,
                      nofollow_action = c("evaporate", "drop", "keep"),
                      indexability_df = NULL,
@@ -360,6 +401,7 @@ pagerank <- function(edge_list_df,
   self_loops <- match.arg(self_loops)
   nofollow_action <- match.arg(nofollow_action)
   robots_blocked_action <- match.arg(robots_blocked_action)
+  duplicate_edge_policy <- match.arg(duplicate_edge_policy)
   duplicate_from_policy <- match.arg(duplicate_from_policy)
   loop_handling <- match.arg(loop_handling)
   canonical_duplicate_from_policy <- match.arg(canonical_duplicate_from_policy)
@@ -786,13 +828,39 @@ pagerank <- function(edge_list_df,
     }
   }
 
-  # --- 3. Get Unique Edges (handles self-loops) ---
-  current_edge_list <- get_unique_edges(
+  audit_instance_count_col <- NULL
+  effective_weight_col <- weight_col
+  audit_duplicate_edges <- NULL
+  audit_n_duplicate_instances <- 0L
+
+  # --- 3. Apply duplicate-edge policy (handles self-loops) ---
+  current_edge_list <- .apply_duplicate_edge_policy(
     edge_list_df = current_edge_list,
+    policy = duplicate_edge_policy,
     self_loops = self_loops,
     from_col = edge_from_col,
     to_col = edge_to_col
   )
+  if (duplicate_edge_policy == "count_instances") {
+    audit_instance_count_col <- "__pr_instance_count__"
+    if (is.null(weight_col)) {
+      effective_weight_col <- audit_instance_count_col
+    }
+    audit_duplicate_edges <- .duplicate_edge_audit_rows(
+      edge_list_df = current_edge_list,
+      from_col = edge_from_col,
+      to_col = edge_to_col,
+      instance_count_col = audit_instance_count_col,
+      weight_col = effective_weight_col
+    )
+    if (is.data.frame(audit_duplicate_edges) &&
+          nrow(audit_duplicate_edges) > 0) {
+      audit_n_duplicate_instances <- sum(
+        audit_duplicate_edges$instance_count,
+        na.rm = TRUE
+      )
+    }
+  }
 
   # Edges actually scored (after folding, dedup and self-loop handling).
   # Synthetic rows added later (nofollow sink, robots-blocked self-loops) are
@@ -984,7 +1052,7 @@ pagerank <- function(edge_list_df,
     to_col = edge_to_col,
     vertex_col_name = temp_node_col_name,
     reverse = reverse,
-    weight_col = weight_col,
+    weight_col = effective_weight_col,
     prior_df = folded_prior_df,
     prior_url_col = prior_url_col,
     prior_weight_col = prior_weight_col,
@@ -1044,11 +1112,13 @@ pagerank <- function(edge_list_df,
   # while reproducibility metadata travels alongside the result.
 
   # Behavioral-weight coverage: how many scored edges carry a usable weight.
-  audit_weighted <- !is.null(weight_col) &&
-    weight_col %in% names(current_edge_list)
+  audit_weighted <- !is.null(effective_weight_col) &&
+    effective_weight_col %in% names(current_edge_list)
   audit_n_edges_weighted <- 0L
   if (audit_weighted && nrow(current_edge_list) > 0) {
-    .w <- suppressWarnings(as.numeric(current_edge_list[[weight_col]]))
+    .w <- suppressWarnings(
+      as.numeric(current_edge_list[[effective_weight_col]])
+    )
     audit_n_edges_weighted <- sum(!is.na(.w) & is.finite(.w) & .w > 0)
   }
 
@@ -1072,8 +1142,12 @@ pagerank <- function(edge_list_df,
     n_edges = audit_n_edges,
     n_vertices = nrow(pagerank_results),
     weighted = audit_weighted,
-    weight_col = if (audit_weighted) weight_col else NULL,
+    weight_col = if (audit_weighted) effective_weight_col else NULL,
     n_edges_weighted = audit_n_edges_weighted,
+    duplicate_edge_policy = duplicate_edge_policy,
+    instance_count_col = audit_instance_count_col,
+    n_duplicate_instances = audit_n_duplicate_instances,
+    duplicate_edges = audit_duplicate_edges,
     n_rows_na = audit_n_rows_na,
     n_rows_duplicate = audit_n_rows_duplicate,
     n_self_loops = audit_n_self_loops,
@@ -1088,6 +1162,8 @@ pagerank <- function(edge_list_df,
       drop_isolates_flag = drop_isolates_flag,
       reverse = reverse,
       weight_col = weight_col,
+      effective_weight_col = effective_weight_col,
+      duplicate_edge_policy = duplicate_edge_policy,
       nofollow_col = if (identical(nofollow_col, "__pr_nofollow__")) {
         NULL
       } else {
@@ -1109,4 +1185,87 @@ pagerank <- function(edge_list_df,
   attr(pagerank_results, "transition_audit") <- transition_audit
 
   pagerank_results
+}
+
+#' Apply pagerank() duplicate-edge policy.
+#' @keywords internal
+#' @noRd
+.apply_duplicate_edge_policy <- function(edge_list_df,
+                                         policy,
+                                         self_loops,
+                                         from_col,
+                                         to_col) {
+  if (policy == "collapse") {
+    return(get_unique_edges(
+      edge_list_df = edge_list_df,
+      self_loops = self_loops,
+      from_col = from_col,
+      to_col = to_col
+    ))
+  }
+
+  if (policy == "count_instances" &&
+        nrow(edge_list_df) > 0 &&
+        all(c(from_col, to_col) %in% names(edge_list_df))) {
+    from <- as.character(edge_list_df[[from_col]])
+    to <- as.character(edge_list_df[[to_col]])
+    valid <- !is.na(from) & !is.na(to)
+    if (self_loops == "drop") {
+      valid <- valid & from != to
+    }
+
+    instance_count <- integer(nrow(edge_list_df))
+    instance_count[valid] <- 1L
+    edge_list_df[["__pr_instance_count__"]] <- instance_count
+  }
+
+  aggregate_edges(
+    edge_list_df = edge_list_df,
+    self_loops = self_loops,
+    from_col = from_col,
+    to_col = to_col
+  )
+}
+
+#' Build compact duplicate-edge audit rows for counted mode.
+#' @keywords internal
+#' @noRd
+.duplicate_edge_audit_rows <- function(edge_list_df,
+                                       from_col,
+                                       to_col,
+                                       instance_count_col,
+                                       weight_col) {
+  if (is.null(instance_count_col) ||
+        !(instance_count_col %in% names(edge_list_df)) ||
+        nrow(edge_list_df) == 0) {
+    return(NULL)
+  }
+
+  instance_count <- suppressWarnings(
+    as.integer(edge_list_df[[instance_count_col]])
+  )
+  duplicated_edges <- !is.na(instance_count) & instance_count > 1L
+  if (!any(duplicated_edges)) {
+    return(data.frame(
+      from = character(0),
+      to = character(0),
+      instance_count = integer(0),
+      stringsAsFactors = FALSE
+    ))
+  }
+
+  audit <- data.frame(
+    from = as.character(edge_list_df[[from_col]][duplicated_edges]),
+    to = as.character(edge_list_df[[to_col]][duplicated_edges]),
+    instance_count = instance_count[duplicated_edges],
+    stringsAsFactors = FALSE
+  )
+
+  if (!is.null(weight_col) && weight_col %in% names(edge_list_df)) {
+    audit[["effective_weight"]] <- suppressWarnings(
+      as.numeric(edge_list_df[[weight_col]][duplicated_edges])
+    )
+  }
+
+  audit
 }

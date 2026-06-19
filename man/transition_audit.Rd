@@ -11,7 +11,9 @@ Builds a stable, documented audit / provenance record describing
   counts, behavioral-weight coverage, normalization totals, the data that was
   dropped along the way (rows lost to NA / deduplication / self-loop removal,
   and authority-prior URLs that never folded onto a vertex), and the relevant
-  [pagerank()] configuration.
+  [pagerank()] configuration. It also records the duplicate-edge policy used
+  to build transitions, so callers can distinguish the default
+  destination-level surfer from opt-in aggregate / link-slot models.
 }
 \details{
 ## Structure and contract
@@ -45,6 +47,13 @@ fields are **stable**; callers may rely on them being present.
     prior URLs that did not fold onto any vertex; `NA_integer_` when no
     `prior_df` was supplied), and `n_robots_blocked` (URLs treated as
     robots.txt-blocked).}
+  \item{duplicates}{A list describing duplicate-edge handling:
+    `policy` (the `duplicate_edge_policy` passed to [pagerank()]),
+    `n_duplicate_rows` (post-fold duplicate input rows), `instance_count_col`
+    (the internal audit column used by `"count_instances"`, or `NULL`), and
+    `n_duplicate_instances` (the number of duplicate link instances folded
+    into transition weights), and `duplicate_edges` (a compact data frame of
+    counted edges with more than one link instance, or `NULL`).}
   \item{config}{A list of the [pagerank()] arguments that materially shape
     the transition graph: `self_loops`, `drop_isolates_flag`, `reverse`,
     `weight_col`, `nofollow_col`, `nofollow_action`, `robots_blocked_action`,

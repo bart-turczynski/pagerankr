@@ -7,7 +7,9 @@
 #'   counts, behavioral-weight coverage, normalization totals, the data that was
 #'   dropped along the way (rows lost to NA / deduplication / self-loop removal,
 #'   and authority-prior URLs that never folded onto a vertex), and the relevant
-#'   [pagerank()] configuration.
+#'   [pagerank()] configuration. It also records the duplicate-edge policy used
+#'   to build transitions, so callers can distinguish the default
+#'   destination-level surfer from opt-in aggregate / link-slot models.
 #'
 #' @details
 #' ## Structure and contract
@@ -41,6 +43,13 @@
 #'     prior URLs that did not fold onto any vertex; `NA_integer_` when no
 #'     `prior_df` was supplied), and `n_robots_blocked` (URLs treated as
 #'     robots.txt-blocked).}
+#'   \item{duplicates}{A list describing duplicate-edge handling:
+#'     `policy` (the `duplicate_edge_policy` passed to [pagerank()]),
+#'     `n_duplicate_rows` (post-fold duplicate input rows), `instance_count_col`
+#'     (the internal audit column used by `"count_instances"`, or `NULL`), and
+#'     `n_duplicate_instances` (the number of duplicate link instances folded
+#'     into transition weights), and `duplicate_edges` (a compact data frame of
+#'     counted edges with more than one link instance, or `NULL`).}
 #'   \item{config}{A list of the [pagerank()] arguments that materially shape
 #'     the transition graph: `self_loops`, `drop_isolates_flag`, `reverse`,
 #'     `weight_col`, `nofollow_col`, `nofollow_action`, `robots_blocked_action`,
@@ -83,6 +92,13 @@ NULL
 #' @param weighted Logical, whether an edge `weight_col` was in effect.
 #' @param weight_col Character or `NULL`, the weight column name.
 #' @param n_edges_weighted Integer, edges carrying a finite positive weight.
+#' @param duplicate_edge_policy Character, the duplicate-edge policy used by
+#'   [pagerank()].
+#' @param instance_count_col Character or `NULL`, internal count column used by
+#'   `duplicate_edge_policy = "count_instances"`.
+#' @param n_duplicate_instances Integer, duplicate link instances folded into
+#'   transition weights.
+#' @param duplicate_edges Data frame or `NULL`, compact counted-edge audit rows.
 #' @param n_rows_na Integer, input rows dropped due to `NA` endpoints.
 #' @param n_rows_duplicate Integer, rows collapsed by deduplication.
 #' @param n_self_loops Integer, self-loop edges dropped.
@@ -106,6 +122,10 @@ new_transition_audit <- function(n_input_rows = 0L,
                                  weighted = FALSE,
                                  weight_col = NULL,
                                  n_edges_weighted = 0L,
+                                 duplicate_edge_policy = "collapse",
+                                 instance_count_col = NULL,
+                                 n_duplicate_instances = 0L,
+                                 duplicate_edges = NULL,
                                  n_rows_na = 0L,
                                  n_rows_duplicate = 0L,
                                  n_self_loops = 0L,
@@ -171,6 +191,13 @@ new_transition_audit <- function(n_input_rows = 0L,
       },
       n_robots_blocked = as.integer(n_robots_blocked)
     ),
+    duplicates = list(
+      policy = duplicate_edge_policy,
+      n_duplicate_rows = as.integer(n_rows_duplicate),
+      instance_count_col = instance_count_col,
+      n_duplicate_instances = as.integer(n_duplicate_instances),
+      duplicate_edges = duplicate_edges
+    ),
     config = config,
     # --- Mass accounting (B2 / PAGE-mqsxrcdz). ---
     # Decomposes the internal stationary vector (which always sums to 1) into
@@ -228,6 +255,18 @@ print.transition_audit <- function(x, ...) {
     )
   } else {
     cat("  (unweighted / all edges equal)\n")
+  }
+
+  if (!is.null(x$duplicates)) {
+    cat("\nDuplicate edge policy\n")
+    cat("  Policy:             ", x$duplicates$policy, "\n")
+    cat("  Duplicate rows:     ", x$duplicates$n_duplicate_rows, "\n")
+    if (!is.null(x$duplicates$instance_count_col)) {
+      cat("  Instance count col: ", x$duplicates$instance_count_col, "\n")
+    }
+    if (is.data.frame(x$duplicates$duplicate_edges)) {
+      cat("  Counted dup edges:  ", nrow(x$duplicates$duplicate_edges), "\n")
+    }
   }
 
   cat("\nNormalization\n")
