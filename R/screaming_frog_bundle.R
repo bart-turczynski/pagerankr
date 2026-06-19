@@ -266,7 +266,7 @@ print.screaming_frog_bundle <- function(x, ...) {
 .sf_count_df <- function(x, cols) {
   if (nrow(x) == 0L) {
     out <- as.data.frame(
-      setNames(rep(list(character(0)), length(cols)), cols),
+      stats::setNames(rep(list(character(0)), length(cols)), cols),
       stringsAsFactors = FALSE
     )
     out$n <- integer(0)
