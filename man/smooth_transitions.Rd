@@ -30,13 +30,14 @@ raise the prior weight). When `structural_weight_col` is `NULL`, each row
 contributes weight 1, i.e. a uniform prior over a source's crawled links.}
 
 \item{k}{Positive numeric. The pseudocount / Dirichlet concentration
-controlling shrinkage strength in `\lambda_i = n_i / (n_i + k)`. Larger `k`
+controlling shrinkage strength in
+\eqn{\lambda_i = n_i / (n_i + k)}. Larger `k`
 pulls under-sampled sources more strongly toward the structural prior.
 Must be `> 0`. Default `5`. Ignored for a source if `lambda_fn` is given.}
 
 \item{min_support}{Non-negative numeric. Sources with `0 < n_i < min_support`
 are treated as having insufficient empirical support and fall back fully to
-the structural prior (`\lambda_i = 0`). Default `0` (no minimum).}
+the structural prior (\eqn{\lambda_i = 0}). Default `0` (no minimum).}
 
 \item{lambda_fn}{Optional function mapping a source's sample size `n_i` (a
 single numeric) to a shrinkage weight in `[0, 1]`. Overrides the default
@@ -98,11 +99,11 @@ is the convex combination
 where `emp(i -> j)` is the empirical share `count(i -> j) / n_i`
 (`n_i` = total observed out-transitions from `i`), `prior(i -> j)` is the
 structural prior share (the crawl-graph out-link distribution of `i`), and
-`\lambda_i` is the per-source trust placed in the empirical data.
+\eqn{\lambda_i} is the per-source trust placed in the empirical data.
 
 ## Sample-size-dependent shrinkage (`lambda_i`)
 
-By default `\lambda_i = n_i / (n_i + k)`, the standard
+By default \eqn{\lambda_i = n_i / (n_i + k)}, the standard
 Dirichlet / pseudocount shrinkage rule: it is monotonically increasing in the
 source-page sample size `n_i` and equals `1/2` at `n_i = k`. Equivalently,
 the model adds `k` pseudo-observations distributed according to the
@@ -110,22 +111,23 @@ structural prior, then renormalises — a Dirichlet prior with concentration
 `k`. A high-traffic source (large `n_i`) is trusted almost entirely to its
 own behaviour; a barely-sampled source leans on the crawl structure. `k`
 must be strictly positive: this is precisely what guarantees
-`\lambda_i < 1` for any sampled source, hence a non-zero
-`(1 - \lambda_i)` weight on every crawled link (see *Guarantees*).
+\eqn{\lambda_i < 1} for any sampled source, hence a non-zero
+\eqn{(1 - \lambda_i)} weight on every crawled link (see *Guarantees*).
 
 ## Per-source special cases
 
 Sources are matched between the two inputs and resolved as follows:
 - **No empirical data** (`n_i = 0`; crawled link absent from behavioural
-  data): `\lambda_i = 0`, so `P(i -> .)` is the pure structural prior. The
-  crawl link still receives mass.
+  data): \eqn{\lambda_i = 0}, so `P(i -> .)` is the pure structural
+  prior. The crawl link still receives mass.
 - **No structural prior** (observed transition whose source has no crawled
-  out-links): `\lambda_i = 1`, so `P(i -> .)` is the pure empirical
+  out-links): \eqn{\lambda_i = 1}, so `P(i -> .)` is the pure empirical
   distribution — there is nothing to shrink toward.
-- **Insufficient support** (`0 < n_i < min_support`): `\lambda_i = 0`. The
+- **Insufficient support** (`0 < n_i < min_support`):
+  \eqn{\lambda_i = 0}. The
   empirical sample is treated as too small to trust, and the source falls
   back to its structural prior (when one exists).
-- **Otherwise**: `\lambda_i = n_i / (n_i + k)` (or `lambda_fn(n_i)`).
+- **Otherwise**: \eqn{\lambda_i = n_i / (n_i + k)} (or `lambda_fn(n_i)`).
 
 ## Edge universe
 
@@ -142,7 +144,8 @@ they carry no transition mass.
 Time decay and device / template / channel segmentation are handled
 **upstream** by shaping the count input, keeping this function focused on the
 shrinkage itself. For time decay, supply decayed (fractional) counts in
-`count_col` — the `n_i` totals and `\lambda_i` then reflect effective sample
+`count_col` — the `n_i` totals and \eqn{\lambda_i} then reflect effective
+sample
 size, and `count_col` need not be integer. For segmentation, partition the
 empirical counts by segment and call `smooth_transitions()` once per segment
 (optionally against a segment-specific structural prior), then combine the
@@ -152,8 +155,9 @@ results.
 
 For any `k > 0`, every crawled link present in `structural_df` receives a
 strictly positive smoothed probability: such an edge has
-`prior(i -> j) > 0`, and either `\lambda_i = 0` (pure prior) or
-`\lambda_i < 1` (since `n_i / (n_i + k) < 1`), so the `(1 - \lambda_i)`
+`prior(i -> j) > 0`, and either \eqn{\lambda_i = 0} (pure prior) or
+\eqn{\lambda_i < 1} (since `n_i / (n_i + k) < 1`), so the
+\eqn{(1 - \lambda_i)}
 weight on the prior is positive. Within each source, the returned
 probabilities sum to 1.
 }
