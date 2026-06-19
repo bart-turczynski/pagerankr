@@ -555,6 +555,88 @@ print(impact_all)
 All `pagerank()` parameters (damping, nofollow, indexability, etc.) can
 be passed through `simulate_changes()` via `...`.
 
+## Convergence Controls and Damping Stability
+
+### pagerank() convergence controls
+
+`pagerank()` delegates to igraph's PageRank implementation. Two solvers are
+available via the `algo` argument:
+
+- `"prpack"` (default) — exact solver; ignores `eps` and `niter`.
+- `"arpack"` — iterative Arnoldi solver; required whenever you supply `eps` or
+  `niter`. Passing either argument automatically switches the solver.
+
+Key arguments:
+
+| Argument | Meaning |
+|---|---|
+| `algo` | `"prpack"` (default) or `"arpack"` |
+| `eps` | L1 convergence tolerance (maps to ARPACK `options$tol`) |
+| `niter` | Max iterations (maps to ARPACK `options$maxiter`) |
+
+Every result carries a `"convergence"` attribute — a `pagerank_convergence`
+object — that records the solver used, iteration count, and final L1 residual.
+Inspect it with `attr(result, "convergence")` or just `print()` the result.
+
+Rule of thumb for iteration budget: `ceiling(log10(eps) / log10(damping))`
+iterations are needed to reach tolerance `eps` at damping factor `damping`.
+
+### damping_sensitivity() and pagerank_stability()
+
+`damping_sensitivity()` sweeps a vector of damping factors and returns one
+PageRank result per alpha:
+
+```r
+damping_sensitivity(edge_list_df, alphas = c(0.75, 0.80, 0.85, 0.90, 0.95), ...)
+```
+
+`pagerank_stability()` wraps the sweep into a ready-to-read stability report:
+
+```r
+pagerank_stability(
+  edge_list_df,
+  alphas     = c(0.75, 0.80, 0.85, 0.90, 0.95),
+  reference  = 0.85,
+  top_k      = 10,
+  ...
+)
+```
+
+It returns a data frame with one row per alpha and two comparison columns
+relative to the reference run:
+
+- `spearman_rho` — rank-order correlation across all URLs.
+- `top_k_overlap` — fraction of the top-`k` URLs shared with the reference.
+
+The raw per-(url, alpha) scores are available via `attr(stab, "sensitivity")`.
+
+### Worked example
+
+```{r convergence_stability}
+toy_edges <- data.frame(
+  from = c("A", "A", "B", "C", "C", "D", "E", "F"),
+  to   = c("B", "C", "D", "D", "E", "F", "A", "A"),
+  stringsAsFactors = FALSE
+)
+
+# Stability report: how sensitive are ranks to damping?
+stab <- pagerank_stability(
+  toy_edges,
+  alphas            = c(0.75, 0.80, 0.85, 0.90, 0.95),
+  reference         = 0.85,
+  top_k             = 4,
+  clean_edge_urls   = FALSE
+)
+print(stab)
+
+# Drill into raw per-(url, alpha) scores
+head(attr(stab, "sensitivity"))
+```
+
+At `alpha` values close to the reference the `spearman_rho` and `top_k_overlap`
+columns will be near 1; larger deviations flag URLs whose importance is
+damping-sensitive.
+
 ## Function Reference
 
 | Function | Purpose |
