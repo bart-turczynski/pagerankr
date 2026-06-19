@@ -16,8 +16,7 @@
 #'   [pagerank()] (see [align_prior_to_vertices()]). There is no new solver and
 #'   no topic inference — the caller supplies the seed sets.
 #'
-#' @param edge_list_df A data frame edge list, exactly as passed to [pagerank()]
-#'   (see `edge_from_col` / `edge_to_col`).
+#' @inheritParams pagerank
 #' @param topics A **uniquely named** list, one element per topic. Each element
 #'   defines that topic's teleport seed set and is either:
 #'   \describe{

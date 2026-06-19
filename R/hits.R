@@ -58,7 +58,6 @@
 #'   `authority_col`). Returns an empty (zero-row) data frame with those columns
 #'   when the graph has no vertices.
 #' @export
-#' @import igraph
 #' @seealso [hits()] for the full identity pipeline; [compute_pagerank()] for
 #'   the PageRank analogue.
 #' @examples

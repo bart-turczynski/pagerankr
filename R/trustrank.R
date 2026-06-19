@@ -133,7 +133,7 @@ trust_seed_prior <- function(trusted_seeds,
 }
 
 #' @rdname trustrank
-#' @param edge_list_df A data frame edge list, as passed to [pagerank()].
+#' @inheritParams pagerank
 #' @param ... Additional arguments forwarded to [pagerank()] (e.g.
 #'   `redirects_df`, `rurl_params`, `prior_transform`, `prior_alpha`,
 #'   `damping`). Passing `prior_df`, `prior_url_col`, or `prior_weight_col` is

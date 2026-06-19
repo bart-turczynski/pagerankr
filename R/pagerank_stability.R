@@ -20,10 +20,7 @@
 #' baseline; its own row is a sanity anchor (`spearman_rho = 1`,
 #' `mean_abs_delta = 0`, `top_k_overlap = 1`).
 #'
-#' @param edge_list_df A data frame representing the edge list, forwarded to
-#'   [damping_sensitivity()] / [pagerank()].
-#' @param alphas Numeric vector of damping factors to sweep, each strictly
-#'   between 0 and 1. Default `c(0.75, 0.80, 0.85, 0.90, 0.95)`.
+#' @inheritParams damping_sensitivity
 #' @param reference The baseline damping factor every other \eqn{\alpha} is
 #'   compared against. A single number strictly between 0 and 1, default `0.85`.
 #'   Included in the sweep automatically if not already in `alphas`.

@@ -86,7 +86,6 @@
 #'   the solver exposes them), and the post-hoc L1 residual of the returned
 #'   vector. Retrieve it with `attr(result, "convergence")`.
 #' @export
-#' @import igraph
 #' @examples
 #' edges <- data.frame(
 #'   from = c("A", "B", "C"), to = c("B", "C", "A")

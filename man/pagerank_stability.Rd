@@ -13,11 +13,13 @@ pagerank_stability(
 )
 }
 \arguments{
-\item{edge_list_df}{A data frame representing the edge list, forwarded to
-[damping_sensitivity()] / [pagerank()].}
+\item{edge_list_df}{A data frame representing the edge list, passed to every
+[pagerank()] call. (Named for consistency with the rest of the package;
+it is an edge list, not a constructed graph object.)}
 
 \item{alphas}{Numeric vector of damping factors to sweep, each strictly
-between 0 and 1. Default `c(0.75, 0.80, 0.85, 0.90, 0.95)`.}
+between 0 and 1. Default `c(0.75, 0.80, 0.85, 0.90, 0.95)`. Duplicate
+values are dropped.}
 
 \item{reference}{The baseline damping factor every other \eqn{\alpha} is
 compared against. A single number strictly between 0 and 1, default `0.85`.

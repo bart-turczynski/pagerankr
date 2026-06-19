@@ -77,7 +77,7 @@
 #' under `reverse = TRUE` (`nofollow_action = "evaporate"`, `indexability_df`)
 #' are likewise unavailable here.
 #'
-#' @param edge_list_df A data frame edge list, as passed to [pagerank()].
+#' @inheritParams pagerank
 #' @param seeds The target cluster. Either a character vector of cluster URLs
 #'   (each gets equal seed weight unless `seed_weight` is given), or a data
 #'   frame with a URL column and a numeric weight column (see `seed_url_col` /

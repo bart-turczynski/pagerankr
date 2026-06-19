@@ -7,22 +7,7 @@
 #'   URL-cleaning, redirect/canonical folding, domain filtering, deduplication,
 #'   and isolate-handling identity pipeline first.
 #'
-#' @param edge_list_df A data frame representing the processed edge list, with
-#'   source/target columns (see `from_col`, `to_col`). NAs in those columns are
-#'   omitted before graph construction.
-#' @param vertices_df An optional single-column data frame of node names
-#'   defining the vertex set (e.g. to retain isolates). If `NULL` (default), the
-#'   vertices are inferred from `edge_list_df`. The column name is given by
-#'   `vertex_col_name`.
-#' @param from_col,to_col Names of the source/target columns in `edge_list_df`.
-#'   Defaults `"from"` / `"to"`.
-#' @param vertex_col_name Name of the node column in `vertices_df`. Default
-#'   `"node_name"`.
-#' @param pr_node_col Name for the node column in the output. Default
-#'   `"node_name"` (kept consistent with [compute_pagerank()] and
-#'   [compute_hits()]).
-#' @param hub_col,authority_col Names for the hub and authority score columns in
-#'   the output. Defaults `"hub"` / `"authority"`.
+#' @inheritParams compute_hits
 #'
 #' @details
 #' ## The two SALSA Markov chains
@@ -82,7 +67,6 @@
 #'   Link-Structure Analysis. *ACM Transactions on Information Systems*,
 #'   19(2), 131-160.
 #' @export
-#' @import igraph
 #' @seealso [salsa()] for the full identity pipeline; [compute_hits()] for the
 #'   HITS analogue; [compute_pagerank()] for the PageRank analogue.
 #' @examples
