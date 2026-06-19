@@ -1,5 +1,17 @@
 # pagerankr (development version)
 
+* `pagerank()` and `compute_pagerank()` gain convergence controls and reporting.
+  The new `algo` argument selects the `igraph::page_rank()` back-end
+  (`"prpack"`, the fast exact default, or `"arpack"`, the iterative solver), and
+  the friendly `eps` / `niter` aliases re-introduce the L1 tolerance and maximum
+  iteration count that modern `igraph` dropped, mapping onto the ARPACK
+  `options$tol` / `options$maxiter`; supplying either transparently switches to
+  ARPACK. Every non-empty result now carries a `"convergence"` attribute (a
+  `pagerank_convergence` object) reporting the solver, iteration count (when the
+  solver exposes it), and a solver-independent post-hoc L1 residual
+  `||Gx - x||_1` of the returned vector — a genuine quality check comparable
+  across both back-ends. Docs cover the damping/iteration-count rule of thumb
+  `log10(eps) / log10(damping)` (PAGE-wyxhjfip).
 * New `topic_feeder_pagerank()` and `feeder_seed_prior()` answer the inverse of
   `topic_sensitive_pagerank()`: not "which page is most authoritative *for* this
   cluster" but "which pages *feed / power* this cluster" — the internal hubs

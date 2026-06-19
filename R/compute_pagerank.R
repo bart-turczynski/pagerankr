@@ -14,6 +14,22 @@
 #'   present in `edge_list_df` (after NA removal from edges) are used.
 #'   The column name is specified by `vertex_col_name`.
 #' @param damping The damping factor for PageRank. Default is 0.85.
+#' @param algo Solver back-end passed to `igraph::page_rank()`. Either
+#'   `"prpack"` (default; a fast, exact direct solver with no tunable
+#'   convergence controls) or `"arpack"` (an iterative eigensolver that honours
+#'   `eps` / `niter` and reports its iteration count). Supplying `eps` or
+#'   `niter` while leaving `algo` at its default transparently switches to
+#'   `"arpack"`, since PRPACK ignores those controls. See [pagerank_convergence]
+#'   for the trade-offs.
+#' @param eps Optional convergence tolerance (L1, the ARPACK `options$tol`).
+#'   When supplied, the solver switches to `"arpack"` and iterates until the
+#'   residual is at or below `eps`. `NULL` (default) uses the solver's own
+#'   default.
+#' @param niter Optional maximum iteration count (the ARPACK `options$maxiter`).
+#'   When supplied, the solver switches to `"arpack"`. `NULL` (default) uses the
+#'   solver's own default. As a rule of thumb, power-iteration PageRank needs
+#'   about `log10(eps) / log10(damping)` iterations, so raise `niter` when you
+#'   raise `damping` toward 1. `NULL` (default) uses the solver's own default.
 #' @param from_col Name of the source node column in `edge_list_df`. Default
 #'   "from".
 #' @param to_col Name of the target node column in `edge_list_df`. Default "to".
@@ -64,6 +80,11 @@
 #'   and one for their PageRank scores (named by `pr_value_col`), which sum to 1
 #'   for non-empty graphs. Returns an empty data frame with correct column names
 #'   if the graph is empty or has no nodes after processing.
+#'
+#'   For non-empty graphs the result carries a `"convergence"` attribute (a
+#'   [pagerank_convergence] object) recording the solver used, iterations (when
+#'   the solver exposes them), and the post-hoc L1 residual of the returned
+#'   vector. Retrieve it with `attr(result, "convergence")`.
 #' @export
 #' @import igraph
 #' @examples
@@ -123,6 +144,9 @@
 compute_pagerank <- function(edge_list_df,
                              vertices_df = NULL,
                              damping = 0.85,
+                             algo = c("prpack", "arpack"),
+                             eps = NULL,
+                             niter = NULL,
                              from_col = "from",
                              to_col = "to",
                              vertex_col_name = "node_name",
@@ -142,6 +166,33 @@ compute_pagerank <- function(edge_list_df,
                              prior_verbose = TRUE,
                              ...) {
   weight_validation <- match.arg(weight_validation)
+  algo <- match.arg(algo)
+
+  # --- Convergence-control validation and solver selection ---
+  # Modern igraph (2.x) dropped the old page_rank() `eps` / `niter` arguments.
+  # We re-expose them as friendly aliases for the ARPACK back-end's
+  # options$tol / options$maxiter. PRPACK (the default, direct solver) has no
+  # such knobs, so supplying either control transparently switches to ARPACK.
+  if (!is.null(eps)) {
+    if (!is.numeric(eps) || length(eps) != 1 || is.na(eps) || eps <= 0) {
+      stop("`eps` must be a single positive number or NULL.", call. = FALSE)
+    }
+  }
+  if (!is.null(niter)) {
+    if (!is.numeric(niter) || length(niter) != 1 || is.na(niter) ||
+          niter < 1) {
+      stop("`niter` must be a single positive integer or NULL.", call. = FALSE)
+    }
+    niter <- as.integer(niter)
+  }
+  if ((!is.null(eps) || !is.null(niter)) && algo == "prpack") {
+    message(
+      "`eps`/`niter` are only honoured by the ARPACK solver; switching ",
+      "`algo` to \"arpack\". Pass `algo = \"arpack\"` explicitly to silence ",
+      "this message."
+    )
+    algo <- "arpack"
+  }
 
   # --- Input Validation ---
   if (!is.data.frame(edge_list_df)) {
@@ -328,14 +379,24 @@ compute_pagerank <- function(edge_list_df,
   }
 
   # --- Compute PageRank ---
+  # Build ARPACK options only when that solver is in use; PRPACK ignores them.
+  pr_options <- NULL
+  if (algo == "arpack") {
+    pr_options <- igraph::arpack_defaults()
+    if (!is.null(eps)) pr_options$tol <- eps
+    if (!is.null(niter)) pr_options$maxiter <- niter
+  }
   pr_igraph_output <- tryCatch(
     {
       if (is.null(personalized_vec)) {
-        igraph::page_rank(graph = current_graph, damping = damping, ...)
+        igraph::page_rank(
+          graph = current_graph, algo = algo, damping = damping,
+          options = pr_options, ...
+        )
       } else {
         igraph::page_rank(
-          graph = current_graph, damping = damping,
-          personalized = personalized_vec, ...
+          graph = current_graph, algo = algo, damping = damping,
+          personalized = personalized_vec, options = pr_options, ...
         )
       }
     },
@@ -393,5 +454,80 @@ compute_pagerank <- function(edge_list_df,
 
   # Order by pagerank descending by default (optional, but common)
 
+  # --- Convergence diagnostic ---
+  # Residual is computed post hoc from the returned vector and is therefore
+  # solver-independent (PRPACK exposes no iteration count, but its direct
+  # solution still has a measurable residual). Iterations / ARPACK info are
+  # read from the solver output when available. See [pagerank_convergence].
+  residual <- .pagerank_l1_residual(
+    graph = current_graph,
+    x = pr_igraph_output$vector,
+    damping = damping,
+    teleport = personalized_vec
+  )
+  tol <- if (!is.null(eps)) eps else 1e-3
+  arpack_iters <- NA_integer_
+  arpack_info <- NA_integer_
+  if (algo == "arpack" && !is.null(pr_igraph_output$options)) {
+    arpack_iters <- as.integer(pr_igraph_output$options$iter)
+    arpack_info <- as.integer(pr_igraph_output$options$info)
+  }
+  tol_met <- is.finite(residual) && residual <= tol &&
+    (algo != "arpack" || (!is.na(arpack_info) && arpack_info == 0L))
+  attr(pagerank_df, "convergence") <- new_pagerank_convergence(
+    algo = algo,
+    iters = arpack_iters,
+    residual = residual,
+    tol = tol,
+    tol_met = tol_met,
+    info = arpack_info,
+    eps = if (!is.null(eps)) eps else NA_real_,
+    niter = if (!is.null(niter)) niter else NA_integer_
+  )
+
   pagerank_df
+}
+
+#' L1 residual of a PageRank vector
+#'
+#' Computes \eqn{\|G x - x\|_1}, the L1 norm of one application of the Google
+#' operator implied by `graph`, `damping`, and the teleport vector. Used as a
+#' solver-independent convergence check (Kamvar, Haveliwala & Golub 2004): a
+#' converged stationary vector sits near machine precision.
+#'
+#' @param graph The igraph object actually scored (already transposed when
+#'   `reverse = TRUE`, so out-edges here are the walk direction).
+#' @param x The returned PageRank vector, in `V(graph)` order.
+#' @param damping The damping factor used.
+#' @param teleport The personalization/teleport vector in `V(graph)` order, or
+#'   `NULL` for the uniform `1/n` teleport.
+#' @return The L1 residual (numeric scalar), or `NA_real_` for an empty graph.
+#' @keywords internal
+#' @noRd
+.pagerank_l1_residual <- function(graph, x, damping, teleport = NULL) {
+  n <- igraph::vcount(graph)
+  if (n == 0 || length(x) != n) {
+    return(NA_real_)
+  }
+  w <- igraph::E(graph)$weight
+  if (is.null(w)) w <- rep(1, igraph::ecount(graph))
+  out_strength <- igraph::strength(graph, mode = "out", weights = w)
+  teleport_vec <- if (is.null(teleport)) {
+    rep(1 / n, n)
+  } else {
+    teleport / sum(teleport)
+  }
+  dangling <- out_strength == 0
+  dangling_mass <- sum(x[dangling])
+  # Per-source outgoing share; dangling sources contribute via teleport only.
+  share <- ifelse(dangling, 0, x / out_strength)
+  el <- igraph::as_edgelist(graph, names = FALSE)
+  inflow <- numeric(n)
+  if (nrow(el) > 0) {
+    agg <- rowsum(share[el[, 1]] * w, el[, 2])
+    inflow[as.integer(rownames(agg))] <- agg[, 1]
+  }
+  x_new <- damping * inflow +
+    (damping * dangling_mass + (1 - damping)) * teleport_vec
+  sum(abs(x_new - x))
 }

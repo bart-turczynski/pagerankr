@@ -2,6 +2,7 @@
 
 S3method(print,canonical_audit)
 S3method(print,fold_audit)
+S3method(print,pagerank_convergence)
 S3method(print,redirect_audit)
 S3method(print,screaming_frog_bundle)
 S3method(print,transition_audit)
