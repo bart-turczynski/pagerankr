@@ -69,6 +69,25 @@ PageRank computation. Defaults to TRUE.}
 containing edge weights. Higher weights make edges more likely to be
 followed. If `NULL` (default), all edges have equal weight.}
 
+\item{duplicate_edge_policy}{How repeated `from -> to` rows are represented
+after URL cleaning, redirect/canonical folding, and domain filtering. One
+of:
+\describe{
+  \item{`"collapse"`}{(default) Destination-level surfer: repeated rows
+    collapse to one unweighted destination edge, preserving legacy
+    `get_unique_edges()` behaviour and the common binary PageRank
+    convention.}
+  \item{`"aggregate"`}{Collapse each `from -> to` pair with
+    [aggregate_edges()] semantics. Numeric columns, including
+    `weight_col`, are summed; logical columns such as `nofollow` use the
+    default `"any"` conflict policy.}
+  \item{`"count_instances"`}{Link-slot / edge-level surfer: repeated
+    rows increase transition probability. With no `weight_col`, each
+    surviving `from -> to` pair receives an internal weight equal to its
+    duplicate-row count. With `weight_col`, weights are summed and an
+    `instance_count` audit column is retained.}
+}}
+
 \item{edge_from_col, edge_to_col}{Names of from/to columns in `edge_list_df`.}
 
 \item{redirect_from_col, redirect_to_col}{Names of from/to columns in
