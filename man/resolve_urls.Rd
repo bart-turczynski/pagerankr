@@ -43,7 +43,9 @@ A data frame with columns:
 Given a character vector of URLs and a redirect data frame,
   resolves each URL to its final destination by following redirect chains.
   Unlike \code{\link{resolve_redirects}}, this function does not require an
-  edge list -- it works directly on a list of URLs.
+  edge list -- it works directly on a list of URLs. This helper is
+  redirect-only; use [resolve_canonical_urls()] for `rel=canonical` folding
+  or [resolve_folded_urls()] for composed redirect plus canonical folding.
 }
 \examples{
 redirects <- data.frame(
