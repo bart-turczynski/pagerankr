@@ -177,7 +177,7 @@ describe("pagerank_screaming_frog()", {
       ".__sf_placement_weight__"
     )
     expect_identical(import$scoring$placement_weights[["nav"]], 3)
-    expect_identical(import$scoring$weight_col, NULL)
+    expect_null(import$scoring$weight_col)
   })
 
   it("rejects node-only bundles clearly", {

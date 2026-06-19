@@ -332,7 +332,7 @@ print.screaming_frog_bundle <- function(x, ...) {
 }
 
 .sf_nodes_absent_from_graph <- function(nodes, graph_urls) {
-  out <- nodes[!nodes$url %in% graph_urls, c("url"), drop = FALSE]
+  out <- nodes[!nodes$url %in% graph_urls, "url", drop = FALSE]
   names(out) <- "url"
   row.names(out) <- NULL
   out
@@ -363,15 +363,9 @@ print.screaming_frog_bundle <- function(x, ...) {
     return(x)
   }
   host <- .sf_url_host(x$url)
-  classification <- ifelse(
-    is.na(host),
-    "malformed_url",
-    ifelse(
-      host %in% internal_hosts,
-      "internal_host_absent",
-      "external_endpoint"
-    )
-  )
+  classification <- rep("external_endpoint", length(host))
+  classification[host %in% internal_hosts] <- "internal_host_absent"
+  classification[is.na(host)] <- "malformed_url"
   out <- cbind(
     x,
     data.frame(

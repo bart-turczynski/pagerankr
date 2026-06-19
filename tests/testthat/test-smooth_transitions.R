@@ -287,7 +287,7 @@ describe("smooth_transitions: edge cases and validation", {
       from = c("A", "A"), to = c("B", "C")
     )
     out <- smooth_transitions(emp, struct, k = 5)
-    expect_false(any(is.na(out$from)))
+    expect_false(anyNA(out$from))
     # The NA-from empirical row is ignored; A's support is just 2.
     expect_equal(unique(out$support[out$from == "A"]), 2)
   })

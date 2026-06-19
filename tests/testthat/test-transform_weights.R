@@ -60,7 +60,7 @@ describe("transform_weights: zipf", {
     r1 <- transform_weights(x, "zipf", alpha = 1, descending = TRUE)
     r2 <- transform_weights(x, "zipf", alpha = 2, descending = TRUE)
     # Higher alpha = steeper, so ratio between rank 1 and rank 2 is larger
-    expect_true(r1[1] / r1[2] < r2[1] / r2[2])
+    expect_lt(r1[1] / r1[2], r2[1] / r2[2])
   })
 
   it("works with descending = FALSE for positions", {
@@ -84,7 +84,7 @@ describe("transform_weights: log", {
     expect_gt(result[1], result[2])
     expect_gt(result[2], result[3])
     # But the ratio is much less extreme than raw
-    expect_true(result[1] / result[3] < clicks[1] / clicks[3])
+    expect_lt(result[1] / result[3], clicks[1] / clicks[3])
   })
 
   it("handles zeros with default offset", {

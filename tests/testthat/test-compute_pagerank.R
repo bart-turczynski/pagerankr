@@ -34,7 +34,7 @@ describe("compute_pagerank basic functionality", {
     expect_equal(sum(pr_c$PR_Score), 1, tolerance = 1e-9)
     expect_true("N3" %in% pr_c$ID)
     # Isolates get some PR via teleportation
-    expect_true(pr_c$PR_Score[pr_c$ID == "N3"] > 0)
+    expect_gt(pr_c$PR_Score[pr_c$ID == "N3"], 0)
   })
 
   it("applies damping factor correctly", {
@@ -188,7 +188,7 @@ describe("compute_pagerank graph structure handling", {
     )
     expect_equal(nrow(pr_v), 6) # F is included as an isolate
     expect_true("F" %in% pr_v$node_name)
-    expect_true(pr_v$pagerank[pr_v$node_name == "F"] > 0)
+    expect_gt(pr_v$pagerank[pr_v$node_name == "F"], 0)
   })
 
   it("handles case where all edges become NA or are empty after processing", {

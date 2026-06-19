@@ -1,4 +1,9 @@
-# pagerankr (development version)
+# pagerankr 0.0.0.9000
+
+* Code-quality pass: `anyNA()` replaces `any(is.na())`, `!all(x)` replaces
+  `any(!x)`, nested `ifelse()` replaced with vectorized assignment,
+  `expect_gt()`/`expect_lt()`/`expect_length()`/`expect_null()` adopted where
+  applicable, and redundant `c()` wrappers around single-string aliases removed.
 
 * `pagerank()` and `compute_pagerank()` gain convergence controls and reporting.
   The new `algo` argument selects the `igraph::page_rank()` back-end

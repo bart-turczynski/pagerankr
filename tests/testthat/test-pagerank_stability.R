@@ -79,7 +79,7 @@ test_that("forwards solver controls through ... (ARPACK populates iters)", {
   stab <- suppressMessages(
     pagerank_stability(edges, algo = "arpack", clean_edge_urls = FALSE)
   )
-  expect_true(all(!is.na(stab$iters)))
+  expect_false(anyNA(stab$iters))
   expect_true(all(stab$converged))
 })
 
