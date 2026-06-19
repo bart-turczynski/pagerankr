@@ -555,6 +555,310 @@ print(impact_all)
 All `pagerank()` parameters (damping, nofollow, indexability, etc.) can
 be passed through `simulate_changes()` via `...`.
 
+## Convergence Controls and Damping Stability
+
+### pagerank() convergence controls
+
+`pagerank()` delegates to igraph's PageRank implementation. Two solvers are
+available via the `algo` argument:
+
+- `"prpack"` (default) — exact solver; ignores `eps` and `niter`.
+- `"arpack"` — iterative Arnoldi solver; required whenever you supply `eps` or
+  `niter`. Passing either argument automatically switches the solver.
+
+Key arguments:
+
+| Argument | Meaning |
+|---|---|
+| `algo` | `"prpack"` (default) or `"arpack"` |
+| `eps` | L1 convergence tolerance (maps to ARPACK `options$tol`) |
+| `niter` | Max iterations (maps to ARPACK `options$maxiter`) |
+
+Every result carries a `"convergence"` attribute — a `pagerank_convergence`
+object — that records the solver used, iteration count, and final L1 residual.
+Inspect it with `attr(result, "convergence")` or just `print()` the result.
+
+Rule of thumb for iteration budget: `ceiling(log10(eps) / log10(damping))`
+iterations are needed to reach tolerance `eps` at damping factor `damping`.
+
+### damping_sensitivity() and pagerank_stability()
+
+`damping_sensitivity()` sweeps a vector of damping factors and returns one
+PageRank result per alpha:
+
+```r
+damping_sensitivity(edge_list_df, alphas = c(0.75, 0.80, 0.85, 0.90, 0.95), ...)
+```
+
+`pagerank_stability()` wraps the sweep into a ready-to-read stability report:
+
+```r
+pagerank_stability(
+  edge_list_df,
+  alphas     = c(0.75, 0.80, 0.85, 0.90, 0.95),
+  reference  = 0.85,
+  top_k      = 10,
+  ...
+)
+```
+
+It returns a data frame with one row per alpha and two comparison columns
+relative to the reference run:
+
+- `spearman_rho` — rank-order correlation across all URLs.
+- `top_k_overlap` — fraction of the top-`k` URLs shared with the reference.
+
+The raw per-(url, alpha) scores are available via `attr(stab, "sensitivity")`.
+
+### Worked example
+
+```{r convergence_stability}
+toy_edges <- data.frame(
+  from = c("A", "A", "B", "C", "C", "D", "E", "F"),
+  to   = c("B", "C", "D", "D", "E", "F", "A", "A"),
+  stringsAsFactors = FALSE
+)
+
+# Stability report: how sensitive are ranks to damping?
+stab <- pagerank_stability(
+  toy_edges,
+  alphas            = c(0.75, 0.80, 0.85, 0.90, 0.95),
+  reference         = 0.85,
+  top_k             = 4,
+  clean_edge_urls   = FALSE
+)
+print(stab)
+
+# Drill into raw per-(url, alpha) scores
+head(attr(stab, "sensitivity"))
+```
+
+At `alpha` values close to the reference the `spearman_rho` and `top_k_overlap`
+columns will be near 1; larger deviations flag URLs whose importance is
+damping-sensitive.
+
+## Topic-Sensitive PageRank
+
+Standard PageRank treats every page as an equally likely teleport target.
+Topic-Sensitive PageRank (Haveliwala 2002, adapted here to a site graph)
+replaces that uniform prior with a cluster-biased one: the random surfer
+teleports only to pages that belong to a predefined topic cluster.  The
+result is a family of per-topic authority scores — each score answers "how
+important is this page *for visitors who care about topic X*?" — plus a
+blended aggregate that weight-averages the individual topic vectors.
+
+`topic_sensitive_pagerank()` is pure orchestration: it runs `pagerank()`
+once per topic with the appropriate seeded prior, then blends the results.
+Topic membership is supplied by the caller; it is never inferred from
+content.
+
+**Signature**
+
+```r
+topic_sensitive_pagerank(
+  edge_list_df,
+  topics,
+  topic_weights      = NULL,
+  topic_url_col      = "url",
+  topic_weight_col   = "weight",
+  ...
+)
+```
+
+`topics` is a **named list**.  Each element is either a character vector of
+seed URLs (equal-weight prior) or a data frame with URL and weight columns
+(custom prior).
+
+### Worked example
+
+```{r tspr_example}
+library(pagerankr)
+
+# Small synthetic site: 7 pages, two rough topic clusters
+edges <- data.frame(
+  from = c("Home", "Home", "Blog", "Blog", "Shop", "Shop", "Docs"),
+  to   = c("Blog", "Shop", "Post1", "Post2", "Item1", "Item2", "Guide1"),
+  stringsAsFactors = FALSE
+)
+
+# Define two topics as named lists of seed URL vectors
+topics <- list(
+  content = c("Blog", "Post1", "Post2"),
+  commerce = c("Shop", "Item1", "Item2")
+)
+
+tspr <- topic_sensitive_pagerank(
+  edge_list_df    = edges,
+  topics          = topics,
+  clean_edge_urls = FALSE
+)
+
+print(tspr)
+```
+
+The returned data frame has one row per node and three score columns:
+`content`, `commerce`, and `blended`.
+
+```{r tspr_columns}
+# Per-topic scores
+tspr[, c("node_name", "content", "commerce")]
+
+# Blended (equal topic weights by default)
+tspr[, c("node_name", "blended")]
+```
+
+### Distinguishing related functions
+
+**`topic_feeder_pagerank()`** answers the complementary question: which
+pages *outside* a cluster send the most PageRank authority *into* it?
+It operates on the reverse graph and seeds the teleport prior on the cluster
+itself.  Use it when you want to find upstream link-building opportunities.
+See `vignette("topic_feeder_pagerank")` for a full walkthrough.
+
+**`trustrank()`** is the unipolar variant: a single "trusted" seed set
+replaces the topic list, and there is no blending step.  See
+`vignette("trustrank")`.
+
+## GA4 Behavioral Transitions
+
+GA4 event data captures how real users move through your site. The three
+functions in this section let you convert those signals into PageRank inputs
+without requiring a BigQuery connection — a synthetic events data frame is
+sufficient for local development.
+
+### Building transition counts with `ga4_page_transitions()`
+
+`ga4_page_transitions()` walks each user-session in chronological order and
+emits one row per consecutive page-view pair. The result is a **transition
+signal** (observed navigation behaviour), not a link-click signal, so it
+reflects where users actually go rather than where crawlable anchor tags point.
+
+```{r ga4_transitions}
+library(pagerankr)
+
+# Minimal synthetic GA4 events data frame (no BigQuery required)
+events <- data.frame(
+  user_pseudo_id  = c("u1", "u1", "u1", "u2", "u2"),
+  ga_session_id   = c(1L,   1L,   1L,   2L,   2L),
+  page_location   = c("/home", "/blog", "/contact", "/home", "/pricing"),
+  event_timestamp = c(1000L,  2000L,  3000L,  1000L,  2000L),
+  stringsAsFactors = FALSE
+)
+
+transitions <- ga4_page_transitions(
+  events,
+  user_id_col   = "user_pseudo_id",
+  session_id_col = "ga_session_id",
+  page_col       = "page_location",
+  timestamp_col  = "event_timestamp"
+)
+print(transitions)
+# Returns a data frame with columns: from, to, n
+```
+
+### Smoothing sparse transitions with `smooth_transitions()`
+
+Observed transition counts are often sparse — many source pages have very few
+sessions, making raw empirical shares unreliable. `smooth_transitions()` applies
+per-source Dirichlet smoothing toward a structural (crawl-graph) prior:
+
+```
+lambda_i = n_i / (n_i + k)
+```
+
+where `n_i` is the total outgoing transition count from source `i` and `k`
+controls how quickly low-traffic sources lean on the prior. Sources with fewer
+than `min_support` total outgoing transitions receive full prior weight
+(`lambda_i = 0`).
+
+```{r smooth_transitions_example}
+# Build a minimal structural prior from the same pages
+structural <- data.frame(
+  from = c("/home",    "/home",    "/blog"),
+  to   = c("/blog",   "/pricing", "/contact"),
+  n    = c(50L,        30L,        40L),
+  stringsAsFactors = FALSE
+)
+
+smoothed <- smooth_transitions(
+  empirical_df   = transitions,
+  structural_df  = structural,
+  k              = 10,
+  min_support    = 5,
+  count_col      = "n",
+  from_col       = "from",
+  to_col         = "to",
+  prob_col       = "prob"
+)
+print(smoothed)
+# empirical_df augmented with a `prob` column: smoothed per-source
+# transition probabilities (each source sums to 1)
+```
+
+### Converting entrances to a teleport vector with `ga4_entrance_teleport()`
+
+`ga4_entrance_teleport()` turns landing-page entrance counts into a `prior_df`
+suitable for `pagerank(prior_df = ...)`. This provides a **proxy for external
+authority**: pages users enter from search or direct traffic receive a higher
+reset probability during the random-surfer teleport step.
+
+> **Note:** entrance counts are not equivalent to backlink authority — they
+> reflect observed user entry points, not link equity from external domains.
+
+```{r ga4_teleport}
+entrances <- data.frame(
+  page_location = c("/home", "/blog", "/pricing", "/contact"),
+  entrances     = c(120L,    80L,     40L,         10L),
+  stringsAsFactors = FALSE
+)
+
+prior <- ga4_entrance_teleport(
+  entrances_df   = entrances,
+  url_col        = "page_location",
+  entrances_col  = "entrances",
+  vertex_names   = NULL
+)
+print(prior)
+# Returns: url + weight data frame, ready for pagerank(prior_df = .)
+```
+
+### End-to-end example
+
+Combine all three steps: raw events → transition counts → smoothing → PageRank.
+
+```{r ga4_end_to_end}
+# 1. Extract transitions from synthetic events
+trans <- ga4_page_transitions(
+  events,
+  user_id_col    = "user_pseudo_id",
+  session_id_col = "ga_session_id",
+  page_col       = "page_location",
+  timestamp_col  = "event_timestamp"
+)
+
+# 2. Smooth against the structural prior
+sm <- smooth_transitions(
+  empirical_df  = trans,
+  structural_df = structural,
+  k             = 10,
+  min_support   = 2
+)
+
+# 3. Run PageRank using smoothed probabilities as edge weights
+pr <- pagerank(
+  sm,
+  from_col       = "from",
+  to_col         = "to",
+  weight_col     = "prob",
+  clean_edge_urls = FALSE
+)
+print(pr)
+```
+
+`clean_edge_urls = FALSE` is used throughout because the synthetic URLs are
+already normalized; set it to `TRUE` when feeding real GA4 `page_location`
+values that may contain query strings or fragments.
+
 ## Function Reference
 
 | Function | Purpose |
@@ -579,3 +883,32 @@ be passed through `simulate_changes()` via `...`.
 | `pr_gini()` | Gini coefficient of PR distribution |
 | `pr_entropy()` | Entropy of PR distribution |
 | `pr_top_k_share()` | Top-k concentration of PR |
+| `damping_sensitivity()` | Sweep PageRank across a range of damping factors |
+| `pagerank_stability()` | Alpha-stability report: rank correlation across damping grid |
+| `topic_sensitive_pagerank()` | Per-topic personalized PageRank with blended scores |
+| `topic_feeder_pagerank()` | Reverse-graph seeded PageRank: find pages that feed a target cluster |
+| `trustrank()` | TrustRank: seed-biased PageRank from a trusted seed set |
+| `trust_seed_prior()` | Build a teleport prior concentrated on trusted seed URLs (for trustrank) |
+| `feeder_seed_prior()` | Build a teleport prior concentrated on cluster seed URLs (for topic_feeder_pagerank) |
+| `align_prior_to_vertices()` | Align a prior/teleport weight data frame to the graph vertex set |
+| `ga4_entrance_teleport()` | Entrance/landing-page counts as a teleport (reset) vector |
+| `ga4_page_transitions()` | Consecutive-page-view transition counts from a GA4 BigQuery export |
+| `smooth_transitions()` | Shrink sparse empirical transition shares toward structural prior |
+| `transform_edge_weights()` | Per-source grouped edge weight transforms (emits transition_probability) |
+| `transform_weights()` | Apply rank/log/zipf/percentile transforms to a numeric vector |
+| `validate_edge_weights()` | Validate per-source weight totals and warn on anomalies |
+| `screaming_frog_bundle()` | Compose Screaming Frog Internal:All + All Inlinks/Outlinks into a bundle |
+| `screaming_frog_internal()` | Import Screaming Frog Internal: All export |
+| `screaming_frog_links()` | Import Screaming Frog All Inlinks / All Outlinks export |
+| `pagerank_screaming_frog()` | Score a screaming_frog_bundle via pagerank() |
+| `resolve_canonical_urls()` | Resolve a URL vector through rel=canonical folds |
+| `resolve_canonicals()` | Apply rel=canonical folds to an edge list |
+| `resolve_folded_urls()` | Resolve a URL vector through redirects plus canonicals |
+| `resolve_urls()` | Resolve a URL vector through a redirect map |
+| `build_fold_map()` | Build a URL fold map from redirects and/or canonicals |
+| `audit_canonicals()` | Diagnose rel=canonical fold coverage and conflicts |
+| `audit_fold()` | Diagnose the redirect+canonical URL fold map |
+| `audit_redirects()` | Diagnose redirect chains, loops, and conflicts |
+| `aggregate_edges()` | Aggregate duplicate edges after URL folding with per-column semantics |
+| `export_graph()` | Export graph + PageRank in graphml / dot / edgelist / pajek formats |
+| `launch_pagerank_explorer()` | Launch the interactive Shiny PageRank explorer |
