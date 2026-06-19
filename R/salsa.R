@@ -67,7 +67,6 @@
 #'   Link-Structure Analysis. *ACM Transactions on Information Systems*,
 #'   19(2), 131-160.
 #' @export
-#' @import igraph
 #' @seealso [salsa()] for the full identity pipeline; [compute_hits()] for the
 #'   HITS analogue; [compute_pagerank()] for the PageRank analogue.
 #' @examples

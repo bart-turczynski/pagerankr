@@ -12,4 +12,7 @@
 #' @name pagerankr-package
 #' @aliases pagerankr
 #' @keywords internal
+#' @importFrom igraph arpack_defaults as_adj_list as_edgelist authority_score components degree
+#' @importFrom igraph delete_edges E ecount ends graph_from_data_frame hits_scores hub_score
+#' @importFrom igraph make_empty_graph neighbors page_rank strength V vcount which_loop write_graph
 "_PACKAGE"
