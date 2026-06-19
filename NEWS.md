@@ -1,5 +1,14 @@
 # pagerankr (development version)
 
+* New `smooth_transitions()` shrinks sparse empirical page-transition shares
+  (e.g. from `ga4_page_transitions()`) toward the crawl-graph link structure,
+  so no valid crawled link is ever assigned exactly zero probability. Uses a
+  per-source Dirichlet/pseudocount shrinkage weight `lambda_i = n_i / (n_i + k)`
+  that increases with the source page's sample size, with `min_support`
+  fallback to the prior, optional weighted priors, and an `origin` diagnostic
+  (`both` / `empirical_only` / `structural_only`). Time decay and
+  device/template/channel segmentation are handled upstream by shaping the
+  count input (PAGE-hafjjear).
 * New `hits()` and `compute_hits()` add Kleinberg's HITS hub and authority
   scores, computed with `igraph::hits_scores()` over the same cleaned,
   redirect/canonical-folded, domain-filtered, deduplicated link graph as
