@@ -390,6 +390,42 @@ base set of pages. `hits()` runs on the full (or domain-filtered) site graph
 `pagerankr` assembles, so treat the scores as site-wide structural
 centralities rather than query-relevance scores.
 
+## SALSA hub and authority
+
+`salsa()` computes Lempel & Moran's (2001) SALSA hub and authority scores over
+the *same* identity pipeline as `pagerank()` and `hits()`, so all three join on
+`node_name`. SALSA is the **stochastic** cousin of HITS: it replaces the
+mutual-reinforcement iteration with two random walks on the bipartite
+hub/authority graph, so the scores are stationary distributions rather than the
+dominant eigenvectors HITS returns. On a connected graph this collapses to a
+degree-based closed form — authority `= d_in / W`, hub `= d_out / W`, where `W`
+is the edge count — so no eigenvector iteration is needed.
+
+```{r salsa}
+edges <- data.frame(
+  from = c("A", "A", "B"),
+  to = c("B", "C", "C"),
+  stringsAsFactors = FALSE
+)
+
+# A only points out (pure hub); C is only pointed to (pure authority).
+salsa(edges, clean_edge_urls = FALSE)
+```
+
+Each side is a probability distribution that sums to `1`. When the graph splits
+into several weakly connected components, each component's scores are
+renormalized within the component and then reweighted by that component's share
+of the side (Lempel & Moran 2001, Proposition 6) — required so scores stay
+comparable across orphan page clusters.
+
+**Coverage differs from PageRank.** The hub side holds only pages with outlinks
+and the authority side only pages with inlinks, so `hub` is `NA` for a pure
+sink and `authority` is `NA` for a pure source (an isolate is `NA` for both).
+v1 is unweighted; like `hits()` the forward-flow devices (nofollow,
+indexability, the TIPR prior, `reverse`) are not exposed. As with `hits()`,
+these are site-wide structural centralities, a documented site-graph adaptation
+of the original focused-subgraph algorithm.
+
 ## Model Comparison
 
 ### Comparing two models
@@ -526,6 +562,8 @@ be passed through `simulate_changes()` via `...`.
 | `pagerank()` | End-to-end: clean, resolve, compute |
 | `hits()` | End-to-end HITS hub + authority on the same graph |
 | `compute_hits()` | Low-level igraph HITS wrapper |
+| `salsa()` | End-to-end SALSA hub + authority on the same graph |
+| `compute_salsa()` | Low-level SALSA computational core |
 | `resolve_links()` | Resolve redirects + deduplicate (no PR) |
 | `simulate_changes()` | What-if: compare baseline vs. proposed |
 | `compare_pagerank()` | Diff two PR results with rank shifts |

@@ -1,5 +1,19 @@
 # pagerankr (development version)
 
+* New `salsa()` and `compute_salsa()` add Lempel & Moran's (2001) SALSA hub and
+  authority scores: a stochastic variant of HITS that runs the
+  mutual-reinforcement step as PageRank-style random walks on the bipartite
+  hub/authority graph, so the scores are stationary distributions rather than
+  dominant eigenvectors. Computed over the same cleaned,
+  redirect/canonical-folded, domain-filtered, deduplicated link graph as
+  `pagerank()`, so hub, authority, and PageRank share node identities. Uses the
+  degree-based closed form (Proposition 6) — no eigenvector iteration — with the
+  required weakly-connected-component mass-weighting correction so
+  cross-component scores stay comparable on crawls with orphan clusters. Each
+  side sums to 1; coverage differs from PageRank by design (`hub` is `NA` for
+  pure sinks, `authority` is `NA` for pure sources). v1 is unweighted; a
+  weighted extension is deferred. Documented as a site-graph adaptation of the
+  original focused-subgraph algorithm (PAGE-sghubtxk).
 * New `trustrank()` and `trust_seed_prior()` add TrustRank-style seed-biased
   PageRank (Gyöngyi, Garcia-Molina & Pedersen, 2004): personalized PageRank
   whose teleport vector is concentrated on a set of trusted seed pages, so
