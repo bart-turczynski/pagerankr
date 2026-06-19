@@ -357,6 +357,39 @@ internal <- filter_links_by_domain(edges, keep_domains = "example.com")
 print(internal)
 ```
 
+## HITS hub and authority
+
+`hits()` computes Kleinberg's HITS hub and authority scores over the *same*
+cleaned, redirect/canonical-folded, domain-filtered, deduplicated link graph as
+`pagerank()`. Because both share the identity pipeline, you can join hub,
+authority, and PageRank on `node_name` directly.
+
+The two scores reinforce each other: a good **authority** is pointed to by good
+**hubs**, and a good hub points to good authorities. Formally, with adjacency
+matrix `A`, authority is the dominant eigenvector of `A^T A` and hub is the
+dominant eigenvector of `A A^T`.
+
+```{r hits}
+edges <- data.frame(
+  from = c("A", "A", "B"),
+  to = c("B", "C", "C"),
+  stringsAsFactors = FALSE
+)
+
+# A only points out (pure hub); C is only pointed to (pure authority).
+hits(edges, clean_edge_urls = FALSE)
+```
+
+Scores are scaled so each maximum is `1` (`scale = TRUE`, the conventional HITS
+reporting). HITS already captures both directions of authority flow, so there
+is no `reverse` flag, and the PageRank-only forward-flow devices (nofollow
+evaporation, indexability transforms, the TIPR teleport prior) are not exposed.
+
+**Whole-graph caveat.** Kleinberg's original HITS ran on a small, query-focused
+base set of pages. `hits()` runs on the full (or domain-filtered) site graph
+`pagerankr` assembles, so treat the scores as site-wide structural
+centralities rather than query-relevance scores.
+
 ## Model Comparison
 
 ### Comparing two models
@@ -491,6 +524,8 @@ be passed through `simulate_changes()` via `...`.
 | Function | Purpose |
 |---|---|
 | `pagerank()` | End-to-end: clean, resolve, compute |
+| `hits()` | End-to-end HITS hub + authority on the same graph |
+| `compute_hits()` | Low-level igraph HITS wrapper |
 | `resolve_links()` | Resolve redirects + deduplicate (no PR) |
 | `simulate_changes()` | What-if: compare baseline vs. proposed |
 | `compare_pagerank()` | Diff two PR results with rank shifts |
