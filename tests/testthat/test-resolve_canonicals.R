@@ -144,7 +144,10 @@ describe("resolve_folded_urls()", {
     result <- resolve_folded_urls(urls, redirects, canonicals)
 
     expect_identical(result$resolved, c("C", "C", "E", "Z"))
-    expect_identical(attr(result, "fold_map"), build_fold_map(redirects, canonicals))
+    expect_identical(
+      attr(result, "fold_map"),
+      build_fold_map(redirects, canonicals)
+    )
   })
 
   it("uses canonical_conflict_policy for same-source conflicts", {
