@@ -1,10 +1,12 @@
-#' pagerankr: A Modular Toolkit for PageRank Calculation
+#' pagerankr: A Modular Toolkit for Link-Graph Analysis and PageRank
 #'
-#' The pagerankr package provides a set of modular, pipeable functions
-#' to calculate PageRank scores from edge lists and redirect reports,
-#' common in SEO analysis. Functions handle URL cleaning, redirect resolution,
-#' edge deduplication, isolate handling, and PageRank computation using base R
-#' for data manipulation and 'igraph' for core PageRank calculation.
+#' The pagerankr package provides pipeable functions for link-graph analysis
+#' in SEO contexts, covering PageRank, HITS, SALSA, TrustRank, Topic-Sensitive
+#' PageRank, and reverse-graph feeder PageRank. It includes Screaming Frog crawl
+#' import adapters, GA4 behavioral transition modeling, convergence controls,
+#' damping sensitivity sweeps, alpha-stability reporting, redirect and
+#' rel=canonical resolution, URL folding, domain/host filtering, model
+#' comparison, parameter grid search, and what-if simulation.
 #'
 #' @docType package
 #' @name pagerankr-package
