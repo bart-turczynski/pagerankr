@@ -1,5 +1,13 @@
 # pagerankr (development version)
 
+* New `hits()` and `compute_hits()` add Kleinberg's HITS hub and authority
+  scores, computed with `igraph::hits_scores()` over the same cleaned,
+  redirect/canonical-folded, domain-filtered, deduplicated link graph as
+  `pagerank()`, so hub, authority, and PageRank share node identities. Docs
+  cover the matrix formulation (authority = dominant eigenvector of `A^T A`,
+  hub = dominant eigenvector of `A A^T`) and the whole-graph caveat: unlike
+  Kleinberg's query-focused base set, these are site-wide structural
+  centralities (PAGE-ymcxurfd).
 * Documented the indexed-corpus assumption used by `pagerank()`: noindex
   pages may receive authority but their outlinks are treated as nofollow for
   propagation within the indexed graph. The docs now distinguish
