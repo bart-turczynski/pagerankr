@@ -637,6 +637,88 @@ At `alpha` values close to the reference the `spearman_rho` and `top_k_overlap`
 columns will be near 1; larger deviations flag URLs whose importance is
 damping-sensitive.
 
+## Topic-Sensitive PageRank
+
+Standard PageRank treats every page as an equally likely teleport target.
+Topic-Sensitive PageRank (Haveliwala 2002, adapted here to a site graph)
+replaces that uniform prior with a cluster-biased one: the random surfer
+teleports only to pages that belong to a predefined topic cluster.  The
+result is a family of per-topic authority scores — each score answers "how
+important is this page *for visitors who care about topic X*?" — plus a
+blended aggregate that weight-averages the individual topic vectors.
+
+`topic_sensitive_pagerank()` is pure orchestration: it runs `pagerank()`
+once per topic with the appropriate seeded prior, then blends the results.
+Topic membership is supplied by the caller; it is never inferred from
+content.
+
+**Signature**
+
+```r
+topic_sensitive_pagerank(
+  edge_list_df,
+  topics,
+  topic_weights      = NULL,
+  topic_url_col      = "url",
+  topic_weight_col   = "weight",
+  ...
+)
+```
+
+`topics` is a **named list**.  Each element is either a character vector of
+seed URLs (equal-weight prior) or a data frame with URL and weight columns
+(custom prior).
+
+### Worked example
+
+```{r tspr_example}
+library(pagerankr)
+
+# Small synthetic site: 7 pages, two rough topic clusters
+edges <- data.frame(
+  from = c("Home", "Home", "Blog", "Blog", "Shop", "Shop", "Docs"),
+  to   = c("Blog", "Shop", "Post1", "Post2", "Item1", "Item2", "Guide1"),
+  stringsAsFactors = FALSE
+)
+
+# Define two topics as named lists of seed URL vectors
+topics <- list(
+  content = c("Blog", "Post1", "Post2"),
+  commerce = c("Shop", "Item1", "Item2")
+)
+
+tspr <- topic_sensitive_pagerank(
+  edge_list_df    = edges,
+  topics          = topics,
+  clean_edge_urls = FALSE
+)
+
+print(tspr)
+```
+
+The returned data frame has one row per node and three score columns:
+`content`, `commerce`, and `blended`.
+
+```{r tspr_columns}
+# Per-topic scores
+tspr[, c("node_name", "content", "commerce")]
+
+# Blended (equal topic weights by default)
+tspr[, c("node_name", "blended")]
+```
+
+### Distinguishing related functions
+
+**`topic_feeder_pagerank()`** answers the complementary question: which
+pages *outside* a cluster send the most PageRank authority *into* it?
+It operates on the reverse graph and seeds the teleport prior on the cluster
+itself.  Use it when you want to find upstream link-building opportunities.
+See `vignette("topic_feeder_pagerank")` for a full walkthrough.
+
+**`trustrank()`** is the unipolar variant: a single "trusted" seed set
+replaces the topic list, and there is no blending step.  See
+`vignette("trustrank")`.
+
 ## Function Reference
 
 | Function | Purpose |
