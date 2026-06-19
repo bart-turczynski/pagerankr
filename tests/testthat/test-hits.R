@@ -199,3 +199,136 @@ describe("hits wrapper", {
     expect_error(hits(list(a = 1)), "must be a data frame")
   })
 })
+
+describe("compute_hits input validation", {
+  it("errors on a non-data-frame edge list", {
+    expect_error(compute_hits(list(from = "A")), "must be a data frame")
+  })
+
+  it("errors on nonempty edge list missing from/to columns", {
+    edges <- data.frame(src = "A", dst = "B")
+    expect_error(compute_hits(edges, from_col = "from"), "'from'")
+  })
+
+  it("errors on a non-data-frame vertices_df", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(
+      compute_hits(edges, vertices_df = list(node_name = "A")),
+      "must be a data frame"
+    )
+  })
+
+  it("errors on nonempty vertices_df missing the vertex column", {
+    edges <- data.frame(from = "A", to = "B")
+    verts <- data.frame(bad_col = "A")
+    expect_error(
+      compute_hits(edges, vertices_df = verts),
+      "must have a column named"
+    )
+  })
+
+  it("errors on an empty pr_node_col string", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(
+      compute_hits(edges, pr_node_col = ""),
+      "non-empty character strings"
+    )
+  })
+
+  it("errors on a non-character weight_col", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(
+      compute_hits(edges, weight_col = 1L),
+      "single character string"
+    )
+  })
+
+  it("errors when weight_col is absent from edge_list_df", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(compute_hits(edges, weight_col = "w"), "not found")
+  })
+
+  it("errors when weight_col column is not numeric", {
+    edges <- data.frame(from = "A", to = "B", w = "heavy")
+    expect_error(
+      compute_hits(edges, weight_col = "w"),
+      "must be a numeric column"
+    )
+  })
+})
+
+describe("hits wrapper input validation", {
+  it("errors on a non-data-frame redirects_df", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(
+      hits(edges, redirects_df = list(from = "A")),
+      "must be a data frame"
+    )
+  })
+
+  it("errors on a non-data-frame canonicals_df", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(
+      hits(edges, canonicals_df = list(from = "A")),
+      "must be a data frame"
+    )
+  })
+
+  it("errors on a non-logical clean_canonical_urls", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(
+      hits(edges, clean_canonical_urls = "yes"),
+      "single logical value"
+    )
+  })
+
+  it("errors when nonempty canonicals_df is missing required columns", {
+    edges <- data.frame(from = "A", to = "B")
+    canonicals <- data.frame(bad_col = "A")
+    expect_error(hits(edges, canonicals_df = canonicals), "must have '")
+  })
+
+  it("errors on a non-logical clean_edge_urls", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(hits(edges, clean_edge_urls = "yes"), "single logical value")
+  })
+
+  it("errors on a non-logical clean_redirect_urls", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(
+      hits(edges, clean_redirect_urls = "yes"),
+      "single logical value"
+    )
+  })
+
+  it("errors on a non-list rurl_params", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(hits(edges, rurl_params = "bad"), "must be a list")
+  })
+
+  it("errors on a non-logical drop_isolates_flag", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(hits(edges, drop_isolates_flag = 1), "single logical value")
+  })
+
+  it("errors on a non-character weight_col", {
+    edges <- data.frame(from = "A", to = "B", w = 1)
+    expect_error(hits(edges, weight_col = 1L), "single character string")
+  })
+
+  it("errors when weight_col is absent from edge_list_df", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(hits(edges, weight_col = "missing"), "not found")
+  })
+})
+
+describe("hits wrapper canonicals_df path", {
+  it("folds canonicals into the same node identities as pagerank()", {
+    edges <- data.frame(from = c("A.com", "B.com"), to = c("B.com", "C.com"))
+    canonicals <- data.frame(from = "B.com", to = "C.com")
+    h <- hits(edges, canonicals_df = canonicals)
+    pr <- pagerank(edges, canonicals_df = canonicals)
+    expect_setequal(h$node_name, pr$node_name)
+    expect_false("B.com" %in% h$node_name)
+  })
+})

@@ -298,4 +298,69 @@ describe("aggregate_edges input validation", {
     )
     expect_error(aggregate_edges(edges, agg = list("sum")), "named list")
   })
+
+  it("errors on non-character preserve_cols", {
+    edges <- data.frame(from = "A", to = "B", v = 1)
+    expect_error(aggregate_edges(edges, preserve_cols = 1), "character vector")
+  })
+})
+
+describe("aggregate_edges edge cases", {
+  it("returns empty frame preserving columns when all rows are self-loops", {
+    edges <- data.frame(
+      from = c("A", "B"), to = c("A", "B"),
+      clicks = c(1, 2)
+    )
+    res <- aggregate_edges(edges, self_loops = "drop")
+    expect_equal(nrow(res), 0)
+    expect_named(res, c("from", "to", "clicks"))
+  })
+
+  it("errors when custom aggregation function returns length != 1", {
+    edges <- data.frame(from = "A", to = "B", v = 1)
+    expect_error(
+      aggregate_edges(edges, agg = list(v = function(x) c(1, 2))),
+      "single value per group"
+    )
+  })
+
+  it("errors on an invalid rule type (non-string, non-function)", {
+    edges <- data.frame(from = "A", to = "B", v = 1)
+    expect_error(
+      aggregate_edges(edges, agg = list(v = 42)),
+      "single string or a function"
+    )
+  })
+})
+
+describe("aggregate_edges additional built-in rules", {
+  it("applies mean, min, and last rules", {
+    edges <- data.frame(
+      from = rep("A", 3), to = rep("B", 3),
+      v = c(2, 4, 6)
+    )
+    expect_equal(aggregate_edges(edges, agg = list(v = "mean"))$v, 4)
+    expect_equal(aggregate_edges(edges, agg = list(v = "min"))$v, 2)
+    expect_equal(aggregate_edges(edges, agg = list(v = "last"))$v, 6)
+  })
+})
+
+describe("aggregate_edges boolean policy edge cases", {
+  it("majority returns NA when all values are NA", {
+    edges <- data.frame(
+      from = c("A", "A"), to = c("B", "B"),
+      f = as.logical(c(NA, NA))
+    )
+    res <- aggregate_edges(edges, nofollow_policy = "majority")
+    expect_true(is.na(res$f))
+  })
+
+  it("error policy returns NA when all values are NA", {
+    edges <- data.frame(
+      from = c("A", "A"), to = c("B", "B"),
+      f = as.logical(c(NA, NA))
+    )
+    res <- aggregate_edges(edges, nofollow_policy = "error")
+    expect_true(is.na(res$f))
+  })
 })
