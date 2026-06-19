@@ -30,7 +30,7 @@ describe("auto_grid", {
     )
     grid_params <- auto_grid(damping = c(0.5, 0.85))
     result <- pagerank_grid(edges, grid_params, clean_edge_urls = FALSE)
-    expect_equal(length(unique(result$model_id)), 2)
+    expect_length(unique(result$model_id), 2)
     expect_equal(nrow(result), 4) # 2 models x 2 nodes
   })
 

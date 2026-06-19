@@ -285,5 +285,5 @@ filter_links_by_domain <- function(edge_list_df,
     (!is.na(domain) & domain %in% keep_domains)
 
   # Ignore always overrides keep
-  ifelse(is_ignored, FALSE, ifelse(is_kept, TRUE, !drop_third_party))
+  !is_ignored & (is_kept | !drop_third_party)
 }

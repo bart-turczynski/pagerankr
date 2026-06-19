@@ -75,30 +75,30 @@ NULL
       required = c("address", "status_code"),
       aliases = list(
         address = c("Address", "URL", "URI"),
-        segments = c("Segments"),
+        segments = "Segments",
         content_type = c("Content Type", "Content-Type"),
         status_code = c("Status Code", "HTTP Status Code"),
-        status = c("Status"),
-        indexability = c("Indexability"),
-        indexability_status = c("Indexability Status"),
+        status = "Status",
+        indexability = "Indexability",
+        indexability_status = "Indexability Status",
         canonical = c(
           "Canonical Link Element 1", "Canonical Link Element", "Canonical"
         ),
         redirect_to = c("Redirect URL", "Redirect URI", "Location"),
-        redirect_type = c("Redirect Type"),
-        crawl_allowed = c("Crawl Allowed"),
-        indexing_allowed = c("Indexing Allowed"),
+        redirect_type = "Redirect Type",
+        crawl_allowed = "Crawl Allowed",
+        indexing_allowed = "Indexing Allowed",
         meta_robots = c("Meta Robots 1", "Meta Robots"),
         x_robots_tag = c("X-Robots-Tag 1", "X-Robots-Tag"),
-        language = c("Language"),
+        language = "Language",
         crawl_timestamp = c("Crawl Timestamp", "Crawled At"),
-        last_modified = c("Last Modified"),
+        last_modified = "Last Modified",
         size_bytes = c("Size (Bytes)", "Size (bytes)", "Size Bytes"),
-        word_count = c("Word Count"),
-        inlinks = c("Inlinks"),
-        unique_inlinks = c("Unique Inlinks"),
-        outlinks = c("Outlinks"),
-        unique_outlinks = c("Unique Outlinks"),
+        word_count = "Word Count",
+        inlinks = "Inlinks",
+        unique_inlinks = "Unique Inlinks",
+        outlinks = "Outlinks",
+        unique_outlinks = "Unique Outlinks",
         response_time_seconds = c(
           "Response Time", "Response Time (Seconds)", "Response Time Seconds"
         )
@@ -115,22 +115,22 @@ NULL
       aliases = list(
         type = c("Type", "Link Type"),
         source = c("Source", "Source URL", "From"),
-        source_segments = c("Source Segments"),
+        source_segments = "Source Segments",
         destination = c("Destination", "Destination URL", "To"),
-        destination_segments = c("Destination Segments"),
+        destination_segments = "Destination Segments",
         size_bytes = c("Size (Bytes)", "Size (bytes)", "Size Bytes"),
-        alt_text = c("Alt Text"),
+        alt_text = "Alt Text",
         anchor = c("Anchor", "Anchor Text"),
         status_code = c("Status Code", "HTTP Status Code"),
-        status = c("Status"),
-        crawlability = c("Crawlability"),
-        follow = c("Follow"),
-        target = c("Target"),
-        rel = c("Rel"),
-        path_type = c("Path Type"),
-        link_path = c("Link Path"),
-        link_position = c("Link Position"),
-        link_origin = c("Link Origin")
+        status = "Status",
+        crawlability = "Crawlability",
+        follow = "Follow",
+        target = "Target",
+        rel = "Rel",
+        path_type = "Path Type",
+        link_path = "Link Path",
+        link_position = "Link Position",
+        link_origin = "Link Origin"
       )
     )
   )
@@ -193,7 +193,7 @@ NULL
     fields <- schema$order
   }
   if (!is.character(fields) || anyNA(fields) ||
-        any(!fields %in% schema$order)) {
+        !all(fields %in% schema$order)) {
     stop(
       "`fields` must contain normalized fields from the `",
       export_kind, "` contract.",

@@ -132,7 +132,7 @@ test_that("topics must be a non-empty uniquely named list", {
   expect_error(
     topic_sensitive_pagerank(
       make_site(),
-      topics = list(ai = "/ai", ai = "/pricing")
+      topics = setNames(list("/ai", "/pricing"), c("ai", "ai"))
     ),
     "unique"
   )
