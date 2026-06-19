@@ -48,8 +48,7 @@ Analyses a `rel=canonical` data frame and returns a diagnostic
 \examples{
 canonicals <- data.frame(
   from = c("http://a?x=1", "http://b", "http://c"),
-  to = c("http://a", "http://canon", "http://c"),
-  stringsAsFactors = FALSE
+  to = c("http://a", "http://canon", "http://c")
 )
 audit_canonicals(canonicals)
 }

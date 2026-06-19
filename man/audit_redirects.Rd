@@ -60,14 +60,13 @@ Analyses a redirect data frame and returns a diagnostic report
 \examples{
 redirects <- data.frame(
   from = c("A", "B", "C", "D", "D", "E"),
-  to = c("B", "C", "final", "X", "Y", "E"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "final", "X", "Y", "E")
 )
 audit <- audit_redirects(redirects)
 print(audit)
 
 # With an edge list to detect orphaned redirects
-edges <- data.frame(from = "Z", to = "A", stringsAsFactors = FALSE)
+edges <- data.frame(from = "Z", to = "A")
 audit2 <- audit_redirects(redirects, edge_list_df = edges)
 audit2$orphaned_redirects
 }

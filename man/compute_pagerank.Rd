@@ -142,8 +142,7 @@ Builds a graph from a processed edge list and computes PageRank
 }
 \examples{
 edges <- data.frame(
-  from = c("A", "B", "C"), to = c("B", "C", "A"),
-  stringsAsFactors = FALSE
+  from = c("A", "B", "C"), to = c("B", "C", "A")
 )
 pr_results <- compute_pagerank(edges)
 print(pr_results)
@@ -151,8 +150,7 @@ if (nrow(pr_results) > 0) sum(pr_results$pagerank)
 
 # With specified vertices (e.g., from drop_isolates)
 vertices <- data.frame(
-  node_name = c("A", "B", "C", "D"),
-  stringsAsFactors = FALSE
+  node_name = c("A", "B", "C", "D")
 ) # D is an isolate
 pr_results_isolates_kept <- compute_pagerank(edges, vertices_df = vertices)
 print(pr_results_isolates_kept)
@@ -162,15 +160,13 @@ if (nrow(pr_results_isolates_kept) > 0) {
 
 # Single node graph with self-loop
 single_node_edges <- data.frame(
-  from = "A", to = "A",
-  stringsAsFactors = FALSE
+  from = "A", to = "A"
 )
 compute_pagerank(single_node_edges)
 
 # Single node, no edges, defined by vertices_df
 single_node_no_loop <- data.frame(
-  from = character(0), to = character(0),
-  stringsAsFactors = FALSE
+  from = character(0), to = character(0)
 )
 compute_pagerank(
   single_node_no_loop,
@@ -179,15 +175,13 @@ compute_pagerank(
 
 # Empty graph (no edges, no vertices defined)
 empty_edges <- data.frame(
-  from = character(), to = character(),
-  stringsAsFactors = FALSE
+  from = character(), to = character()
 )
 compute_pagerank(empty_edges)
 
 # Edges with NAs (these edges will be dropped)
 edges_with_na <- data.frame(
-  from = c("A", NA, "C"), to = c("B", "D", NA),
-  stringsAsFactors = FALSE
+  from = c("A", NA, "C"), to = c("B", "D", NA)
 )
 compute_pagerank(edges_with_na) # Should only process A->B
 compute_pagerank(

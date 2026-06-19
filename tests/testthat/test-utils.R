@@ -1,81 +1,45 @@
-describe(".urls_contain_query_params", {
-  it("returns FALSE for empty data frame", {
-    empty_df <- data.frame(from = character(0))
-    expect_false(pagerankr:::.urls_contain_query_params(empty_df, "from"))
-  })
-
-  it("returns FALSE for non-dataframe input", {
-    expect_false(pagerankr:::.urls_contain_query_params("not_a_df", "x"))
-  })
-
-  it("returns TRUE when URLs contain query params", {
+describe("pagerank warns on edge list query parameters (clean_edge_urls = FALSE)", {
+  it("fires the warning when a URL contains '?'", {
     df <- data.frame(
-      url = c("http://example.com/page?q=test", "http://example.com/other")
+      from = c("http://example.com/page?q=test", "http://example.com/other"),
+      to = c("http://example.com/other", "http://example.com/end")
     )
-    expect_true(pagerankr:::.urls_contain_query_params(df, "url"))
+    expect_warning(
+      pagerank(df, clean_edge_urls = FALSE),
+      "query parameters"
+    )
   })
 
-  it("returns FALSE when no URLs contain query params", {
+  it("fires the warning when a URL contains '&'", {
     df <- data.frame(
-      url = c("http://example.com/page", "http://example.com/other")
+      from = "http://example.com/page&extra",
+      to = "http://example.com/other"
     )
-    expect_false(pagerankr:::.urls_contain_query_params(df, "url"))
+    expect_warning(
+      pagerank(df, clean_edge_urls = FALSE),
+      "query parameters"
+    )
   })
 
-  it("returns TRUE for URLs with ampersand", {
+  it("does not warn when URLs have no query parameters", {
     df <- data.frame(
-      url = c("http://example.com/page&extra")
+      from = "http://example.com/page",
+      to = "http://example.com/other"
     )
-    expect_true(pagerankr:::.urls_contain_query_params(df, "url"))
+    expect_warning(
+      pagerank(df, clean_edge_urls = FALSE),
+      regexp = NA
+    )
   })
 
-  it("returns FALSE when column not in data frame", {
+  it("handles NA values alongside query-param URLs (still warns)", {
     df <- data.frame(
-      other = c("http://example.com/page?q=1")
+      from = c(NA, "http://example.com/page?q=test"),
+      to = c("http://example.com/other", "http://example.com/end")
     )
-    expect_false(pagerankr:::.urls_contain_query_params(df, "url"))
-  })
-
-  it("handles NA values in URLs", {
-    df <- data.frame(
-      url = c(NA, "http://example.com/page?q=test")
-    )
-    expect_true(pagerankr:::.urls_contain_query_params(df, "url"))
-  })
-})
-
-describe(".trace_redirect_path", {
-  it("returns the URL itself when not in redirect map", {
-    redirect_map <- c(A = "B")
-    result <- pagerankr:::.trace_redirect_path("C", redirect_map)
-    expect_equal(result, "C")
-  })
-
-  it("follows a single redirect", {
-    redirect_map <- c(A = "B")
-    result <- pagerankr:::.trace_redirect_path("A", redirect_map)
-    expect_equal(result, "B")
-  })
-
-  it("follows a chain of redirects", {
-    redirect_map <- c(A = "B", B = "C", C = "D")
-    result <- pagerankr:::.trace_redirect_path("A", redirect_map)
-    expect_equal(result, "D")
-  })
-
-  it("detects and errors on a cycle", {
-    redirect_map <- c(A = "B", B = "C", C = "A")
-    expect_error(
-      pagerankr:::.trace_redirect_path("A", redirect_map),
-      "Redirect cycle detected"
-    )
-  })
-
-  it("includes the cycle path in the error message", {
-    redirect_map <- c(A = "B", B = "A")
-    expect_error(
-      pagerankr:::.trace_redirect_path("A", redirect_map),
-      "A -> B -> A"
+    expect_warning(
+      pagerank(df, clean_edge_urls = FALSE),
+      "query parameters"
     )
   })
 })

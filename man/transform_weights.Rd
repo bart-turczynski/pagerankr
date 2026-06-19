@@ -84,8 +84,7 @@ transform_weights(clicks, "zipf")
 edges <- data.frame(
   from = c("Home", "Home", "Home"),
   to = c("About", "Blog", "Contact"),
-  position = c(1, 2, 5),
-  stringsAsFactors = FALSE
+  position = c(1, 2, 5)
 )
 edges$weight <- transform_weights(edges$position, "zipf",
   descending = FALSE

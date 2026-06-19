@@ -443,13 +443,11 @@ row.
 # Basic example
 edges <- data.frame(
   from = c("http://A.com/", "B", "C?q=1", "D"),
-  to = c("B", "http://A.com", "D#frag", "D"),
-  stringsAsFactors = FALSE
+  to = c("B", "http://A.com", "D#frag", "D")
 )
 redirects <- data.frame(
   from = c("C?q=1", "B"),
-  to = c("http://C_resolved.com", "A"), # B redirects to A, C to C_resolved
-  stringsAsFactors = FALSE
+  to = c("http://C_resolved.com", "A") # B redirects to A, C to C_resolved
 )
 
 # Run full pipeline
@@ -475,7 +473,7 @@ print(pr_keep_isolates)
 # With nofollow edges (evaporate mode)
 edges_nf <- data.frame(
   from = c("A", "A", "B"), to = c("B", "C", "A"),
-  nofollow = c(FALSE, TRUE, FALSE), stringsAsFactors = FALSE
+  nofollow = c(FALSE, TRUE, FALSE)
 )
 pr_nf <- pagerank(edges_nf,
   nofollow_col = "nofollow",

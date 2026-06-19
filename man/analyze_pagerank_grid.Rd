@@ -42,8 +42,7 @@ distribution.
 \examples{
 edges <- data.frame(
   from = c("A", "B", "C", "A"),
-  to = c("B", "C", "A", "C"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "A", "C")
 )
 params <- list(
   low = list(damping = 0.5),

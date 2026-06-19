@@ -85,8 +85,7 @@ links <- data.frame(
   to = c(
     "http://example.com/b", "http://help.example.com/d",
     "http://www.example.com/a"
-  ),
-  stringsAsFactors = FALSE
+  )
 )
 
 # Keep only example.com edges
