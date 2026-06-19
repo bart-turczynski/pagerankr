@@ -87,14 +87,14 @@ describe("clean_url_columns basic functionality", {
     df_empty <- data.frame(from = character(0), to = character(0))
     cleaned <- clean_url_columns(df_empty, columns = c("from", "to"))
     expect_equal(nrow(cleaned), 0)
-    expect_equal(names(cleaned), c("from", "to"))
+    expect_named(cleaned, c("from", "to"))
   })
 
   it("handles data frame with specified columns but no rows", {
     df_no_rows <- data.frame(link = character(0))
     cleaned <- clean_url_columns(df_no_rows, columns = "link")
     expect_equal(nrow(cleaned), 0)
-    expect_equal(names(cleaned), "link")
+    expect_named(cleaned, "link")
   })
 
   it(paste(

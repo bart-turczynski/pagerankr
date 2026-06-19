@@ -4,7 +4,7 @@ describe("compute_salsa", {
   it("returns node_name, hub and authority columns", {
     edges <- data.frame(from = c("A", "B"), to = c("B", "C"))
     res <- compute_salsa(edges)
-    expect_equal(names(res), c("node_name", "hub", "authority"))
+    expect_named(res, c("node_name", "hub", "authority"))
     expect_equal(nrow(res), 3)
   })
 
@@ -100,7 +100,7 @@ describe("compute_salsa", {
 
   it("returns an empty data frame for an empty edge list", {
     res <- compute_salsa(data.frame(from = character(0), to = character(0)))
-    expect_equal(names(res), c("node_name", "hub", "authority"))
+    expect_named(res, c("node_name", "hub", "authority"))
     expect_equal(nrow(res), 0)
   })
 
