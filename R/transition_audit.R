@@ -292,18 +292,3 @@ print.transition_audit <- function(x, ...) {
 
   invisible(x)
 }
-
-# Register the print method at load time. The package's NAMESPACE (regenerated
-# from the @export tag above) is the canonical registration; this `.onLoad`
-# guarantees S3 dispatch also works under `pkgload::load_all()` during
-# development, before document() has refreshed NAMESPACE.
-.onLoad <- function(libname, pkgname) {
-  registerS3method(
-    "print", "transition_audit", print.transition_audit,
-    envir = asNamespace(pkgname)
-  )
-  registerS3method(
-    "print", "pagerank_convergence", print.pagerank_convergence,
-    envir = asNamespace(pkgname)
-  )
-}

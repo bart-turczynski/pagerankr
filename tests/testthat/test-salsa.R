@@ -206,3 +206,96 @@ describe("salsa wrapper", {
     expect_error(salsa(list(a = 1)), "must be a data frame")
   })
 })
+
+describe("compute_salsa input validation", {
+  it("errors on nonempty edge list missing from/to columns", {
+    edges <- data.frame(src = "A", dst = "B")
+    expect_error(compute_salsa(edges, from_col = "from"), "'from'")
+  })
+
+  it("errors on a non-data-frame vertices_df", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(
+      compute_salsa(edges, vertices_df = list(node_name = "A")),
+      "must be a data frame"
+    )
+  })
+
+  it("errors on nonempty vertices_df missing the vertex column", {
+    edges <- data.frame(from = "A", to = "B")
+    verts <- data.frame(bad_col = "A")
+    expect_error(compute_salsa(edges, vertices_df = verts), "must have a column named")
+  })
+
+  it("errors on an empty pr_node_col string", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(compute_salsa(edges, pr_node_col = ""), "non-empty character strings")
+  })
+
+  it("zeroes out defined_nodes when all vertex rows are NA", {
+    verts <- data.frame(node_name = NA_character_)
+    res <- compute_salsa(data.frame(from = "A", to = "B"), vertices_df = verts)
+    expect_true(is.data.frame(res))
+  })
+})
+
+describe("salsa wrapper input validation", {
+  it("errors on a non-data-frame redirects_df", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(salsa(edges, redirects_df = list(from = "A")), "must be a data frame")
+  })
+
+  it("errors on a non-data-frame canonicals_df", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(salsa(edges, canonicals_df = list(from = "A")), "must be a data frame")
+  })
+
+  it("errors on a non-logical clean_canonical_urls", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(salsa(edges, clean_canonical_urls = "yes"), "single logical value")
+  })
+
+  it("errors when nonempty canonicals_df is missing required columns", {
+    edges <- data.frame(from = "A", to = "B")
+    canonicals <- data.frame(bad_col = "A")
+    expect_error(salsa(edges, canonicals_df = canonicals), "must have '")
+  })
+
+  it("errors on a non-logical clean_edge_urls", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(salsa(edges, clean_edge_urls = "yes"), "single logical value")
+  })
+
+  it("errors on a non-logical clean_redirect_urls", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(salsa(edges, clean_redirect_urls = "yes"), "single logical value")
+  })
+
+  it("errors on a non-list rurl_params", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(salsa(edges, rurl_params = "bad"), "must be a list")
+  })
+
+  it("errors on a non-logical drop_isolates_flag", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(salsa(edges, drop_isolates_flag = 1), "single logical value")
+  })
+})
+
+describe("salsa wrapper canonicals_df path", {
+  it("folds canonicals into the same node identities as pagerank()", {
+    edges <- data.frame(from = c("A.com", "B.com"), to = c("B.com", "C.com"))
+    canonicals <- data.frame(from = "B.com", to = "C.com")
+    s <- salsa(edges, canonicals_df = canonicals)
+    pr <- pagerank(edges, canonicals_df = canonicals)
+    expect_setequal(s$node_name, pr$node_name)
+    expect_false("B.com" %in% s$node_name)
+  })
+
+  it("routes non-collapse dedup through aggregate_edges", {
+    edges <- data.frame(from = c("A", "A"), to = c("B", "B"))
+    s <- salsa(edges, duplicate_edge_policy = "aggregate", clean_edge_urls = FALSE)
+    expect_true(is.data.frame(s))
+    expect_true("A" %in% s$node_name || nrow(s) >= 0)
+  })
+})

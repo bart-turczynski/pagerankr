@@ -266,6 +266,78 @@ describe("smooth_transitions: time-decay-friendly fractional counts", {
   })
 })
 
+describe("smooth_transitions: additional validation", {
+  it("errors on a non-data-frame structural_df", {
+    expect_error(
+      smooth_transitions(sparse_empirical(), list()),
+      "must be a data frame"
+    )
+  })
+
+  it("errors on a non-character from_col", {
+    expect_error(
+      smooth_transitions(sparse_empirical(), sparse_structural(), from_col = 1),
+      "single non-NA character string"
+    )
+  })
+
+  it("errors on a negative min_support", {
+    expect_error(
+      smooth_transitions(sparse_empirical(), sparse_structural(), min_support = -1),
+      "non-negative"
+    )
+  })
+
+  it("errors when lambda_fn is not a function", {
+    expect_error(
+      smooth_transitions(sparse_empirical(), sparse_structural(), lambda_fn = "bad"),
+      "function"
+    )
+  })
+
+  it("errors on a non-character structural_weight_col", {
+    expect_error(
+      smooth_transitions(sparse_empirical(), sparse_structural(),
+        structural_weight_col = 1),
+      "character string"
+    )
+  })
+
+  it("errors when count_col is not numeric", {
+    emp_char_count <- data.frame(from = "A", to = "B", n = "text")
+    expect_error(
+      smooth_transitions(emp_char_count, sparse_structural()),
+      "must be numeric"
+    )
+  })
+
+  it("errors when structural_df is missing required columns", {
+    struct_no_cols <- data.frame(bad = "A")
+    expect_error(
+      smooth_transitions(sparse_empirical(), struct_no_cols),
+      "missing required column"
+    )
+  })
+
+  it("errors when structural_weight_col is not numeric", {
+    struct_char_wt <- data.frame(
+      from = c("A", "A"), to = c("B", "C"), w = c("heavy", "light")
+    )
+    expect_error(
+      smooth_transitions(sparse_empirical(), struct_char_wt,
+        structural_weight_col = "w"),
+      "must be numeric"
+    )
+  })
+
+  it("handles empirical input where all rows have NA endpoints", {
+    emp_all_na <- data.frame(from = NA_character_, to = NA_character_, n = 1)
+    out <- smooth_transitions(emp_all_na, sparse_structural())
+    expect_true(is.data.frame(out))
+    expect_true(nrow(out) > 0)
+  })
+})
+
 describe("smooth_transitions: edge cases and validation", {
   it("returns an empty typed frame when both inputs are empty", {
     emp <- data.frame(
