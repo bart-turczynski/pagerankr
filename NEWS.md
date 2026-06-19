@@ -1,5 +1,15 @@
 # pagerankr (development version)
 
+* New `topic_sensitive_pagerank()` computes per-topic PageRank by running the
+  existing `pagerank()` engine once per topic with a teleport prior biased
+  toward each topic's seed cluster, then blends the per-topic scores into a
+  single ranking. This is Haveliwala's (2002) Topic-Sensitive PageRank adapted
+  to a single site: each "topic" is a content cluster (e.g. the *pricing* or
+  *AI-Agent* area) given as a character vector of seed URLs or a weighted
+  `data.frame`. Returns one score column per topic plus a weight-normalized
+  `blended` column, with the per-topic `transition_audit` objects attached.
+  Pure orchestration over the TIPR personalization path — no new solver, and
+  topic membership is supplied by the caller, not inferred (PAGE-yubrkleu).
 * New `smooth_transitions()` shrinks sparse empirical page-transition shares
   (e.g. from `ga4_page_transitions()`) toward the crawl-graph link structure,
   so no valid crawled link is ever assigned exactly zero probability. Uses a
