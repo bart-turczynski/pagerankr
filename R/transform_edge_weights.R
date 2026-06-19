@@ -57,8 +57,7 @@
 #' edges <- data.frame(
 #'   from = c("A", "A", "A", "B", "B"),
 #'   to = c("B", "C", "D", "C", "D"),
-#'   position = c(1, 2, 3, 1, 2),
-#'   stringsAsFactors = FALSE
+#'   position = c(1, 2, 3, 1, 2)
 #' )
 #'
 #' # Zipf weights computed within each source's choice set

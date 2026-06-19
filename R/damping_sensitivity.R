@@ -61,8 +61,7 @@
 #' @examples
 #' edges <- data.frame(
 #'   from = c("A", "B", "C", "A", "D"),
-#'   to = c("B", "C", "A", "C", "A"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C", "A", "C", "A")
 #' )
 #' sens <- damping_sensitivity(edges, clean_edge_urls = FALSE)
 #' print(sens)
@@ -139,8 +138,7 @@ damping_sensitivity <- function(edge_list_df,
         iters = iters,
         iters_estimate = iters_estimate,
         residual = residual,
-        converged = converged,
-        stringsAsFactors = FALSE
+        converged = converged
       )
     }
 
@@ -152,8 +150,7 @@ damping_sensitivity <- function(edge_list_df,
       residual = residual,
       tol = tol,
       converged = converged,
-      n_nodes = nrow(res),
-      stringsAsFactors = FALSE
+      n_nodes = nrow(res)
     )
   }
 
@@ -166,8 +163,7 @@ damping_sensitivity <- function(edge_list_df,
     empty <- data.frame(
       url = character(0), alpha = numeric(0), score = numeric(0),
       iters = integer(0), iters_estimate = numeric(0),
-      residual = numeric(0), converged = logical(0),
-      stringsAsFactors = FALSE
+      residual = numeric(0), converged = logical(0)
     )
     empty[, empty_cols, drop = FALSE]
   }

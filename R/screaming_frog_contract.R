@@ -216,7 +216,6 @@ NULL
       x,
       nrows = 0L,
       check.names = FALSE,
-      stringsAsFactors = FALSE,
       fileEncoding = "UTF-8-BOM"
     )
     resolved <- .sf_resolve_schema(names(header), export_kind)
@@ -227,7 +226,6 @@ NULL
     out <- utils::read.csv(
       x,
       check.names = FALSE,
-      stringsAsFactors = FALSE,
       colClasses = col_classes,
       na.strings = character(0),
       fileEncoding = "UTF-8-BOM"

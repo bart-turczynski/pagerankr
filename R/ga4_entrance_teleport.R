@@ -105,8 +105,7 @@
 #' @examples
 #' ga4 <- data.frame(
 #'   url = c("https://x/a", "https://x/a", "https://x/b"),
-#'   entrances = c(60, 30, 10),
-#'   stringsAsFactors = FALSE
+#'   entrances = c(60, 30, 10)
 #' )
 #' # As a prior_df for pagerank() (it does the canonicalize + fold):
 #' ga4_entrance_teleport(ga4)
@@ -158,8 +157,7 @@ ga4_entrance_teleport <- function(entrances_df,
 
   prior_df <- data.frame(
     url = prior_url,
-    weight = prior_weight,
-    stringsAsFactors = FALSE
+    weight = prior_weight
   )
 
   # --- Without a vertex set: return the prior_df for pagerank() to fold ---

@@ -266,8 +266,7 @@ print.screaming_frog_bundle <- function(x, ...) {
 .sf_count_df <- function(x, cols) {
   if (nrow(x) == 0L) {
     out <- as.data.frame(
-      stats::setNames(rep(list(character(0)), length(cols)), cols),
-      stringsAsFactors = FALSE
+      stats::setNames(rep(list(character(0)), length(cols)), cols)
     )
     out$n <- integer(0)
     return(out)
@@ -290,7 +289,7 @@ print.screaming_frog_bundle <- function(x, ...) {
 
 .sf_count_vector <- function(x, name) {
   out <- .sf_count_df(
-    data.frame(value = x, stringsAsFactors = FALSE),
+    data.frame(value = x),
     "value"
   )
   names(out) <- c(name, "n")
@@ -317,14 +316,12 @@ print.screaming_frog_bundle <- function(x, ...) {
     data.frame(
       input_row = edges$input_row,
       side = "from",
-      url = edges$from,
-      stringsAsFactors = FALSE
+      url = edges$from
     ),
     data.frame(
       input_row = edges$input_row,
       side = "to",
-      url = edges$to,
-      stringsAsFactors = FALSE
+      url = edges$to
     )
   )
   absent <- endpoints[!endpoints$url %in% internal_urls, , drop = FALSE]
@@ -344,8 +341,7 @@ print.screaming_frog_bundle <- function(x, ...) {
       from = character(0),
       to = character(0),
       host = character(0),
-      classification = character(0),
-      stringsAsFactors = FALSE
+      classification = character(0)
     )
     return(out)
   }
@@ -370,8 +366,7 @@ print.screaming_frog_bundle <- function(x, ...) {
     x,
     data.frame(
       host = host,
-      classification = classification,
-      stringsAsFactors = FALSE
+      classification = classification
     )
   )
   sort_cols <- intersect(

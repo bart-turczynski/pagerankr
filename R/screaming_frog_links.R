@@ -108,8 +108,7 @@ screaming_frog_links <- function(x,
     link_path = raw$link_path,
     link_position = raw$link_position,
     placement = placement,
-    link_origin = raw$link_origin,
-    stringsAsFactors = FALSE
+    link_origin = raw$link_origin
   )
 
   edges <- data.frame(
@@ -130,8 +129,7 @@ screaming_frog_links <- function(x,
     link_origin = raw$link_origin[edge_rows],
     destination_status_code = status_code[edge_rows],
     destination_status = raw$status[edge_rows],
-    destination_crawlability = raw$crawlability[edge_rows],
-    stringsAsFactors = FALSE
+    destination_crawlability = raw$crawlability[edge_rows]
   )
 
   invalid_follow <- !is.na(raw$follow) & is.na(follow)
@@ -144,8 +142,7 @@ screaming_frog_links <- function(x,
     input_row = integer(0),
     field = character(0),
     value = character(0),
-    issue = character(0),
-    stringsAsFactors = FALSE
+    issue = character(0)
   )
   issues <- .sf_append_issues(
     issues, input_row[!valid_source], "source", raw$source[!valid_source],

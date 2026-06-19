@@ -94,8 +94,7 @@
 #'   from = c("A", "A", "B"),
 #'   to = c("B", "B", "C"),
 #'   clicks = c(3, 5, 2),
-#'   nofollow = c(FALSE, TRUE, FALSE),
-#'   stringsAsFactors = FALSE
+#'   nofollow = c(FALSE, TRUE, FALSE)
 #' )
 #' aggregate_edges(edges)
 #'
@@ -108,8 +107,7 @@
 #' edges_pos <- data.frame(
 #'   from = c("A", "A"),
 #'   to = c("B", "B"),
-#'   position = c(1, 7),
-#'   stringsAsFactors = FALSE
+#'   position = c(1, 7)
 #' )
 #' aggregate_edges(edges_pos, preserve_cols = "position")
 
@@ -149,9 +147,7 @@ aggregate_edges <- function(edge_list_df,
   # the from/to columns when the input is a bare data.frame().
   if (nrow(edge_list_df) == 0) {
     if (ncol(edge_list_df) == 0) {
-      empty_df <- data.frame(
-        stringsAsFactors = FALSE
-      )
+      empty_df <- data.frame()
       empty_df[[from_col]] <- character(0)
       empty_df[[to_col]] <- character(0)
       return(empty_df)
@@ -226,7 +222,6 @@ aggregate_edges <- function(edge_list_df,
   result <- data.frame(
     edge_list_df[[from_col]][first_idx],
     edge_list_df[[to_col]][first_idx],
-    stringsAsFactors = FALSE,
     check.names = FALSE
   )
   names(result) <- c(from_col, to_col)

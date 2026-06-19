@@ -28,8 +28,7 @@
 #'
 #' # Use with pagerank_grid()
 #' edges <- data.frame(
-#'   from = c("A", "B"), to = c("B", "A"),
-#'   stringsAsFactors = FALSE
+#'   from = c("A", "B"), to = c("B", "A")
 #' )
 #' results <- pagerank_grid(edges, auto_grid(damping = c(0.5, 0.85, 0.95)),
 #'   clean_edge_urls = FALSE

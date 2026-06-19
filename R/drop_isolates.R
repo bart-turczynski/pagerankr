@@ -34,8 +34,7 @@
 #' # (NA in one column = known node, not a complete edge)
 #' edges <- data.frame(
 #'   from = c("A", "B", "C", NA, "D"),
-#'   to = c("B", "C", "A", "E", NA),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C", "A", "E", NA)
 #' )
 #' # Complete edges: A->B, B->C, C->A.
 #' # Partial rows: NA->E (E is isolate), D->NA (D is isolate).
@@ -51,29 +50,28 @@
 #' # Edge list with no isolates (all rows are complete edges)
 #' edges_complete <- data.frame(
 #'   from = c("X", "Y"),
-#'   to = c("Y", "X"),
-#'   stringsAsFactors = FALSE
+#'   to = c("Y", "X")
 #' )
 #' drop_isolates(edges_complete, drop = TRUE) # X, Y
 #' drop_isolates(edges_complete, drop = FALSE) # X, Y (same, no partial rows)
 #'
 #' # Empty edge list
 #' empty_edges <- data.frame(
-#'   from = character(0), to = character(0), stringsAsFactors = FALSE
+#'   from = character(0), to = character(0)
 #' )
 #' drop_isolates(empty_edges, drop = TRUE)
 #' drop_isolates(empty_edges, drop = FALSE)
 #'
 #' # Edge list with only NAs
 #' na_edges <- data.frame(
-#'   from = NA_character_, to = NA_character_, stringsAsFactors = FALSE
+#'   from = NA_character_, to = NA_character_
 #' )
 #' drop_isolates(na_edges, drop = TRUE)
 #' drop_isolates(na_edges, drop = FALSE)
 #'
 #' # Custom column names
 #' custom_edges <- data.frame(
-#'   source = c("S1"), target = c("T1"), stringsAsFactors = FALSE
+#'   source = c("S1"), target = c("T1")
 #' )
 #' drop_isolates(
 #'   custom_edges,
@@ -110,7 +108,7 @@ drop_isolates <- function(edge_list_df,
   # --- Prepare Empty Result Frame ---
   # This structure is returned if no nodes are found or input is empty.
   empty_result_df <- stats::setNames(
-    data.frame(character(0), stringsAsFactors = FALSE),
+    data.frame(character(0)),
     node_col_name
   )
 
@@ -153,7 +151,7 @@ drop_isolates <- function(edge_list_df,
 
   # --- Format Output Data Frame ---
   result_df <- stats::setNames(
-    data.frame(nodes_to_return, stringsAsFactors = FALSE),
+    data.frame(nodes_to_return),
     node_col_name
   )
 

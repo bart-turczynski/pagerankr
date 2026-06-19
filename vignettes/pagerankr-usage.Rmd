@@ -58,8 +58,7 @@ edges <- data.frame(
   to = c(
     "http://example.com/about", "http://example.com/home",
     "http://example.com/home", "http://example.com/about"
-  ),
-  stringsAsFactors = FALSE
+  )
 )
 
 pr <- pagerank(edges)
@@ -119,13 +118,11 @@ production pipelines should pin the expected `contract_version`.
 ```{r redirects_basic}
 edges <- data.frame(
   from = c("A", "B", "C"),
-  to = c("B", "C", "D"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "D")
 )
 redirects <- data.frame(
   from = c("B", "C"),
-  to = c("B_new", "C_new"),
-  stringsAsFactors = FALSE
+  to = c("B_new", "C_new")
 )
 
 # resolve_redirects() applies redirect rules to an edge list
@@ -144,12 +141,11 @@ Use `duplicate_from_policy` to control the behavior:
 ```{r redirects_conflict}
 redirects_conflict <- data.frame(
   from = c("old", "old", "old"),
-  to = c("target_A", "target_B", "target_B"),
-  stringsAsFactors = FALSE
+  to = c("target_A", "target_B", "target_B")
 )
 
 # "most_frequent" picks the most common target
-edges_simple <- data.frame(from = "X", to = "old", stringsAsFactors = FALSE)
+edges_simple <- data.frame(from = "X", to = "old")
 resolve_redirects(edges_simple, redirects_conflict,
   duplicate_from_policy = "most_frequent"
 )
@@ -164,11 +160,10 @@ Redirect cycles (A -> B -> C -> A) are detected via strongly connected
 components. Use `loop_handling` to control behavior:
 
 ```{r redirects_loops}
-edges_loop <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+edges_loop <- data.frame(from = "X", to = "A")
 redirects_loop <- data.frame(
   from = c("A", "B", "C", "D"),
-  to = c("B", "C", "A", "E"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "A", "E")
 )
 
 # "prune_loop" removes cycle edges; linear redirects still work
@@ -189,10 +184,9 @@ computing PageRank -- useful for inspecting the resolved graph:
 ```{r resolve_links_example}
 edges <- data.frame(
   from = c("A", "A", "B"),
-  to = c("B", "B", "C"),
-  stringsAsFactors = FALSE
+  to = c("B", "B", "C")
 )
-redirects <- data.frame(from = "B", to = "B_final", stringsAsFactors = FALSE)
+redirects <- data.frame(from = "B", to = "B_final")
 
 resolve_links(edges, redirects, clean_urls = FALSE)
 ```
@@ -216,8 +210,7 @@ engine's current implementation.
 edges <- data.frame(
   from = c("Hub", "Hub", "Hub"),
   to = c("A", "B", "C"),
-  nofollow = c(FALSE, FALSE, TRUE),
-  stringsAsFactors = FALSE
+  nofollow = c(FALSE, FALSE, TRUE)
 )
 
 # "evaporate": PR splits 3 ways, C's share vanishes
@@ -258,14 +251,12 @@ change required for correct propagation under this model.
 ```{r indexability_noindex}
 edges <- data.frame(
   from = c("Home", "NoindexPage", "NoindexPage"),
-  to = c("NoindexPage", "A", "B"),
-  stringsAsFactors = FALSE
+  to = c("NoindexPage", "A", "B")
 )
 
 idx_status <- data.frame(
   url = "NoindexPage",
-  indexability_status = "noindex",
-  stringsAsFactors = FALSE
+  indexability_status = "noindex"
 )
 
 pr <- pagerank(edges,
@@ -283,14 +274,12 @@ outbound (Google can't see the links). The PR is either trapped or vanishes:
 ```{r indexability_robots}
 edges <- data.frame(
   from = c("Home", "Blocked", "A"),
-  to = c("Blocked", "A", "Home"),
-  stringsAsFactors = FALSE
+  to = c("Blocked", "A", "Home")
 )
 
 idx_status <- data.frame(
   url = "Blocked",
-  indexability_status = "Blocked by robots.txt",
-  stringsAsFactors = FALSE
+  indexability_status = "Blocked by robots.txt"
 )
 
 # "trap": blocked page keeps its PR (visible in results)
@@ -319,8 +308,7 @@ position scores) in the PageRank calculation:
 edges <- data.frame(
   from = c("A", "A", "B"),
   to = c("B", "C", "C"),
-  weight = c(3, 1, 1),
-  stringsAsFactors = FALSE
+  weight = c(3, 1, 1)
 )
 
 pr <- pagerank(edges, weight_col = "weight", clean_edge_urls = FALSE)
@@ -348,8 +336,7 @@ edges <- data.frame(
   to = c(
     "http://example.com/b", "http://other.com/d",
     "http://example.com/a"
-  ),
-  stringsAsFactors = FALSE
+  )
 )
 
 # Keep only internal links
@@ -372,8 +359,7 @@ dominant eigenvector of `A A^T`.
 ```{r hits}
 edges <- data.frame(
   from = c("A", "A", "B"),
-  to = c("B", "C", "C"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "C")
 )
 
 # A only points out (pure hub); C is only pointed to (pure authority).
@@ -404,8 +390,7 @@ is the edge count — so no eigenvector iteration is needed.
 ```{r salsa}
 edges <- data.frame(
   from = c("A", "A", "B"),
-  to = c("B", "C", "C"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "C")
 )
 
 # A only points out (pure hub); C is only pointed to (pure authority).
@@ -433,8 +418,7 @@ of the original focused-subgraph algorithm.
 ```{r compare}
 edges <- data.frame(
   from = c("A", "B", "C", "D"),
-  to = c("B", "C", "D", "A"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "D", "A")
 )
 
 pr_85 <- pagerank(edges, damping = 0.85, clean_edge_urls = FALSE)
@@ -454,8 +438,7 @@ informative model:
 ```{r grid}
 edges <- data.frame(
   from = c("A", "A", "B", "C"),
-  to = c("B", "C", "C", "A"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "C", "A")
 )
 
 grid <- auto_grid(damping = c(0.75, 0.85, 0.95))
@@ -487,15 +470,13 @@ links, remove those links, or implement these redirects?"
 ```{r simulate_add_link}
 site_links <- data.frame(
   from = c("Home", "Home", "About", "Blog"),
-  to = c("About", "Blog", "Home", "Home"),
-  stringsAsFactors = FALSE
+  to = c("About", "Blog", "Home", "Home")
 )
 
 impact <- simulate_changes(
   site_links,
   add_links_df = data.frame(
-    from = "Blog", to = "About",
-    stringsAsFactors = FALSE
+    from = "Blog", to = "About"
   ),
   clean_edge_urls = FALSE
 )
@@ -508,8 +489,7 @@ print(impact)
 impact_remove <- simulate_changes(
   site_links,
   remove_links_df = data.frame(
-    from = "Home", to = "Blog",
-    stringsAsFactors = FALSE
+    from = "Home", to = "Blog"
   ),
   clean_edge_urls = FALSE
 )
@@ -520,14 +500,13 @@ print(impact_remove)
 
 ```{r simulate_redirect}
 extended_links <- rbind(site_links, data.frame(
-  from = "OldPage", to = "Home", stringsAsFactors = FALSE
+  from = "OldPage", to = "Home"
 ))
 
 impact_redirect <- simulate_changes(
   extended_links,
   add_redirects_df = data.frame(
-    from = "OldPage", to = "About",
-    stringsAsFactors = FALSE
+    from = "OldPage", to = "About"
   ),
   clean_edge_urls = FALSE
 )
@@ -540,12 +519,10 @@ print(impact_redirect)
 impact_all <- simulate_changes(
   site_links,
   add_links_df = data.frame(
-    from = "Blog", to = "About",
-    stringsAsFactors = FALSE
+    from = "Blog", to = "About"
   ),
   remove_links_df = data.frame(
-    from = "Home", to = "Blog",
-    stringsAsFactors = FALSE
+    from = "Home", to = "Blog"
   ),
   clean_edge_urls = FALSE
 )
@@ -615,8 +592,7 @@ The raw per-(url, alpha) scores are available via `attr(stab, "sensitivity")`.
 ```{r convergence_stability}
 toy_edges <- data.frame(
   from = c("A", "A", "B", "C", "C", "D", "E", "F"),
-  to   = c("B", "C", "D", "D", "E", "F", "A", "A"),
-  stringsAsFactors = FALSE
+  to   = c("B", "C", "D", "D", "E", "F", "A", "A")
 )
 
 # Stability report: how sensitive are ranks to damping?
@@ -677,8 +653,7 @@ library(pagerankr)
 # Small synthetic site: 7 pages, two rough topic clusters
 edges <- data.frame(
   from = c("Home", "Home", "Blog", "Blog", "Shop", "Shop", "Docs"),
-  to   = c("Blog", "Shop", "Post1", "Post2", "Item1", "Item2", "Guide1"),
-  stringsAsFactors = FALSE
+  to   = c("Blog", "Shop", "Post1", "Post2", "Item1", "Item2", "Guide1")
 )
 
 # Define two topics as named lists of seed URL vectors
@@ -741,8 +716,7 @@ events <- data.frame(
   user_pseudo_id  = c("u1", "u1", "u1", "u2", "u2"),
   ga_session_id   = c(1L,   1L,   1L,   2L,   2L),
   page_location   = c("/home", "/blog", "/contact", "/home", "/pricing"),
-  event_timestamp = c(1000L,  2000L,  3000L,  1000L,  2000L),
-  stringsAsFactors = FALSE
+  event_timestamp = c(1000L,  2000L,  3000L,  1000L,  2000L)
 )
 
 transitions <- ga4_page_transitions(
@@ -776,8 +750,7 @@ than `min_support` total outgoing transitions receive full prior weight
 structural <- data.frame(
   from = c("/home",    "/home",    "/blog"),
   to   = c("/blog",   "/pricing", "/contact"),
-  n    = c(50L,        30L,        40L),
-  stringsAsFactors = FALSE
+  n    = c(50L,        30L,        40L)
 )
 
 smoothed <- smooth_transitions(
@@ -808,8 +781,7 @@ reset probability during the random-surfer teleport step.
 ```{r ga4_teleport}
 entrances <- data.frame(
   page_location = c("/home", "/blog", "/pricing", "/contact"),
-  entrances     = c(120L,    80L,     40L,         10L),
-  stringsAsFactors = FALSE
+  entrances     = c(120L,    80L,     40L,         10L)
 )
 
 prior <- ga4_entrance_teleport(

@@ -20,8 +20,8 @@
 #'   `"fold_map"`.
 #' @export
 #' @examples
-#' edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-#' canonicals <- data.frame(from = "B", to = "C", stringsAsFactors = FALSE)
+#' edges <- data.frame(from = "A", to = "B")
+#' canonicals <- data.frame(from = "B", to = "C")
 #' resolve_canonicals(edges, canonicals)
 resolve_canonicals <- function(edge_list_df,
                                canonicals_df,
@@ -87,8 +87,7 @@ resolve_canonicals <- function(edge_list_df,
 #' @examples
 #' canonicals <- data.frame(
 #'   from = c("A", "B"),
-#'   to = c("B", "C"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C")
 #' )
 #' resolve_canonical_urls(c("A", "B", "X"), canonicals)
 resolve_canonical_urls <- function(urls,
@@ -150,8 +149,8 @@ resolve_canonical_urls <- function(urls,
 #'   `"ignored_canonicals"`.
 #' @export
 #' @examples
-#' redirects <- data.frame(from = "B", to = "C", stringsAsFactors = FALSE)
-#' canonicals <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+#' redirects <- data.frame(from = "B", to = "C")
+#' canonicals <- data.frame(from = "A", to = "B")
 #' resolve_folded_urls(c("A", "B", "X"), redirects, canonicals)
 resolve_folded_urls <- function(urls,
                                 redirects_df = NULL,
@@ -239,8 +238,7 @@ resolve_folded_urls <- function(urls,
     original = urls,
     resolved = resolved,
     changed = !is.na(urls) & urls != resolved,
-    signal = signal,
-    stringsAsFactors = FALSE
+    signal = signal
   )
   attr(out, "fold_map") <- .fold_map_data_frame(fold)
   attr(out, "conflicts") <- fold$conflicts
@@ -266,8 +264,7 @@ resolve_folded_urls <- function(urls,
   out <- data.frame(
     from = names(fold$map),
     to = unname(fold$map),
-    signal = unname(fold$signal[names(fold$map)]),
-    stringsAsFactors = FALSE
+    signal = unname(fold$signal[names(fold$map)])
   )
   attr(out, "conflicts") <- fold$conflicts
   attr(out, "ignored_canonicals") <- fold$ignored_canonicals

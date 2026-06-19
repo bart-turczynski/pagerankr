@@ -108,8 +108,7 @@
 #' @examples
 #' edges <- data.frame(
 #'   from = c("/hub", "/hub", "/feeder", "/blog", "/ai", "/news"),
-#'   to = c("/ai", "/ai-demo", "/ai", "/ai", "/ai-demo", "/sports"),
-#'   stringsAsFactors = FALSE
+#'   to = c("/ai", "/ai-demo", "/ai", "/ai", "/ai-demo", "/sports")
 #' )
 #'
 #' # Which pages feed the AI-Agent cluster?
@@ -186,7 +185,7 @@ feeder_seed_prior <- function(seeds,
     stop("Cluster seed weights must be non-negative.", call. = FALSE)
   }
 
-  data.frame(url = urls, weight = wts, stringsAsFactors = FALSE)
+  data.frame(url = urls, weight = wts)
 }
 
 #' @rdname topic_feeder_pagerank

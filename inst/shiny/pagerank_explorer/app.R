@@ -142,22 +142,21 @@ server <- function(input, output, session) {
 
   # Load edges CSV
   observeEvent(input$edges_file, {
-    df <- utils::read.csv(input$edges_file$datapath, stringsAsFactors = FALSE)
+    df <- utils::read.csv(input$edges_file$datapath)
     edges_data(df)
   })
 
   # Load redirects CSV
   observeEvent(input$redirects_file, {
     df <- utils::read.csv(
-      input$redirects_file$datapath,
-      stringsAsFactors = FALSE
+      input$redirects_file$datapath
     )
     redirects_data(df)
   })
 
   # Load pre-computed PR CSV
   observeEvent(input$pr_file, {
-    df <- utils::read.csv(input$pr_file$datapath, stringsAsFactors = FALSE)
+    df <- utils::read.csv(input$pr_file$datapath)
     pr_data(df)
   })
 
@@ -200,8 +199,7 @@ server <- function(input, output, session) {
       g <- igraph::graph_from_data_frame(
         data.frame(
           from = as.character(resolved_edges[[input$from_col]]),
-          to = as.character(resolved_edges[[input$to_col]]),
-          stringsAsFactors = FALSE
+          to = as.character(resolved_edges[[input$to_col]])
         ),
         directed = TRUE
       )
@@ -295,16 +293,14 @@ server <- function(input, output, session) {
         ),
         color = grDevices::colorRampPalette(
           c("#4dabf7", "#1971c2", "#862e9c")
-        )(100)[pmax(1, pmin(100, ceiling(sub_pr / sub_max * 100)))],
-        stringsAsFactors = FALSE
+        )(100)[pmax(1, pmin(100, ceiling(sub_pr / sub_max * 100)))]
       )
 
       el <- igraph::as_edgelist(sub_g)
       edges_vis <- data.frame(
         from = el[, 1], to = el[, 2],
         arrows = "to",
-        color = "#adb5bd",
-        stringsAsFactors = FALSE
+        color = "#adb5bd"
       )
 
       visNetwork::visNetwork(nodes, edges_vis) |>

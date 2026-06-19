@@ -86,8 +86,7 @@ validate_edge_weights <- function(edge_list_df,
     n_infinite = integer(0),
     all_zero = logical(0),
     total_ok = logical(0),
-    valid = logical(0),
-    stringsAsFactors = FALSE
+    valid = logical(0)
   )
   if (nrow(edge_list_df) == 0) {
     return(empty_report)
@@ -123,8 +122,7 @@ validate_edge_weights <- function(edge_list_df,
       n_nan = sum(is.nan(values)),
       n_infinite = sum(is.infinite(values)),
       all_zero = all_zero,
-      total_ok = total_ok,
-      stringsAsFactors = FALSE
+      total_ok = total_ok
     )
   })
 

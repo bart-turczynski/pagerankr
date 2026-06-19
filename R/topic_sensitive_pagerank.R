@@ -80,8 +80,7 @@
 #' @examples
 #' edges <- data.frame(
 #'   from = c("/", "/", "/", "/ai", "/ai", "/blog", "/pricing"),
-#'   to = c("/ai", "/blog", "/pricing", "/ai-demo", "/pricing", "/ai", "/"),
-#'   stringsAsFactors = FALSE
+#'   to = c("/ai", "/blog", "/pricing", "/ai-demo", "/pricing", "/ai", "/")
 #' )
 #'
 #' # Two topics: the AI cluster and the pricing cluster.
@@ -244,7 +243,7 @@ topic_sensitive_pagerank <- function(edge_list_df,
     stop("Topic '", name, "' has no usable seed URLs.", call. = FALSE)
   }
 
-  data.frame(url = urls, weight = wts, stringsAsFactors = FALSE)
+  data.frame(url = urls, weight = wts)
 }
 
 #' Resolve and normalize topic blend weights to sum to 1.

@@ -59,8 +59,7 @@
 #' @examples
 #' edges <- data.frame(
 #'   from = c("/", "/", "/hub", "/hub", "/spam", "/good"),
-#'   to = c("/hub", "/good", "/good", "/deep", "/good", "/hub"),
-#'   stringsAsFactors = FALSE
+#'   to = c("/hub", "/good", "/good", "/deep", "/good", "/hub")
 #' )
 #'
 #' # Build a trusted-seed prior, then run it through pagerank() manually.
@@ -130,7 +129,7 @@ trust_seed_prior <- function(trusted_seeds,
     stop("Trusted-seed weights must be non-negative.", call. = FALSE)
   }
 
-  data.frame(url = urls, weight = wts, stringsAsFactors = FALSE)
+  data.frame(url = urls, weight = wts)
 }
 
 #' @rdname trustrank
