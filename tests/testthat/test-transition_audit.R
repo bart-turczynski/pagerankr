@@ -4,8 +4,7 @@ describe("transition_audit structure", {
   it("is attached to the pagerank() result and is the documented S3 class", {
     edges <- data.frame(
       from = c("A", "B", "C"),
-      to = c("B", "C", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "A")
     )
     res <- pagerank(edges, clean_edge_urls = FALSE)
 
@@ -19,7 +18,7 @@ describe("transition_audit structure", {
   })
 
   it("exposes the documented top-level fields", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     audit <- attr(pagerank(edges, clean_edge_urls = FALSE), "transition_audit")
 
     expect_setequal(
@@ -61,7 +60,7 @@ describe("transition_audit structure", {
   it("populates the mass-accounting fields (reported/sink/hidden/total)", {
     # B2 fills the reserved mass$ keys: with no evaporation or vanish, all the
     # stationary mass is reported and the total reconciles to 1.
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     audit <- attr(pagerank(edges, clean_edge_urls = FALSE), "transition_audit")
     expect_equal(audit$mass$reported, 1, tolerance = 1e-8)
     expect_equal(audit$mass$sink, 0)
@@ -70,7 +69,7 @@ describe("transition_audit structure", {
   })
 
   it("has a print method that returns its input invisibly", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     audit <- attr(pagerank(edges, clean_edge_urls = FALSE), "transition_audit")
     expect_output(print(audit), "Transition Construction Audit")
     expect_invisible(print(audit))
@@ -81,8 +80,7 @@ describe("transition_audit counts and dropped accounting", {
   it("counts input rows, scored edges and result vertices", {
     edges <- data.frame(
       from = c("A", "B", "C"),
-      to = c("B", "C", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "A")
     )
     audit <- attr(
       pagerank(edges, clean_edge_urls = FALSE, drop_isolates_flag = TRUE),
@@ -96,8 +94,7 @@ describe("transition_audit counts and dropped accounting", {
   it("accounts for duplicate rows collapsed by dedup", {
     edges <- data.frame(
       from = c("A", "A", "B"),
-      to = c("B", "B", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "B", "C")
     )
     audit <- attr(
       pagerank(edges, clean_edge_urls = FALSE),
@@ -112,8 +109,7 @@ describe("transition_audit counts and dropped accounting", {
   it("accounts for self-loops dropped under self_loops = 'drop'", {
     edges <- data.frame(
       from = c("A", "B", "B"),
-      to = c("B", "B", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "B", "C")
     )
     audit <- attr(
       pagerank(edges, clean_edge_urls = FALSE, self_loops = "drop"),
@@ -125,8 +121,7 @@ describe("transition_audit counts and dropped accounting", {
   it("accounts for rows dropped because an endpoint is NA", {
     edges <- data.frame(
       from = c("A", "B", NA),
-      to = c("B", "C", "D"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "D")
     )
     audit <- attr(
       pagerank(edges, clean_edge_urls = FALSE),
@@ -138,7 +133,7 @@ describe("transition_audit counts and dropped accounting", {
 
 describe("transition_audit coverage and normalization", {
   it("reports unweighted by default", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     audit <- attr(pagerank(edges, clean_edge_urls = FALSE), "transition_audit")
     expect_false(audit$coverage$weighted)
     expect_null(audit$coverage$weight_col)
@@ -149,8 +144,7 @@ describe("transition_audit coverage and normalization", {
     edges <- data.frame(
       from = c("A", "B", "B", "C"),
       to = c("B", "C", "A", "A"),
-      w = c(2, 0, 1, 5),
-      stringsAsFactors = FALSE
+      w = c(2, 0, 1, 5)
     )
     audit <- attr(
       pagerank(edges, clean_edge_urls = FALSE, weight_col = "w"),
@@ -167,8 +161,7 @@ describe("transition_audit coverage and normalization", {
   it("records the PageRank normalization total", {
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "A")
     )
     audit <- attr(pagerank(edges, clean_edge_urls = FALSE), "transition_audit")
     expect_equal(audit$normalization$pagerank_total, 1, tolerance = 1e-9)
@@ -179,8 +172,7 @@ describe("transition_audit configuration capture", {
   it("records the relevant pagerank() arguments", {
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "A")
     )
     audit <- attr(
       pagerank(
@@ -200,8 +192,8 @@ describe("transition_audit configuration capture", {
   })
 
   it("flags redirect usage in config", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    redirects <- data.frame(from = "B", to = "C", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
+    redirects <- data.frame(from = "B", to = "C")
     audit <- attr(
       pagerank(edges,
         redirects_df = redirects, clean_edge_urls = FALSE,
@@ -215,7 +207,7 @@ describe("transition_audit configuration capture", {
 
 describe("transition_audit prior accounting", {
   it("reports NA unmatched-prior count when no prior is supplied", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     audit <- attr(pagerank(edges, clean_edge_urls = FALSE), "transition_audit")
     expect_true(is.na(audit$dropped$n_prior_unmatched))
     expect_false(audit$config$has_prior)
@@ -224,13 +216,11 @@ describe("transition_audit prior accounting", {
   it("counts prior URLs that do not fold onto any vertex", {
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "A")
     )
     prior <- data.frame(
       url = c("A", "Z"),
-      weight = c(10, 5),
-      stringsAsFactors = FALSE
+      weight = c(10, 5)
     )
     audit <- attr(
       pagerank(

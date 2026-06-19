@@ -72,12 +72,12 @@ For every column other than `from_col` / `to_col` (and any column named in
 - **numeric / integer columns** (additive counts and click propensities) are
   summed. Repeated link instances to the same destination therefore add their
   propensities together: multiple slots pointing at one target produce more
-  total propensity, which is the correct behavioural reading.
+  total propensity, which is the correct behavioral reading.
 - **logical columns** (boolean attributes such as `nofollow`) are resolved
   with an explicit *conflict policy* (see `nofollow_policy`). They are never
   silently first-wins.
 - **all other columns** (character, factor, ...) fall back to `"first"`,
-  which reproduces the legacy keep-first behaviour for non-additive
+  which reproduces the legacy keep-first behavior for non-additive
   identifier-like columns.
 
 ## Overriding per column
@@ -126,7 +126,7 @@ aggregate_edges(edges)
 aggregate_edges(edges, nofollow_policy = "error")
 }
 
-# Preserve placement features as a list-column for later modelling.
+# Preserve placement features as a list-column for later modeling.
 edges_pos <- data.frame(
   from = c("A", "A"),
   to = c("B", "B"),

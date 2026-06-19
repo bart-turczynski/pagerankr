@@ -47,8 +47,7 @@ sf_links_fixture <- function() {
       "HTML", "HTML", "Rendered HTML", "Rendered HTML"
     ),
     `Ignored Extra` = rep("x", 9),
-    check.names = FALSE,
-    stringsAsFactors = FALSE
+    check.names = FALSE
   )
 }
 

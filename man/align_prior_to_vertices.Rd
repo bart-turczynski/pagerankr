@@ -37,7 +37,7 @@ Ahrefs are interchangeable swaps, as are equivalent counts from other
 sources (SEMrush, GA4 entrances, …). Do \strong{not} pass a calculated
 authority \emph{score} (Ahrefs UR / DR, or any 0–100 rating): scores do not
 sum across redirect variants (the correct fold would be \code{max}), and a
-per-URL score such as UR is itself a PageRank-flavoured metric, so using it
+per-URL score such as UR is itself a PageRank-flavored metric, so using it
 as the teleport prior for PageRank is circular.}
 
 \item{transform}{Character, how to shape the raw authority before it becomes

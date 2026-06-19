@@ -3,14 +3,13 @@
 make_edges <- function() {
   data.frame(
     from = c("a", "b", "c", "a", "c"),
-    to = c("b", "c", "a", "c", "b"),
-    stringsAsFactors = FALSE
+    to = c("b", "c", "a", "c", "b")
   )
 }
 
 test_that("a prior lifts the favored node above its uniform PageRank", {
   edges <- make_edges()
-  prior <- data.frame(url = "b", weight = 1000, stringsAsFactors = FALSE)
+  prior <- data.frame(url = "b", weight = 1000)
 
   uni <- pagerank(edges, clean_edge_urls = FALSE)
   tipr <- suppressMessages(
@@ -28,11 +27,10 @@ test_that("prior on a redirect SOURCE folds onto its target", {
   # T is a real vertex; S only exists as a redirect source.
   edges <- data.frame(
     from = c("a", "b", "t"),
-    to = c("t", "t", "a"),
-    stringsAsFactors = FALSE
+    to = c("t", "t", "a")
   )
-  redirects <- data.frame(from = "s", to = "t", stringsAsFactors = FALSE)
-  prior <- data.frame(url = "s", weight = 1000, stringsAsFactors = FALSE)
+  redirects <- data.frame(from = "s", to = "t")
+  prior <- data.frame(url = "s", weight = 1000)
 
   res <- suppressMessages(pagerank(
     edges,
@@ -50,10 +48,9 @@ test_that(
   "without the redirect map the prior on a source is dropped (align-only)",
   {
     edges <- data.frame(
-      from = c("a", "b"), to = c("t", "t"),
-      stringsAsFactors = FALSE
+      from = c("a", "b"), to = c("t", "t")
     )
-    prior <- data.frame(url = "s", weight = 1000, stringsAsFactors = FALSE)
+    prior <- data.frame(url = "s", weight = 1000)
 
     # No redirects: 's' never folds onto a vertex -> unmatched ->
     # uniform fallback.
@@ -72,8 +69,7 @@ test_that(
 test_that("prior_inject_unmatched surfaces orphaned authority as an isolate", {
   edges <- make_edges()
   prior <- data.frame(
-    url = c("b", "orphan"), weight = c(10, 90),
-    stringsAsFactors = FALSE
+    url = c("b", "orphan"), weight = c(10, 90)
   )
 
   without <- suppressMessages(
@@ -97,12 +93,10 @@ test_that("nofollow sink is excluded from teleport (no error, scores valid)", {
   edges <- data.frame(
     from = c("a", "a", "b"),
     to = c("b", "c", "a"),
-    nofollow = c(FALSE, TRUE, FALSE),
-    stringsAsFactors = FALSE
+    nofollow = c(FALSE, TRUE, FALSE)
   )
   prior <- data.frame(
-    url = c("a", "b", "c"), weight = c(1, 1, 1),
-    stringsAsFactors = FALSE
+    url = c("a", "b", "c"), weight = c(1, 1, 1)
   )
   res <- suppressMessages(pagerank(
     edges,
@@ -116,14 +110,12 @@ test_that("nofollow sink is excluded from teleport (no error, scores valid)", {
 test_that("prior URLs are canonicalized with the same rurl settings as edges", {
   edges <- data.frame(
     from = c("https://x.com/a", "https://x.com/b"),
-    to = c("https://x.com/b", "https://x.com/a"),
-    stringsAsFactors = FALSE
+    to = c("https://x.com/b", "https://x.com/a")
   )
   # Same logical page, differently cased SCHEME (rurl normalizes the scheme);
   # cleaning must bring the prior into the same namespace as the edges.
   prior <- data.frame(
-    url = "HTTPS://x.com/a", weight = 100,
-    stringsAsFactors = FALSE
+    url = "HTTPS://x.com/a", weight = 100
   )
   res <- suppressMessages(
     pagerank(edges, prior_df = prior, clean_edge_urls = TRUE)

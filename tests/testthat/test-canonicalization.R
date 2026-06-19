@@ -17,7 +17,7 @@ describe(".canonical_profile", {
     expect_equal(profile$case_handling, "lower_host")
   })
 
-  it("mirrors rurl's current defaults (so pinning is behaviour-preserving)", {
+  it("mirrors rurl's current defaults (so pinning is behavior-preserving)", {
     profile <- pagerankr:::.canonical_profile()
     defaults <- formals(rurl::get_clean_url)
     for (k in names(profile)) {
@@ -57,13 +57,13 @@ describe(".resolve_rurl_params", {
   })
 })
 
-describe("profile is behaviour-preserving end to end", {
+describe("profile is behavior-preserving end to end", {
   it("clean_url_columns matches rurl defaults when no overrides are given", {
     urls <- c(
       "HTTP://WWW.Example.COM/Path/", "https://sub.example.co.uk/a?b=1#f",
       "example.org/index.html"
     )
-    df <- data.frame(from = urls, to = urls, stringsAsFactors = FALSE)
+    df <- data.frame(from = urls, to = urls)
     cleaned <- clean_url_columns(df, columns = "from")
     expect_equal(unname(cleaned$from), unname(rurl::get_clean_url(urls)))
   })

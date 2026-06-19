@@ -4,8 +4,7 @@ describe("pagerank_grid basic functionality", {
   it("runs multiple parameter sets and returns combined results", {
     edges <- data.frame(
       from = c("A", "B", "C"),
-      to = c("B", "C", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "A")
     )
     params <- list(
       low_damp = list(damping = 0.50),
@@ -21,7 +20,7 @@ describe("pagerank_grid basic functionality", {
   })
 
   it("model_id column is first", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     params <- list(m1 = list(damping = 0.85))
     grid <- pagerank_grid(edges, params, clean_edge_urls = FALSE)
     expect_equal(names(grid)[1], "model_id")
@@ -30,8 +29,7 @@ describe("pagerank_grid basic functionality", {
   it("model-specific params override common params", {
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "A")
     )
     params <- list(
       override = list(damping = 0.99)
@@ -47,13 +45,11 @@ describe("pagerank_grid basic functionality", {
   it("passes shared redirects_df", {
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C")
     )
     redirects <- data.frame(
       from = "C",
-      to = "A",
-      stringsAsFactors = FALSE
+      to = "A"
     )
     params <- list(
       m1 = list(damping = 0.85)
@@ -62,12 +58,12 @@ describe("pagerank_grid basic functionality", {
       redirects_df = redirects,
       clean_edge_urls = FALSE
     )
-    expect_true(nrow(grid) > 0)
+    expect_gt(nrow(grid), 0)
     expect_equal(grid$model_id[1], "m1")
   })
 
   it("errors on invalid params_grid", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(pagerank_grid(edges, list()), "non-empty")
     expect_error(pagerank_grid(edges, list(list())), "must be named")
     expect_error(
@@ -79,8 +75,7 @@ describe("pagerank_grid basic functionality", {
   it("works with single-model grid", {
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "A")
     )
     params <- list(baseline = list())
     grid <- pagerank_grid(edges, params, clean_edge_urls = FALSE)
@@ -94,7 +89,7 @@ describe("pagerank_grid basic functionality", {
 
   it("handles model that returns empty results", {
     # An edge list that, after cleaning, has no valid edges for a model
-    edges <- data.frame(from = c("A"), to = c(NA), stringsAsFactors = FALSE)
+    edges <- data.frame(from = c("A"), to = c(NA))
     params <- list(
       m1 = list(clean_edge_urls = FALSE, drop_isolates_flag = TRUE)
     )

@@ -1,8 +1,7 @@
 test_that("linear share is proportional to weight and sums to 1", {
   v <- c("a", "b", "c")
   prior <- data.frame(
-    url = c("a", "b"), weight = c(900, 100),
-    stringsAsFactors = FALSE
+    url = c("a", "b"), weight = c(900, 100)
   )
   p <- align_prior_to_vertices(v, prior, verbose = FALSE)
 
@@ -14,8 +13,7 @@ test_that("linear share is proportional to weight and sums to 1", {
 test_that("multiple rows for the same URL are summed (raw, additive)", {
   v <- c("a", "b")
   prior <- data.frame(
-    url = c("a", "a", "b"), weight = c(600, 300, 100),
-    stringsAsFactors = FALSE
+    url = c("a", "a", "b"), weight = c(600, 300, 100)
   )
   p <- align_prior_to_vertices(v, prior, verbose = FALSE)
   expect_equal(p[1] / p[2], 9) # ratio of 600 plus 300 to 100
@@ -24,8 +22,7 @@ test_that("multiple rows for the same URL are summed (raw, additive)", {
 test_that("excluded (synthetic) nodes get exactly zero in both components", {
   v <- c("a", "b", "__pr_nofollow_sink__")
   prior <- data.frame(
-    url = c("a", "b"), weight = c(50, 50),
-    stringsAsFactors = FALSE
+    url = c("a", "b"), weight = c(50, 50)
   )
   p_auth <- align_prior_to_vertices(v, prior,
     exclude_nodes = "__pr_nofollow_sink__",
@@ -47,14 +44,14 @@ test_that("excluded (synthetic) nodes get exactly zero in both components", {
 
 test_that("alpha=1 reproduces uniform teleport over real vertices", {
   v <- c("a", "b", "c", "d")
-  prior <- data.frame(url = "a", weight = 999, stringsAsFactors = FALSE)
+  prior <- data.frame(url = "a", weight = 999)
   p <- align_prior_to_vertices(v, prior, alpha = 1, verbose = FALSE)
   expect_equal(p, rep(0.25, 4))
 })
 
 test_that("alpha mixes uniform and authority", {
   v <- c("a", "b")
-  prior <- data.frame(url = "a", weight = 100, stringsAsFactors = FALSE)
+  prior <- data.frame(url = "a", weight = 100)
   # p = 0.5*uniform(0.5,0.5) + 0.5*authority(1,0) = (0.75, 0.25)
   p <- align_prior_to_vertices(v, prior, alpha = 0.5, verbose = FALSE)
   expect_equal(unname(p), c(0.75, 0.25))
@@ -63,8 +60,7 @@ test_that("alpha mixes uniform and authority", {
 test_that("log transform compresses the dynamic range vs linear", {
   v <- c("a", "b")
   prior <- data.frame(
-    url = c("a", "b"), weight = c(1000, 1),
-    stringsAsFactors = FALSE
+    url = c("a", "b"), weight = c(1000, 1)
   )
   lin <- align_prior_to_vertices(v, prior, transform = "none", verbose = FALSE)
   lg <- align_prior_to_vertices(v, prior, transform = "log", verbose = FALSE)
@@ -73,7 +69,7 @@ test_that("log transform compresses the dynamic range vs linear", {
 
 test_that("vertices absent from the prior get zero under alpha=0", {
   v <- c("a", "b", "c")
-  prior <- data.frame(url = "a", weight = 10, stringsAsFactors = FALSE)
+  prior <- data.frame(url = "a", weight = 10)
   p <- align_prior_to_vertices(v, prior, verbose = FALSE)
   expect_equal(p[2], 0)
   expect_equal(p[3], 0)
@@ -82,7 +78,7 @@ test_that("vertices absent from the prior get zero under alpha=0", {
 
 test_that("a fully-unmatched prior falls back to uniform with a warning", {
   v <- c("a", "b")
-  prior <- data.frame(url = "zzz", weight = 5, stringsAsFactors = FALSE)
+  prior <- data.frame(url = "zzz", weight = 5)
   expect_warning(
     p <- align_prior_to_vertices(v, prior, verbose = TRUE),
     "matched no vertices"
@@ -98,8 +94,7 @@ test_that("alternative count metric is swappable via prior_weight_col", {
   prior <- data.frame(
     url = c("a", "b", "c"),
     ref_domains = c(900, 100, 0),
-    links_to_target = c(100, 100, 800),
-    stringsAsFactors = FALSE
+    links_to_target = c(100, 100, 800)
   )
 
   rd <- align_prior_to_vertices(v, prior,
@@ -121,8 +116,7 @@ test_that("swapped count metric still folds duplicate URLs by summation", {
   v <- c("a", "b")
   prior <- data.frame(
     url = c("a", "a", "b"),
-    links_to_target = c(40, 20, 30),
-    stringsAsFactors = FALSE
+    links_to_target = c(40, 20, 30)
   )
   p <- align_prior_to_vertices(v, prior,
     prior_weight_col = "links_to_target",
@@ -161,8 +155,7 @@ test_that("validation rejects bad alpha and missing columns", {
 test_that("coverage diagnostics report dropped (unmatched) prior weight", {
   v <- c("a")
   prior <- data.frame(
-    url = c("a", "gone"), weight = c(10, 40),
-    stringsAsFactors = FALSE
+    url = c("a", "gone"), weight = c(10, 40)
   )
   expect_message(
     align_prior_to_vertices(v, prior, verbose = TRUE),

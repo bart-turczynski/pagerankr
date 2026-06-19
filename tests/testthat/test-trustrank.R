@@ -5,8 +5,7 @@
 make_trust_site <- function() {
   data.frame(
     from = c("/", "/", "/hub", "/hub", "/good", "/spam", "/spam"),
-    to = c("/hub", "/good", "/good", "/deep", "/hub", "/sink", "/good"),
-    stringsAsFactors = FALSE
+    to = c("/hub", "/good", "/good", "/deep", "/hub", "/sink", "/good")
   )
 }
 
@@ -35,8 +34,7 @@ test_that("trust_seed_prior() honors scalar and per-seed weights", {
 
 test_that("trust_seed_prior() accepts a data frame with custom columns", {
   seeds <- data.frame(
-    page = c("/", "/hub"), trust = c(2, 1),
-    stringsAsFactors = FALSE
+    page = c("/", "/hub"), trust = c(2, 1)
   )
   prior <- trust_seed_prior(
     seeds,
@@ -115,10 +113,9 @@ test_that("trustrank() equals pagerank() with the equivalent seed prior", {
 test_that("trusted seeds on redirect sources fold onto their targets", {
   # S only exists as a redirect source; it should fold to T and seed T.
   edges <- data.frame(
-    from = c("a", "b", "t"), to = c("t", "t", "a"),
-    stringsAsFactors = FALSE
+    from = c("a", "b", "t"), to = c("t", "t", "a")
   )
-  redirects <- data.frame(from = "s", to = "t", stringsAsFactors = FALSE)
+  redirects <- data.frame(from = "s", to = "t")
   tr <- run_tr(
     edges, "s",
     redirects_df = redirects,

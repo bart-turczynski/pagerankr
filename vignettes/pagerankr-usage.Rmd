@@ -22,7 +22,7 @@ library(pagerankr)
 ## Introduction
 
 The `pagerankr` package provides an SEO-focused toolkit for calculating,
-comparing, and analysing PageRank scores from web crawl data. It handles
+comparing, and analyzing PageRank scores from web crawl data. It handles
 the full pipeline from raw crawl exports (edge lists, redirect reports,
 nofollow annotations, indexability status) to actionable insights.
 
@@ -34,7 +34,7 @@ The package offers:
 - **What-if simulation** -- test link/redirect changes before production
 
 All data manipulation uses base R. `igraph` powers the PageRank algorithm
-and graph-based redirect resolution. `rurl` handles URL canonicalisation.
+and graph-based redirect resolution. `rurl` handles URL canonicalization.
 
 ## Installation
 
@@ -139,7 +139,7 @@ redirects to C, then A resolves to C.
 ### Conflicting redirects
 
 Crawl data often has the same URL redirecting to different targets.
-Use `duplicate_from_policy` to control the behaviour:
+Use `duplicate_from_policy` to control the behavior:
 
 ```{r redirects_conflict}
 redirects_conflict <- data.frame(
@@ -161,7 +161,7 @@ Available policies: `strict` (default, errors on conflict), `first_wins`,
 ### Redirect loops
 
 Redirect cycles (A -> B -> C -> A) are detected via strongly connected
-components. Use `loop_handling` to control behaviour:
+components. Use `loop_handling` to control behavior:
 
 ```{r redirects_loops}
 edges_loop <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
@@ -327,7 +327,7 @@ pr <- pagerank(edges, weight_col = "weight", clean_edge_urls = FALSE)
 print(pr)
 ```
 
-Duplicate `from -> to` rows are a separate modelling choice. By default,
+Duplicate `from -> to` rows are a separate modeling choice. By default,
 `pagerank()` uses `duplicate_edge_policy = "collapse"`: repeated links from one
 source page to the same destination become one binary destination edge, matching
 the common textbook PageRank convention and preserving legacy results. Use
@@ -730,7 +730,7 @@ sufficient for local development.
 
 `ga4_page_transitions()` walks each user-session in chronological order and
 emits one row per consecutive page-view pair. The result is a **transition
-signal** (observed navigation behaviour), not a link-click signal, so it
+signal** (observed navigation behavior), not a link-click signal, so it
 reflects where users actually go rather than where crawlable anchor tags point.
 
 ```{r ga4_transitions}
@@ -877,7 +877,7 @@ values that may contain query strings or fragments.
 | `analyze_pagerank_grid()` | Distribution metrics across a grid |
 | `filter_links_by_domain()` | Scope edges by domain |
 | `resolve_redirects()` | Apply redirects to an edge list |
-| `clean_url_columns()` | Canonicalise URLs |
+| `clean_url_columns()` | Canonicalize URLs |
 | `get_unique_edges()` | Deduplicate, handle self-loops |
 | `drop_isolates()` | Include/exclude disconnected nodes |
 | `compute_pagerank()` | Low-level igraph PR wrapper |

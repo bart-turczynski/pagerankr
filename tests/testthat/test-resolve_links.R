@@ -4,19 +4,17 @@ describe("resolve_links basic functionality", {
   it("resolves redirects and deduplicates edges", {
     edges <- data.frame(
       from = c("A", "B", "C", "A"),
-      to = c("B", "C", "D", "B"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "D", "B")
     )
     redirects <- data.frame(
       from = c("B", "C"),
-      to = c("B_final", "C_final"),
-      stringsAsFactors = FALSE
+      to = c("B_final", "C_final")
     )
     result <- resolve_links(edges, redirects, clean_urls = FALSE)
     # B -> B_final, C -> C_final in both from and to columns
     # Duplicate A -> B_final should be collapsed
     expect_true(is.data.frame(result))
-    expect_true(nrow(result) > 0)
+    expect_gt(nrow(result), 0)
     # All references to B and C should be resolved
     expect_false("B" %in% c(result$from, result$to))
     expect_false("C" %in% c(result$from, result$to))
@@ -25,8 +23,7 @@ describe("resolve_links basic functionality", {
   it("works without redirects (just dedup)", {
     edges <- data.frame(
       from = c("A", "A", "B"),
-      to = c("B", "B", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "B", "C")
     )
     result <- resolve_links(edges, clean_urls = FALSE)
     expect_equal(nrow(result), 2) # A->B deduped, B->C stays
@@ -35,7 +32,7 @@ describe("resolve_links basic functionality", {
 
   it("works with NULL redirects", {
     edges <- data.frame(
-      from = c("A", "B"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "B"), to = c("B", "C")
     )
     result <- resolve_links(edges, redirects_df = NULL, clean_urls = FALSE)
     expect_equal(nrow(result), 2)
@@ -43,10 +40,10 @@ describe("resolve_links basic functionality", {
 
   it("drops self-loops by default", {
     edges <- data.frame(
-      from = c("A", "B"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "B"), to = c("B", "C")
     )
     redirects <- data.frame(
-      from = "B", to = "A", stringsAsFactors = FALSE
+      from = "B", to = "A"
     )
     result <- resolve_links(edges, redirects, clean_urls = FALSE)
     # A -> B becomes A -> A (self-loop) after redirect B -> A
@@ -57,10 +54,10 @@ describe("resolve_links basic functionality", {
 
   it("keeps self-loops when self_loops = 'keep'", {
     edges <- data.frame(
-      from = c("A", "B"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "B"), to = c("B", "C")
     )
     redirects <- data.frame(
-      from = "B", to = "A", stringsAsFactors = FALSE
+      from = "B", to = "A"
     )
     result <- resolve_links(edges, redirects,
       self_loops = "keep",
@@ -82,7 +79,7 @@ describe("resolve_links input validation", {
   })
 
   it("errors on missing columns", {
-    edges <- data.frame(x = "A", y = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(x = "A", y = "B")
     expect_error(
       resolve_links(edges, clean_urls = FALSE),
       regexp = "must have"
@@ -90,7 +87,7 @@ describe("resolve_links input validation", {
   })
 
   it("errors on non-data-frame redirects_df", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(
       resolve_links(edges, redirects_df = "not a df", clean_urls = FALSE),
       regexp = "must be a data frame or NULL"
@@ -98,7 +95,7 @@ describe("resolve_links input validation", {
   })
 
   it("errors on invalid clean_urls", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(
       resolve_links(edges, clean_urls = "yes"),
       regexp = "must be TRUE or FALSE"
@@ -109,9 +106,9 @@ describe("resolve_links input validation", {
 
 describe("resolve_links policy passthrough", {
   it("passes duplicate_from_policy to resolve_redirects", {
-    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "X", to = "A")
     redirects <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C")
     )
     # strict should error
     expect_error(
@@ -127,9 +124,9 @@ describe("resolve_links policy passthrough", {
   })
 
   it("passes loop_handling to resolve_redirects", {
-    edges <- data.frame(from = "X", to = "A", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "X", to = "A")
     redirects <- data.frame(
-      from = c("A", "B"), to = c("B", "A"), stringsAsFactors = FALSE
+      from = c("A", "B"), to = c("B", "A")
     )
     # error should error
     expect_error(
@@ -149,10 +146,10 @@ describe("resolve_links policy passthrough", {
 describe("resolve_links custom column names", {
   it("works with custom column names", {
     edges <- data.frame(
-      source = c("A", "B"), target = c("B", "C"), stringsAsFactors = FALSE
+      source = c("A", "B"), target = c("B", "C")
     )
     redirects <- data.frame(
-      old_url = "B", new_url = "B_final", stringsAsFactors = FALSE
+      old_url = "B", new_url = "B_final"
     )
     result <- resolve_links(edges, redirects,
       clean_urls = FALSE,
@@ -172,12 +169,11 @@ describe("resolve_links with URL cleaning", {
     # Use real-looking URLs so rurl::clean_url can process them
     edges <- data.frame(
       from = c("http://example.com/a/", "http://example.com/b/"),
-      to = c("http://example.com/b/", "http://example.com/c/"),
-      stringsAsFactors = FALSE
+      to = c("http://example.com/b/", "http://example.com/c/")
     )
     result <- resolve_links(edges, clean_urls = TRUE)
     expect_true(is.data.frame(result))
-    expect_true(nrow(result) > 0)
+    expect_gt(nrow(result), 0)
     # The function should return a valid edge list
     expect_true(all(c("from", "to") %in% names(result)))
   })
@@ -185,17 +181,15 @@ describe("resolve_links with URL cleaning", {
   it("cleans redirect URLs when clean_urls = TRUE", {
     edges <- data.frame(
       from = c("http://example.com/a/"),
-      to = c("http://example.com/b/"),
-      stringsAsFactors = FALSE
+      to = c("http://example.com/b/")
     )
     redirects <- data.frame(
       from = "http://example.com/b/",
-      to = "http://example.com/c/",
-      stringsAsFactors = FALSE
+      to = "http://example.com/c/"
     )
     result <- resolve_links(edges, redirects, clean_urls = TRUE)
     expect_true(is.data.frame(result))
-    expect_true(nrow(result) > 0)
+    expect_gt(nrow(result), 0)
   })
 })
 
@@ -205,8 +199,7 @@ describe("resolve_links preserves extra columns", {
     edges <- data.frame(
       from = c("A", "B"),
       to = c("B", "C"),
-      weight = c(1.0, 2.0),
-      stringsAsFactors = FALSE
+      weight = c(1.0, 2.0)
     )
     result <- resolve_links(edges, clean_urls = FALSE)
     expect_true("weight" %in% names(result))
@@ -216,11 +209,10 @@ describe("resolve_links preserves extra columns", {
 
 describe("resolve_links chain resolution", {
   it("resolves multi-hop chains", {
-    edges <- data.frame(from = "Start", to = "A", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "Start", to = "A")
     redirects <- data.frame(
       from = c("A", "B", "C"),
-      to = c("B", "C", "Final"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "Final")
     )
     result <- resolve_links(edges, redirects, clean_urls = FALSE)
     expect_equal(result$to, "Final")
@@ -228,10 +220,10 @@ describe("resolve_links chain resolution", {
 
   it("handles convergent redirects (diamond)", {
     edges <- data.frame(
-      from = c("X", "Y"), to = c("A", "B"), stringsAsFactors = FALSE
+      from = c("X", "Y"), to = c("A", "B")
     )
     redirects <- data.frame(
-      from = c("A", "B"), to = c("Final", "Final"), stringsAsFactors = FALSE
+      from = c("A", "B"), to = c("Final", "Final")
     )
     result <- resolve_links(edges, redirects, clean_urls = FALSE)
     # X -> Final and Y -> Final

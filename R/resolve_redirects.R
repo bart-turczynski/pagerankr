@@ -133,10 +133,11 @@ resolve_redirects <- function(edge_list_df,
   }
   if (nrow(edge_list_df) > 0 &&
         !all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
-    stop(paste0(
+    stop(
       "`edge_list_df` must have '", edge_from_col, "' and '",
-      edge_to_col, "' columns if not empty."
-    ), call. = FALSE)
+      edge_to_col, "' columns if not empty.",
+      call. = FALSE
+    )
   }
 
   if (!is.data.frame(redirects_df)) {

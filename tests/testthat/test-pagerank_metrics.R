@@ -47,7 +47,7 @@ describe("pr_entropy", {
     expect_true(is.na(pr_entropy(c(0, 0, 0))))
   })
 
-  it("normalises input to sum to 1", {
+  it("normalizes input to sum to 1", {
     # c(2, 2, 2) and c(1/3, 1/3, 1/3) should give the same entropy
     expect_equal(pr_entropy(c(2, 2, 2)), pr_entropy(c(1 / 3, 1 / 3, 1 / 3)),
       tolerance = 1e-9

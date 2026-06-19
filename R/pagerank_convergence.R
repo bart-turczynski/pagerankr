@@ -16,7 +16,7 @@
 #'     It is fast and exact to machine precision, but it is **not** iterative in
 #'     any way it exposes: there is no iteration count and no tolerance knob, so
 #'     `iters` is reported as `NA` and `eps` / `niter` have no effect.}
-#'   \item{`"arpack"`}{An iterative eigensolver. It honours a tolerance and a
+#'   \item{`"arpack"`}{An iterative eigensolver. It honors a tolerance and a
 #'     maximum iteration count and reports the iterations it actually used and
 #'     whether it converged. This is the only back-end on which `eps` and
 #'     `niter` take effect; supplying either to [compute_pagerank()] /

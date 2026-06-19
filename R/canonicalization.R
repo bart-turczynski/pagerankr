@@ -9,7 +9,7 @@
 #' @details The canonical node key is **scheme + host + path** (port, query,
 #'   fragment and userinfo are dropped by `get_clean_url`). These ten arguments
 #'   fix exactly how that key is derived. The values below intentionally mirror
-#'   `rurl`'s current defaults, so pinning them is behaviour-preserving today
+#'   `rurl`'s current defaults, so pinning them is behavior-preserving today
 #'   and purely guards against future default drift.
 #'
 #'   The same ten arguments are accepted by both `rurl::get_clean_url()` (the

@@ -9,8 +9,7 @@ describe("ga4_page_transitions: basic edge list", {
       event_timestamp = c(100, 200, 300, 100, 200),
       batch_page_id = c(0, 1, 2, 0, 1),
       batch_ordering_id = c(0, 0, 0, 0, 0),
-      batch_event_index = c(0, 1, 2, 0, 1),
-      stringsAsFactors = FALSE
+      batch_event_index = c(0, 1, 2, 0, 1)
     )
     res <- ga4_page_transitions(events)
 
@@ -32,13 +31,12 @@ describe("ga4_page_transitions: basic edge list", {
       user_pseudo_id = c("u1", "u1", "u1"),
       ga_session_id = c(1, 1, 1),
       page_location = c("/a", "/b", "/c"),
-      event_timestamp = c(1, 2, 3),
-      stringsAsFactors = FALSE
+      event_timestamp = c(1, 2, 3)
     )
     res <- ga4_page_transitions(events)
     pr <- pagerank(res, weight_col = "n", clean_edge_urls = FALSE)
     expect_true(is.data.frame(pr))
-    expect_true(nrow(pr) >= 3)
+    expect_gte(nrow(pr), 3)
   })
 })
 
@@ -54,8 +52,7 @@ describe("ga4_page_transitions: deterministic ordering with tied timestamps", {
       event_timestamp = c(500, 500, 500), # all tied
       batch_page_id = c(0, 0, 0),
       batch_ordering_id = c(0, 0, 0),
-      batch_event_index = c(0, 1, 2), # true client order
-      stringsAsFactors = FALSE
+      batch_event_index = c(0, 1, 2) # true client order
     )
     e[row_order, , drop = FALSE]
   }
@@ -68,8 +65,7 @@ describe("ga4_page_transitions: deterministic ordering with tied timestamps", {
       res[order(res$from), c("from", "to")],
       data.frame(
         from = c("/p1", "/p2"),
-        to = c("/p2", "/p3"),
-        stringsAsFactors = FALSE
+        to = c("/p2", "/p3")
       ),
       ignore_attr = TRUE
     )
@@ -95,8 +91,7 @@ describe("ga4_page_transitions: deterministic ordering with tied timestamps", {
       event_timestamp = c(7, 7, 7),
       batch_page_id = c(2, 0, 1),
       batch_ordering_id = c(0, 0, 0),
-      batch_event_index = c(0, 0, 0),
-      stringsAsFactors = FALSE
+      batch_event_index = c(0, 0, 0)
     )
     res <- ga4_page_transitions(e)
     # Order is /first -> /second -> /third.
@@ -113,8 +108,7 @@ describe("ga4_page_transitions: session boundaries", {
       user_pseudo_id = c("u1", "u1", "u1"),
       ga_session_id = c(1, 1, 2), # last view is a new session
       page_location = c("/a", "/b", "/c"),
-      event_timestamp = c(1, 2, 3),
-      stringsAsFactors = FALSE
+      event_timestamp = c(1, 2, 3)
     )
     res <- ga4_page_transitions(events)
     # /b -> /c crosses a session boundary and must not appear.
@@ -127,8 +121,7 @@ describe("ga4_page_transitions: session boundaries", {
       user_pseudo_id = c("u1", "u2"),
       ga_session_id = c(1, 1), # same session id, different user
       page_location = c("/a", "/b"),
-      event_timestamp = c(1, 2),
-      stringsAsFactors = FALSE
+      event_timestamp = c(1, 2)
     )
     res <- ga4_page_transitions(events)
     expect_equal(nrow(res), 0L)
@@ -143,8 +136,7 @@ describe("ga4_page_transitions: self-transitions", {
       user_pseudo_id = c("u1", "u1", "u1"),
       ga_session_id = c(1, 1, 1),
       page_location = c("/a", "/a", "/b"),
-      event_timestamp = c(1, 2, 3),
-      stringsAsFactors = FALSE
+      event_timestamp = c(1, 2, 3)
     )
     res <- ga4_page_transitions(events)
     expect_false(any(res$from == "/a" & res$to == "/a"))
@@ -156,8 +148,7 @@ describe("ga4_page_transitions: self-transitions", {
       user_pseudo_id = c("u1", "u1"),
       ga_session_id = c(1, 1),
       page_location = c("/a", "/a"),
-      event_timestamp = c(1, 2),
-      stringsAsFactors = FALSE
+      event_timestamp = c(1, 2)
     )
     res <- ga4_page_transitions(events, drop_self_transitions = FALSE)
     expect_equal(res$n[res$from == "/a" & res$to == "/a"], 1L)
@@ -171,8 +162,7 @@ describe("ga4_page_transitions: custom column names", {
       uid = c("u1", "u1"),
       sess = c(1, 1),
       page = c("/x", "/y"),
-      ts = c(1, 2),
-      stringsAsFactors = FALSE
+      ts = c(1, 2)
     )
     res <- ga4_page_transitions(
       events,
@@ -193,8 +183,7 @@ describe("ga4_page_transitions: custom column names", {
       user_pseudo_id = c("u1", "u1"),
       ga_session_id = c(1, 1),
       page_location = c("/a", "/b"),
-      event_timestamp = c(1, 2),
-      stringsAsFactors = FALSE
+      event_timestamp = c(1, 2)
     )
     expect_silent(ga4_page_transitions(events))
   })
@@ -207,8 +196,7 @@ describe("ga4_page_transitions: edge cases", {
       user_pseudo_id = character(0),
       ga_session_id = numeric(0),
       page_location = character(0),
-      event_timestamp = numeric(0),
-      stringsAsFactors = FALSE
+      event_timestamp = numeric(0)
     )
     res <- ga4_page_transitions(events)
     expect_equal(nrow(res), 0L)
@@ -220,8 +208,7 @@ describe("ga4_page_transitions: edge cases", {
       user_pseudo_id = c("u1", "u2"),
       ga_session_id = c(1, 1),
       page_location = c("/a", "/b"),
-      event_timestamp = c(1, 1),
-      stringsAsFactors = FALSE
+      event_timestamp = c(1, 1)
     )
     res <- ga4_page_transitions(events)
     expect_equal(nrow(res), 0L)
@@ -232,8 +219,7 @@ describe("ga4_page_transitions: edge cases", {
       user_pseudo_id = c("u1", "u1", "u1"),
       ga_session_id = c(1, 1, 1),
       page_location = c("/a", NA, "/b"),
-      event_timestamp = c(1, 2, 3),
-      stringsAsFactors = FALSE
+      event_timestamp = c(1, 2, 3)
     )
     res <- ga4_page_transitions(events)
     # /a->NA and NA->/b both dropped; no usable transition remains.
@@ -251,8 +237,7 @@ describe("ga4_page_transitions: validation", {
     events <- data.frame(
       user_pseudo_id = "u1",
       ga_session_id = 1,
-      page_location = "/a",
-      stringsAsFactors = FALSE
+      page_location = "/a"
     )
     expect_error(
       ga4_page_transitions(events),
@@ -263,8 +248,7 @@ describe("ga4_page_transitions: validation", {
   it("errors on a bad drop_self_transitions flag", {
     events <- data.frame(
       user_pseudo_id = "u1", ga_session_id = 1,
-      page_location = "/a", event_timestamp = 1,
-      stringsAsFactors = FALSE
+      page_location = "/a", event_timestamp = 1
     )
     expect_error(
       ga4_page_transitions(events, drop_self_transitions = "yes"),

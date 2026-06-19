@@ -4,8 +4,7 @@ describe("analyze_pagerank_grid", {
   it("computes metrics for each model in a grid result", {
     edges <- data.frame(
       from = c("A", "B", "C"),
-      to = c("B", "C", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "A")
     )
     params <- list(
       low = list(damping = 0.5),
@@ -32,8 +31,7 @@ describe("analyze_pagerank_grid", {
     grid <- data.frame(
       model_id = rep("only", 3),
       node_name = c("A", "B", "C"),
-      pagerank = c(0.5, 0.3, 0.2),
-      stringsAsFactors = FALSE
+      pagerank = c(0.5, 0.3, 0.2)
     )
     analysis <- analyze_pagerank_grid(grid)
     expect_equal(nrow(analysis), 1)
@@ -52,12 +50,12 @@ describe("analyze_pagerank_grid", {
   })
 
   it("errors when model_id_col is missing", {
-    df <- data.frame(pagerank = 0.5, stringsAsFactors = FALSE)
+    df <- data.frame(pagerank = 0.5)
     expect_error(analyze_pagerank_grid(df), "not found")
   })
 
   it("errors when pr_col is missing", {
-    df <- data.frame(model_id = "m1", wrong = 0.5, stringsAsFactors = FALSE)
+    df <- data.frame(model_id = "m1", wrong = 0.5)
     expect_error(analyze_pagerank_grid(df), "not found")
   })
 })

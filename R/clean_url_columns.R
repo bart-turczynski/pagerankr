@@ -45,7 +45,7 @@
 #' (`protocol_handling = "keep"`, `case_handling = "lower_host"`, and the
 #' remaining knobs at their faithful defaults) so node identities do not depend
 #' on `rurl`'s own (version-dependent) defaults. The values mirror `rurl`'s
-#' current defaults, so this is behaviour-preserving; it guards against future
+#' current defaults, so this is behavior-preserving; it guards against future
 #' default drift and keeps the cleaning and domain-filtering paths symmetrical.
 #'
 #' NA values in the specified columns are preserved in the output. Downstream
@@ -57,11 +57,13 @@ clean_url_columns <- function(data_frame,
   if (!is.data.frame(data_frame)) {
     stop("`data_frame` must be a data frame.", call. = FALSE)
   }
-  if (!is.character(columns) ||
-        !all(sapply(columns, function(cn) cn %in% names(data_frame)))) {
+  cols_exist <- vapply(
+    columns, function(cn) cn %in% names(data_frame), logical(1L)
+  )
+  if (!is.character(columns) || !all(cols_exist)) {
     # Ensure all specified columns actually exist
     missing_cols <- columns[
-      !sapply(columns, function(cn) cn %in% names(data_frame))
+      !cols_exist
     ]
     if (length(missing_cols) > 0) {
       stop("Column(s) not found in `data_frame`: ",
@@ -103,7 +105,7 @@ clean_url_columns <- function(data_frame,
       # Apply the map back to the original column structure, preserving NAs.
       new_column_values <- character(length(original_column_as_char))
       is_na_in_original <- is.na(original_column_as_char)
-      if (any(!is_na_in_original)) {
+      if (!all(is_na_in_original)) {
         new_column_values[!is_na_in_original] <-
           cleaned_url_lookup[original_column_as_char[!is_na_in_original]]
       }

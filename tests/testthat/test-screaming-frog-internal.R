@@ -65,8 +65,7 @@ sf_internal_fixture <- function() {
     Outlinks = rep("4", 12),
     `Response Time` = rep("0.125", 12),
     `Ignored Enrichment` = rep("extra", 12),
-    check.names = FALSE,
-    stringsAsFactors = FALSE
+    check.names = FALSE
   )
 }
 
@@ -111,8 +110,7 @@ describe("screaming_frog_internal()", {
         to = c(
           "https://example.com/",
           "https://example.com/"
-        ),
-        stringsAsFactors = FALSE
+        )
       )
     )
     expect_equal(result$diagnostics$self_canonical_rows, 1L)

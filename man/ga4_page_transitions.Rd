@@ -104,7 +104,7 @@ Builds consecutive-page-view **transition counts** from a
   order events were recorded on the client) break the tie so the ordering is
   stable and reproducible. Any tie-break column that is absent from
   `events_df` is simply skipped, but supplying all of them is strongly
-  recommended to guarantee a deterministic order. As a final stabiliser the
+  recommended to guarantee a deterministic order. As a final stabilizer the
   original row order of `events_df` is used, so the result never depends on
   the platform's sort implementation.
 

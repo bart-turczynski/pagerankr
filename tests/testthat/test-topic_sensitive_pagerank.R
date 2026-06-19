@@ -8,8 +8,7 @@ make_site <- function() {
     from = c("/", "/", "/", "/ai", "/ai", "/ai-demo", "/blog", "/pricing"),
     to = c(
       "/ai", "/blog", "/pricing", "/ai-demo", "/pricing", "/ai", "/ai", "/"
-    ),
-    stringsAsFactors = FALSE
+    )
   )
 }
 
@@ -77,7 +76,7 @@ test_that("equal weights are the default and weights normalize to sum 1", {
 
 test_that("a single topic reproduces the equivalent prior_df pagerank run", {
   edges <- make_site()
-  prior <- data.frame(url = "/ai", weight = 1, stringsAsFactors = FALSE)
+  prior <- data.frame(url = "/ai", weight = 1)
   direct <- suppressMessages(
     pagerank(edges, prior_df = prior, clean_edge_urls = FALSE)
   )
@@ -96,8 +95,7 @@ test_that("a single topic reproduces the equivalent prior_df pagerank run", {
 test_that("weighted-seed data-frame topics are accepted", {
   topics <- list(
     ai = data.frame(
-      url = c("/ai", "/ai-demo"), weight = c(3, 1),
-      stringsAsFactors = FALSE
+      url = c("/ai", "/ai-demo"), weight = c(3, 1)
     ),
     pricing = "/pricing"
   )
@@ -109,8 +107,7 @@ test_that("weighted-seed data-frame topics are accepted", {
 test_that("custom topic url/weight column names are honored", {
   topics <- list(
     ai = data.frame(
-      page = c("/ai", "/ai-demo"), w = c(1, 1),
-      stringsAsFactors = FALSE
+      page = c("/ai", "/ai-demo"), w = c(1, 1)
     )
   )
   res <- run_tspr(
@@ -180,7 +177,7 @@ test_that("topic_weights are validated", {
 
 test_that("passing prior args directly is an error", {
   topics <- list(ai = "/ai")
-  prior <- data.frame(url = "/ai", weight = 1, stringsAsFactors = FALSE)
+  prior <- data.frame(url = "/ai", weight = 1)
   expect_error(
     topic_sensitive_pagerank(make_site(), topics, prior_df = prior),
     "Do not pass"

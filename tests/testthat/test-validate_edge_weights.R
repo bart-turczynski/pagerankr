@@ -3,8 +3,7 @@ describe("validate_edge_weights", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "C", "C"),
-      p = c(0.25, 0.75, 1),
-      stringsAsFactors = FALSE
+      p = c(0.25, 0.75, 1)
     )
 
     report <- validate_edge_weights(
@@ -23,8 +22,7 @@ describe("validate_edge_weights", {
     edges <- data.frame(
       from = c("negative", "missing", "nan", "infinite"),
       to = rep("target", 4),
-      weight = c(-1, NA_real_, NaN, Inf),
-      stringsAsFactors = FALSE
+      weight = c(-1, NA_real_, NaN, Inf)
     )
 
     expect_error(
@@ -44,8 +42,7 @@ describe("validate_edge_weights", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "C", "C"),
-      weight = c(0, 0, 2),
-      stringsAsFactors = FALSE
+      weight = c(0, 0, 2)
     )
 
     expect_warning(
@@ -61,8 +58,7 @@ describe("validate_edge_weights", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "C", "C"),
-      weight = c(0.2, 0.7, 1 + 1e-10),
-      stringsAsFactors = FALSE
+      weight = c(0.2, 0.7, 1 + 1e-10)
     )
 
     raw_report <- validate_edge_weights(edges)
@@ -90,8 +86,7 @@ describe("validate_edge_weights", {
   it("returns a stable empty report", {
     edges <- data.frame(
       from = character(0),
-      weight = numeric(0),
-      stringsAsFactors = FALSE
+      weight = numeric(0)
     )
     report <- validate_edge_weights(edges)
 

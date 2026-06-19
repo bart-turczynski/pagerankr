@@ -1,4 +1,4 @@
-pagerankr: SEO-Focused PageRank Modelling Toolkit
+pagerankr: SEO-Focused PageRank Modeling Toolkit
 ================
 
 - [1 pagerankr
@@ -10,8 +10,8 @@ pagerankr: SEO-Focused PageRank Modelling Toolkit
       QA](#131-crawl-data-prep-and-redirect-qa)
     - [1.3.2 Screaming Frog Crawl
       Imports](#132-screaming-frog-crawl-imports)
-    - [1.3.3 PageRank Modelling
-      Controls](#133-pagerank-modelling-controls)
+    - [1.3.3 PageRank Modeling
+      Controls](#133-pagerank-modeling-controls)
     - [1.3.4 Comparison, Grid Search, and
       Simulation](#134-comparison-grid-search-and-simulation)
     - [1.3.5 Export and Exploration](#135-export-and-exploration)
@@ -29,7 +29,7 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 [![R-CMD-check](https://github.com/bart-turczynski/pagerankr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-`pagerankr` is an SEO-focused R toolkit for PageRank modelling on crawl
+`pagerankr` is an SEO-focused R toolkit for PageRank modeling on crawl
 data. It supports both a single end-to-end wrapper (`pagerank()`) and
 modular building blocks for cleaning URLs, auditing redirects, resolving
 link graphs, running scenario comparisons, and exporting graph outputs.
@@ -38,7 +38,7 @@ The package currently includes:
 
 - End-to-end and low-level PageRank calculation
 - Redirect diagnostics and resolution policies
-- Nofollow and indexability-aware PageRank modelling
+- Nofollow and indexability-aware PageRank modeling
 - Domain/host filtering and edge-weight transformations
 - Screaming Frog Internal: All plus All Inlinks/Outlinks import adapters
 - Model comparison, parameter sweeps, and what-if simulations
@@ -89,7 +89,7 @@ print(pr)
 
 ### 1.3.1 Crawl Data Prep and Redirect QA
 
-- `clean_url_columns()` canonicalises URL columns using
+- `clean_url_columns()` canonicalizes URL columns using
   `rurl::get_clean_url`
 - `audit_redirects()` reports redirect chains, loops, conflicts,
   self-refs, and optional orphaned rules vs. an edge list
@@ -144,7 +144,7 @@ pagerank_screaming_frog(
 )
 ```
 
-### 1.3.3 PageRank Modelling Controls
+### 1.3.3 PageRank Modeling Controls
 
 - `pagerank()` supports weighted edges via `weight_col`
 - `duplicate_edge_policy = "collapse"` keeps the standard binary
@@ -154,7 +154,7 @@ pagerank_screaming_frog(
   links to the same target increase transition probability.
 - `nofollow_col` + `nofollow_action = c("evaporate", "drop", "keep")`
 - `indexability_df` support for `noindex` and `Blocked by robots.txt`
-  behaviours (`robots_blocked_action = "trap"` or `"vanish"`)
+  behaviors (`robots_blocked_action = "trap"` or `"vanish"`)
 - Domain scoping directly in `pagerank()` (`keep_domains`,
   `exclude_domains`) or via `filter_links_by_domain()` with domain/host
   keep/ignore rules
@@ -182,7 +182,7 @@ pagerank(edges_w, weight_col = "weight", clean_edge_urls = FALSE)
 
 - `compare_pagerank()` calculates deltas, rank shifts, and summary stats
 - `auto_grid()` and `pagerank_grid()` run parameter sweeps
-- `analyze_pagerank_grid()` summarises concentration/distribution
+- `analyze_pagerank_grid()` summarizes concentration/distribution
   effects
 - `simulate_changes()` compares baseline vs proposed links/redirects
 - `pr_gini()`, `pr_entropy()`, and `pr_top_k_share()` compute
@@ -203,7 +203,7 @@ analyze_pagerank_grid(grid_results)
 - `export_graph()` writes outputs in `graphml`, `dot`, `edgelist`, or
   `pajek` formats
 - `launch_pagerank_explorer()` launches an interactive Shiny app for
-  uploads, visualisation, redirect auditing, and exports
+  uploads, visualization, redirect auditing, and exports
 
 ``` r
 pr <- pagerank(edges, clean_edge_urls = FALSE)
@@ -228,7 +228,7 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 | `audit_redirects()` | Diagnose redirect chains, loops, and conflicts |
 | `screaming_frog_bundle()` | Compose Screaming Frog node and link exports |
 | `pagerank_screaming_frog()` | Score a Screaming Frog bundle via `pagerank()` |
-| `clean_url_columns()` | Canonicalise URL columns in data frames |
+| `clean_url_columns()` | Canonicalize URL columns in data frames |
 | `get_unique_edges()` | Deduplicate edges and handle self-loops |
 | `drop_isolates()` | Build vertex sets with or without isolates |
 | `filter_links_by_domain()` | Filter edges by keep/ignore domain or host lists |

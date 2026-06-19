@@ -1,7 +1,7 @@
 #' @title PageRank Distribution Metrics
 #' @description
 #' Compute summary statistics for a vector of PageRank scores. These metrics
-#' help characterise how concentrated or dispersed the PageRank distribution
+#' help characterize how concentrated or dispersed the PageRank distribution
 #' is, which is useful when comparing different models or parameter
 #' configurations.
 #' @name pagerank_metrics
@@ -29,7 +29,7 @@ pr_gini <- function(x) {
 #' @describeIn pagerank_metrics Shannon entropy (higher = more uniform
 #'   distribution).
 #' @param x Numeric vector of non-negative values (typically PageRank scores).
-#'   Values are internally normalised to sum to 1.
+#'   Values are internally normalized to sum to 1.
 #' @return A single numeric value (in nats). Returns `NA` for empty or
 #'   all-zero inputs.
 #' @export

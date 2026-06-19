@@ -186,7 +186,7 @@ server <- function(input, output, session) {
       result <- do.call(pagerankr::pagerank, pr_args)
       pr_data(result)
 
-      # Build igraph for visualisation
+      # Build igraph for visualization
       resolved_edges <- edges
       if (!is.null(redir) && nrow(redir) > 0) {
         resolved_edges <- pagerankr::resolve_links(
@@ -249,7 +249,7 @@ server <- function(input, output, session) {
     round(max(pr$pagerank), 4)
   })
 
-  # --- Graph visualisation ---
+  # --- Graph visualization ---
   output$vis_network_ui <- renderUI({
     if (requireNamespace("visNetwork", quietly = TRUE)) {
       visNetwork::visNetworkOutput("vis_graph", height = "500px")

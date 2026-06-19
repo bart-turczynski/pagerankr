@@ -12,13 +12,11 @@ describe("mass accounting", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "C", "Blocked"),
-      nofollow = c(FALSE, TRUE, FALSE),
-      stringsAsFactors = FALSE
+      nofollow = c(FALSE, TRUE, FALSE)
     )
     idx_df <- data.frame(
       url = "Blocked",
-      indexability_status = "Blocked by robots.txt",
-      stringsAsFactors = FALSE
+      indexability_status = "Blocked by robots.txt"
     )
 
     pr <- pagerank(edges,
@@ -58,8 +56,7 @@ describe("mass accounting", {
   it("reports zero evaporated/hidden mass when neither channel is active", {
     edges <- data.frame(
       from = c("A", "B", "C"),
-      to = c("B", "C", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "A")
     )
     pr <- pagerank(edges, clean_edge_urls = FALSE)
     mass <- attr(pr, "transition_audit")$mass
@@ -74,8 +71,7 @@ describe("mass accounting", {
     edges <- data.frame(
       from = c("A", "A"),
       to = c("B", "C"),
-      nofollow = c(FALSE, TRUE),
-      stringsAsFactors = FALSE
+      nofollow = c(FALSE, TRUE)
     )
     pr <- pagerank(edges,
       nofollow_col = "nofollow",
@@ -92,13 +88,11 @@ describe("mass accounting", {
   it("attributes hidden mass only to vanished robots-blocked nodes", {
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "Blocked"),
-      stringsAsFactors = FALSE
+      to = c("B", "Blocked")
     )
     idx_df <- data.frame(
       url = "Blocked",
-      indexability_status = "Blocked by robots.txt",
-      stringsAsFactors = FALSE
+      indexability_status = "Blocked by robots.txt"
     )
     pr <- pagerank(edges,
       indexability_df = idx_df,
@@ -114,8 +108,7 @@ describe("mass accounting", {
 
   it("leaves mass fields NULL on an empty graph", {
     edges <- data.frame(
-      from = character(0), to = character(0),
-      stringsAsFactors = FALSE
+      from = character(0), to = character(0)
     )
     pr <- pagerank(edges, clean_edge_urls = FALSE)
     mass <- attr(pr, "transition_audit")$mass

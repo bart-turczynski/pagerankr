@@ -95,7 +95,7 @@ of:
 \describe{
   \item{`"collapse"`}{(default) Destination-level surfer: repeated rows
     collapse to one unweighted destination edge, preserving legacy
-    `get_unique_edges()` behaviour and the common binary PageRank
+    `get_unique_edges()` behavior and the common binary PageRank
     convention.}
   \item{`"aggregate"`}{Collapse each `from -> to` pair with
     [aggregate_edges()] semantics. Numeric columns, including
@@ -163,7 +163,7 @@ all available policies.}
 \item{canonicals_df}{An optional data frame of declared `rel=canonical`
 links, with `from`/`to` columns (or as set by `canonical_from_col` /
 `canonical_to_col`) pairing a source URL with the canonical it declares.
-Default `NULL` (opt-in; the default preserves current behaviour).
+Default `NULL` (opt-in; the default preserves current behavior).
 Canonicals are a **distinct, advisory** signal from enforced 3xx
 `redirects_df`: they are tracked separately and audited via
 [audit_canonicals()] / [audit_fold()], then folded into the same composed
@@ -338,7 +338,7 @@ with `algo` (forwarded via `...`):
 \describe{
   \item{`"prpack"`}{(default) A fast, exact direct solver. It has **no**
     tunable tolerance or iteration cap, and reports no iteration count.}
-  \item{`"arpack"`}{An iterative eigensolver that honours `eps` (the L1
+  \item{`"arpack"`}{An iterative eigensolver that honors `eps` (the L1
     tolerance) and `niter` (the maximum iterations), and reports how many
     iterations it used.}
 }
@@ -390,7 +390,7 @@ Standard PageRank measures **inflow** importance ("who points to me"). With
 `reverse = TRUE` the link graph is transposed before computation, yielding
 **outflow centrality** ("does this page funnel authority outward"). This is
 the *reverse PageRank* of Bar-Yossef & Mashiach (CIKM 2008), equivalent to
-the **CheiRank** of the transposed Google matrix, and the PageRank-flavoured
+the **CheiRank** of the transposed Google matrix, and the PageRank-flavored
 analogue of the *hub* score in Kleinberg's HITS. The sibling `semantic`
 project consumes this as an outflow signal.
 
@@ -417,7 +417,7 @@ their semantics do not transpose:
     outflow centrality, since it funnels no authority outward — or `"keep"`.}
   \item{`indexability_df`}{Errors. noindex (outlinks-as-nofollow) and
     robots.txt blocking (drop outlinks + trap self-loop) encode forward
-    crawl/index behaviour with no meaningful transpose.}
+    crawl/index behavior with no meaningful transpose.}
 }
 
 ## Duplicate edge policy

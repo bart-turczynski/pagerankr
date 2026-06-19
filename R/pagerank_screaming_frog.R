@@ -227,7 +227,7 @@ pagerank_screaming_frog <- function(bundle,
     )
   }
   x <- unique(tolower(trimws(x)))
-  if (any(!x %in% allowed)) {
+  if (!all(x %in% allowed)) {
     stop(
       "`accepted_placements` must contain only: ",
       paste(allowed, collapse = ", "), ".",
@@ -246,7 +246,7 @@ pagerank_screaming_frog <- function(bundle,
   }
   x <- unique(.sf_link_origin_key(x))
   allowed <- c("html", "rendered", "html_rendered")
-  if (any(is.na(x)) || any(!x %in% allowed)) {
+  if (anyNA(x) || !all(x %in% allowed)) {
     stop(
       "`link_origins` must contain only: ",
       paste(allowed, collapse = ", "), ".",
@@ -257,13 +257,13 @@ pagerank_screaming_frog <- function(bundle,
 }
 
 .sf_validate_placement_weights <- function(x) {
-  if (!is.numeric(x) || is.null(names(x)) || any(!nzchar(names(x)))) {
+  if (!is.numeric(x) || is.null(names(x)) || !all(nzchar(names(x)))) {
     stop(
       "`placement_weights` must be a named positive numeric vector.",
       call. = FALSE
     )
   }
-  if (anyNA(x) || any(!is.finite(x)) || any(x <= 0)) {
+  if (anyNA(x) || !all(is.finite(x)) || any(x <= 0)) {
     stop(
       "`placement_weights` must contain finite positive values.",
       call. = FALSE
@@ -271,14 +271,14 @@ pagerank_screaming_frog <- function(bundle,
   }
   names(x) <- tolower(trimws(names(x)))
   allowed <- c("nav", "header", "footer", "sidebar", "content")
-  if (any(!names(x) %in% allowed)) {
+  if (!all(names(x) %in% allowed)) {
     stop(
       "`placement_weights` names must contain only: ",
       paste(allowed, collapse = ", "), ".",
       call. = FALSE
     )
   }
-  if (any(duplicated(names(x)))) {
+  if (anyDuplicated(names(x)) > 0L) {
     stop("`placement_weights` names must be unique.", call. = FALSE)
   }
   x

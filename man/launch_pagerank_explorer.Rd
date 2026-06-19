@@ -16,12 +16,12 @@ Called for its side effect (launches the app). Returns invisibly.
 \description{
 Opens an interactive Shiny application for exploring PageRank
   results. Upload CSV files for edge lists, redirects, and PageRank scores,
-  then visualise the graph interactively, inspect distributions, audit
+  then visualize the graph interactively, inspect distributions, audit
   redirects, and export in multiple formats.
 }
 \details{
 The app requires the \code{shiny} and \code{DT} packages. For interactive
-network visualisation, \code{visNetwork} is recommended (the app falls back
+network visualization, \code{visNetwork} is recommended (the app falls back
 to a static igraph plot if visNetwork is not installed).
 
 Install optional dependencies with:

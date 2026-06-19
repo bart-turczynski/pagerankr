@@ -22,7 +22,7 @@ describe("build_fold_map basic signals", {
   it("returns an empty map when neither signal is supplied", {
     fm <- build_fold_map()
     expect_equal(nrow(fm), 0)
-    expect_equal(names(fm), c("from", "to", "signal"))
+    expect_named(fm, c("from", "to", "signal"))
   })
 
   it("resolves a canonical target that itself redirects", {
@@ -41,8 +41,8 @@ describe("build_fold_map basic signals", {
 
 describe("canonical_conflict_policy on a redirecting source", {
   # A redirects to B, but A also declares canonical D (disagreement).
-  redirects <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-  canonicals <- data.frame(from = "A", to = "D", stringsAsFactors = FALSE)
+  redirects <- data.frame(from = "A", to = "B")
+  canonicals <- data.frame(from = "A", to = "D")
 
   it("redirect_wins (default): redirect used, canonical ignored+flagged", {
     fm <- build_fold_map(

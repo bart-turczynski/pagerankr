@@ -1,6 +1,6 @@
 describe(".urls_contain_query_params", {
   it("returns FALSE for empty data frame", {
-    empty_df <- data.frame(from = character(0), stringsAsFactors = FALSE)
+    empty_df <- data.frame(from = character(0))
     expect_false(pagerankr:::.urls_contain_query_params(empty_df, "from"))
   })
 
@@ -10,40 +10,35 @@ describe(".urls_contain_query_params", {
 
   it("returns TRUE when URLs contain query params", {
     df <- data.frame(
-      url = c("http://example.com/page?q=test", "http://example.com/other"),
-      stringsAsFactors = FALSE
+      url = c("http://example.com/page?q=test", "http://example.com/other")
     )
     expect_true(pagerankr:::.urls_contain_query_params(df, "url"))
   })
 
   it("returns FALSE when no URLs contain query params", {
     df <- data.frame(
-      url = c("http://example.com/page", "http://example.com/other"),
-      stringsAsFactors = FALSE
+      url = c("http://example.com/page", "http://example.com/other")
     )
     expect_false(pagerankr:::.urls_contain_query_params(df, "url"))
   })
 
   it("returns TRUE for URLs with ampersand", {
     df <- data.frame(
-      url = c("http://example.com/page&extra"),
-      stringsAsFactors = FALSE
+      url = c("http://example.com/page&extra")
     )
     expect_true(pagerankr:::.urls_contain_query_params(df, "url"))
   })
 
   it("returns FALSE when column not in data frame", {
     df <- data.frame(
-      other = c("http://example.com/page?q=1"),
-      stringsAsFactors = FALSE
+      other = c("http://example.com/page?q=1")
     )
     expect_false(pagerankr:::.urls_contain_query_params(df, "url"))
   })
 
   it("handles NA values in URLs", {
     df <- data.frame(
-      url = c(NA, "http://example.com/page?q=test"),
-      stringsAsFactors = FALSE
+      url = c(NA, "http://example.com/page?q=test")
     )
     expect_true(pagerankr:::.urls_contain_query_params(df, "url"))
   })

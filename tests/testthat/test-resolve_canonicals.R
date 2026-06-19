@@ -2,8 +2,7 @@ describe("resolve_canonical_urls()", {
   it("resolves canonical chains and leaves unmapped URLs unchanged", {
     canonicals <- data.frame(
       from = c("A", "B"),
-      to = c("B", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C")
     )
 
     result <- resolve_canonical_urls(c("A", "B", "X", NA), canonicals)
@@ -17,8 +16,7 @@ describe("resolve_canonical_urls()", {
   it("treats self-canonicals as no-ops", {
     canonicals <- data.frame(
       from = c("A", "B"),
-      to = c("A", "C"),
-      stringsAsFactors = FALSE
+      to = c("A", "C")
     )
 
     result <- resolve_canonical_urls(c("A", "B"), canonicals)
@@ -30,13 +28,11 @@ describe("resolve_canonical_urls()", {
   it("uses canonical duplicate and loop policies from build_fold_map", {
     duplicates <- data.frame(
       from = c("A", "A"),
-      to = c("B", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C")
     )
     loop <- data.frame(
       from = c("A", "B"),
-      to = c("B", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "A")
     )
 
     expect_error(resolve_canonical_urls("A", duplicates), "Ambiguous")
@@ -61,8 +57,7 @@ describe("resolve_canonical_urls()", {
   it("supports custom canonical column names", {
     canonicals <- data.frame(
       declared = c("A", "B"),
-      canonical = c("B", "C"),
-      stringsAsFactors = FALSE
+      canonical = c("B", "C")
     )
 
     result <- resolve_canonical_urls(
@@ -81,13 +76,11 @@ describe("resolve_canonicals()", {
     edges <- data.frame(
       from = c("A", "X"),
       to = c("B", "Y"),
-      weight = c(1, 2),
-      stringsAsFactors = FALSE
+      weight = c(1, 2)
     )
     canonicals <- data.frame(
       from = c("A", "B"),
-      to = c("C", "D"),
-      stringsAsFactors = FALSE
+      to = c("C", "D")
     )
 
     result <- resolve_canonicals(edges, canonicals)
@@ -104,13 +97,11 @@ describe("resolve_canonicals()", {
   it("supports custom edge and canonical columns", {
     edges <- data.frame(
       source_url = "A",
-      target_url = "B",
-      stringsAsFactors = FALSE
+      target_url = "B"
     )
     canonicals <- data.frame(
       declared = "B",
-      canonical = "C",
-      stringsAsFactors = FALSE
+      canonical = "C"
     )
 
     result <- resolve_canonicals(
@@ -129,8 +120,8 @@ describe("resolve_canonicals()", {
 
 describe("resolve_folded_urls()", {
   it("resolves mixed canonical and redirect chains", {
-    redirects <- data.frame(from = "B", to = "C", stringsAsFactors = FALSE)
-    canonicals <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    redirects <- data.frame(from = "B", to = "C")
+    canonicals <- data.frame(from = "A", to = "B")
 
     result <- resolve_folded_urls(c("A", "B", "X"), redirects, canonicals)
 
@@ -142,13 +133,11 @@ describe("resolve_folded_urls()", {
   it("matches applying build_fold_map manually", {
     redirects <- data.frame(
       from = c("B", "D"),
-      to = c("C", "E"),
-      stringsAsFactors = FALSE
+      to = c("C", "E")
     )
     canonicals <- data.frame(
       from = c("A", "X"),
-      to = c("B", "D"),
-      stringsAsFactors = FALSE
+      to = c("B", "D")
     )
     urls <- c("A", "B", "X", "Z")
 
@@ -164,8 +153,8 @@ describe("resolve_folded_urls()", {
   })
 
   it("uses canonical_conflict_policy for same-source conflicts", {
-    redirects <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    canonicals <- data.frame(from = "A", to = "D", stringsAsFactors = FALSE)
+    redirects <- data.frame(from = "A", to = "B")
+    canonicals <- data.frame(from = "A", to = "D")
 
     redirect_wins <- resolve_folded_urls("A", redirects, canonicals)
     expect_identical(redirect_wins$resolved, "B")
@@ -199,13 +188,11 @@ describe("resolve_folded_urls()", {
   it("supports custom redirect and canonical columns", {
     redirects <- data.frame(
       old = "B",
-      new = "C",
-      stringsAsFactors = FALSE
+      new = "C"
     )
     canonicals <- data.frame(
       declared = "A",
-      canonical = "B",
-      stringsAsFactors = FALSE
+      canonical = "B"
     )
 
     result <- resolve_folded_urls(

@@ -6,6 +6,7 @@ Authors@R: person("Bart", "Turczynski", email = "bartek@turczynski.pl", role = c
 Description: Provides a set of modular, pipeable functions to calculate PageRank scores from edge lists and redirect reports, common in SEO analysis. Functions handle URL cleaning, redirect resolution, edge deduplication, isolate handling, and PageRank computation using base R for data manipulation and 'igraph' for core PageRank calculation.
 License: MIT + file LICENSE
 Encoding: UTF-8
+Language: en-US
 LazyData: true
 Imports:
     igraph,

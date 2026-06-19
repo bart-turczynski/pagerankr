@@ -1,21 +1,19 @@
 # Tests for smooth_transitions()
 
 # A sparse fixture: source A links (per crawl) to B, C, D, but only A->B was
-# ever observed behaviourally. Source B links to C and D, both observed.
+# ever observed behaviorally. Source B links to C and D, both observed.
 sparse_empirical <- function() {
   data.frame(
     from = c("A", "B", "B"),
     to = c("B", "C", "D"),
-    n = c(8, 3, 1),
-    stringsAsFactors = FALSE
+    n = c(8, 3, 1)
   )
 }
 
 sparse_structural <- function() {
   data.frame(
     from = c("A", "A", "A", "B", "B"),
-    to = c("B", "C", "D", "C", "D"),
-    stringsAsFactors = FALSE
+    to = c("B", "C", "D", "C", "D")
   )
 }
 
@@ -34,7 +32,7 @@ describe("smooth_transitions: structure", {
     expect_equal(nrow(out), 5L)
   })
 
-  it("honours custom column names", {
+  it("honors custom column names", {
     emp <- sparse_empirical()
     names(emp) <- c("src", "dst", "clicks")
     struct <- sparse_structural()
@@ -99,10 +97,10 @@ describe("smooth_transitions: lambda rule", {
 
   it("lambda increases monotonically with sample size", {
     base_struct <- data.frame(
-      from = c("X", "X"), to = c("Y", "Z"), stringsAsFactors = FALSE
+      from = c("X", "X"), to = c("Y", "Z")
     )
     lambdas <- vapply(c(1, 5, 20, 100), function(nn) {
-      emp <- data.frame(from = "X", to = "Y", n = nn, stringsAsFactors = FALSE)
+      emp <- data.frame(from = "X", to = "Y", n = nn)
       out <- smooth_transitions(emp, base_struct, k = 5)
       unique(out$lambda)
     }, numeric(1))
@@ -121,10 +119,9 @@ describe("smooth_transitions: lambda rule", {
 describe("smooth_transitions: per-source special cases", {
   it("uses the pure structural prior when a source has no empirical data", {
     # C is crawled (C->A, C->B) but never observed.
-    emp <- data.frame(from = "A", to = "B", n = 5, stringsAsFactors = FALSE)
+    emp <- data.frame(from = "A", to = "B", n = 5)
     struct <- data.frame(
-      from = c("A", "C", "C"), to = c("B", "A", "B"),
-      stringsAsFactors = FALSE
+      from = c("A", "C", "C"), to = c("B", "A", "B")
     )
     out <- smooth_transitions(emp, struct, k = 5)
     c_rows <- out[out$from == "C", ]
@@ -137,10 +134,9 @@ describe("smooth_transitions: per-source special cases", {
   it("uses the pure empirical dist when a source has no structural prior", {
     # A has empirical out-edges but no crawled out-links.
     emp <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), n = c(3, 1),
-      stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C"), n = c(3, 1)
     )
-    struct <- data.frame(from = "Z", to = "Y", stringsAsFactors = FALSE)
+    struct <- data.frame(from = "Z", to = "Y")
     out <- smooth_transitions(emp, struct, k = 5)
     a_rows <- out[out$from == "A", ]
     expect_equal(unique(a_rows$lambda), 1)
@@ -151,9 +147,9 @@ describe("smooth_transitions: per-source special cases", {
   })
 
   it("falls back to the prior below min_support", {
-    emp <- data.frame(from = "A", to = "B", n = 2, stringsAsFactors = FALSE)
+    emp <- data.frame(from = "A", to = "B", n = 2)
     struct <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C")
     )
     out <- smooth_transitions(emp, struct, k = 5, min_support = 3)
     a_rows <- out[out$from == "A", ]
@@ -165,11 +161,10 @@ describe("smooth_transitions: per-source special cases", {
   it("drops empirical_only edges that fall to zero below min_support", {
     # A->D observed but not crawled; below support so lambda=0 -> P(A->D)=0.
     emp <- data.frame(
-      from = c("A", "A"), to = c("B", "D"), n = c(1, 1),
-      stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "D"), n = c(1, 1)
     )
     struct <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C")
     )
     out <- smooth_transitions(emp, struct, k = 5, min_support = 5)
     expect_equal(nrow(out[out$from == "A" & out$to == "D", ]), 0L)
@@ -181,11 +176,10 @@ describe("smooth_transitions: per-source special cases", {
 describe("smooth_transitions: origin classification", {
   it("labels edges both / empirical_only / structural_only", {
     emp <- data.frame(
-      from = c("A", "A"), to = c("B", "E"), n = c(4, 2),
-      stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "E"), n = c(4, 2)
     )
     struct <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C")
     )
     out <- smooth_transitions(emp, struct, k = 5)
     o <- setNames(out$origin, out$to)
@@ -198,12 +192,10 @@ describe("smooth_transitions: origin classification", {
 describe("smooth_transitions: structural weights", {
   it("uses a weighted (non-uniform) prior when given a weight column", {
     emp <- data.frame(
-      from = character(0), to = character(0), n = numeric(0),
-      stringsAsFactors = FALSE
+      from = character(0), to = character(0), n = numeric(0)
     )
     struct <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), w = c(3, 1),
-      stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C"), w = c(3, 1)
     )
     out <- smooth_transitions(emp, struct, structural_weight_col = "w")
     # No empirical data -> pure (weighted) prior: 3/4 and 1/4.
@@ -212,11 +204,10 @@ describe("smooth_transitions: structural weights", {
   })
 
   it("sums duplicate structural rows into the prior weight", {
-    emp <- data.frame(from = "A", to = "B", n = 0, stringsAsFactors = FALSE)
+    emp <- data.frame(from = "A", to = "B", n = 0)
     # A->B appears twice (multiplicity 2), A->C once.
     struct <- data.frame(
-      from = c("A", "A", "A"), to = c("B", "B", "C"),
-      stringsAsFactors = FALSE
+      from = c("A", "A", "A"), to = c("B", "B", "C")
     )
     out <- smooth_transitions(emp, struct, k = 5)
     expect_equal(out$transition_probability[out$to == "B"], 2 / 3)
@@ -225,12 +216,10 @@ describe("smooth_transitions: structural weights", {
 
   it("drops non-positive structural weights", {
     emp <- data.frame(
-      from = character(0), to = character(0), n = numeric(0),
-      stringsAsFactors = FALSE
+      from = character(0), to = character(0), n = numeric(0)
     )
     struct <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), w = c(2, 0),
-      stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C"), w = c(2, 0)
     )
     out <- smooth_transitions(emp, struct, structural_weight_col = "w")
     expect_equal(nrow(out), 1L)
@@ -240,9 +229,9 @@ describe("smooth_transitions: structural weights", {
 
 describe("smooth_transitions: lambda_fn override", {
   it("applies a custom lambda function of sample size", {
-    emp <- data.frame(from = "A", to = "B", n = 10, stringsAsFactors = FALSE)
+    emp <- data.frame(from = "A", to = "B", n = 10)
     struct <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C")
     )
     out <- smooth_transitions(emp, struct, lambda_fn = function(n) 0.5)
     expect_equal(unique(out$lambda), 0.5)
@@ -252,9 +241,9 @@ describe("smooth_transitions: lambda_fn override", {
   })
 
   it("rejects a lambda_fn returning out-of-range values", {
-    emp <- data.frame(from = "A", to = "B", n = 5, stringsAsFactors = FALSE)
+    emp <- data.frame(from = "A", to = "B", n = 5)
     struct <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C")
     )
     expect_error(
       smooth_transitions(emp, struct, lambda_fn = function(n) 2),
@@ -266,11 +255,10 @@ describe("smooth_transitions: lambda_fn override", {
 describe("smooth_transitions: time-decay-friendly fractional counts", {
   it("accepts non-integer (decayed) counts", {
     emp <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), n = c(2.5, 0.5),
-      stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C"), n = c(2.5, 0.5)
     )
     struct <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C")
     )
     out <- smooth_transitions(emp, struct, k = 5)
     expect_equal(unique(out$support[out$from == "A"]), 3)
@@ -281,11 +269,10 @@ describe("smooth_transitions: time-decay-friendly fractional counts", {
 describe("smooth_transitions: edge cases and validation", {
   it("returns an empty typed frame when both inputs are empty", {
     emp <- data.frame(
-      from = character(0), to = character(0), n = numeric(0),
-      stringsAsFactors = FALSE
+      from = character(0), to = character(0), n = numeric(0)
     )
     struct <- data.frame(
-      from = character(0), to = character(0), stringsAsFactors = FALSE
+      from = character(0), to = character(0)
     )
     out <- smooth_transitions(emp, struct)
     expect_equal(nrow(out), 0L)
@@ -294,11 +281,10 @@ describe("smooth_transitions: edge cases and validation", {
 
   it("drops rows with NA endpoints before smoothing", {
     emp <- data.frame(
-      from = c("A", NA), to = c("B", "C"), n = c(2, 9),
-      stringsAsFactors = FALSE
+      from = c("A", NA), to = c("B", "C"), n = c(2, 9)
     )
     struct <- data.frame(
-      from = c("A", "A"), to = c("B", "C"), stringsAsFactors = FALSE
+      from = c("A", "A"), to = c("B", "C")
     )
     out <- smooth_transitions(emp, struct, k = 5)
     expect_false(any(is.na(out$from)))
@@ -314,7 +300,7 @@ describe("smooth_transitions: edge cases and validation", {
   })
 
   it("errors on a missing count column", {
-    emp <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    emp <- data.frame(from = "A", to = "B")
     expect_error(
       smooth_transitions(emp, sparse_structural()),
       "missing required column"

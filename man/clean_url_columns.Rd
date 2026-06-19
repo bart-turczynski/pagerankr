@@ -31,7 +31,7 @@ The canonicalization profile pins every `rurl` knob explicitly
 (`protocol_handling = "keep"`, `case_handling = "lower_host"`, and the
 remaining knobs at their faithful defaults) so node identities do not depend
 on `rurl`'s own (version-dependent) defaults. The values mirror `rurl`'s
-current defaults, so this is behaviour-preserving; it guards against future
+current defaults, so this is behavior-preserving; it guards against future
 default drift and keeps the cleaning and domain-filtering paths symmetrical.
 
 NA values in the specified columns are preserved in the output. Downstream

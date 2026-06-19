@@ -49,7 +49,7 @@ The file path (invisibly). Called for its side effect of writing a
 }
 \description{
 Exports a PageRank result and its edge list as a graph file
-  suitable for visualisation in external tools (Gephi, yEd, Graphviz, etc.).
+  suitable for visualization in external tools (Gephi, yEd, Graphviz, etc.).
   Supports GraphML, GEXF (via GraphML with attributes), DOT, and edge list
   CSV formats.
 }

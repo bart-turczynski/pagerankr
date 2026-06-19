@@ -4,8 +4,7 @@ describe("aggregate_edges backward compatibility (unweighted)", {
   it("matches get_unique_edges for a plain from/to edge list (drop)", {
     edges <- data.frame(
       from = c("A", "B", "A", "C"),
-      to = c("B", "C", "B", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "B", "C")
     )
     agg <- aggregate_edges(edges, self_loops = "drop")
     uniq <- get_unique_edges(edges, self_loops = "drop")
@@ -19,8 +18,7 @@ describe("aggregate_edges backward compatibility (unweighted)", {
   it("handles self-loops drop/keep like get_unique_edges", {
     edges <- data.frame(
       from = c("A", "B", "B", "C", "D"),
-      to = c("B", "B", "C", "D", "D"),
-      stringsAsFactors = FALSE
+      to = c("B", "B", "C", "D", "D")
     )
     drop_res <- aggregate_edges(edges, self_loops = "drop")
     keep_res <- aggregate_edges(edges, self_loops = "keep")
@@ -42,8 +40,7 @@ describe("aggregate_edges backward compatibility (unweighted)", {
 
   it("handles empty data frames", {
     df_empty <- data.frame(
-      from = character(0), to = character(0),
-      stringsAsFactors = FALSE
+      from = character(0), to = character(0)
     )
     res <- aggregate_edges(df_empty)
     expect_equal(nrow(res), 0)
@@ -59,8 +56,7 @@ describe("aggregate_edges backward compatibility (unweighted)", {
     edges <- data.frame(
       source = c("X", "Y", "X"),
       target = c("Y", "Y", "Y"),
-      clicks = c(1, 2, 4),
-      stringsAsFactors = FALSE
+      clicks = c(1, 2, 4)
     )
     res <- aggregate_edges(
       edges, from_col = "source", to_col = "target"
@@ -75,8 +71,7 @@ describe("aggregate_edges numeric defaults sum", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "B", "C"),
-      clicks = c(3, 5, 2),
-      stringsAsFactors = FALSE
+      clicks = c(3, 5, 2)
     )
     res <- aggregate_edges(edges)
     expect_equal(res$clicks[res$from == "A"], 8)
@@ -87,8 +82,7 @@ describe("aggregate_edges numeric defaults sum", {
     edges <- data.frame(
       from = rep("A", 3),
       to = rep("B", 3),
-      propensity = c(0.1, 0.2, 0.4),
-      stringsAsFactors = FALSE
+      propensity = c(0.1, 0.2, 0.4)
     )
     res <- aggregate_edges(edges)
     expect_equal(nrow(res), 1)
@@ -103,8 +97,7 @@ describe("aggregate_edges round-trip mass conservation", {
     edges <- data.frame(
       from = sample(c("A", "B", "C"), n, replace = TRUE),
       to = sample(c("X", "Y", "Z"), n, replace = TRUE),
-      clicks = sample(1:10, n, replace = TRUE),
-      stringsAsFactors = FALSE
+      clicks = sample(1:10, n, replace = TRUE)
     )
     # Keep only non-self-loops so totals are comparable.
     edges <- edges[edges$from != edges$to, ]
@@ -120,8 +113,7 @@ describe("aggregate_edges nofollow conflict policy", {
     data.frame(
       from = rep("A", length(vals)),
       to = rep("B", length(vals)),
-      nofollow = vals,
-      stringsAsFactors = FALSE
+      nofollow = vals
     )
   }
 
@@ -172,8 +164,7 @@ describe("aggregate_edges nofollow conflict policy", {
       from = rep("A", 3),
       to = rep("B", 3),
       nofollow = c(TRUE, TRUE, FALSE),
-      sponsored = c(TRUE, FALSE, FALSE),
-      stringsAsFactors = FALSE
+      sponsored = c(TRUE, FALSE, FALSE)
     )
     res <- aggregate_edges(
       edges,
@@ -192,8 +183,7 @@ describe("aggregate_edges configurable per-column aggregation", {
       to = rep("B", 3),
       v_sum = c(1, 2, 3),
       v_max = c(1, 9, 3),
-      v_first = c(10, 20, 30),
-      stringsAsFactors = FALSE
+      v_first = c(10, 20, 30)
     )
     res <- aggregate_edges(
       edges,
@@ -208,8 +198,7 @@ describe("aggregate_edges configurable per-column aggregation", {
     edges <- data.frame(
       from = rep("A", 3),
       to = rep("B", 3),
-      v = c(1, 2, 3),
-      stringsAsFactors = FALSE
+      v = c(1, 2, 3)
     )
     res <- aggregate_edges(
       edges,
@@ -222,8 +211,7 @@ describe("aggregate_edges configurable per-column aggregation", {
     edges <- data.frame(
       from = rep("A", 2),
       to = rep("B", 2),
-      anchor = c("home", "homepage"),
-      stringsAsFactors = FALSE
+      anchor = c("home", "homepage")
     )
     res <- aggregate_edges(edges)
     expect_equal(res$anchor, "home")
@@ -231,7 +219,7 @@ describe("aggregate_edges configurable per-column aggregation", {
 
   it("errors on unknown agg column or rule", {
     edges <- data.frame(
-      from = "A", to = "B", v = 1, stringsAsFactors = FALSE
+      from = "A", to = "B", v = 1
     )
     expect_error(aggregate_edges(edges, agg = list(nope = "sum")), "not found")
     expect_error(aggregate_edges(edges, agg = list(v = "bogus")), "Unknown")
@@ -242,8 +230,7 @@ describe("aggregate_edges configurable per-column aggregation", {
       from = c("A", "A"),
       to = c("B", "B"),
       clicks = c(1, 2),
-      nofollow = c(FALSE, TRUE),
-      stringsAsFactors = FALSE
+      nofollow = c(FALSE, TRUE)
     )
     res <- aggregate_edges(edges)
     expect_equal(names(res), c("from", "to", "clicks", "nofollow"))
@@ -255,8 +242,7 @@ describe("aggregate_edges preserve_cols placement features", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "B", "C"),
-      position = c(1, 7, 3),
-      stringsAsFactors = FALSE
+      position = c(1, 7, 3)
     )
     res <- aggregate_edges(edges, preserve_cols = "position")
     expect_true(is.list(res$position))
@@ -271,8 +257,7 @@ describe("aggregate_edges preserve_cols placement features", {
       from = c("A", "A"),
       to = c("B", "B"),
       clicks = c(2, 5),
-      position = c(1, 9),
-      stringsAsFactors = FALSE
+      position = c(1, 9)
     )
     res <- aggregate_edges(edges, preserve_cols = "position")
     expect_equal(res$clicks, 7)
@@ -281,7 +266,7 @@ describe("aggregate_edges preserve_cols placement features", {
 
   it("rejects a column in both agg and preserve_cols", {
     edges <- data.frame(
-      from = "A", to = "B", v = 1, stringsAsFactors = FALSE
+      from = "A", to = "B", v = 1
     )
     expect_error(
       aggregate_edges(edges, agg = list(v = "sum"), preserve_cols = "v"),
@@ -291,7 +276,7 @@ describe("aggregate_edges preserve_cols placement features", {
 
   it("errors on unknown preserve column", {
     edges <- data.frame(
-      from = "A", to = "B", v = 1, stringsAsFactors = FALSE
+      from = "A", to = "B", v = 1
     )
     expect_error(aggregate_edges(edges, preserve_cols = "nope"), "not found")
   })
@@ -303,13 +288,13 @@ describe("aggregate_edges input validation", {
   })
 
   it("errors on missing from/to columns", {
-    df <- data.frame(fcol = "a", tcol = "b", stringsAsFactors = FALSE)
+    df <- data.frame(fcol = "a", tcol = "b")
     expect_error(aggregate_edges(df))
   })
 
   it("errors on non-named agg list", {
     edges <- data.frame(
-      from = "A", to = "B", v = 1, stringsAsFactors = FALSE
+      from = "A", to = "B", v = 1
     )
     expect_error(aggregate_edges(edges, agg = list("sum")), "named list")
   })

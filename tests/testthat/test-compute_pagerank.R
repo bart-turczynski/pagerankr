@@ -4,8 +4,7 @@ describe("compute_pagerank basic functionality", {
   it("computes PageRank for a simple graph", {
     edges <- data.frame(
       from = c("A", "B", "C"),
-      to = c("B", "C", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "A")
     )
     pr <- compute_pagerank(edges)
     expect_equal(nrow(pr), 3)
@@ -18,13 +17,11 @@ describe("compute_pagerank basic functionality", {
   it("handles custom column names for input and output", {
     edges_c <- data.frame(
       source = c("N1", "N2"),
-      target = c("N2", "N1"),
-      stringsAsFactors = FALSE
+      target = c("N2", "N1")
     )
     # N3 is isolate
     verts_c <- data.frame(
-      name = c("N1", "N2", "N3"),
-      stringsAsFactors = FALSE
+      name = c("N1", "N2", "N3")
     )
     pr_c <- compute_pagerank(edges_c,
       vertices_df = verts_c,
@@ -43,8 +40,7 @@ describe("compute_pagerank basic functionality", {
   it("applies damping factor correctly", {
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "A")
     )
     pr_d85 <- compute_pagerank(edges, damping = 0.85)
     pr_d50 <- compute_pagerank(edges, damping = 0.50)
@@ -67,15 +63,14 @@ describe("compute_pagerank basic functionality", {
     # More complex graph to see damping effect (qualitative)
     edges2 <- data.frame(
       from = c("A", "A", "B"),
-      to = c("B", "C", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "C")
     )
     # A links to B and C. B links to C. C is a sink (or links to A if we
     # make it a cycle for stability)
     # Let's make C link to A to avoid C taking all PR if it were a pure sink.
     edges3 <- rbind(
       edges2,
-      data.frame(from = "C", to = "A", stringsAsFactors = FALSE)
+      data.frame(from = "C", to = "A")
     )
     pr3_d85 <- compute_pagerank(edges3, damping = 0.85)
     pr3_d50 <- compute_pagerank(edges3, damping = 0.50)
@@ -94,8 +89,7 @@ describe("compute_pagerank graph structure handling", {
   it("handles single-node graph (with self-loop from edges)", {
     edges_single_loop <- data.frame(
       from = "A",
-      to = "A",
-      stringsAsFactors = FALSE
+      to = "A"
     )
     pr <- compute_pagerank(edges_single_loop)
     expect_equal(nrow(pr), 1)
@@ -104,13 +98,12 @@ describe("compute_pagerank graph structure handling", {
   })
 
   it("handles single-node graph (no edges, defined by vertices_df)", {
-    verts_single <- data.frame(node_name = "A", stringsAsFactors = FALSE)
+    verts_single <- data.frame(node_name = "A")
     # igraph requires edges to not be NULL, so pass empty character
     # vectors for edge columns
     edges_empty_struct <- data.frame(
       from = character(0),
-      to = character(0),
-      stringsAsFactors = FALSE
+      to = character(0)
     )
     pr <- compute_pagerank(edges_empty_struct, vertices_df = verts_single)
     expect_equal(nrow(pr), 1)
@@ -119,11 +112,10 @@ describe("compute_pagerank graph structure handling", {
   })
 
   it("handles graph with isolates (defined by vertices_df)", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     # C, D are isolates
     verts <- data.frame(
-      node_name = c("A", "B", "C", "D"),
-      stringsAsFactors = FALSE
+      node_name = c("A", "B", "C", "D")
     )
     pr <- compute_pagerank(edges, vertices_df = verts)
     expect_equal(nrow(pr), 4)
@@ -135,35 +127,32 @@ describe("compute_pagerank graph structure handling", {
   it("handles empty graph (no edges, no vertices_df)", {
     edges_empty <- data.frame(
       from = character(),
-      to = character(),
-      stringsAsFactors = FALSE
+      to = character()
     )
     pr <- compute_pagerank(edges_empty)
     expect_equal(nrow(pr), 0)
-    expect_equal(names(pr), c("node_name", "pagerank"))
-    expect_true(is.character(pr$node_name) && is.numeric(pr$pagerank))
+    expect_named(pr, c("node_name", "pagerank"))
+    expect_true(is.character(pr$node_name))
+    expect_true(is.numeric(pr$pagerank))
   })
 
   it("handles graph defined only by empty vertices_df (no edges)", {
     verts_empty <- data.frame(
-      node_name = character(0),
-      stringsAsFactors = FALSE
+      node_name = character(0)
     )
     edges_empty <- data.frame(
       from = character(),
-      to = character(),
-      stringsAsFactors = FALSE
+      to = character()
     )
     pr <- compute_pagerank(edges_empty, vertices_df = verts_empty)
     expect_equal(nrow(pr), 0)
   })
 
   it("handles graph with no edges but non-empty vertices_df", {
-    verts_no_edges <- data.frame(v = c("X", "Y", "Z"), stringsAsFactors = FALSE)
+    verts_no_edges <- data.frame(v = c("X", "Y", "Z"))
     edges_empty <- data.frame(
       f = character(),
-      t = character(),
-      stringsAsFactors = FALSE
+      t = character()
     )
     pr <- compute_pagerank(
       edges_empty,
@@ -181,8 +170,7 @@ describe("compute_pagerank graph structure handling", {
   it("handles NA values in edge_list_df (edges with NA are dropped)", {
     edges_na <- data.frame(
       from = c("A", NA, "C", "D", "A"),
-      to = c("B", "E", NA, "E", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "E", NA, "E", "C")
     )
     # Valid edges: A->B, D->E, A->C. Nodes: A,B,C,D,E
     pr <- compute_pagerank(edges_na)
@@ -191,8 +179,7 @@ describe("compute_pagerank graph structure handling", {
 
     # With vertices_df that includes nodes not in valid edges (e.g. F from NA)
     verts_na <- data.frame(
-      name = c("A", "B", "C", "D", "E", "F"),
-      stringsAsFactors = FALSE
+      name = c("A", "B", "C", "D", "E", "F")
     )
     pr_v <- compute_pagerank(
       edges_na,
@@ -245,8 +232,8 @@ describe("compute_pagerank error handling and edge cases", {
   })
 
   it("errors if columns are missing and df is not empty", {
-    df <- data.frame(fcol = "a", tcol = "b", stringsAsFactors = FALSE)
-    vdf <- data.frame(vert_name = "a", stringsAsFactors = FALSE)
+    df <- data.frame(fcol = "a", tcol = "b")
+    vdf <- data.frame(vert_name = "a")
     expect_error(compute_pagerank(df)) # Default from/to missing in df
     expect_error(compute_pagerank(edges_list_df = df, from_col = "x"))
     expect_error(
@@ -278,8 +265,7 @@ describe("compute_pagerank error handling and edge cases", {
     edges <- data.frame(
       from = c("A", "A", "B", "C"),
       to = c("B", "C", "A", "A"),
-      w = c(1, 10, 1, 1),
-      stringsAsFactors = FALSE
+      w = c(1, 10, 1, 1)
     )
     pr_w <- compute_pagerank(edges, weight_col = "w")
     expect_equal(nrow(pr_w), 3)
@@ -292,8 +278,7 @@ describe("compute_pagerank error handling and edge cases", {
   it("weight_col = NULL produces unweighted PageRank", {
     edges <- data.frame(
       from = c("A", "B", "C"),
-      to = c("B", "C", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "A")
     )
     pr_null <- compute_pagerank(edges, weight_col = NULL)
     pr_default <- compute_pagerank(edges)
@@ -301,7 +286,7 @@ describe("compute_pagerank error handling and edge cases", {
   })
 
   it("errors when weight_col does not exist", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(
       compute_pagerank(edges, weight_col = "nonexistent"),
       "not found"
@@ -312,8 +297,7 @@ describe("compute_pagerank error handling and edge cases", {
     edges <- data.frame(
       from = "A",
       to = "B",
-      w = "high",
-      stringsAsFactors = FALSE
+      w = "high"
     )
     expect_error(
       compute_pagerank(edges, weight_col = "w"),
@@ -333,8 +317,7 @@ describe("compute_pagerank error handling and edge cases", {
     edges <- data.frame(
       from = c("A", "B"),
       to = c("B", "A"),
-      weight = c(1, 10),
-      stringsAsFactors = FALSE
+      weight = c(1, 10)
     )
     # Need to ensure the graph-from-data-frame helper actually uses the
     # weight column. By default, it does when such a column exists.
@@ -385,7 +368,7 @@ describe("compute_pagerank error handling and edge cases", {
 
 describe("compute_pagerank validation coverage", {
   it("errors when vertices_df is not a data frame", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(
       compute_pagerank(edges, vertices_df = "not_a_df"),
       "data frame or NULL"
@@ -393,8 +376,8 @@ describe("compute_pagerank validation coverage", {
   })
 
   it("errors when vertex_col_name is missing from vertices_df", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-    verts <- data.frame(wrong_col = "A", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
+    verts <- data.frame(wrong_col = "A")
     expect_error(
       compute_pagerank(edges, vertices_df = verts),
       "column named"
@@ -402,25 +385,25 @@ describe("compute_pagerank validation coverage", {
   })
 
   it("errors when damping is out of range", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(compute_pagerank(edges, damping = 1.5), "between 0 and 1")
     expect_error(compute_pagerank(edges, damping = -0.1), "between 0 and 1")
     expect_error(compute_pagerank(edges, damping = "high"), "between 0 and 1")
   })
 
   it("errors when pr_node_col is invalid", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(compute_pagerank(edges, pr_node_col = ""), "non-empty")
     expect_error(compute_pagerank(edges, pr_node_col = 123), "non-empty")
   })
 
   it("errors when pr_value_col is invalid", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(compute_pagerank(edges, pr_value_col = ""), "non-empty")
   })
 
   it("errors when pr_node_col equals pr_value_col", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(
       compute_pagerank(edges, pr_node_col = "x", pr_value_col = "x"),
       "must be different"
@@ -428,7 +411,7 @@ describe("compute_pagerank validation coverage", {
   })
 
   it("errors when weight_col is not a character string", {
-    edges <- data.frame(from = "A", to = "B", w = 1, stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B", w = 1)
     expect_error(
       compute_pagerank(edges, weight_col = 123),
       "single character string"
@@ -438,8 +421,7 @@ describe("compute_pagerank validation coverage", {
   it("handles graph where vcount is 0 after construction", {
     # Empty edges with NULL vertices -> empty result
     edges_empty <- data.frame(
-      from = character(0), to = character(0),
-      stringsAsFactors = FALSE
+      from = character(0), to = character(0)
     )
     pr <- compute_pagerank(edges_empty)
     expect_equal(nrow(pr), 0)
@@ -447,12 +429,10 @@ describe("compute_pagerank validation coverage", {
 
   it("handles vertices_df where all nodes are NA", {
     edges <- data.frame(
-      from = character(0), to = character(0),
-      stringsAsFactors = FALSE
+      from = character(0), to = character(0)
     )
     verts <- data.frame(
-      node_name = c(NA_character_, NA_character_),
-      stringsAsFactors = FALSE
+      node_name = c(NA_character_, NA_character_)
     )
     pr <- compute_pagerank(edges, vertices_df = verts)
     expect_equal(nrow(pr), 0)
@@ -460,8 +440,7 @@ describe("compute_pagerank validation coverage", {
 
   it("handles edges with no valid rows and no defined_nodes", {
     edges <- data.frame(
-      from = NA_character_, to = NA_character_,
-      stringsAsFactors = FALSE
+      from = NA_character_, to = NA_character_
     )
     pr <- compute_pagerank(edges)
     expect_equal(nrow(pr), 0)
@@ -475,7 +454,7 @@ describe("compute_pagerank validation coverage", {
   })
 
   it("errors when non-empty edge_list_df is missing from/to columns", {
-    edges <- data.frame(x = "A", y = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(x = "A", y = "B")
     expect_error(
       compute_pagerank(edges),
       "must have.*from.*to"
@@ -483,7 +462,7 @@ describe("compute_pagerank validation coverage", {
   })
 
   it("errors when pr_score_col is not a non-empty string", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(
       compute_pagerank(edges, pr_value_col = 123),
       "non-empty character string"

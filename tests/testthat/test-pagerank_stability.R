@@ -1,7 +1,6 @@
 edges <- data.frame(
   from = c("A", "B", "C", "A", "D", "E", "B"),
-  to = c("B", "C", "A", "C", "A", "A", "E"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "A", "C", "A", "A", "E")
 )
 
 test_that("one row per swept alpha, ascending, with documented columns", {
@@ -108,8 +107,7 @@ test_that("input validation", {
 
 test_that("empty graph yields per-alpha rows with NA metrics", {
   empty <- data.frame(
-    from = character(0), to = character(0),
-    stringsAsFactors = FALSE
+    from = character(0), to = character(0)
   )
   stab <- pagerank_stability(empty, alphas = c(0.85, 0.95))
   expect_identical(stab$alpha, c(0.85, 0.95))

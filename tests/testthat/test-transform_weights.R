@@ -19,8 +19,8 @@ describe("transform_weights: rank_linear", {
     x <- c(100, 50, 10)
     result <- transform_weights(x, "rank_linear", descending = TRUE)
     expect_equal(result[1], 1.0) # rank 1 (highest value)
-    expect_true(result[1] > result[2])
-    expect_true(result[2] > result[3])
+    expect_gt(result[1], result[2])
+    expect_gt(result[2], result[3])
   })
 
   it("assigns weights for ascending (link position)", {
@@ -28,8 +28,8 @@ describe("transform_weights: rank_linear", {
     positions <- c(1, 2, 3, 4, 5)
     result <- transform_weights(positions, "rank_linear", descending = FALSE)
     expect_equal(result[1], 1.0) # position 1 = most valuable
-    expect_true(result[1] > result[5])
-    expect_equal(length(result), 5)
+    expect_gt(result[1], result[5])
+    expect_length(result, 5)
   })
 
   it("handles ties with average rank", {
@@ -52,7 +52,7 @@ describe("transform_weights: zipf", {
     result <- transform_weights(x, "zipf", alpha = 1, descending = TRUE)
     expect_equal(result[1], 1.0) # rank 1: weight is 1
     expect_equal(result[2], 0.5) # rank 2: weight is 0.5
-    expect_true(result[3] < result[2]) # rank 3: even smaller
+    expect_lt(result[3], result[2]) # rank 3: even smaller
   })
 
   it("steeper drop-off with higher alpha", {
@@ -81,8 +81,8 @@ describe("transform_weights: log", {
     clicks <- c(50000, 100, 1)
     result <- transform_weights(clicks, "log")
     # log(50001) ~ 10.8, log(101) ~ 4.6, log(2) ~ 0.69
-    expect_true(result[1] > result[2])
-    expect_true(result[2] > result[3])
+    expect_gt(result[1], result[2])
+    expect_gt(result[2], result[3])
     # But the ratio is much less extreme than raw
     expect_true(result[1] / result[3] < clicks[1] / clicks[3])
   })
@@ -91,14 +91,14 @@ describe("transform_weights: log", {
     x <- c(0, 1, 10)
     result <- transform_weights(x, "log", offset = 1)
     expect_equal(result[1], 0) # log of (0 + offset) equals 0
-    expect_true(result[2] > 0)
+    expect_gt(result[2], 0)
   })
 
   it("custom offset works", {
     x <- c(0, 1)
     r1 <- transform_weights(x, "log", offset = 1)
     r2 <- transform_weights(x, "log", offset = 10)
-    expect_true(r2[1] > r1[1]) # larger offset -> larger result
+    expect_gt(r2[1], r1[1]) # larger offset -> larger result
   })
 })
 
@@ -109,7 +109,8 @@ describe("transform_weights: minmax", {
     result <- transform_weights(x, "minmax", floor_value = 0.01)
     expect_equal(result[3], 1.0)
     expect_equal(result[1], 0.01)
-    expect_true(result[2] > 0.01 && result[2] < 1.0)
+    expect_gt(result[2], 0.01)
+    expect_lt(result[2], 1.0)
   })
 
   it("handles identical values", {
@@ -200,12 +201,11 @@ describe("transform_weights integration with pagerank", {
     edges <- data.frame(
       from = c("A", "A", "B", "C"),
       to = c("B", "C", "C", "A"),
-      clicks = c(1000, 50, 200, 300),
-      stringsAsFactors = FALSE
+      clicks = c(1000, 50, 200, 300)
     )
     edges$weight <- transform_weights(edges$clicks, "zipf")
     pr <- pagerank(edges, weight_col = "weight", clean_edge_urls = FALSE)
     expect_true(is.data.frame(pr))
-    expect_true(nrow(pr) > 0)
+    expect_gt(nrow(pr), 0)
   })
 })

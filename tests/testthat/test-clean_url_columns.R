@@ -4,8 +4,7 @@ describe("clean_url_columns basic functionality", {
   it("cleans URLs in specified columns", {
     df <- data.frame(
       from = c("http://Example.com/path", "https://Example.com/PATH"),
-      to = c("http://www.another.com?q=1#frag", "HTTP://another.com/?q=1&b=2"),
-      stringsAsFactors = FALSE
+      to = c("http://www.another.com?q=1#frag", "HTTP://another.com/?q=1&b=2")
     )
     cleaned <- clean_url_columns(df, columns = c("from", "to"))
     expect_equal(nrow(cleaned), 2)
@@ -23,8 +22,7 @@ describe("clean_url_columns basic functionality", {
 
   it("handles NA values correctly", {
     df <- data.frame(
-      url = c("http://example.com", NA, "http://test.com/page#ref"),
-      stringsAsFactors = FALSE
+      url = c("http://example.com", NA, "http://test.com/page#ref")
     )
     cleaned <- clean_url_columns(df, columns = "url")
     expect_equal(nrow(cleaned), 3)
@@ -43,8 +41,7 @@ describe("clean_url_columns basic functionality", {
       link = c(
         "http://www.Example.com/path#fragment",
         "HTTPS://google.com/?q=test"
-      ),
-      stringsAsFactors = FALSE
+      )
     )
     # Test default behavior if no extra params passed or if params unsupported
     cleaned_default <- clean_url_columns(df, columns = "link")
@@ -60,8 +57,7 @@ describe("clean_url_columns basic functionality", {
   it("correctly handles custom column names", {
     df <- data.frame(
       source_url = "Http://MySite.com/One",
-      target_url = "https://theirsite.com/TWO?param=foo",
-      stringsAsFactors = FALSE
+      target_url = "https://theirsite.com/TWO?param=foo"
     )
     cleaned <- clean_url_columns(df, columns = c("source_url", "target_url"))
     expect_equal(nrow(cleaned), 1)
@@ -74,8 +70,7 @@ describe("clean_url_columns basic functionality", {
     withr::with_options(list(pagerankr.verbose = FALSE), {
       df <- data.frame(
         col_to_clean = "HTTP://Domain.com/Page",
-        col_to_ignore = "HTTP://AnotherDomain.com/Path?val=1",
-        stringsAsFactors = FALSE
+        col_to_ignore = "HTTP://AnotherDomain.com/Path?val=1"
       )
       cleaned <- clean_url_columns(df, columns = "col_to_clean")
       expect_equal(nrow(cleaned), 1)
@@ -108,8 +103,7 @@ describe("clean_url_columns basic functionality", {
   ), {
     df_no_default_cols <- data.frame(
       link_source = "HTTP://EXAMPLE.com/",
-      link_target = "example.net/resource?id=2",
-      stringsAsFactors = FALSE
+      link_target = "example.net/resource?id=2"
     )
     # If 'columns' is not specified and 'from'/'to' do not exist, it should
     # do nothing or warn. Current behavior with no default cols and no
@@ -122,7 +116,7 @@ describe("clean_url_columns basic functionality", {
   })
 
   it("errors if specified column does not exist", {
-    df <- data.frame(a = "http://example.com", stringsAsFactors = FALSE)
+    df <- data.frame(a = "http://example.com")
     expect_error(clean_url_columns(df, columns = "non_existent_col"))
   })
 })
@@ -143,8 +137,7 @@ describe("clean_url_columns memoization (conceptual)", {
           "http://sub.example.com/another%20path"
         ),
         2
-      ),
-      stringsAsFactors = FALSE
+      )
     )
     # Test with default behavior (no extra params)
     cleaned_1 <- clean_url_columns(df_repeated, columns = "urls")
@@ -179,7 +172,7 @@ describe("clean_url_columns validation coverage", {
   })
 
   it("errors when specified columns are missing", {
-    df <- data.frame(x = "http://example.com", stringsAsFactors = FALSE)
+    df <- data.frame(x = "http://example.com")
     expect_error(
       clean_url_columns(df, columns = c("from", "to")),
       "not found"
@@ -188,8 +181,7 @@ describe("clean_url_columns validation coverage", {
 
   it("errors when columns is not a character vector even if values match", {
     df <- data.frame(
-      from = "http://example.com", to = "http://b.com",
-      stringsAsFactors = FALSE
+      from = "http://example.com", to = "http://b.com"
     )
     # Factor with matching values -> triggers the type guard
     expect_error(
