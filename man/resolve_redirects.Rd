@@ -87,33 +87,29 @@ destination by traversing the acyclic graph.
 \examples{
 edges <- data.frame(
   from = c("A", "B", "C"),
-  to = c("B", "C", "D"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "D")
 )
 redirects <- data.frame(
   from = c("B", "C", "E"),
-  to = c("B_final", "C_final", "E_final"),
-  stringsAsFactors = FALSE
+  to = c("B_final", "C_final", "E_final")
 )
 resolve_redirects(edges, redirects)
 
 # Example with a redirect chain
-edges_chain <- data.frame(from = "X", to = "Y", stringsAsFactors = FALSE)
+edges_chain <- data.frame(from = "X", to = "Y")
 redirects_chain <- data.frame(
   from = c("Y", "Z"),
-  to = c("Z", "Z_final"),
-  stringsAsFactors = FALSE
+  to = c("Z", "Z_final")
 )
 resolve_redirects(edges_chain, redirects_chain)
 
 # Example with conflicting redirects resolved via first_wins
 edges_conflict <- data.frame(
-  from = "A", to = "B", stringsAsFactors = FALSE
+  from = "A", to = "B"
 )
 redirects_conflict <- data.frame(
   from = c("B", "B"),
-  to = c("C", "D"),
-  stringsAsFactors = FALSE
+  to = c("C", "D")
 )
 resolve_redirects(edges_conflict, redirects_conflict,
   duplicate_from_policy = "first_wins"

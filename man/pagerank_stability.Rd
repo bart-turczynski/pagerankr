@@ -80,8 +80,7 @@ baseline; its own row is a sanity anchor (`spearman_rho = 1`,
 \examples{
 edges <- data.frame(
   from = c("A", "B", "C", "A", "D"),
-  to = c("B", "C", "A", "C", "A"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "A", "C", "A")
 )
 stab <- pagerank_stability(edges, clean_edge_urls = FALSE)
 print(stab)

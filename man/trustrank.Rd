@@ -90,8 +90,7 @@ Because this owns the prior, passing `prior_df`, `prior_url_col`, or
 \examples{
 edges <- data.frame(
   from = c("/", "/", "/hub", "/hub", "/spam", "/good"),
-  to = c("/hub", "/good", "/good", "/deep", "/good", "/hub"),
-  stringsAsFactors = FALSE
+  to = c("/hub", "/good", "/good", "/deep", "/good", "/hub")
 )
 
 # Build a trusted-seed prior, then run it through pagerank() manually.

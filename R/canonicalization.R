@@ -20,8 +20,8 @@
 #'   change both repos together.
 #'
 #' @return A named list of `rurl` canonicalization arguments.
-#' @noRd
-.canonical_profile <- function() {
+#' @export
+canonical_profile <- function() {
   list(
     protocol_handling = "keep",
     case_handling = "lower_host",
@@ -49,10 +49,10 @@
 #' @noRd
 .resolve_rurl_params <- function(user_params = list()) {
   if (is.null(user_params) || length(user_params) == 0) {
-    return(.canonical_profile())
+    return(canonical_profile())
   }
   if (!is.list(user_params)) {
     stop("`rurl_params` must be a list.", call. = FALSE)
   }
-  utils::modifyList(.canonical_profile(), user_params)
+  utils::modifyList(canonical_profile(), user_params)
 }

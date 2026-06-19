@@ -208,8 +208,7 @@ scores.
 \examples{
 edges <- data.frame(
   from = c("http://A.com/", "http://A.com/", "B.com"),
-  to = c("B.com", "C.com", "C.com"),
-  stringsAsFactors = FALSE
+  to = c("B.com", "C.com", "C.com")
 )
 hits(edges)
 

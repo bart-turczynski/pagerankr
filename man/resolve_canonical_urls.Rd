@@ -40,8 +40,7 @@ in the same URL namespace as the canonical table.
 \examples{
 canonicals <- data.frame(
   from = c("A", "B"),
-  to = c("B", "C"),
-  stringsAsFactors = FALSE
+  to = c("B", "C")
 )
 resolve_canonical_urls(c("A", "B", "X"), canonicals)
 }

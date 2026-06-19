@@ -99,8 +99,7 @@ renormalized.
 \examples{
 edges <- data.frame(
   from = c("/", "/", "/", "/ai", "/ai", "/blog", "/pricing"),
-  to = c("/ai", "/blog", "/pricing", "/ai-demo", "/pricing", "/ai", "/"),
-  stringsAsFactors = FALSE
+  to = c("/ai", "/blog", "/pricing", "/ai-demo", "/pricing", "/ai", "/")
 )
 
 # Two topics: the AI cluster and the pricing cluster.

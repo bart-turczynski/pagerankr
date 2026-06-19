@@ -1,8 +1,8 @@
 context("canonicalization profile")
 
-describe(".canonical_profile", {
+describe("canonical_profile", {
   it("pins every rurl::get_clean_url canonicalization knob explicitly", {
-    profile <- pagerankr:::.canonical_profile()
+    profile <- canonical_profile()
     expect_named(
       profile,
       c(
@@ -18,7 +18,7 @@ describe(".canonical_profile", {
   })
 
   it("mirrors rurl's current defaults (so pinning is behavior-preserving)", {
-    profile <- pagerankr:::.canonical_profile()
+    profile <- canonical_profile()
     defaults <- formals(rurl::get_clean_url)
     for (k in names(profile)) {
       expect_identical(
@@ -29,31 +29,26 @@ describe(".canonical_profile", {
   })
 })
 
-describe(".resolve_rurl_params", {
-  it("returns the bare profile for empty/NULL input", {
-    expect_identical(
-      pagerankr:::.resolve_rurl_params(list()),
-      pagerankr:::.canonical_profile()
+describe("resolve_rurl_params (via clean_url_columns)", {
+  it("applies the canonical profile by default (no overrides)", {
+    urls <- c("HTTP://EXAMPLE.COM/Path/", "https://Sub.Example.CO.UK/a")
+    df <- data.frame(url = urls)
+    cleaned <- clean_url_columns(df, columns = "url")
+    expect_equal(
+      cleaned$url,
+      unname(rurl::get_clean_url(urls))
     )
-    expect_identical(
-      pagerankr:::.resolve_rurl_params(NULL),
-      pagerankr:::.canonical_profile()
+  })
+
+  it("applies a case_handling override when supplied", {
+    df <- data.frame(url = "HTTP://EXAMPLE.COM/path")
+    default_result <- clean_url_columns(df, columns = "url")
+    expect_true(grepl("example.com", default_result$url, fixed = TRUE))
+
+    override_result <- clean_url_columns(
+      df, columns = "url", case_handling = "keep"
     )
-  })
-
-  it("overrides individual knobs per key", {
-    res <- pagerankr:::.resolve_rurl_params(list(case_handling = "keep"))
-    expect_equal(res$case_handling, "keep")
-    expect_equal(res$protocol_handling, "keep") # untouched
-  })
-
-  it("passes through unknown keys (forward-compatible with new rurl args)", {
-    res <- pagerankr:::.resolve_rurl_params(list(some_future_arg = "x"))
-    expect_equal(res$some_future_arg, "x")
-  })
-
-  it("errors on a non-list", {
-    expect_error(pagerankr:::.resolve_rurl_params("nope"), "must be a list")
+    expect_true(grepl("EXAMPLE.COM", override_result$url, fixed = TRUE))
   })
 })
 

@@ -56,8 +56,7 @@ Exports a PageRank result and its edge list as a graph file
 \examples{
 edges <- data.frame(
   from = c("A", "B", "C"),
-  to = c("B", "C", "A"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "A")
 )
 pr <- pagerank(edges, clean_edge_urls = FALSE)
 

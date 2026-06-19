@@ -105,8 +105,7 @@ extension is deferred.
 }
 \examples{
 edges <- data.frame(
-  from = c("A", "A", "B"), to = c("B", "C", "C"),
-  stringsAsFactors = FALSE
+  from = c("A", "A", "B"), to = c("B", "C", "C")
 )
 compute_salsa(edges)
 

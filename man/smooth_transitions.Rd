@@ -166,14 +166,12 @@ probabilities sum to 1.
 empirical <- data.frame(
   from = c("A", "A"),
   to = c("B", "C"),
-  n = c(8, 0),
-  stringsAsFactors = FALSE
+  n = c(8, 0)
 )[1, ]
 # Crawl graph: A links to both B and C.
 structural <- data.frame(
   from = c("A", "A"),
-  to = c("B", "C"),
-  stringsAsFactors = FALSE
+  to = c("B", "C")
 )
 smoothed <- smooth_transitions(empirical, structural, k = 5)
 smoothed

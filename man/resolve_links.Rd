@@ -62,13 +62,11 @@ Applies redirect rules to an edge list and returns the resolved
 \examples{
 edges <- data.frame(
   from = c("A", "B", "C", "A"),
-  to = c("B", "C", "D", "B"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "D", "B")
 )
 redirects <- data.frame(
   from = c("B", "C"),
-  to = c("B_final", "C_final"),
-  stringsAsFactors = FALSE
+  to = c("B_final", "C_final")
 )
 resolve_links(edges, redirects, clean_urls = FALSE)
 
@@ -78,7 +76,7 @@ resolve_links(edges, clean_urls = FALSE)
 # Inspect the graph before and after a redirect change
 before <- resolve_links(edges, clean_urls = FALSE)
 new_redirects <- data.frame(
-  from = "D", to = "B_final", stringsAsFactors = FALSE
+  from = "D", to = "B_final"
 )
 after <- resolve_links(edges, new_redirects, clean_urls = FALSE)
 }

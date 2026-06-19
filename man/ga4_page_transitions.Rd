@@ -122,8 +122,7 @@ events <- data.frame(
   event_timestamp = c(100, 200, 300, 100, 200),
   batch_page_id = c(0, 1, 2, 0, 1),
   batch_ordering_id = c(0, 0, 0, 0, 0),
-  batch_event_index = c(0, 1, 2, 0, 1),
-  stringsAsFactors = FALSE
+  batch_event_index = c(0, 1, 2, 0, 1)
 )
 transitions <- ga4_page_transitions(events)
 transitions

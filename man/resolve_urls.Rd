@@ -50,8 +50,7 @@ Given a character vector of URLs and a redirect data frame,
 \examples{
 redirects <- data.frame(
   from = c("A", "B", "C"),
-  to = c("B", "C", "Final"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "Final")
 )
 
 # Resolve specific URLs

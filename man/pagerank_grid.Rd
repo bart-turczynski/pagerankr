@@ -44,8 +44,7 @@ Executes [pagerank()] for each entry in a named parameter grid,
 \examples{
 edges <- data.frame(
   from = c("A", "B", "C", "A"),
-  to = c("B", "C", "A", "C"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "A", "C")
 )
 params <- list(
   baseline = list(damping = 0.85, self_loops = "drop"),

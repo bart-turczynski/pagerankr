@@ -92,8 +92,7 @@ the outflow-oriented score, both returned from a single call.
 }
 \examples{
 edges <- data.frame(
-  from = c("A", "A", "B"), to = c("B", "C", "C"),
-  stringsAsFactors = FALSE
+  from = c("A", "A", "B"), to = c("B", "C", "C")
 )
 compute_hits(edges)
 

@@ -67,13 +67,12 @@ Compares PageRank before and after proposed changes to the link
 # Current site links
 edges <- data.frame(
   from = c("Home", "Home", "About", "Blog"),
-  to = c("About", "Blog", "Home", "Home"),
-  stringsAsFactors = FALSE
+  to = c("About", "Blog", "Home", "Home")
 )
 
 # Propose adding a link from Blog to About
 new_links <- data.frame(
-  from = "Blog", to = "About", stringsAsFactors = FALSE
+  from = "Blog", to = "About"
 )
 result <- simulate_changes(edges,
   add_links_df = new_links,

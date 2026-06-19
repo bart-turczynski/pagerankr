@@ -76,7 +76,7 @@ This helper performs signal folding only; it does not perform URL syntax
 canonicalization.
 }
 \examples{
-redirects <- data.frame(from = "B", to = "C", stringsAsFactors = FALSE)
-canonicals <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+redirects <- data.frame(from = "B", to = "C")
+canonicals <- data.frame(from = "A", to = "B")
 resolve_folded_urls(c("A", "B", "X"), redirects, canonicals)
 }

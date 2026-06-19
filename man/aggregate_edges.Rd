@@ -116,8 +116,7 @@ edges <- data.frame(
   from = c("A", "A", "B"),
   to = c("B", "B", "C"),
   clicks = c(3, 5, 2),
-  nofollow = c(FALSE, TRUE, FALSE),
-  stringsAsFactors = FALSE
+  nofollow = c(FALSE, TRUE, FALSE)
 )
 aggregate_edges(edges)
 
@@ -130,8 +129,7 @@ aggregate_edges(edges, nofollow_policy = "error")
 edges_pos <- data.frame(
   from = c("A", "A"),
   to = c("B", "B"),
-  position = c(1, 7),
-  stringsAsFactors = FALSE
+  position = c(1, 7)
 )
 aggregate_edges(edges_pos, preserve_cols = "position")
 }
