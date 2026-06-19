@@ -134,8 +134,7 @@ are likewise unavailable here.
 \examples{
 edges <- data.frame(
   from = c("/hub", "/hub", "/feeder", "/blog", "/ai", "/news"),
-  to = c("/ai", "/ai-demo", "/ai", "/ai", "/ai-demo", "/sports"),
-  stringsAsFactors = FALSE
+  to = c("/ai", "/ai-demo", "/ai", "/ai", "/ai-demo", "/sports")
 )
 
 # Which pages feed the AI-Agent cluster?

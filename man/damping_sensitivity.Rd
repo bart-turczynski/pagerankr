@@ -70,8 +70,7 @@ iteration count climbs as \eqn{\alpha} approaches 1 regardless of solver.
 \examples{
 edges <- data.frame(
   from = c("A", "B", "C", "A", "D"),
-  to = c("B", "C", "A", "C", "A"),
-  stringsAsFactors = FALSE
+  to = c("B", "C", "A", "C", "A")
 )
 sens <- damping_sensitivity(edges, clean_edge_urls = FALSE)
 print(sens)

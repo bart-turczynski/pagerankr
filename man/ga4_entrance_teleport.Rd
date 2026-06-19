@@ -132,8 +132,7 @@ Recommended usage (let \code{pagerank()} own the fold):
 \examples{
 ga4 <- data.frame(
   url = c("https://x/a", "https://x/a", "https://x/b"),
-  entrances = c(60, 30, 10),
-  stringsAsFactors = FALSE
+  entrances = c(60, 30, 10)
 )
 # As a prior_df for pagerank() (it does the canonicalize + fold):
 ga4_entrance_teleport(ga4)

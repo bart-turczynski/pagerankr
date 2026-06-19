@@ -44,7 +44,7 @@ syntax canonicalization such as lower-casing hosts or removing tracking
 parameters.
 }
 \examples{
-edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
-canonicals <- data.frame(from = "B", to = "C", stringsAsFactors = FALSE)
+edges <- data.frame(from = "A", to = "B")
+canonicals <- data.frame(from = "B", to = "C")
 resolve_canonicals(edges, canonicals)
 }
