@@ -1,5 +1,19 @@
 # pagerankr (development version)
 
+* New `topic_feeder_pagerank()` and `feeder_seed_prior()` answer the inverse of
+  `topic_sensitive_pagerank()`: not "which page is most authoritative *for* this
+  cluster" but "which pages *feed / power* this cluster" — the internal hubs
+  whose outlinks point into the target pages. It seeds the teleport prior on the
+  cluster and runs `pagerank()` on the transposed graph (`reverse = TRUE`), so
+  mass walks backward along links and accumulates on the feeders, attenuating
+  with link distance. This is the reverse-graph sibling of Topic-Sensitive
+  PageRank and the cluster-biased counterpart to the global inverse PageRank
+  (`pagerank(reverse = TRUE)`); the feeders are the high-`pagerank` rows with
+  `prior_weight == 0` (cluster pages carry teleport mass directly). Pure
+  orchestration over the existing TIPR personalization path on the reversed
+  graph — no new solver. New `topic_feeder_pagerank` vignette walks through the
+  AI-Agent-cluster use case and contrasts it with the forward authority view and
+  with HITS hubs (PAGE-gwjdxmlm).
 * New `salsa()` and `compute_salsa()` add Lempel & Moran's (2001) SALSA hub and
   authority scores: a stochastic variant of HITS that runs the
   mutual-reinforcement step as PageRank-style random walks on the bipartite

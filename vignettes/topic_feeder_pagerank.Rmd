@@ -1,0 +1,145 @@
+---
+title: "Topic Feeder PageRank: what powers a content cluster"
+author: "Bart Turczynski"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Topic Feeder PageRank: what powers a content cluster}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(pagerankr)
+```
+
+## The question this answers
+
+You have a content cluster you care about — say the **AI-Agent** product area —
+and you want to know which internal pages *power* it. Not "which AI-Agent page
+is the strongest" (that is an authority question), but the inverse: **which
+pages funnel link authority *into* the cluster?** Those are the internal hubs
+worth protecting, strengthening, or learning from when you build the next
+section.
+
+`topic_feeder_pagerank()` answers exactly that. It is the **reverse-graph
+sibling** of `topic_sensitive_pagerank()`.
+
+## Why it is not just re-reading PageRank
+
+In PageRank, authority flows **along** link direction — linking *to* an
+important page does not make the linker important. So "the pages that feed the
+AI-Agent cluster" cannot be recovered from forward PageRank or from
+`topic_sensitive_pagerank()`: those rank pages by **inflow** (you are important
+because important pages point at you). Feeders are the opposite, an **outflow**
+notion (you are important because *you* point at the cluster).
+
+Mechanically, `topic_feeder_pagerank()` seeds the random surfer's teleport on
+the cluster and runs PageRank on the **transposed** graph (`reverse = TRUE`).
+Mass lands on the cluster, then walks *backward* along links, piling up on the
+pages that feed it. The damping factor attenuates that credit with link
+distance — a direct feeder beats a feeder-of-a-feeder. No new solver: it is a
+`prior_df` handed to `pagerank(reverse = TRUE)`.
+
+## A worked example
+
+```{r}
+edges <- data.frame(
+  from = c(
+    "/hub", "/hub", "/feeder", "/blog-ai", "/ai",
+    "/footer", "/sports", "/footer"
+  ),
+  to = c(
+    "/ai", "/ai-demo", "/ai", "/ai", "/ai-demo",
+    "/ai", "/scores", "/sports"
+  ),
+  stringsAsFactors = FALSE
+)
+```
+
+The AI-Agent cluster is `c("/ai", "/ai-demo")`. By construction `/hub` is the
+strongest feeder (it links to *both* cluster pages), `/feeder` and `/blog-ai`
+feed it once each, `/footer` links in too, and `/sports` / `/scores` are
+unrelated.
+
+```{r}
+fr <- topic_feeder_pagerank(
+  edges,
+  seeds = c("/ai", "/ai-demo"),
+  clean_edge_urls = FALSE,
+  prior_verbose = FALSE
+)
+fr[, c("node_name", "pagerank", "prior_weight")]
+```
+
+### Reading the output
+
+- **`prior_weight > 0`** marks the cluster pages themselves — they carry the
+  teleport mass directly, so a high score there is *teleport, not a feeder
+  signal*.
+- **The feeders are the high-`pagerank` rows with `prior_weight == 0`.** Filter
+  to those:
+
+```{r}
+feeders <- fr[fr$prior_weight == 0, c("node_name", "pagerank")]
+feeders
+```
+
+`/hub` tops the feeder list exactly as designed, and the off-topic `/sports`
+neighbourhood earns no feeder credit.
+
+## Contrast with the forward (authority) view
+
+Run `topic_sensitive_pagerank()` on the same cluster to see the difference in
+direction:
+
+```{r}
+auth <- topic_sensitive_pagerank(
+  edges,
+  topics = list(ai_agent = c("/ai", "/ai-demo")),
+  clean_edge_urls = FALSE,
+  prior_verbose = FALSE
+)
+auth[, c("node_name", "ai_agent")]
+```
+
+The forward run concentrates score *on the cluster and what it links onward to*;
+the feeder run concentrates score *on what points into the cluster*. Use the
+forward view to find the cluster's authorities, the feeder view to find its
+hubs.
+
+## Where it sits among the reverse-direction tools
+
+`pagerankr` has three ways to look "backward" along links; pick by what you
+need:
+
+- **`pagerank(reverse = TRUE)`** — *global* outflow centrality (the inverse /
+  CheiRank-style PageRank). "Which pages funnel authority outward *anywhere* on
+  the site." No cluster bias.
+- **`topic_feeder_pagerank()`** — the same idea, **biased to a cluster**: not
+  "good hub in general" but "good hub *for the AI-Agent cluster*". This is the
+  one you want for the question at the top of this vignette.
+- **`hits()` hubs** — the eigenvector hub score (co-computed with authority). An
+  outflow notion too, but with no teleport prior and no damped-surfer / dangling
+  handling, so it answers a structurally different question.
+
+## Notes
+
+- Seed weights are an **additive feeder budget**: if two seed URLs fold onto the
+  same vertex (redirect or canonical variants), their weights sum — consistent
+  with the prior contract in `pagerank()` and `align_prior_to_vertices()`.
+- Everything `pagerank()` accepts flows through `...`: redirects, canonicals,
+  URL cleaning, domain/host filtering, edge weights, and duplicate-edge policy.
+  Cluster seeds are canonicalized and folded into the same vertex namespace as
+  the edges before alignment.
+- Because the graph is always reversed, the forward-flow devices `pagerank()`
+  rejects under `reverse = TRUE` (`nofollow_action = "evaporate"`,
+  `indexability_df`) are unavailable here too — use `nofollow_action = "drop"`,
+  the correct treatment of a nofollowed link for outflow.
+```
