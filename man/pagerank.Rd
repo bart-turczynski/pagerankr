@@ -14,6 +14,7 @@ pagerank(
   drop_isolates_flag = TRUE,
   reverse = FALSE,
   weight_col = NULL,
+  duplicate_edge_policy = c("collapse", "aggregate", "count_instances"),
   nofollow_col = NULL,
   nofollow_action = c("evaporate", "drop", "keep"),
   indexability_df = NULL,
@@ -86,6 +87,25 @@ compatible.}
 \item{weight_col}{Optional name of a numeric column in `edge_list_df`
 containing edge weights. Higher weights make edges more likely to be
 followed. If `NULL` (default), all edges have equal weight.}
+
+\item{duplicate_edge_policy}{How repeated `from -> to` rows are represented
+after URL cleaning, redirect/canonical folding, and domain filtering. One
+of:
+\describe{
+  \item{`"collapse"`}{(default) Destination-level surfer: repeated rows
+    collapse to one unweighted destination edge, preserving legacy
+    `get_unique_edges()` behaviour and the common binary PageRank
+    convention.}
+  \item{`"aggregate"`}{Collapse each `from -> to` pair with
+    [aggregate_edges()] semantics. Numeric columns, including
+    `weight_col`, are summed; logical columns such as `nofollow` use the
+    default `"any"` conflict policy.}
+  \item{`"count_instances"`}{Link-slot / edge-level surfer: repeated
+    rows increase transition probability. With no `weight_col`, each
+    surviving `from -> to` pair receives an internal weight equal to its
+    duplicate-row count. With `weight_col`, weights are summed and an
+    `instance_count` audit column is retained.}
+}}
 
 \item{nofollow_col}{Optional name of a logical or 0/1 column in
 `edge_list_df` indicating nofollow edges. If `NULL` (default),
@@ -301,12 +321,13 @@ the **CheiRank** of the transposed Google matrix, and the PageRank-flavoured
 analogue of the *hub* score in Kleinberg's HITS. The sibling `semantic`
 project consumes this as an outflow signal.
 
-Only edge orientation is flipped; URL cleaning, redirect folding, dedup,
-edge weights, domain/host filtering, and the teleport prior all behave
-identically (they are direction-agnostic). To obtain it directly from an
-edge list, swapping the from/to columns and running ordinary `pagerank()` is
-equivalent — `reverse = TRUE` just performs that flip internally so weight,
-redirect, and sink handling cannot be mis-wired by a manual swap.
+Only edge orientation is flipped; URL cleaning, redirect folding,
+duplicate-edge policy, edge weights, domain/host filtering, and the teleport
+prior all behave identically (they are direction-agnostic). To obtain it
+directly from an edge list, swapping the from/to columns and running ordinary
+`pagerank()` is equivalent — `reverse = TRUE` just performs that flip
+internally so weight, redirect, and sink handling cannot be mis-wired by a
+manual swap.
 
 **This is unrelated to the TIPR / personalized-prior feature (`prior_df`).**
 That seeds the *teleport* vector with external authority (e.g. backlinks) but
@@ -325,6 +346,25 @@ their semantics do not transpose:
     robots.txt blocking (drop outlinks + trap self-loop) encode forward
     crawl/index behaviour with no meaningful transpose.}
 }
+
+## Duplicate edge policy
+
+The original PageRank papers define a page's vote as divided by its outgoing
+link count but do not pin down how repeated hyperlinks from one source page
+to the same target are represented. The standard textbook / binary
+operationalization treats the outgoing set as a destination relation, so
+multiple `A -> C` rows collapse to one destination edge. `pagerankr` keeps
+that as the default (`duplicate_edge_policy = "collapse"`) for backward
+compatibility and as the less spam-sensitive model.
+
+Weighted / multigraph PageRank is also valid when repeated link slots are
+the intended unit. Use `duplicate_edge_policy = "count_instances"` for a
+link-slot surfer: `A -> B, A -> C, A -> C` sends twice as much outgoing mass
+to `C` as to `B`, equivalent to explicit weights `B = 1, C = 2` and to
+igraph's treatment of parallel edges. Use `"aggregate"` when duplicate rows
+should be collapsed loss-aware, especially with an existing `weight_col`;
+numeric duplicate weights are summed instead of silently keeping the first
+row.
 }
 \examples{
 # Basic example

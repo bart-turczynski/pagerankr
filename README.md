@@ -138,6 +138,11 @@ pagerank_screaming_frog(
 ### 1.3.3 PageRank Modelling Controls
 
 - `pagerank()` supports weighted edges via `weight_col`
+- `duplicate_edge_policy = "collapse"` keeps the standard binary
+  destination-level surfer as the default: repeated `from -> to` rows become
+  one edge. Opt into `"aggregate"` to sum duplicate numeric weights, or
+  `"count_instances"` for a link-slot surfer where repeated links to the same
+  target increase transition probability.
 - `nofollow_col` + `nofollow_action = c("evaporate", "drop", "keep")`
 - `indexability_df` support for `noindex` and `Blocked by robots.txt`
   behaviours (`robots_blocked_action = "trap"` or `"vanish"`)

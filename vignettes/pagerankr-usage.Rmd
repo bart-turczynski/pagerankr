@@ -327,6 +327,14 @@ pr <- pagerank(edges, weight_col = "weight", clean_edge_urls = FALSE)
 print(pr)
 ```
 
+Duplicate `from -> to` rows are a separate modelling choice. By default,
+`pagerank()` uses `duplicate_edge_policy = "collapse"`: repeated links from one
+source page to the same destination become one binary destination edge, matching
+the common textbook PageRank convention and preserving legacy results. Use
+`duplicate_edge_policy = "aggregate"` when duplicate rows carry additive
+weights that should be summed, or `"count_instances"` when each repeated link
+slot should increase the transition probability to that target.
+
 ## Domain Filtering
 
 `filter_links_by_domain()` scopes edge lists by domain, useful for

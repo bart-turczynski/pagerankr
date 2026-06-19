@@ -1,5 +1,12 @@
 # pagerankr (development version)
 
+* `pagerank()` now has an explicit `duplicate_edge_policy` for repeated
+  `from -> to` rows after URL folding and filtering. The default `"collapse"`
+  preserves the standard binary/destination-level PageRank convention and
+  previous results; opt-in `"aggregate"` sums duplicate numeric weights with
+  `aggregate_edges()` semantics; opt-in `"count_instances"` models a
+  link-slot surfer where repeated links increase transition probability and
+  records instance-count details in the transition audit (PAGE-akyureac).
 * Recorded representative Screaming Frog crawl acceptance results and added
   package-level operational documentation for required exports, default graph
   policy, optional origin/placement policies, and contract pinning
