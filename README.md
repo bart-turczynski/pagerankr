@@ -43,6 +43,15 @@ The package currently includes:
 - Screaming Frog Internal: All plus All Inlinks/Outlinks import adapters
 - Model comparison, parameter sweeps, and what-if simulations
 - Graph export utilities and an optional interactive Shiny explorer
+- HITS hub and authority scores (`hits()`)
+- SALSA hub and authority scores (`salsa()`)
+- TrustRank seed-biased PageRank (`trustrank()`)
+- Topic-Sensitive PageRank (per-topic authority with blended scores)
+- Reverse-graph feeder PageRank (find pages that power a cluster)
+- GA4 behavioral transition modeling (transition counts, structural
+  smoothing, entrance teleport)
+- PageRank convergence controls (algo/eps/niter) and alpha-stability
+  reporting (`pagerank_stability()`)
 
 ## 1.1 Installation
 
@@ -105,12 +114,12 @@ resolve_urls(
 
 ### 1.3.2 Screaming Frog Crawl Imports
 
-Use `screaming_frog_bundle()` with an **Internal: All** export and either
-**All Inlinks** or **All Outlinks**. The node export supplies page facts,
-redirects, canonicals, and indexability. The link export supplies raw link
-observations and graph-eligible Hyperlink edges. Resource, canonical,
-hreflang, and other non-Hyperlink link rows are retained in diagnostics
-but excluded from the PageRank graph by default.
+Use `screaming_frog_bundle()` with an **Internal: All** export and
+either **All Inlinks** or **All Outlinks**. The node export supplies
+page facts, redirects, canonicals, and indexability. The link export
+supplies raw link observations and graph-eligible Hyperlink edges.
+Resource, canonical, hreflang, and other non-Hyperlink link rows are
+retained in diagnostics but excluded from the PageRank graph by default.
 
 ``` r
 bundle <- screaming_frog_bundle(
@@ -139,10 +148,10 @@ pagerank_screaming_frog(
 
 - `pagerank()` supports weighted edges via `weight_col`
 - `duplicate_edge_policy = "collapse"` keeps the standard binary
-  destination-level surfer as the default: repeated `from -> to` rows become
-  one edge. Opt into `"aggregate"` to sum duplicate numeric weights, or
-  `"count_instances"` for a link-slot surfer where repeated links to the same
-  target increase transition probability.
+  destination-level surfer as the default: repeated `from -> to` rows
+  become one edge. Opt into `"aggregate"` to sum duplicate numeric
+  weights, or `"count_instances"` for a link-slot surfer where repeated
+  links to the same target increase transition probability.
 - `nofollow_col` + `nofollow_action = c("evaporate", "drop", "keep")`
 - `indexability_df` support for `noindex` and `Blocked by robots.txt`
   behaviours (`robots_blocked_action = "trap"` or `"vanish"`)
@@ -234,12 +243,39 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 | `pr_top_k_share()` | Top-k PageRank concentration share |
 | `export_graph()` | Export graph and PageRank metadata for external tools |
 | `launch_pagerank_explorer()` | Start the interactive Shiny explorer |
+| `hits()` | End-to-end HITS hub + authority scores |
+| `compute_hits()` | Low-level igraph HITS wrapper |
+| `salsa()` | End-to-end SALSA hub + authority scores |
+| `compute_salsa()` | Low-level SALSA computational core |
+| `trustrank()` | TrustRank: seed-biased PageRank from a trusted seed set |
+| `trust_seed_prior()` | Build a teleport prior for trustrank() |
+| `topic_sensitive_pagerank()` | Per-topic personalized PageRank with blended scores |
+| `topic_feeder_pagerank()` | Reverse-graph seeded PR: find pages that feed a cluster |
+| `feeder_seed_prior()` | Build a teleport prior for topic_feeder_pagerank() |
+| `align_prior_to_vertices()` | Align a prior/teleport data frame to the graph vertex set |
+| `damping_sensitivity()` | Sweep PageRank across a range of damping factors |
+| `pagerank_stability()` | Alpha-stability report: rank correlation across a damping grid |
+| `ga4_page_transitions()` | Consecutive page-view transition counts from a GA4 export |
+| `smooth_transitions()` | Shrink sparse empirical transitions toward a structural prior |
+| `ga4_entrance_teleport()` | Entrance/landing-page counts as a PageRank teleport vector |
+| `aggregate_edges()` | Aggregate duplicate edges after URL folding |
+| `transform_edge_weights()` | Per-source grouped edge weight transforms |
+| `validate_edge_weights()` | Validate per-source weight totals |
+| `screaming_frog_internal()` | Import Screaming Frog Internal: All export |
+| `screaming_frog_links()` | Import Screaming Frog All Inlinks / All Outlinks export |
+| `audit_redirects()` | Diagnose redirect chains, loops, and conflicts |
+| `audit_canonicals()` | Diagnose rel=canonical fold coverage and conflicts |
+| `resolve_canonicals()` | Apply rel=canonical folds to an edge list |
+| `resolve_canonical_urls()` | Resolve a URL vector through rel=canonical folds |
+| `resolve_folded_urls()` | Resolve a URL vector through redirects plus canonicals |
 
 ## 1.5 Further Information
 
 ``` r
 help(package = "pagerankr")
 vignette("pagerankr-usage")
+vignette("trustrank")
+vignette("topic_feeder_pagerank")
 ```
 
 ## 1.6 Code of Conduct
