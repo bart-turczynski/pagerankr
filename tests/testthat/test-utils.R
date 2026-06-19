@@ -1,4 +1,4 @@
-describe("pagerank warns on edge list query parameters (clean_edge_urls = FALSE)", {
+describe("pagerank warns on edge list query parameters", {
   it("fires the warning when a URL contains '?'", {
     df <- data.frame(
       from = c("http://example.com/page?q=test", "http://example.com/other"),

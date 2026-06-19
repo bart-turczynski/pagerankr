@@ -45,7 +45,9 @@ describe("resolve_rurl_params (via clean_url_columns)", {
     default_result <- clean_url_columns(df, columns = "url")
     expect_true(grepl("example.com", default_result$url, fixed = TRUE))
 
-    override_result <- clean_url_columns(df, columns = "url", case_handling = "keep")
+    override_result <- clean_url_columns(
+      df, columns = "url", case_handling = "keep"
+    )
     expect_true(grepl("EXAMPLE.COM", override_result$url, fixed = TRUE))
   })
 })
