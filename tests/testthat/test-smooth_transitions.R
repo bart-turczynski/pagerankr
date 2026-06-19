@@ -276,29 +276,37 @@ describe("smooth_transitions: additional validation", {
 
   it("errors on a non-character from_col", {
     expect_error(
-      smooth_transitions(sparse_empirical(), sparse_structural(), from_col = 1),
+      smooth_transitions(
+        sparse_empirical(), sparse_structural(), from_col = 1
+      ),
       "single non-NA character string"
     )
   })
 
   it("errors on a negative min_support", {
     expect_error(
-      smooth_transitions(sparse_empirical(), sparse_structural(), min_support = -1),
+      smooth_transitions(
+        sparse_empirical(), sparse_structural(), min_support = -1
+      ),
       "non-negative"
     )
   })
 
   it("errors when lambda_fn is not a function", {
     expect_error(
-      smooth_transitions(sparse_empirical(), sparse_structural(), lambda_fn = "bad"),
+      smooth_transitions(
+        sparse_empirical(), sparse_structural(), lambda_fn = "bad"
+      ),
       "function"
     )
   })
 
   it("errors on a non-character structural_weight_col", {
     expect_error(
-      smooth_transitions(sparse_empirical(), sparse_structural(),
-        structural_weight_col = 1),
+      smooth_transitions(
+        sparse_empirical(), sparse_structural(),
+        structural_weight_col = 1
+      ),
       "character string"
     )
   })
@@ -324,8 +332,10 @@ describe("smooth_transitions: additional validation", {
       from = c("A", "A"), to = c("B", "C"), w = c("heavy", "light")
     )
     expect_error(
-      smooth_transitions(sparse_empirical(), struct_char_wt,
-        structural_weight_col = "w"),
+      smooth_transitions(
+        sparse_empirical(), struct_char_wt,
+        structural_weight_col = "w"
+      ),
       "must be numeric"
     )
   })

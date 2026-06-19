@@ -242,8 +242,10 @@ describe("transition_audit print method branches", {
     edges <- data.frame(from = "A", to = "B")
     prior <- data.frame(url = c("A", "Z"), weight = c(10, 5))
     audit <- attr(
-      pagerank(edges, clean_edge_urls = FALSE, prior_df = prior,
-        prior_verbose = FALSE),
+      pagerank(
+        edges,
+        clean_edge_urls = FALSE, prior_df = prior, prior_verbose = FALSE
+      ),
       "transition_audit"
     )
     expect_output(print(audit), "Prior URLs unmatched")
@@ -286,8 +288,11 @@ describe("transition_audit print method branches", {
   it("prints instance count col and counted dup edges under count_instances", {
     edges <- data.frame(from = c("A", "A"), to = c("B", "B"))
     audit <- attr(
-      pagerank(edges, clean_edge_urls = FALSE,
-        duplicate_edge_policy = "count_instances"),
+      pagerank(
+        edges,
+        clean_edge_urls = FALSE,
+        duplicate_edge_policy = "count_instances"
+      ),
       "transition_audit"
     )
     expect_output(print(audit), "Instance count col")
