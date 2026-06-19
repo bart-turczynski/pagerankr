@@ -223,7 +223,7 @@ ga4_page_transitions <- function(events_df,
   }
 
   # --- Aggregate to transition counts ---
-  agg <- aggregate(
+  agg <- stats::aggregate(
     list(count = rep(1L, length(from_vec))),
     by = list(from = from_vec, to = to_vec),
     FUN = sum

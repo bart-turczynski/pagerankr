@@ -841,14 +841,15 @@ sm <- smooth_transitions(
   empirical_df  = trans,
   structural_df = structural,
   k             = 10,
-  min_support   = 2
+  min_support   = 2,
+  prob_col      = "prob"
 )
 
 # 3. Run PageRank using smoothed probabilities as edge weights
 pr <- pagerank(
   sm,
-  from_col       = "from",
-  to_col         = "to",
+  edge_from_col  = "from",
+  edge_to_col    = "to",
   weight_col     = "prob",
   clean_edge_urls = FALSE
 )
