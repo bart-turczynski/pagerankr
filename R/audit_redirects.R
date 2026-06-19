@@ -39,14 +39,13 @@
 #' @examples
 #' redirects <- data.frame(
 #'   from = c("A", "B", "C", "D", "D", "E"),
-#'   to = c("B", "C", "final", "X", "Y", "E"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C", "final", "X", "Y", "E")
 #' )
 #' audit <- audit_redirects(redirects)
 #' print(audit)
 #'
 #' # With an edge list to detect orphaned redirects
-#' edges <- data.frame(from = "Z", to = "A", stringsAsFactors = FALSE)
+#' edges <- data.frame(from = "Z", to = "A")
 #' audit2 <- audit_redirects(redirects, edge_list_df = edges)
 #' audit2$orphaned_redirects
 audit_redirects <- function(redirects_df,
@@ -126,28 +125,24 @@ audit_redirects <- function(redirects_df,
   if (result$n_rules == 0) {
     result$n_self_refs <- 0L
     result$self_refs <- data.frame(
-      from = character(0), to = character(0),
-      stringsAsFactors = FALSE
+      from = character(0), to = character(0)
     )
     result$n_conflicts <- 0L
     result$conflicts <- data.frame(
       source = character(0),
       targets = character(0),
-      n_targets = integer(0),
-      stringsAsFactors = FALSE
+      n_targets = integer(0)
     )
     result$n_loops <- 0L
     result$loops <- list()
     result$chains <- data.frame(
       from = character(0), to_final = character(0),
-      chain_length = integer(0),
-      stringsAsFactors = FALSE
+      chain_length = integer(0)
     )
     result$max_chain_length <- 0L
     result$orphaned_redirects <- data.frame(
       from = character(0),
-      to = character(0),
-      stringsAsFactors = FALSE
+      to = character(0)
     )
     return(result)
   }
@@ -156,8 +151,7 @@ audit_redirects <- function(redirects_df,
   self_ref_mask <- sources == targets
   result$n_self_refs <- sum(self_ref_mask)
   result$self_refs <- data.frame(
-    from = sources[self_ref_mask], to = targets[self_ref_mask],
-    stringsAsFactors = FALSE
+    from = sources[self_ref_mask], to = targets[self_ref_mask]
   )
 
   # Work with non-self-ref redirects for remaining analysis
@@ -179,8 +173,7 @@ audit_redirects <- function(redirects_df,
         data.frame(
           source = src,
           targets = paste(tgts, collapse = ", "),
-          n_targets = length(tgts),
-          stringsAsFactors = FALSE
+          n_targets = length(tgts)
         )
       })
       result$conflicts <- do.call(rbind, conflict_rows)
@@ -188,8 +181,7 @@ audit_redirects <- function(redirects_df,
       result$conflicts <- data.frame(
         source = character(0),
         targets = character(0),
-        n_targets = integer(0),
-        stringsAsFactors = FALSE
+        n_targets = integer(0)
       )
     }
   } else {
@@ -197,8 +189,7 @@ audit_redirects <- function(redirects_df,
     result$conflicts <- data.frame(
       source = character(0),
       targets = character(0),
-      n_targets = integer(0),
-      stringsAsFactors = FALSE
+      n_targets = integer(0)
     )
   }
 
@@ -210,7 +201,7 @@ audit_redirects <- function(redirects_df,
     g_targets <- clean_targets[dedup_mask]
 
     g <- igraph::graph_from_data_frame(
-      data.frame(from = g_sources, to = g_targets, stringsAsFactors = FALSE),
+      data.frame(from = g_sources, to = g_targets),
       directed = TRUE
     )
 
@@ -269,8 +260,7 @@ audit_redirects <- function(redirects_df,
     chains_df <- data.frame(
       from = unique_sources,
       to_final = unname(canonical[unique_sources]),
-      chain_length = unname(chain_lengths[unique_sources]),
-      stringsAsFactors = FALSE
+      chain_length = unname(chain_lengths[unique_sources])
     )
     # Mark loop members
     loop_members <- character(0)
@@ -290,8 +280,7 @@ audit_redirects <- function(redirects_df,
     result$chains <- data.frame(
       from = character(0), to_final = character(0),
       chain_length = integer(0),
-      in_loop = logical(0),
-      stringsAsFactors = FALSE
+      in_loop = logical(0)
     )
     result$max_chain_length <- 0L
   }
@@ -306,8 +295,7 @@ audit_redirects <- function(redirects_df,
     # Deduplicate orphans
     orphan_df <- data.frame(
       from = clean_sources[orphan_mask],
-      to = clean_targets[orphan_mask],
-      stringsAsFactors = FALSE
+      to = clean_targets[orphan_mask]
     )
     orphan_key <- paste0(orphan_df$from, "\t", orphan_df$to)
     result$orphaned_redirects <- orphan_df[!duplicated(orphan_key), ,

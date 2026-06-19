@@ -39,13 +39,11 @@
 #' @examples
 #' pr_a <- data.frame(
 #'   node_name = c("A", "B", "C"),
-#'   pagerank = c(0.5, 0.3, 0.2),
-#'   stringsAsFactors = FALSE
+#'   pagerank = c(0.5, 0.3, 0.2)
 #' )
 #' pr_b <- data.frame(
 #'   node_name = c("A", "B", "D"),
-#'   pagerank = c(0.4, 0.35, 0.25),
-#'   stringsAsFactors = FALSE
+#'   pagerank = c(0.4, 0.35, 0.25)
 #' )
 #' result <- compare_pagerank(pr_a, pr_b)
 #' print(result)
@@ -74,13 +72,11 @@ compare_pagerank <- function(pr_a, pr_b,
   # --- Extract and Rank ---
   a <- data.frame(
     node = as.character(pr_a[[node_col]]),
-    pr_a = as.numeric(pr_a[[pr_col]]),
-    stringsAsFactors = FALSE
+    pr_a = as.numeric(pr_a[[pr_col]])
   )
   b <- data.frame(
     node = as.character(pr_b[[node_col]]),
-    pr_b = as.numeric(pr_b[[pr_col]]),
-    stringsAsFactors = FALSE
+    pr_b = as.numeric(pr_b[[pr_col]])
   )
 
   # Ordinal rank: 1 = highest PR
@@ -114,8 +110,7 @@ compare_pagerank <- function(pr_a, pr_b,
     pct_change = merged$pct_change,
     rank_a_val = merged$rank_a,
     rank_b_val = merged$rank_b,
-    rank_delta = merged$rank_delta,
-    stringsAsFactors = FALSE
+    rank_delta = merged$rank_delta
   )
   names(result) <- c(
     node_col, pr_col_a, pr_col_b, "delta", "pct_change",

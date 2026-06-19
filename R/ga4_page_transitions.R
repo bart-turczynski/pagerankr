@@ -91,8 +91,7 @@
 #'   event_timestamp = c(100, 200, 300, 100, 200),
 #'   batch_page_id = c(0, 1, 2, 0, 1),
 #'   batch_ordering_id = c(0, 0, 0, 0, 0),
-#'   batch_event_index = c(0, 1, 2, 0, 1),
-#'   stringsAsFactors = FALSE
+#'   batch_event_index = c(0, 1, 2, 0, 1)
 #' )
 #' transitions <- ga4_page_transitions(events)
 #' transitions
@@ -163,8 +162,7 @@ ga4_page_transitions <- function(events_df,
   # --- Empty input: return an empty edge list with the right shape. ---
   empty_result <- function() {
     out <- data.frame(
-      a = character(0), b = character(0), c = integer(0),
-      stringsAsFactors = FALSE
+      a = character(0), b = character(0), c = integer(0)
     )
     names(out) <- c(from_col, to_col, count_col)
     out
@@ -235,8 +233,7 @@ ga4_page_transitions <- function(events_df,
   out <- data.frame(
     a = as.character(agg$from),
     b = as.character(agg$to),
-    c = as.integer(agg$count),
-    stringsAsFactors = FALSE
+    c = as.integer(agg$count)
   )
   names(out) <- c(from_col, to_col, count_col)
   row.names(out) <- NULL

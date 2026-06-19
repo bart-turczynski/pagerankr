@@ -128,8 +128,7 @@ build_fold_map <- function(redirects_df = NULL,
   out <- data.frame(
     from = names(fold$map),
     to = unname(fold$map),
-    signal = unname(fold$signal[names(fold$map)]),
-    stringsAsFactors = FALSE
+    signal = unname(fold$signal[names(fold$map)])
   )
   attr(out, "conflicts") <- fold$conflicts
   attr(out, "ignored_canonicals") <- fold$ignored_canonicals
@@ -177,11 +176,11 @@ build_fold_map <- function(redirects_df = NULL,
   empty_conflicts <- data.frame(
     source = character(0), redirect_to = character(0),
     canonical_to = character(0), disagrees = logical(0),
-    resolution = character(0), stringsAsFactors = FALSE
+    resolution = character(0)
   )
   empty_ignored <- data.frame(
     source = character(0), canonical_to = character(0),
-    redirect_to = character(0), stringsAsFactors = FALSE
+    redirect_to = character(0)
   )
 
   # --- Build each signal's standalone terminal map (separate, auditable) ---
@@ -231,8 +230,7 @@ build_fold_map <- function(redirects_df = NULL,
       redirect_to = r_to,
       canonical_to = c_to,
       disagrees = disagrees,
-      resolution = resolution,
-      stringsAsFactors = FALSE
+      resolution = resolution
     )
 
     if (canonical_conflict_policy == "error" && any(disagrees)) {
@@ -251,8 +249,7 @@ build_fold_map <- function(redirects_df = NULL,
       ignored_canonicals <- data.frame(
         source = conflict_sources,
         canonical_to = c_to,
-        redirect_to = r_to,
-        stringsAsFactors = FALSE
+        redirect_to = r_to
       )
     }
   }

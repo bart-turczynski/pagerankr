@@ -52,8 +52,7 @@ helpers over that engine:
 ```{r}
 edges <- data.frame(
   from = c("/", "/", "/hub", "/hub", "/good", "/spam", "/spam"),
-  to = c("/hub", "/good", "/good", "/deep", "/hub", "/sink", "/good"),
-  stringsAsFactors = FALSE
+  to = c("/hub", "/good", "/good", "/deep", "/hub", "/sink", "/good")
 )
 ```
 

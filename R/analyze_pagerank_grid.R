@@ -28,8 +28,7 @@
 #' @examples
 #' edges <- data.frame(
 #'   from = c("A", "B", "C", "A"),
-#'   to = c("B", "C", "A", "C"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C", "A", "C")
 #' )
 #' params <- list(
 #'   low = list(damping = 0.5),
@@ -69,8 +68,7 @@ analyze_pagerank_grid <- function(grid_result,
       },
       pr_gini = pr_gini(pr_vals),
       pr_entropy = pr_entropy(pr_vals),
-      pr_top10_share = pr_top_k_share(pr_vals, k = 0.1),
-      stringsAsFactors = FALSE
+      pr_top10_share = pr_top_k_share(pr_vals, k = 0.1)
     )
   })
 
