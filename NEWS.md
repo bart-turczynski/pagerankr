@@ -1,5 +1,17 @@
 # pagerankr (development version)
 
+* New `trustrank()` and `trust_seed_prior()` add TrustRank-style seed-biased
+  PageRank (Gyöngyi, Garcia-Molina & Pedersen, 2004): personalized PageRank
+  whose teleport vector is concentrated on a set of trusted seed pages, so
+  trust flows outward from the seeds and attenuates with distance (the damping
+  factor *is* the attenuation). `trust_seed_prior()` builds a `prior_df` from a
+  seed set (character vector or weighted `data.frame`; equal weights reproduce
+  the original uniform seed distribution), and `trustrank()` is the one-call
+  wrapper that builds the seed prior and runs `pagerank()` with it. Pure
+  orchestration over the existing TIPR personalization path — no new solver;
+  seed selection is the caller's (it is seed-biased PageRank, not a spam
+  classifier). New `trustrank` vignette walks through a worked example
+  (PAGE-bdgzgwmb).
 * New `topic_sensitive_pagerank()` computes per-topic PageRank by running the
   existing `pagerank()` engine once per topic with a teleport prior biased
   toward each topic's seed cluster, then blends the per-topic scores into a
