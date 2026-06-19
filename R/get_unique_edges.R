@@ -19,8 +19,7 @@
 #' @examples
 #' edges <- data.frame(
 #'   from = c("A", "B", "A", "C", "D"),
-#'   to = c("B", "C", "B", "C", "D"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C", "B", "C", "D")
 #' )
 #' get_unique_edges(edges, self_loops = "drop")
 #' get_unique_edges(edges, self_loops = "keep")
@@ -28,8 +27,7 @@
 #' # With custom column names
 #' edges_custom <- data.frame(
 #'   source = c("X", "Y", "X"),
-#'   target = c("Y", "Y", "Y"),
-#'   stringsAsFactors = FALSE
+#'   target = c("Y", "Y", "Y")
 #' )
 #' get_unique_edges(edges_custom, from_col = "source", to_col = "target")
 #'
@@ -37,8 +35,7 @@
 #' # duplicates involving NAs are also removed)
 #' edges_na <- data.frame(
 #'   from = c("A", NA, "A", "B", NA),
-#'   to = c("B", "C", "B", "D", "C"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C", "B", "D", "C")
 #' )
 #' get_unique_edges(edges_na, self_loops = "keep")
 #' # No self-loops with NA to drop

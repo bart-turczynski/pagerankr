@@ -88,8 +88,7 @@ screaming_frog_internal <- function(x) {
     unique_outlinks = .sf_parse_integer(raw$unique_outlinks[valid_address]),
     response_time_seconds = .sf_parse_number(
       raw$response_time_seconds[valid_address]
-    ),
-    stringsAsFactors = FALSE
+    )
   )
 
   redirect_rows <- valid_address & is_redirect_status & redirect_destination
@@ -97,15 +96,13 @@ screaming_frog_internal <- function(x) {
     from = raw$address[redirect_rows],
     to = raw$redirect_to[redirect_rows],
     status_code = status_code[redirect_rows],
-    redirect_type = raw$redirect_type[redirect_rows],
-    stringsAsFactors = FALSE
+    redirect_type = raw$redirect_type[redirect_rows]
   )
 
   canonical_rows <- valid_address & canonical_destination
   canonicals <- data.frame(
     from = raw$address[canonical_rows],
-    to = raw$canonical[canonical_rows],
-    stringsAsFactors = FALSE
+    to = raw$canonical[canonical_rows]
   )
 
   indexability <- data.frame(
@@ -117,8 +114,7 @@ screaming_frog_internal <- function(x) {
       raw$indexing_allowed[valid_address]
     ),
     meta_robots = raw$meta_robots[valid_address],
-    x_robots_tag = raw$x_robots_tag[valid_address],
-    stringsAsFactors = FALSE
+    x_robots_tag = raw$x_robots_tag[valid_address]
   )
 
   duplicate_address <- valid_address & (
@@ -132,8 +128,7 @@ screaming_frog_internal <- function(x) {
     input_row = integer(0),
     field = character(0),
     value = character(0),
-    issue = character(0),
-    stringsAsFactors = FALSE
+    issue = character(0)
   )
   issues <- .sf_append_issues(
     issues, input_row[!valid_address], "address",
@@ -260,8 +255,7 @@ screaming_frog_internal <- function(x) {
       input_row = rows,
       field = rep(field, length(rows)),
       value = as.character(values),
-      issue = rep(issue, length(rows)),
-      stringsAsFactors = FALSE
+      issue = rep(issue, length(rows))
     )
   )
 }

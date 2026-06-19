@@ -45,33 +45,29 @@
 #' @examples
 #' edges <- data.frame(
 #'   from = c("A", "B", "C"),
-#'   to = c("B", "C", "D"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C", "D")
 #' )
 #' redirects <- data.frame(
 #'   from = c("B", "C", "E"),
-#'   to = c("B_final", "C_final", "E_final"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B_final", "C_final", "E_final")
 #' )
 #' resolve_redirects(edges, redirects)
 #'
 #' # Example with a redirect chain
-#' edges_chain <- data.frame(from = "X", to = "Y", stringsAsFactors = FALSE)
+#' edges_chain <- data.frame(from = "X", to = "Y")
 #' redirects_chain <- data.frame(
 #'   from = c("Y", "Z"),
-#'   to = c("Z", "Z_final"),
-#'   stringsAsFactors = FALSE
+#'   to = c("Z", "Z_final")
 #' )
 #' resolve_redirects(edges_chain, redirects_chain)
 #'
 #' # Example with conflicting redirects resolved via first_wins
 #' edges_conflict <- data.frame(
-#'   from = "A", to = "B", stringsAsFactors = FALSE
+#'   from = "A", to = "B"
 #' )
 #' redirects_conflict <- data.frame(
 #'   from = c("B", "B"),
-#'   to = c("C", "D"),
-#'   stringsAsFactors = FALSE
+#'   to = c("C", "D")
 #' )
 #' resolve_redirects(edges_conflict, redirects_conflict,
 #'   duplicate_from_policy = "first_wins"
@@ -249,7 +245,7 @@ resolve_redirects <- function(edge_list_df,
     return(stats::setNames(character(0), character(0)))
   }
 
-  clean_df <- data.frame(from = from, to = to, stringsAsFactors = FALSE)
+  clean_df <- data.frame(from = from, to = to)
   clean_df <- .preprocess_redirects(clean_df, "from", "to",
     policy = duplicate_from_policy
   )
@@ -303,7 +299,7 @@ resolve_redirects <- function(edge_list_df,
 #' @noRd
 .resolve_via_graph <- function(from, to, loop_handling = "error") {
   # Build redirect graph
-  redirect_edges <- data.frame(from = from, to = to, stringsAsFactors = FALSE)
+  redirect_edges <- data.frame(from = from, to = to)
   g <- igraph::graph_from_data_frame(redirect_edges, directed = TRUE)
 
   # --- Detect loops via SCCs ---
@@ -583,7 +579,7 @@ resolve_redirects <- function(edge_list_df,
           winner <- cand
         }
       }
-      data.frame(from = src, to = winner, stringsAsFactors = FALSE)
+      data.frame(from = src, to = winner)
     })
     resolved <- do.call(rbind, resolved_rows)
     names(resolved) <- c(from_col, to_col)

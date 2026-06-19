@@ -58,8 +58,7 @@ edges <- data.frame(
   to = c(
     "/ai", "/ai-demo", "/ai", "/ai", "/ai-demo",
     "/ai", "/scores", "/sports"
-  ),
-  stringsAsFactors = FALSE
+  )
 )
 ```
 

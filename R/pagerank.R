@@ -352,13 +352,11 @@
 #' # Basic example
 #' edges <- data.frame(
 #'   from = c("http://A.com/", "B", "C?q=1", "D"),
-#'   to = c("B", "http://A.com", "D#frag", "D"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "http://A.com", "D#frag", "D")
 #' )
 #' redirects <- data.frame(
 #'   from = c("C?q=1", "B"),
-#'   to = c("http://C_resolved.com", "A"), # B redirects to A, C to C_resolved
-#'   stringsAsFactors = FALSE
+#'   to = c("http://C_resolved.com", "A") # B redirects to A, C to C_resolved
 #' )
 #'
 #' # Run full pipeline
@@ -384,7 +382,7 @@
 #' # With nofollow edges (evaporate mode)
 #' edges_nf <- data.frame(
 #'   from = c("A", "A", "B"), to = c("B", "C", "A"),
-#'   nofollow = c(FALSE, TRUE, FALSE), stringsAsFactors = FALSE
+#'   nofollow = c(FALSE, TRUE, FALSE)
 #' )
 #' pr_nf <- pagerank(edges_nf,
 #'   nofollow_col = "nofollow",
@@ -994,8 +992,7 @@ pagerank <- function(edge_list_df,
         if (length(blocked_with_edges) > 0) {
           # Build self-loop rows matching the edge list structure
           self_loop_df <- stats::setNames(
-            data.frame(blocked_with_edges, blocked_with_edges,
-              stringsAsFactors = FALSE
+            data.frame(blocked_with_edges, blocked_with_edges
             ),
             c(edge_from_col, edge_to_col)
           )
@@ -1040,8 +1037,7 @@ pagerank <- function(edge_list_df,
 
         # Add a self-loop on the sink so it isn't a dangling node
         sink_row <- stats::setNames(
-          data.frame(nofollow_sink_name, nofollow_sink_name,
-            stringsAsFactors = FALSE
+          data.frame(nofollow_sink_name, nofollow_sink_name
           ),
           c(edge_from_col, edge_to_col)
         )
@@ -1082,7 +1078,7 @@ pagerank <- function(edge_list_df,
     # Only keep nodes that participate in at least one complete edge.
     if (length(current_edge_nodes) > 0) {
       vertices_for_pagerank_df <- stats::setNames(
-        data.frame(sort(current_edge_nodes), stringsAsFactors = FALSE),
+        data.frame(sort(current_edge_nodes)),
         temp_node_col_name
       )
     }
@@ -1092,7 +1088,7 @@ pagerank <- function(edge_list_df,
     full_universe <- unique(c(all_vertex_universe, current_edge_nodes))
     if (length(full_universe) > 0) {
       vertices_for_pagerank_df <- stats::setNames(
-        data.frame(sort(full_universe), stringsAsFactors = FALSE),
+        data.frame(sort(full_universe)),
         temp_node_col_name
       )
     }
@@ -1108,7 +1104,7 @@ pagerank <- function(edge_list_df,
     to_add <- setdiff(prior_dests, existing_nodes)
     if (length(to_add) > 0) {
       vertices_for_pagerank_df <- stats::setNames(
-        data.frame(sort(c(existing_nodes, to_add)), stringsAsFactors = FALSE),
+        data.frame(sort(c(existing_nodes, to_add))),
         temp_node_col_name
       )
     }
@@ -1332,16 +1328,14 @@ pagerank <- function(edge_list_df,
     return(data.frame(
       from = character(0),
       to = character(0),
-      instance_count = integer(0),
-      stringsAsFactors = FALSE
+      instance_count = integer(0)
     ))
   }
 
   audit <- data.frame(
     from = as.character(edge_list_df[[from_col]][duplicated_edges]),
     to = as.character(edge_list_df[[to_col]][duplicated_edges]),
-    instance_count = instance_count[duplicated_edges],
-    stringsAsFactors = FALSE
+    instance_count = instance_count[duplicated_edges]
   )
 
   if (!is.null(weight_col) && weight_col %in% names(edge_list_df)) {

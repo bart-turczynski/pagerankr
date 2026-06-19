@@ -79,8 +79,7 @@
 #' v <- c("https://x/a", "https://x/b", "https://x/c", "__pr_nofollow_sink__")
 #' prior <- data.frame(
 #'   url = c("https://x/a", "https://x/b"),
-#'   weight = c(900, 100),
-#'   stringsAsFactors = FALSE
+#'   weight = c(900, 100)
 #' )
 #' # Pure linear authority share; sink excluded
 #' align_prior_to_vertices(v, prior,

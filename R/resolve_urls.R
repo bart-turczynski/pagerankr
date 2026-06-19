@@ -28,8 +28,7 @@
 #' @examples
 #' redirects <- data.frame(
 #'   from = c("A", "B", "C"),
-#'   to = c("B", "C", "Final"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C", "Final")
 #' )
 #'
 #' # Resolve specific URLs
@@ -78,8 +77,7 @@ resolve_urls <- function(urls,
     return(data.frame(
       original = original,
       resolved = original,
-      changed = rep(FALSE, length(original)),
-      stringsAsFactors = FALSE
+      changed = rep(FALSE, length(original))
     ))
   }
 
@@ -99,7 +97,6 @@ resolve_urls <- function(urls,
   data.frame(
     original = original,
     resolved = resolved,
-    changed = !is.na(original) & original != resolved,
-    stringsAsFactors = FALSE
+    changed = !is.na(original) & original != resolved
   )
 }

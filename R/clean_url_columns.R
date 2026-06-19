@@ -26,8 +26,7 @@
 #'     "www.another.com?q=1", "another.com/?q=1&b=2",
 #'     "http://foo.bar", NA
 #'   ),
-#'   other_col = 1:4,
-#'   stringsAsFactors = FALSE # Added for consistency
+#'   other_col = 1:4
 #' )
 #' cleaned_df <- clean_url_columns(df, columns = c("from", "to"))
 #' print(cleaned_df)

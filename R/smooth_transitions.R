@@ -142,14 +142,12 @@
 #' empirical <- data.frame(
 #'   from = c("A", "A"),
 #'   to = c("B", "C"),
-#'   n = c(8, 0),
-#'   stringsAsFactors = FALSE
+#'   n = c(8, 0)
 #' )[1, ]
 #' # Crawl graph: A links to both B and C.
 #' structural <- data.frame(
 #'   from = c("A", "A"),
-#'   to = c("B", "C"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C")
 #' )
 #' smoothed <- smooth_transitions(empirical, structural, k = 5)
 #' smoothed
@@ -271,8 +269,7 @@ smooth_transitions <- function(empirical_df,
       a = character(0), b = character(0),
       p = numeric(0), ec = numeric(0), es = numeric(0),
       sp = numeric(0), su = numeric(0), lam = numeric(0),
-      origin = character(0),
-      stringsAsFactors = FALSE
+      origin = character(0)
     )
     names(out) <- c(
       from_col, to_col, prob_col, "empirical_count", "empirical_share",
@@ -359,8 +356,7 @@ smooth_transitions <- function(empirical_df,
       structural_prior = prior,
       support = rep(n_i, length(targets)),
       lambda = rep(lambda, length(targets)),
-      origin = origin,
-      stringsAsFactors = FALSE
+      origin = origin
     )
   })
 
@@ -391,8 +387,7 @@ smooth_transitions <- function(empirical_df,
 .collapse_edge_values <- function(df, from_col, to_col, value) {
   if (nrow(df) == 0) {
     return(data.frame(
-      from = character(0), to = character(0), value = numeric(0),
-      stringsAsFactors = FALSE
+      from = character(0), to = character(0), value = numeric(0)
     ))
   }
   from <- as.character(df[[from_col]])
@@ -408,8 +403,7 @@ smooth_transitions <- function(empirical_df,
 
   if (length(from) == 0) {
     return(data.frame(
-      from = character(0), to = character(0), value = numeric(0),
-      stringsAsFactors = FALSE
+      from = character(0), to = character(0), value = numeric(0)
     ))
   }
 

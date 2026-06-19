@@ -28,8 +28,7 @@
 #' @examples
 #' edges <- data.frame(
 #'   from = c("A", "B", "C"),
-#'   to = c("B", "C", "A"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C", "A")
 #' )
 #' pr <- pagerank(edges, clean_edge_urls = FALSE)
 #'
@@ -80,8 +79,7 @@ export_graph <- function(pagerank_df,
   # --- Build igraph ---
   edges_for_graph <- data.frame(
     from = as.character(edge_list_df[[edge_from_col]]),
-    to = as.character(edge_list_df[[edge_to_col]]),
-    stringsAsFactors = FALSE
+    to = as.character(edge_list_df[[edge_to_col]])
   )
 
   # Add edge attributes
@@ -95,7 +93,7 @@ export_graph <- function(pagerank_df,
 
   # Build vertex data from pagerank_df
   pr_urls <- as.character(pagerank_df[[pr_url_col]])
-  vertices <- data.frame(name = pr_urls, stringsAsFactors = FALSE)
+  vertices <- data.frame(name = pr_urls)
   vertices$pagerank <- pagerank_df[[pr_score_col]]
 
   # Add optional node attributes
@@ -112,7 +110,7 @@ export_graph <- function(pagerank_df,
   edge_verts <- unique(c(edges_for_graph$from, edges_for_graph$to))
   missing_verts <- setdiff(edge_verts, vertices$name)
   if (length(missing_verts) > 0) {
-    extra <- data.frame(name = missing_verts, stringsAsFactors = FALSE)
+    extra <- data.frame(name = missing_verts)
     extra$pagerank <- 0
     vertices <- rbind(vertices, extra)
   }

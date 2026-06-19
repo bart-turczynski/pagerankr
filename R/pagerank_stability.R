@@ -63,8 +63,7 @@
 #' @examples
 #' edges <- data.frame(
 #'   from = c("A", "B", "C", "A", "D"),
-#'   to = c("B", "C", "A", "C", "A"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B", "C", "A", "C", "A")
 #' )
 #' stab <- pagerank_stability(edges, clean_edge_urls = FALSE)
 #' print(stab)
@@ -100,8 +99,7 @@ pagerank_stability <- function(edge_list_df,
   ref_rows <- sens[sens$alpha == reference, , drop = FALSE] # score-descending
   ref_frame <- data.frame(
     node_name = ref_rows$url,
-    pagerank = ref_rows$score,
-    stringsAsFactors = FALSE
+    pagerank = ref_rows$score
   )
 
   out$spearman_rho <- NA_real_
@@ -128,8 +126,7 @@ pagerank_stability <- function(edge_list_df,
 
     frame_a <- data.frame(
       node_name = rows_a$url,
-      pagerank = rows_a$score,
-      stringsAsFactors = FALSE
+      pagerank = rows_a$score
     )
     cmp <- attr(compare_pagerank(ref_frame, frame_a), "summary")
     out$spearman_rho[i] <- cmp$spearman_rho

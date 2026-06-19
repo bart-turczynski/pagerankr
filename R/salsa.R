@@ -87,8 +87,7 @@
 #'   HITS analogue; [compute_pagerank()] for the PageRank analogue.
 #' @examples
 #' edges <- data.frame(
-#'   from = c("A", "A", "B"), to = c("B", "C", "C"),
-#'   stringsAsFactors = FALSE
+#'   from = c("A", "A", "B"), to = c("B", "C", "C")
 #' )
 #' compute_salsa(edges)
 #'
@@ -145,8 +144,7 @@ compute_salsa <- function(edge_list_df,
   # --- Empty result template ---
   empty_result <- stats::setNames(
     data.frame(
-      character(0), numeric(0), numeric(0),
-      stringsAsFactors = FALSE
+      character(0), numeric(0), numeric(0)
     ),
     node_cols
   )
@@ -237,8 +235,7 @@ compute_salsa <- function(edge_list_df,
     node = node_names,
     hub = hub,
     authority = authority,
-    row.names = NULL,
-    stringsAsFactors = FALSE
+    row.names = NULL
   )
   names(result) <- node_cols
   result
@@ -306,8 +303,7 @@ compute_salsa <- function(edge_list_df,
 #' @examples
 #' edges <- data.frame(
 #'   from = c("http://A.com/", "http://A.com/", "B.com"),
-#'   to = c("B.com", "C.com", "C.com"),
-#'   stringsAsFactors = FALSE
+#'   to = c("B.com", "C.com", "C.com")
 #' )
 #' salsa(edges)
 #'
@@ -553,7 +549,7 @@ salsa <- function(edge_list_df,
   if (drop_isolates_flag) {
     if (length(current_edge_nodes) > 0) {
       vertices_for_salsa_df <- stats::setNames(
-        data.frame(sort(current_edge_nodes), stringsAsFactors = FALSE),
+        data.frame(sort(current_edge_nodes)),
         temp_node_col_name
       )
     }
@@ -561,7 +557,7 @@ salsa <- function(edge_list_df,
     full_universe <- unique(c(all_vertex_universe, current_edge_nodes))
     if (length(full_universe) > 0) {
       vertices_for_salsa_df <- stats::setNames(
-        data.frame(sort(full_universe), stringsAsFactors = FALSE),
+        data.frame(sort(full_universe)),
         temp_node_col_name
       )
     }
