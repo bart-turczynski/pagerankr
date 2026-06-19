@@ -37,7 +37,8 @@ as in the original TrustRank).}
 a data frame. Defaults `"url"` / `"weight"`. Ignored for a character
 vector.}
 
-\item{edge_list_df}{A data frame edge list, as passed to [pagerank()].}
+\item{edge_list_df}{A data frame representing the edge list, typically with
+columns like "from" and "to".}
 
 \item{...}{Additional arguments forwarded to [pagerank()] (e.g.
 `redirects_df`, `rurl_params`, `prior_transform`, `prior_alpha`,

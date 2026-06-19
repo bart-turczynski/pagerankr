@@ -14,8 +14,8 @@ topic_sensitive_pagerank(
 )
 }
 \arguments{
-\item{edge_list_df}{A data frame edge list, exactly as passed to [pagerank()]
-(see `edge_from_col` / `edge_to_col`).}
+\item{edge_list_df}{A data frame representing the edge list, typically with
+columns like "from" and "to".}
 
 \item{topics}{A **uniquely named** list, one element per topic. Each element
 defines that topic's teleport seed set and is either:

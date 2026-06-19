@@ -35,7 +35,8 @@ when `seeds` is a data frame. Default `NULL` (every cluster page weight
 \item{seed_url_col, seed_weight_col}{Column names used when `seeds` is a data
 frame. Defaults `"url"` / `"weight"`. Ignored for a character vector.}
 
-\item{edge_list_df}{A data frame edge list, as passed to [pagerank()].}
+\item{edge_list_df}{A data frame representing the edge list, typically with
+columns like "from" and "to".}
 
 \item{...}{Additional arguments forwarded to [pagerank()] (e.g.
 `redirects_df`, `canonicals_df`, `rurl_params`, `weight_col`,
