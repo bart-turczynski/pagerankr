@@ -346,10 +346,9 @@ smooth_transitions <- function(empirical_df,
 
     in_emp <- targets %in% e$to
     in_struct <- targets %in% s$to
-    origin <- ifelse(
-      in_emp & in_struct, "both",
-      ifelse(in_emp, "empirical_only", "structural_only")
-    )
+    origin <- rep("structural_only", length(in_emp))
+    origin[in_emp] <- "empirical_only"
+    origin[in_emp & in_struct] <- "both"
 
     data.frame(
       from = rep(src, length(targets)),

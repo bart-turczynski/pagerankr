@@ -72,7 +72,7 @@ describe("transform_edge_weights: transition_probability", {
     )
     sums <- tapply(
       out$transition_probability, out$from,
-      function(p) sum(p, na.rm = TRUE)
+      sum, na.rm = TRUE
     )
     expect_equal(as.numeric(sums), rep(1, length(sums)))
   })
@@ -85,7 +85,7 @@ describe("transform_edge_weights: transition_probability", {
       )
       sums <- tapply(
         out$transition_probability, out$from,
-        function(p) sum(p, na.rm = TRUE)
+        sum, na.rm = TRUE
       )
       expect_equal(as.numeric(sums), rep(1, length(sums)),
         info = paste("method:", m)

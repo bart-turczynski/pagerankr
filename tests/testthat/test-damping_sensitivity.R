@@ -55,7 +55,7 @@ test_that("ARPACK solver populates the empirical iteration count", {
     algo = "arpack",
     clean_edge_urls = FALSE
   ))
-  expect_true(all(!is.na(sens$iters)))
+  expect_false(anyNA(sens$iters))
   expect_true(all(sens$iters >= 1L))
   expect_true(all(sens$converged))
 })

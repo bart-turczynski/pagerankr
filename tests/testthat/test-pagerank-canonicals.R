@@ -82,7 +82,7 @@ describe("pagerank canonical folding integration", {
     pr <- pagerank(edges, canonicals_df = can, drop_isolates_flag = FALSE)
     nodes <- pr[[1]]
     expect_true("http://c/" %in% nodes)
-    expect_false(any(grepl("\\?", nodes)))
+    expect_false(any(grepl("?", nodes, fixed = TRUE)))
   })
 })
 

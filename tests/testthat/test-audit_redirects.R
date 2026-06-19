@@ -43,7 +43,7 @@ describe("audit_redirects basic functionality", {
     )
     audit <- audit_redirects(redirects)
     expect_equal(audit$n_loops, 1)
-    expect_true(length(audit$loops) == 1)
+    expect_length(audit$loops, 1)
     # The loop path should mention A, B, C
     expect_true(grepl("A", fixed = TRUE, audit$loops[[1]]))
     expect_true(grepl("B", fixed = TRUE, audit$loops[[1]]))

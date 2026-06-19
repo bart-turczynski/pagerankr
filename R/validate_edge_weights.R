@@ -105,7 +105,7 @@ validate_edge_weights <- function(edge_list_df,
     }
     values <- weights[idx]
     finite_values <- values[is.finite(values)]
-    has_invalid <- any(!is.finite(values))
+    has_invalid <- !all(is.finite(values))
     total <- if (has_invalid) NA_real_ else sum(values)
     all_zero <- length(values) > 0 && !has_invalid && all(values == 0)
     total_ok <- if (is.null(expected_total)) {
@@ -137,7 +137,7 @@ validate_edge_weights <- function(edge_list_df,
     !report$all_zero &
     (is.na(report$total_ok) | report$total_ok)
 
-  if (any(!report$valid) && action != "none") {
+  if (!all(report$valid) && action != "none") {
     problems <- character(0)
     n_negative <- sum(report$n_negative)
     n_non_finite <- sum(report$n_na + report$n_nan + report$n_infinite)

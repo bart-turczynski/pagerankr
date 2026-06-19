@@ -124,7 +124,7 @@ topic_sensitive_pagerank <- function(edge_list_df,
   }
   topic_names <- names(topics)
   if (is.null(topic_names) || anyNA(topic_names) ||
-        any(!nzchar(topic_names))) {
+        !all(nzchar(topic_names))) {
     stop("`topics` must be a list with a non-empty name for every element.",
       call. = FALSE
     )
