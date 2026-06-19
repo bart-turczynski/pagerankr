@@ -30,6 +30,17 @@
 #'   usual inflow score. Default `FALSE`. See the "Reverse / inverse PageRank"
 #'   section in Details for what it measures and which other arguments are
 #'   compatible.
+#' @param damping The PageRank damping factor \eqn{\alpha} (the random surfer's
+#'   continue probability; the teleport probability is \eqn{1 - \alpha}). A
+#'   single number in `[0, 1]`, default `0.85` — the field convention from Brin
+#'   & Page. Forwarded to [compute_pagerank()] and on to `igraph::page_rank()`.
+#'   Higher values weight the link structure more heavily but converge more
+#'   slowly: a power-iteration solve needs roughly
+#'   \eqn{\log_{10}(\tau) / \log_{10}(\alpha)} iterations to reach residual
+#'   \eqn{\tau}, so pushing \eqn{\alpha} toward 1 sharply raises the iteration
+#'   count (raise `niter` accordingly when using the ARPACK solver). See the
+#'   "Damping factor" section in Details for guidance on choosing it, and
+#'   [damping_sensitivity()] to sweep a range of values.
 #' @param weight_col Optional name of a numeric column in `edge_list_df`
 #'   containing edge weights. Higher weights make edges more likely to be
 #'   followed. If `NULL` (default), all edges have equal weight.
@@ -178,6 +189,35 @@
 #'   are forwarded here; see the "Convergence controls" section below.
 #'
 #' @details
+#' ## Damping factor
+#'
+#' The `damping` factor \eqn{\alpha} is the probability that the random surfer
+#' follows a link rather than teleporting; the remaining \eqn{1 - \alpha} is
+#' spread over the teleport vector (uniform, or the supplied TIPR `prior_df`).
+#'
+#' The default `0.85` is the original Brin & Page value and remains the field
+#' convention, but it is *eminently empirical* — Boldi, Santini & Vigna
+#' (\emph{PageRank as a Function of the Damping Factor}, WWW 2005) show it has
+#' no analytical claim to being uniquely correct. A common misconception is that
+#' values close to 1 yield "more accurate" rankings by trusting the link graph
+#' more; for real-world graphs they instead make the ranking dominated by the
+#' graph's largest near-cyclic component and, in the limit \eqn{\alpha \to 1},
+#' degenerate rather than converge to a more meaningful order.
+#'
+#' Raising \eqn{\alpha} also degrades convergence sharply. A power-iteration
+#' solve needs about \eqn{\log_{10}(\tau) / \log_{10}(\alpha)} iterations to
+#' reach residual \eqn{\tau} (Langville & Meyer, \emph{Deeper Inside PageRank},
+#' Internet Mathematics 2004). At \eqn{\tau = 10^{-8}}: \eqn{\alpha = 0.85}
+#' needs ~114 iterations, \eqn{\alpha = 0.95} ~362, and \eqn{\alpha = 0.99}
+#' ~1,833 — so a high damping factor is both slower and rarely better. When you
+#' do raise it on the ARPACK solver, raise `niter` to match (see "Convergence
+#' controls" below).
+#'
+#' Both of those papers study the open web. Whether `0.85` is still the right
+#' convention for a site-scale intranet graph is an open empirical question;
+#' [damping_sensitivity()] sweeps a range of \eqn{\alpha} values so you can see
+#' how much the ranking on *your* graph actually moves.
+#'
 #' ## Convergence controls
 #'
 #' `igraph::page_rank()` is called through one of two solver back-ends, selected
@@ -427,6 +467,7 @@ pagerank <- function(edge_list_df,
                      prior_alpha = 0,
                      prior_inject_unmatched = FALSE,
                      prior_verbose = TRUE,
+                     damping = 0.85,
                      ...) {
   # --- Argument Matching and Basic Validation ---
   self_loops <- match.arg(self_loops)
@@ -479,6 +520,13 @@ pagerank <- function(edge_list_df,
   }
   if (!is.logical(reverse) || length(reverse) != 1 || is.na(reverse)) {
     stop("`reverse` must be a single logical value.", call. = FALSE)
+  }
+  if (!is.numeric(damping) || length(damping) != 1 ||
+        is.na(damping) || damping < 0 || damping > 1) {
+    stop(
+      "`damping` must be a single numeric value between 0 and 1.",
+      call. = FALSE
+    )
   }
 
   # --- Reverse / inverse PageRank (CheiRank) compatibility guards ---
@@ -1083,6 +1131,7 @@ pagerank <- function(edge_list_df,
     to_col = edge_to_col,
     vertex_col_name = temp_node_col_name,
     reverse = reverse,
+    damping = damping,
     weight_col = effective_weight_col,
     prior_df = folded_prior_df,
     prior_url_col = prior_url_col,

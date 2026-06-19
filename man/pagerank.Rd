@@ -47,6 +47,7 @@ pagerank(
   prior_alpha = 0,
   prior_inject_unmatched = FALSE,
   prior_verbose = TRUE,
+  damping = 0.85,
   ...
 )
 }
@@ -254,6 +255,18 @@ vertices so they appear in results carrying their teleport prior. Default
 \item{prior_verbose}{Logical, whether to emit prior-alignment coverage
 diagnostics. Default `TRUE`. Only relevant when `prior_df` is supplied.}
 
+\item{damping}{The PageRank damping factor \eqn{\alpha} (the random surfer's
+continue probability; the teleport probability is \eqn{1 - \alpha}). A
+single number in `[0, 1]`, default `0.85` — the field convention from Brin
+& Page. Forwarded to [compute_pagerank()] and on to `igraph::page_rank()`.
+Higher values weight the link structure more heavily but converge more
+slowly: a power-iteration solve needs roughly
+\eqn{\log_{10}(\tau) / \log_{10}(\alpha)} iterations to reach residual
+\eqn{\tau}, so pushing \eqn{\alpha} toward 1 sharply raises the iteration
+count (raise `niter` accordingly when using the ARPACK solver). See the
+"Damping factor" section in Details for guidance on choosing it, and
+[damping_sensitivity()] to sweep a range of values.}
+
 \item{...}{Additional arguments passed to [compute_pagerank()] and
 subsequently to `igraph::page_rank()`. Besides `damping`, the recognized
 convergence controls `algo` (`"prpack"` / `"arpack"`), `eps`, and `niter`
@@ -289,6 +302,35 @@ indexability handling, nofollow handling, isolate handling, and
 PageRank computation.
 }
 \details{
+## Damping factor
+
+The `damping` factor \eqn{\alpha} is the probability that the random surfer
+follows a link rather than teleporting; the remaining \eqn{1 - \alpha} is
+spread over the teleport vector (uniform, or the supplied TIPR `prior_df`).
+
+The default `0.85` is the original Brin & Page value and remains the field
+convention, but it is *eminently empirical* — Boldi, Santini & Vigna
+(\emph{PageRank as a Function of the Damping Factor}, WWW 2005) show it has
+no analytical claim to being uniquely correct. A common misconception is that
+values close to 1 yield "more accurate" rankings by trusting the link graph
+more; for real-world graphs they instead make the ranking dominated by the
+graph's largest near-cyclic component and, in the limit \eqn{\alpha \to 1},
+degenerate rather than converge to a more meaningful order.
+
+Raising \eqn{\alpha} also degrades convergence sharply. A power-iteration
+solve needs about \eqn{\log_{10}(\tau) / \log_{10}(\alpha)} iterations to
+reach residual \eqn{\tau} (Langville & Meyer, \emph{Deeper Inside PageRank},
+Internet Mathematics 2004). At \eqn{\tau = 10^{-8}}: \eqn{\alpha = 0.85}
+needs ~114 iterations, \eqn{\alpha = 0.95} ~362, and \eqn{\alpha = 0.99}
+~1,833 — so a high damping factor is both slower and rarely better. When you
+do raise it on the ARPACK solver, raise `niter` to match (see "Convergence
+controls" below).
+
+Both of those papers study the open web. Whether `0.85` is still the right
+convention for a site-scale intranet graph is an open empirical question;
+[damping_sensitivity()] sweeps a range of \eqn{\alpha} values so you can see
+how much the ranking on *your* graph actually moves.
+
 ## Convergence controls
 
 `igraph::page_rank()` is called through one of two solver back-ends, selected
