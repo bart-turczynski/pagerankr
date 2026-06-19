@@ -1,8 +1,7 @@
 test_that("default solver attaches a near-zero-residual convergence object", {
   edges <- data.frame(
     from = c("A", "B", "C", "A", "D"),
-    to = c("B", "C", "A", "C", "A"),
-    stringsAsFactors = FALSE
+    to = c("B", "C", "A", "C", "A")
   )
   res <- pagerank(edges)
   conv <- attr(res, "convergence")
@@ -17,8 +16,7 @@ test_that("default solver attaches a near-zero-residual convergence object", {
 test_that("supplying eps or niter transparently switches to ARPACK", {
   edges <- data.frame(
     from = c("A", "B", "C", "A", "D"),
-    to = c("B", "C", "A", "C", "A"),
-    stringsAsFactors = FALSE
+    to = c("B", "C", "A", "C", "A")
   )
 
   expect_message(
@@ -41,8 +39,7 @@ test_that("supplying eps or niter transparently switches to ARPACK", {
 test_that("PRPACK and ARPACK agree on the ranking", {
   edges <- data.frame(
     from = c("A", "B", "C", "A", "D", "E", "B"),
-    to = c("B", "C", "A", "C", "A", "A", "E"),
-    stringsAsFactors = FALSE
+    to = c("B", "C", "A", "C", "A", "A", "E")
   )
   pr <- pagerank(edges)
   ar <- suppressMessages(pagerank(edges, eps = 1e-10, niter = 10000))
@@ -60,8 +57,7 @@ test_that("residual is solver-independent across weights, reverse and prior", {
   edges <- data.frame(
     from = c("A", "B", "C", "A", "D"),
     to = c("B", "C", "A", "C", "A"),
-    w = c(2, 1, 3, 1, 1),
-    stringsAsFactors = FALSE
+    w = c(2, 1, 3, 1, 1)
   )
 
   expect_lt(attr(pagerank(edges, reverse = TRUE), "convergence")$residual, 1e-8)
@@ -75,7 +71,7 @@ test_that("residual is solver-independent across weights, reverse and prior", {
 })
 
 test_that("convergence controls validate their inputs", {
-  edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+  edges <- data.frame(from = "A", to = "B")
 
   expect_error(pagerank(edges, eps = -1), "`eps` must be")
   expect_error(pagerank(edges, eps = c(1e-3, 1e-4)), "`eps` must be")
@@ -85,8 +81,7 @@ test_that("convergence controls validate their inputs", {
 
 test_that("empty graphs carry no convergence attribute", {
   empty <- data.frame(
-    from = character(0), to = character(0),
-    stringsAsFactors = FALSE
+    from = character(0), to = character(0)
   )
   res <- pagerank(empty)
   expect_null(attr(res, "convergence"))
@@ -94,8 +89,7 @@ test_that("empty graphs carry no convergence attribute", {
 
 test_that("compute_pagerank exposes the same convergence attribute", {
   edges <- data.frame(
-    from = c("A", "B", "C"), to = c("B", "C", "A"),
-    stringsAsFactors = FALSE
+    from = c("A", "B", "C"), to = c("B", "C", "A")
   )
   conv <- attr(compute_pagerank(edges), "convergence")
   expect_s3_class(conv, "pagerank_convergence")

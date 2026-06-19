@@ -16,13 +16,11 @@ expect_same_scores <- function(a, b, tolerance = 1e-9) {
 test_that("default collapse preserves duplicate-unweighted behavior", {
   edges_dup <- data.frame(
     from = c("A", "A", "A", "B", "C"),
-    to = c("B", "C", "C", "A", "A"),
-    stringsAsFactors = FALSE
+    to = c("B", "C", "C", "A", "A")
   )
   edges_collapsed <- data.frame(
     from = c("A", "A", "B", "C"),
-    to = c("B", "C", "A", "A"),
-    stringsAsFactors = FALSE
+    to = c("B", "C", "A", "A")
   )
 
   pr_default <- pagerank(edges_dup, clean_edge_urls = FALSE)
@@ -38,14 +36,12 @@ test_that("default collapse preserves duplicate-unweighted behavior", {
 test_that("count_instances gives repeated links extra transition mass", {
   edges_dup <- data.frame(
     from = c("A", "A", "A", "B", "C"),
-    to = c("B", "C", "C", "A", "A"),
-    stringsAsFactors = FALSE
+    to = c("B", "C", "C", "A", "A")
   )
   edges_weighted <- data.frame(
     from = c("A", "A", "B", "C"),
     to = c("B", "C", "A", "A"),
-    w = c(1, 2, 1, 1),
-    stringsAsFactors = FALSE
+    w = c(1, 2, 1, 1)
   )
 
   pr_counted <- pagerank(
@@ -78,14 +74,12 @@ test_that("aggregate and count_instances sum duplicate weight_col values", {
   edges <- data.frame(
     from = c("A", "A", "A", "B", "C"),
     to = c("B", "C", "C", "A", "A"),
-    w = c(1, 2, 3, 1, 1),
-    stringsAsFactors = FALSE
+    w = c(1, 2, 3, 1, 1)
   )
   expected <- data.frame(
     from = c("A", "A", "B", "C"),
     to = c("B", "C", "A", "A"),
-    w = c(1, 5, 1, 1),
-    stringsAsFactors = FALSE
+    w = c(1, 5, 1, 1)
   )
 
   pr_aggregate <- pagerank(
@@ -119,8 +113,7 @@ test_that("aggregate duplicate policy combines nofollow before handling", {
   edges <- data.frame(
     from = c("A", "A", "B", "C"),
     to = c("C", "C", "A", "A"),
-    nofollow = c(FALSE, TRUE, FALSE, FALSE),
-    stringsAsFactors = FALSE
+    nofollow = c(FALSE, TRUE, FALSE, FALSE)
   )
 
   pr_aggregate <- pagerank(
@@ -133,8 +126,7 @@ test_that("aggregate duplicate policy combines nofollow before handling", {
   pr_expected <- pagerank(
     data.frame(
       from = c("B", "C"),
-      to = c("A", "A"),
-      stringsAsFactors = FALSE
+      to = c("A", "A")
     ),
     clean_edge_urls = FALSE
   )
@@ -149,24 +141,20 @@ test_that("aggregate duplicate policy combines nofollow before handling", {
 test_that("redirect and canonical folding duplicates obey count_instances", {
   edges <- data.frame(
     from = c("A-old", "A", "A", "B", "C"),
-    to = c("B", "C-old", "C", "A", "A"),
-    stringsAsFactors = FALSE
+    to = c("B", "C-old", "C", "A", "A")
   )
   redirects <- data.frame(
     from = "A-old",
-    to = "A",
-    stringsAsFactors = FALSE
+    to = "A"
   )
   canonicals <- data.frame(
     from = "C-old",
-    to = "C",
-    stringsAsFactors = FALSE
+    to = "C"
   )
   expected <- data.frame(
     from = c("A", "A", "B", "C"),
     to = c("B", "C", "A", "A"),
-    w = c(1, 2, 1, 1),
-    stringsAsFactors = FALSE
+    w = c(1, 2, 1, 1)
   )
 
   pr_counted <- pagerank(

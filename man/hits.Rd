@@ -75,7 +75,7 @@ of:
 \describe{
   \item{`"collapse"`}{(default) Destination-level surfer: repeated rows
     collapse to one unweighted destination edge, preserving legacy
-    `get_unique_edges()` behaviour and the common binary PageRank
+    `get_unique_edges()` behavior and the common binary PageRank
     convention.}
   \item{`"aggregate"`}{Collapse each `from -> to` pair with
     [aggregate_edges()] semantics. Numeric columns, including
@@ -105,7 +105,7 @@ all available policies.}
 \item{canonicals_df}{An optional data frame of declared `rel=canonical`
 links, with `from`/`to` columns (or as set by `canonical_from_col` /
 `canonical_to_col`) pairing a source URL with the canonical it declares.
-Default `NULL` (opt-in; the default preserves current behaviour).
+Default `NULL` (opt-in; the default preserves current behavior).
 Canonicals are a **distinct, advisory** signal from enforced 3xx
 `redirects_df`: they are tracked separately and audited via
 [audit_canonicals()] / [audit_fold()], then folded into the same composed

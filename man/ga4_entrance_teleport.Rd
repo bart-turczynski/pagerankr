@@ -123,7 +123,7 @@ Recommended usage (let \code{pagerank()} own the fold):
   canonicalization + redirect fold, so a parallel data-frame type and a
   parallel alignment path would be duplicated machinery for no behavioral
   gain; (3) the \emph{semantic} distinction (authority-in vs users-in) is
-  carried by documentation and by the proxy labelling here, not by the data
+  carried by documentation and by the proxy labeling here, not by the data
   structure. If a future model needs to \emph{blend} a backlink prior and an
   entrance reset in a single \code{pagerank()} call, that is the point to
   revisit and split the type (tracked as research-notes Q5 / Q3).

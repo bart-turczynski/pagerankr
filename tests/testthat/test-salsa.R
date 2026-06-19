@@ -12,8 +12,7 @@ describe("compute_salsa", {
     # Single weakly connected component: authority = d_in / W, hub = d_out / W.
     edges <- data.frame(
       from = c("A", "A", "B"),
-      to = c("B", "C", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "C")
     )
     res <- compute_salsa(edges)
     auth <- stats::setNames(res$authority, res$node_name)
@@ -32,8 +31,7 @@ describe("compute_salsa", {
   it("produces stochastic scores that sum to 1 within each side", {
     edges <- data.frame(
       from = c("A", "A", "B", "C"),
-      to = c("B", "C", "C", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "C", "A")
     )
     res <- compute_salsa(edges)
     expect_equal(sum(res$hub, na.rm = TRUE), 1, tolerance = 1e-9)
@@ -45,8 +43,7 @@ describe("compute_salsa", {
     # to).
     edges <- data.frame(
       from = c("A", "A", "B"),
-      to = c("B", "C", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "C")
     )
     res <- compute_salsa(edges)
     expect_equal(res$node_name[which.max(res$hub)], "A")
@@ -56,8 +53,7 @@ describe("compute_salsa", {
   it("returns NA authority for zero-in-degree and NA hub for zero-out-degree", {
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C")
     )
     res <- compute_salsa(edges)
     a <- res[res$node_name == "A", ]
@@ -73,8 +69,7 @@ describe("compute_salsa", {
     # Component 2: C->D, C->E (2 edges).
     edges <- data.frame(
       from = c("A", "C", "C"),
-      to = c("B", "D", "E"),
-      stringsAsFactors = FALSE
+      to = c("B", "D", "E")
     )
     res <- compute_salsa(edges)
     auth <- stats::setNames(res$authority, res$node_name)
@@ -112,8 +107,7 @@ describe("compute_salsa", {
   it("drops NA edges before computation", {
     edges <- data.frame(
       from = c("A", NA, "B"),
-      to = c("B", "C", NA),
-      stringsAsFactors = FALSE
+      to = c("B", "C", NA)
     )
     res <- compute_salsa(edges)
     # Only A -> B survives.
@@ -137,8 +131,7 @@ describe("salsa wrapper", {
   it("aligns its vertex set with pagerank() on the same input", {
     edges <- data.frame(
       from = c("http://A.com/", "http://A.com/", "B.com"),
-      to = c("B.com", "C.com", "C.com"),
-      stringsAsFactors = FALSE
+      to = c("B.com", "C.com", "C.com")
     )
     s <- salsa(edges)
     pr <- pagerank(edges)
@@ -148,8 +141,7 @@ describe("salsa wrapper", {
   it("canonicalizes URLs through the shared rurl profile", {
     edges <- data.frame(
       from = c("http://A.com/", "http://A.com"),
-      to = c("B.com#frag", "B.com"),
-      stringsAsFactors = FALSE
+      to = c("B.com#frag", "B.com")
     )
     s <- salsa(edges)
     pr <- pagerank(edges)
@@ -159,12 +151,10 @@ describe("salsa wrapper", {
   it("folds redirects into the same identities as pagerank()", {
     edges <- data.frame(
       from = c("A.com", "B.com"),
-      to = c("B.com", "C.com"),
-      stringsAsFactors = FALSE
+      to = c("B.com", "C.com")
     )
     redirects <- data.frame(
-      from = "B.com", to = "C.com",
-      stringsAsFactors = FALSE
+      from = "B.com", to = "C.com"
     )
     s <- salsa(edges, redirects_df = redirects)
     pr <- pagerank(edges, redirects_df = redirects)
@@ -175,8 +165,7 @@ describe("salsa wrapper", {
   it("surfaces hub vs authority on a cleaned graph", {
     edges <- data.frame(
       from = c("http://A.com/", "http://A.com/", "B.com"),
-      to = c("B.com", "C.com", "C.com"),
-      stringsAsFactors = FALSE
+      to = c("B.com", "C.com", "C.com")
     )
     s <- salsa(edges)
     top_hub <- s$node_name[which.max(s$hub)]
@@ -197,8 +186,7 @@ describe("salsa wrapper", {
   it("respects domain filtering (user-filtered graph SALSA)", {
     edges <- data.frame(
       from = c("http://site.com/a", "http://site.com/a"),
-      to = c("http://site.com/b", "http://other.com/x"),
-      stringsAsFactors = FALSE
+      to = c("http://site.com/b", "http://other.com/x")
     )
     s <- salsa(edges, keep_domains = "site.com")
     expect_false(any(grepl("other.com", s$node_name)))
@@ -207,8 +195,7 @@ describe("salsa wrapper", {
   it("each side still sums to 1 after the full pipeline", {
     edges <- data.frame(
       from = c("http://A.com/", "http://A.com/", "B.com", "C.com"),
-      to = c("B.com", "C.com", "C.com", "A.com"),
-      stringsAsFactors = FALSE
+      to = c("B.com", "C.com", "C.com", "A.com")
     )
     s <- salsa(edges)
     expect_equal(sum(s$hub, na.rm = TRUE), 1, tolerance = 1e-9)

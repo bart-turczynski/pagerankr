@@ -3,8 +3,7 @@ context("pagerank() first-class canonical support")
 describe("pagerank canonical folding integration", {
   edges <- data.frame(
     from = c("http://x/", "http://y/", "http://a/"),
-    to   = c("http://a/", "http://a/", "http://z/"),
-    stringsAsFactors = FALSE
+    to   = c("http://a/", "http://a/", "http://z/")
   )
 
   it("folds a cross-canonical source into its canonical target", {
@@ -15,7 +14,7 @@ describe("pagerank canonical folding integration", {
     expect_false("http://a/" %in% nodes)
   })
 
-  it("preserves prior behaviour when canonicals_df is NULL", {
+  it("preserves prior behavior when canonicals_df is NULL", {
     pr_no_canon <- pagerank(edges, drop_isolates_flag = FALSE)
     pr_null <- pagerank(edges, canonicals_df = NULL, drop_isolates_flag = FALSE)
     expect_equal(pr_no_canon, pr_null)
@@ -90,8 +89,7 @@ describe("pagerank canonical folding integration", {
 describe("acceptance contract: composed-map parity", {
   edges <- data.frame(
     from = c("http://x/", "http://y/", "http://b/"),
-    to   = c("http://a/", "http://b/", "http://q/"),
-    stringsAsFactors = FALSE
+    to   = c("http://a/", "http://b/", "http://q/")
   )
   redirects <- data.frame(from = "http://b/", to = "http://c/")
   canonicals <- data.frame(from = "http://a/", to = "http://b/")
@@ -123,7 +121,8 @@ describe("acceptance contract: composed-map parity", {
     )
     rep_a <- unname(map[["http://a/"]])
     pw <- pr$prior_weight[pr[[1]] == rep_a]
-    expect_true(length(pw) == 1 && pw > 0)
+    expect_length(pw, 1)
+    expect_gt(pw, 0)
     # No other vertex carries the prior weight.
     expect_equal(sum(pr$prior_weight > 0), 1)
   })

@@ -18,13 +18,13 @@ describe("feeder_seed_prior", {
 
   it("reads URL/weight columns from a data frame", {
     df <- data.frame(
-      url = c("a", "b"), weight = c(4, 1), stringsAsFactors = FALSE
+      url = c("a", "b"), weight = c(4, 1)
     )
     expect_equal(feeder_seed_prior(df)$weight, c(4, 1))
   })
 
   it("rejects seed_weight alongside a data frame", {
-    df <- data.frame(url = "a", weight = 1, stringsAsFactors = FALSE)
+    df <- data.frame(url = "a", weight = 1)
     expect_error(
       feeder_seed_prior(df, seed_weight = 2),
       "applies only when `seeds` is a character vector"
@@ -52,8 +52,7 @@ describe("topic_feeder_pagerank", {
   # N1 -> N2 is noise disconnected from the cluster.
   edges <- data.frame(
     from = c("F1", "F1", "F2", "X1", "N1"),
-    to = c("X1", "X2", "X1", "X2", "N2"),
-    stringsAsFactors = FALSE
+    to = c("X1", "X2", "X1", "X2", "N2")
   )
 
   it("surfaces feeders: F1 (feeds both) outranks F2 (feeds one)", {
@@ -131,12 +130,12 @@ describe("topic_feeder_pagerank", {
     expect_false(is.unsorted(rev(fr$pagerank)))
   })
 
-  it("honours graded cluster weights", {
+  it("honors graded cluster weights", {
     expect_silent(
       fr <- topic_feeder_pagerank(
         edges,
         seeds = data.frame(
-          url = c("X1", "X2"), weight = c(3, 1), stringsAsFactors = FALSE
+          url = c("X1", "X2"), weight = c(3, 1)
         ),
         clean_edge_urls = FALSE, prior_verbose = FALSE
       )
@@ -172,7 +171,7 @@ describe("topic_feeder_pagerank", {
   it("inherits pagerank()'s reverse-mode guards (evaporate is rejected)", {
     nf <- data.frame(
       from = c("F1", "F1"), to = c("X1", "X2"),
-      nofollow = c(FALSE, TRUE), stringsAsFactors = FALSE
+      nofollow = c(FALSE, TRUE)
     )
     expect_error(
       topic_feeder_pagerank(

@@ -30,7 +30,7 @@ A single numeric value between 0 and 1 representing the cumulative
 }
 \description{
 Compute summary statistics for a vector of PageRank scores. These metrics
-help characterise how concentrated or dispersed the PageRank distribution
+help characterize how concentrated or dispersed the PageRank distribution
 is, which is useful when comparing different models or parameter
 configurations.
 }

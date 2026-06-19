@@ -5,16 +5,14 @@ describe("compute_pagerank reverse = TRUE", {
     # Hand-built graph: A funnels outward (A->B, A->C), B->C.
     edges <- data.frame(
       from = c("A", "A", "B"),
-      to = c("B", "C", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "C")
     )
 
     pr_rev <- compute_pagerank(edges, reverse = TRUE)
 
     # Ground truth: igraph on the manually swapped edge list.
     edges_swapped <- data.frame(
-      from = edges$to, to = edges$from,
-      stringsAsFactors = FALSE
+      from = edges$to, to = edges$from
     )
     g_manual <- igraph::graph_from_data_frame(edges_swapped, directed = TRUE)
     pr_manual <- igraph::page_rank(g_manual)$vector
@@ -26,14 +24,12 @@ describe("compute_pagerank reverse = TRUE", {
   it("equals running compute_pagerank on swapped columns", {
     edges <- data.frame(
       from = c("A", "A", "B", "C"),
-      to = c("B", "C", "C", "A"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "C", "A")
     )
     pr_rev <- compute_pagerank(edges, reverse = TRUE)
 
     edges_swapped <- data.frame(
-      from = edges$to, to = edges$from,
-      stringsAsFactors = FALSE
+      from = edges$to, to = edges$from
     )
     pr_swapped <- compute_pagerank(edges_swapped, reverse = FALSE)
 
@@ -46,8 +42,7 @@ describe("compute_pagerank reverse = TRUE", {
   it("surfaces the outflow funnel: A scores highest reversed", {
     edges <- data.frame(
       from = c("A", "A", "B"),
-      to = c("B", "C", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "C")
     )
     pr_fwd <- compute_pagerank(edges, reverse = FALSE)
     pr_rev <- compute_pagerank(edges, reverse = TRUE)
@@ -61,14 +56,12 @@ describe("compute_pagerank reverse = TRUE", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "C", "C"),
-      w = c(5, 1, 1),
-      stringsAsFactors = FALSE
+      w = c(5, 1, 1)
     )
     pr_rev <- compute_pagerank(edges, weight_col = "w", reverse = TRUE)
 
     edges_swapped <- data.frame(
-      from = edges$to, to = edges$from, w = edges$w,
-      stringsAsFactors = FALSE
+      from = edges$to, to = edges$from, w = edges$w
     )
     pr_manual <- compute_pagerank(edges_swapped, weight_col = "w")
 
@@ -79,8 +72,7 @@ describe("compute_pagerank reverse = TRUE", {
 
   it("reverse = FALSE is identical to the default", {
     edges <- data.frame(
-      from = c("A", "B", "C"), to = c("B", "C", "A"),
-      stringsAsFactors = FALSE
+      from = c("A", "B", "C"), to = c("B", "C", "A")
     )
     expect_equal(
       compute_pagerank(edges, reverse = FALSE),
@@ -89,7 +81,7 @@ describe("compute_pagerank reverse = TRUE", {
   })
 
   it("errors on a non-logical reverse argument", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(
       compute_pagerank(edges, reverse = "yes"),
       "`reverse` must be a single logical value"
@@ -105,14 +97,12 @@ describe("pagerank wrapper reverse = TRUE", {
   it("equals running pagerank on swapped edge columns end-to-end", {
     edges <- data.frame(
       from = c("http://A.com/", "http://A.com/", "B.com"),
-      to = c("B.com", "C.com", "C.com"),
-      stringsAsFactors = FALSE
+      to = c("B.com", "C.com", "C.com")
     )
     pr_rev <- pagerank(edges, reverse = TRUE)
 
     edges_swapped <- data.frame(
-      from = edges$to, to = edges$from,
-      stringsAsFactors = FALSE
+      from = edges$to, to = edges$from
     )
     pr_manual <- pagerank(edges_swapped, reverse = FALSE)
 
@@ -126,8 +116,7 @@ describe("pagerank wrapper reverse = TRUE", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "C", "C"),
-      nofollow = c(FALSE, TRUE, FALSE),
-      stringsAsFactors = FALSE
+      nofollow = c(FALSE, TRUE, FALSE)
     )
     expect_silent(
       pr <- pagerank(
@@ -142,8 +131,7 @@ describe("pagerank wrapper reverse = TRUE", {
   it("errors on nofollow_action = 'evaporate' under reverse", {
     edges <- data.frame(
       from = c("A", "A"), to = c("B", "C"),
-      nofollow = c(FALSE, TRUE),
-      stringsAsFactors = FALSE
+      nofollow = c(FALSE, TRUE)
     )
     expect_error(
       pagerank(
@@ -156,10 +144,9 @@ describe("pagerank wrapper reverse = TRUE", {
   })
 
   it("errors when indexability_df is supplied under reverse", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     idx <- data.frame(
-      url = "A", indexability_status = "noindex",
-      stringsAsFactors = FALSE
+      url = "A", indexability_status = "noindex"
     )
     expect_error(
       pagerank(
@@ -172,10 +159,9 @@ describe("pagerank wrapper reverse = TRUE", {
 
   it("is orthogonal to the TIPR prior (reverse + prior_df combine)", {
     edges <- data.frame(
-      from = c("A", "A", "B"), to = c("B", "C", "C"),
-      stringsAsFactors = FALSE
+      from = c("A", "A", "B"), to = c("B", "C", "C")
     )
-    prior <- data.frame(url = "C", weight = 10, stringsAsFactors = FALSE)
+    prior <- data.frame(url = "C", weight = 10)
     expect_silent(
       pr <- pagerank(
         edges,
@@ -187,7 +173,7 @@ describe("pagerank wrapper reverse = TRUE", {
   })
 
   it("errors on a non-logical reverse argument", {
-    edges <- data.frame(from = "A", to = "B", stringsAsFactors = FALSE)
+    edges <- data.frame(from = "A", to = "B")
     expect_error(
       pagerank(edges, reverse = "yes"),
       "`reverse` must be a single logical value"

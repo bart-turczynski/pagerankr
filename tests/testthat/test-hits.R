@@ -4,8 +4,7 @@ describe("compute_hits", {
   it("matches igraph::hits_scores on a hand-built graph", {
     edges <- data.frame(
       from = c("A", "A", "B"),
-      to = c("B", "C", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "C")
     )
     res <- compute_hits(edges)
 
@@ -24,7 +23,7 @@ describe("compute_hits", {
   it("returns node_name, hub and authority columns", {
     edges <- data.frame(from = c("A", "B"), to = c("B", "C"))
     res <- compute_hits(edges)
-    expect_equal(names(res), c("node_name", "hub", "authority"))
+    expect_named(res, c("node_name", "hub", "authority"))
     expect_equal(nrow(res), 3)
   })
 
@@ -33,8 +32,7 @@ describe("compute_hits", {
     # to). Good hubs point to good authorities and vice versa.
     edges <- data.frame(
       from = c("A", "A", "B"),
-      to = c("B", "C", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "C")
     )
     res <- compute_hits(edges)
     expect_equal(res$node_name[which.max(res$hub)], "A")
@@ -65,12 +63,11 @@ describe("compute_hits", {
     expect_equal(d$authority, 0)
   })
 
-  it("honours edge weights", {
+  it("honors edge weights", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "C", "C"),
-      w = c(5, 1, 1),
-      stringsAsFactors = FALSE
+      w = c(5, 1, 1)
     )
     res <- compute_hits(edges, weight_col = "w")
 
@@ -88,15 +85,14 @@ describe("compute_hits", {
 
   it("returns an empty data frame for an empty edge list", {
     res <- compute_hits(data.frame(from = character(0), to = character(0)))
-    expect_equal(names(res), c("node_name", "hub", "authority"))
+    expect_named(res, c("node_name", "hub", "authority"))
     expect_equal(nrow(res), 0)
   })
 
   it("drops NA edges before computation", {
     edges <- data.frame(
       from = c("A", NA, "B"),
-      to = c("B", "C", NA),
-      stringsAsFactors = FALSE
+      to = c("B", "C", NA)
     )
     res <- compute_hits(edges)
     # Only A -> B survives.
@@ -121,8 +117,7 @@ describe("hits wrapper", {
   it("aligns its vertex set with pagerank() on the same input", {
     edges <- data.frame(
       from = c("http://A.com/", "http://A.com/", "B.com"),
-      to = c("B.com", "C.com", "C.com"),
-      stringsAsFactors = FALSE
+      to = c("B.com", "C.com", "C.com")
     )
     h <- hits(edges)
     pr <- pagerank(edges)
@@ -134,8 +129,7 @@ describe("hits wrapper", {
     # pagerank(), so the node set is the cleaned form.
     edges <- data.frame(
       from = c("http://A.com/", "http://A.com"),
-      to = c("B.com#frag", "B.com"),
-      stringsAsFactors = FALSE
+      to = c("B.com#frag", "B.com")
     )
     h <- hits(edges)
     pr <- pagerank(edges)
@@ -145,12 +139,10 @@ describe("hits wrapper", {
   it("folds redirects into the same identities as pagerank()", {
     edges <- data.frame(
       from = c("A.com", "B.com"),
-      to = c("B.com", "C.com"),
-      stringsAsFactors = FALSE
+      to = c("B.com", "C.com")
     )
     redirects <- data.frame(
-      from = "B.com", to = "C.com",
-      stringsAsFactors = FALSE
+      from = "B.com", to = "C.com"
     )
     h <- hits(edges, redirects_df = redirects)
     pr <- pagerank(edges, redirects_df = redirects)
@@ -161,8 +153,7 @@ describe("hits wrapper", {
   it("surfaces hub vs authority on a cleaned graph", {
     edges <- data.frame(
       from = c("http://A.com/", "http://A.com/", "B.com"),
-      to = c("B.com", "C.com", "C.com"),
-      stringsAsFactors = FALSE
+      to = c("B.com", "C.com", "C.com")
     )
     h <- hits(edges)
     top_hub <- h$node_name[which.max(h$hub)]
@@ -184,8 +175,7 @@ describe("hits wrapper", {
   it("respects domain filtering (user-filtered graph HITS)", {
     edges <- data.frame(
       from = c("http://site.com/a", "http://site.com/a"),
-      to = c("http://site.com/b", "http://other.com/x"),
-      stringsAsFactors = FALSE
+      to = c("http://site.com/b", "http://other.com/x")
     )
     h <- hits(edges, keep_domains = "site.com")
     expect_false(any(grepl("other.com", h$node_name)))
@@ -194,8 +184,7 @@ describe("hits wrapper", {
   it("counts duplicate link slots under count_instances", {
     edges <- data.frame(
       from = c("A", "A", "A"),
-      to = c("B", "C", "C"),
-      stringsAsFactors = FALSE
+      to = c("B", "C", "C")
     )
     # A -> C twice should make C a stronger authority than B.
     h <- hits(edges,

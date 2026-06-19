@@ -556,7 +556,7 @@ hits <- function(edge_list_df,
 
   # --- 3. Duplicate-edge policy (handles self-loops) ---
   effective_weight_col <- weight_col
-  current_edge_list <- .hits_apply_duplicate_edge_policy(
+  current_edge_list <- .apply_duplicate_edge_policy(
     edge_list_df = current_edge_list,
     policy = duplicate_edge_policy,
     self_loops = self_loops,
@@ -602,52 +602,5 @@ hits <- function(edge_list_df,
     weight_col = effective_weight_col,
     scale = scale,
     ...
-  )
-}
-
-#' Apply hits() duplicate-edge policy.
-#'
-#' Mirrors the deduplication dispatch [pagerank()] uses, so `hits()` and
-#' `pagerank()` collapse repeated `from -> to` rows identically and therefore
-#' share node identities. `"collapse"` keeps the destination-level binary
-#' convention via [get_unique_edges()]; `"aggregate"` and `"count_instances"`
-#' route through [aggregate_edges()], with `"count_instances"` first stamping a
-#' per-row `__pr_instance_count__` so repeated link slots become edge weight.
-#' @keywords internal
-#' @noRd
-.hits_apply_duplicate_edge_policy <- function(edge_list_df,
-                                              policy,
-                                              self_loops,
-                                              from_col,
-                                              to_col) {
-  if (policy == "collapse") {
-    return(get_unique_edges(
-      edge_list_df = edge_list_df,
-      self_loops = self_loops,
-      from_col = from_col,
-      to_col = to_col
-    ))
-  }
-
-  if (policy == "count_instances" &&
-        nrow(edge_list_df) > 0 &&
-        all(c(from_col, to_col) %in% names(edge_list_df))) {
-    from <- as.character(edge_list_df[[from_col]])
-    to <- as.character(edge_list_df[[to_col]])
-    valid <- !is.na(from) & !is.na(to)
-    if (self_loops == "drop") {
-      valid <- valid & from != to
-    }
-
-    instance_count <- integer(nrow(edge_list_df))
-    instance_count[valid] <- 1L
-    edge_list_df[["__pr_instance_count__"]] <- instance_count
-  }
-
-  aggregate_edges(
-    edge_list_df = edge_list_df,
-    self_loops = self_loops,
-    from_col = from_col,
-    to_col = to_col
   )
 }

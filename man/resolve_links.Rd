@@ -27,7 +27,7 @@ two columns for source and target URLs.}
 'to' columns (or as specified by `redirect_from_col`/`redirect_to_col`).
 If `NULL`, no redirects are applied.}
 
-\item{clean_urls}{Logical, whether to clean/normalise URLs using
+\item{clean_urls}{Logical, whether to clean/normalize URLs using
 \code{rurl::clean_url} before resolving. Default `TRUE`.}
 
 \item{self_loops}{Character, how to handle self-loops created after

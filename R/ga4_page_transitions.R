@@ -37,7 +37,7 @@
 #'   order events were recorded on the client) break the tie so the ordering is
 #'   stable and reproducible. Any tie-break column that is absent from
 #'   `events_df` is simply skipped, but supplying all of them is strongly
-#'   recommended to guarantee a deterministic order. As a final stabiliser the
+#'   recommended to guarantee a deterministic order. As a final stabilizer the
 #'   original row order of `events_df` is used, so the result never depends on
 #'   the platform's sort implementation.
 #'
@@ -176,7 +176,7 @@ ga4_page_transitions <- function(events_df,
 
   # --- Deterministic ordering contract ---
   # Order by session identity, then event_timestamp, then the batch tie-break
-  # fields in order, then original row order as a final stabiliser.
+  # fields in order, then original row order as a final stabilizer.
   page <- as.character(events_df[[page_col]])
   user <- events_df[[user_id_col]]
   session <- events_df[[session_id_col]]
