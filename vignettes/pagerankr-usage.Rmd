@@ -719,6 +719,146 @@ See `vignette("topic_feeder_pagerank")` for a full walkthrough.
 replaces the topic list, and there is no blending step.  See
 `vignette("trustrank")`.
 
+## GA4 Behavioral Transitions
+
+GA4 event data captures how real users move through your site. The three
+functions in this section let you convert those signals into PageRank inputs
+without requiring a BigQuery connection — a synthetic events data frame is
+sufficient for local development.
+
+### Building transition counts with `ga4_page_transitions()`
+
+`ga4_page_transitions()` walks each user-session in chronological order and
+emits one row per consecutive page-view pair. The result is a **transition
+signal** (observed navigation behaviour), not a link-click signal, so it
+reflects where users actually go rather than where crawlable anchor tags point.
+
+```{r ga4_transitions}
+library(pagerankr)
+
+# Minimal synthetic GA4 events data frame (no BigQuery required)
+events <- data.frame(
+  user_pseudo_id  = c("u1", "u1", "u1", "u2", "u2"),
+  ga_session_id   = c(1L,   1L,   1L,   2L,   2L),
+  page_location   = c("/home", "/blog", "/contact", "/home", "/pricing"),
+  event_timestamp = c(1000L,  2000L,  3000L,  1000L,  2000L),
+  stringsAsFactors = FALSE
+)
+
+transitions <- ga4_page_transitions(
+  events,
+  user_id_col   = "user_pseudo_id",
+  session_id_col = "ga_session_id",
+  page_col       = "page_location",
+  timestamp_col  = "event_timestamp"
+)
+print(transitions)
+# Returns a data frame with columns: from, to, n
+```
+
+### Smoothing sparse transitions with `smooth_transitions()`
+
+Observed transition counts are often sparse — many source pages have very few
+sessions, making raw empirical shares unreliable. `smooth_transitions()` applies
+per-source Dirichlet smoothing toward a structural (crawl-graph) prior:
+
+```
+lambda_i = n_i / (n_i + k)
+```
+
+where `n_i` is the total outgoing transition count from source `i` and `k`
+controls how quickly low-traffic sources lean on the prior. Sources with fewer
+than `min_support` total outgoing transitions receive full prior weight
+(`lambda_i = 0`).
+
+```{r smooth_transitions_example}
+# Build a minimal structural prior from the same pages
+structural <- data.frame(
+  from = c("/home",    "/home",    "/blog"),
+  to   = c("/blog",   "/pricing", "/contact"),
+  n    = c(50L,        30L,        40L),
+  stringsAsFactors = FALSE
+)
+
+smoothed <- smooth_transitions(
+  empirical_df   = transitions,
+  structural_df  = structural,
+  k              = 10,
+  min_support    = 5,
+  count_col      = "n",
+  from_col       = "from",
+  to_col         = "to",
+  prob_col       = "prob"
+)
+print(smoothed)
+# empirical_df augmented with a `prob` column: smoothed per-source
+# transition probabilities (each source sums to 1)
+```
+
+### Converting entrances to a teleport vector with `ga4_entrance_teleport()`
+
+`ga4_entrance_teleport()` turns landing-page entrance counts into a `prior_df`
+suitable for `pagerank(prior_df = ...)`. This provides a **proxy for external
+authority**: pages users enter from search or direct traffic receive a higher
+reset probability during the random-surfer teleport step.
+
+> **Note:** entrance counts are not equivalent to backlink authority — they
+> reflect observed user entry points, not link equity from external domains.
+
+```{r ga4_teleport}
+entrances <- data.frame(
+  page_location = c("/home", "/blog", "/pricing", "/contact"),
+  entrances     = c(120L,    80L,     40L,         10L),
+  stringsAsFactors = FALSE
+)
+
+prior <- ga4_entrance_teleport(
+  entrances_df   = entrances,
+  url_col        = "page_location",
+  entrances_col  = "entrances",
+  vertex_names   = NULL
+)
+print(prior)
+# Returns a two-column data frame: url + weight, ready for pagerank(prior_df = .)
+```
+
+### End-to-end example
+
+Combine all three steps: raw events → transition counts → smoothing → PageRank.
+
+```{r ga4_end_to_end}
+# 1. Extract transitions from synthetic events
+trans <- ga4_page_transitions(
+  events,
+  user_id_col    = "user_pseudo_id",
+  session_id_col = "ga_session_id",
+  page_col       = "page_location",
+  timestamp_col  = "event_timestamp"
+)
+
+# 2. Smooth against the structural prior
+sm <- smooth_transitions(
+  empirical_df  = trans,
+  structural_df = structural,
+  k             = 10,
+  min_support   = 2
+)
+
+# 3. Run PageRank using smoothed probabilities as edge weights
+pr <- pagerank(
+  sm,
+  from_col       = "from",
+  to_col         = "to",
+  weight_col     = "prob",
+  clean_edge_urls = FALSE
+)
+print(pr)
+```
+
+`clean_edge_urls = FALSE` is used throughout because the synthetic URLs are
+already normalized; set it to `TRUE` when feeding real GA4 `page_location`
+values that may contain query strings or fragments.
+
 ## Function Reference
 
 | Function | Purpose |
