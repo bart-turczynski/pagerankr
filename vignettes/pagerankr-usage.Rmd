@@ -579,3 +579,32 @@ be passed through `simulate_changes()` via `...`.
 | `pr_gini()` | Gini coefficient of PR distribution |
 | `pr_entropy()` | Entropy of PR distribution |
 | `pr_top_k_share()` | Top-k concentration of PR |
+| `damping_sensitivity()` | Sweep PageRank across a range of damping factors |
+| `pagerank_stability()` | Alpha-stability report: rank correlation across damping grid |
+| `topic_sensitive_pagerank()` | Per-topic personalized PageRank with blended scores |
+| `topic_feeder_pagerank()` | Reverse-graph seeded PageRank: find pages that feed a target cluster |
+| `trustrank()` | TrustRank: seed-biased PageRank from a trusted seed set |
+| `trust_seed_prior()` | Build a teleport prior concentrated on trusted seed URLs (for trustrank) |
+| `feeder_seed_prior()` | Build a teleport prior concentrated on cluster seed URLs (for topic_feeder_pagerank) |
+| `align_prior_to_vertices()` | Align a prior/teleport weight data frame to the graph vertex set |
+| `ga4_entrance_teleport()` | Entrance/landing-page counts as a teleport (reset) vector |
+| `ga4_page_transitions()` | Consecutive-page-view transition counts from a GA4 BigQuery export |
+| `smooth_transitions()` | Shrink sparse empirical transition shares toward structural prior |
+| `transform_edge_weights()` | Per-source grouped edge weight transforms (emits transition_probability) |
+| `transform_weights()` | Apply rank/log/zipf/percentile transforms to a numeric vector |
+| `validate_edge_weights()` | Validate per-source weight totals and warn on anomalies |
+| `screaming_frog_bundle()` | Compose Screaming Frog Internal:All + All Inlinks/Outlinks into a bundle |
+| `screaming_frog_internal()` | Import Screaming Frog Internal: All export |
+| `screaming_frog_links()` | Import Screaming Frog All Inlinks / All Outlinks export |
+| `pagerank_screaming_frog()` | Score a screaming_frog_bundle via pagerank() |
+| `resolve_canonical_urls()` | Resolve a URL vector through rel=canonical folds |
+| `resolve_canonicals()` | Apply rel=canonical folds to an edge list |
+| `resolve_folded_urls()` | Resolve a URL vector through redirects plus canonicals |
+| `resolve_urls()` | Resolve a URL vector through a redirect map |
+| `build_fold_map()` | Build a URL fold map from redirects and/or canonicals |
+| `audit_canonicals()` | Diagnose rel=canonical fold coverage and conflicts |
+| `audit_fold()` | Diagnose the redirect+canonical URL fold map |
+| `audit_redirects()` | Diagnose redirect chains, loops, and conflicts |
+| `aggregate_edges()` | Aggregate duplicate edges after URL folding with per-column semantics |
+| `export_graph()` | Export graph + PageRank in graphml / dot / edgelist / pajek formats |
+| `launch_pagerank_explorer()` | Launch the interactive Shiny PageRank explorer |
