@@ -37,6 +37,13 @@ default drift and keeps the cleaning and domain-filtering paths symmetrical.
 NA values in the specified columns are preserved in the output. Downstream
 functions in the pagerankr workflow (such as get_unique_edges and pagerank)
 will automatically drop any edge where either from or to is NA.
+
+Tokens that `rurl` cannot parse as a URL (e.g. a dotless bare label such as
+`"A"`, which newer `rurl` normalizes to NA) are left as their raw input value
+rather than becoming NA. This keeps unparseable but non-missing node
+identities as opaque nodes instead of silently dropping them, so an odd URL
+in a crawl is scored as its own node rather than vanishing. Only genuinely
+missing (NA) inputs stay NA.
 }
 \examples{
 df <- data.frame(
