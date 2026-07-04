@@ -1,5 +1,13 @@
 # pagerankr 0.0.0.9000
 
+* `filter_links_by_domain()`'s encoding-independent registrable-domain matching
+  now reads `rurl`'s new `domain_ascii` column (`rurl` >= 2.1.0) instead of a
+  separate IDNA-forced parse. `.build_url_maps()` parses each unique URL once
+  (host + `domain_ascii`) rather than twice, and the `.domain_profile()`
+  forced-idna helper is gone. Behavior is unchanged — `münchen.de` and
+  `xn--mnchen-3ya.de` still fold to one key under every `host_encoding`
+  (PAGE-ssuowttj follow-up).
+
 * `pagerank_screaming_frog()` gains `apply_canonicals` and `apply_redirects`
   toggles (both `TRUE` by default, preserving current behavior). Setting either
   to `FALSE` skips folding the bundle's canonical / redirect signals into
