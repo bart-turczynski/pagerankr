@@ -34,3 +34,9 @@
 #' @importFrom igraph which_loop
 #' @importFrom igraph write_graph
 "_PACKAGE"
+
+# `.from` and `.inc` are igraph's edge-selector NSE helpers, valid only inside
+# `igraph::E(g)[...]` (e.g. `E(g)[.inc(v)]`, `E(g)[.from(v)]`). They are not
+# ordinary bindings, so R CMD check's static analysis flags them as undefined
+# globals; declare them here to silence that false positive.
+utils::globalVariables(c(".from", ".inc"))
