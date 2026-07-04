@@ -218,6 +218,22 @@ filter_links_by_domain <- function(edge_list_df,
   )
 }
 
+#' Registrable-domain variant of the profile: force IDNA (Punycode) encoding
+#'
+#' The registrable domain is an identity, not a rendering, so its comparison key
+#' must be encoding-independent (see `pagerank()`'s "Registrable-domain matching
+#' is encoding-independent" note). Under `host_encoding = "keep"`, `rurl`
+#' returns the `domain` field in the verbatim input encoding, so the Unicode
+#' (`münchen.de`) and Punycode (`xn--mnchen-3ya.de`) spellings of one domain do
+#' not compare equal. Forcing `host_encoding = "idna"` for the domain-extraction
+#' parse folds both spellings to a single canonical Punycode form regardless of
+#' the profile's `host_encoding`, while host-based matching keeps using the
+#' profile's encoding.
+#' @noRd
+.domain_profile <- function(rurl_profile) {
+  utils::modifyList(rurl_profile, list(host_encoding = "idna"))
+}
+
 #' Resolve domain strings (extract registrable domain)
 #' @noRd
 .resolve_domains <- function(domains, psl_section, rurl_profile) {
@@ -229,7 +245,12 @@ filter_links_by_domain <- function(edge_list_df,
   if (length(domains) == 0) {
     return(character(0))
   }
-  extracted <- .parse_for_filter(domains, psl_section, rurl_profile)$domain
+  # Registrable-domain matching is encoding-independent: force IDNA so filter
+  # values fold to the same canonical form the URL domains do (see
+  # `.domain_profile()`).
+  extracted <- .parse_for_filter(
+    domains, psl_section, .domain_profile(rurl_profile)
+  )$domain
   extracted <- extracted[!is.na(extracted) & nzchar(extracted)]
   sort(unique(extracted))
 }
@@ -266,10 +287,15 @@ filter_links_by_domain <- function(edge_list_df,
   if (length(unique_urls) == 0) {
     return(list(host_map = character(0), domain_map = character(0)))
   }
-  parsed <- .parse_for_filter(unique_urls, psl_section, rurl_profile)
+  # Host uses the profile's encoding; the registrable domain uses a fixed IDNA
+  # form so its comparison key is encoding-independent (see .domain_profile()).
+  parsed_host <- .parse_for_filter(unique_urls, psl_section, rurl_profile)
+  parsed_domain <- .parse_for_filter(
+    unique_urls, psl_section, .domain_profile(rurl_profile)
+  )
   list(
-    host_map = stats::setNames(parsed$host, unique_urls),
-    domain_map = stats::setNames(parsed$domain, unique_urls)
+    host_map = stats::setNames(parsed_host$host, unique_urls),
+    domain_map = stats::setNames(parsed_domain$domain, unique_urls)
   )
 }
 
