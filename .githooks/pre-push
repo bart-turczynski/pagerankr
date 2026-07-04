@@ -4,19 +4,26 @@
 # CRAN-submission prep only (workflow_dispatch + release tags 'v*') because
 # GitHub-hosted runners are disabled on this account.
 #
-# This is the LIGHT, deterministic gate — the two cheap checks that catch the
-# common mistakes without needing the full Suggests toolchain installed:
-#   - news-version.yaml  : top NEWS.md heading vs DESCRIPTION Version
-#   - Verify / lint      : lintr::lint_package() (fails on any lint)
+# Checks, cheapest first:
+#   1. news-version.yaml : top NEWS.md heading vs DESCRIPTION Version
+#   2. Verify / lint     : lintr::lint_package() (fails on any lint)
+#   3. R CMD check       : rcmdcheck --as-cran, FAILS ON ERRORS AND WARNINGS
+#                          (the package is warning-clean; the sole allowed NOTE
+#                          is the CRAN-incoming dev-version/Remotes one).
 #
-# The heavyweight correctness checks — `R CMD check`, the cross-platform matrix
-# (full-check.yml), and R-hub (rhub.yaml) — are the "remote testing at CRAN
-# submission" path: they run on release tags / on demand, and require the full
-# Suggests set (covr, goodpractice, DT, visNetwork, ...). Run `R CMD check`
-# locally yourself before tagging a release if you want a pre-flight.
+# Step 3 is what catches correctness regressions — e.g. a dependency bump that
+# turns test fixtures red (see PR #50: rurl 2.1.0 emptied bare-label graphs and
+# slipped in because remote CI was billing-disabled). It needs the full Suggests
+# set (covr, goodpractice, DT, visNetwork, rcmdcheck, ...). When that toolchain
+# is NOT installed, step 3 is SKIPPED with a warning rather than failing, so a
+# fresh clone still gets the light gate. Install the Suggests to arm it.
+#
+# The cross-platform matrix (full-check.yml) and R-hub (rhub.yaml) remain the
+# release-tag / on-demand path.
 #
 # Enable once per clone:   git config core.hooksPath .githooks
 # Emergency bypass:        SKIP_VERIFY=1 git push
+# Skip only R CMD check:   SKIP_RCMDCHECK=1 git push
 set -euo pipefail
 
 if [ "${SKIP_VERIFY:-}" = "1" ]; then
@@ -41,4 +48,17 @@ fi
 echo "pre-push: lintr::lint_package() ..." >&2
 Rscript -e 'l <- lintr::lint_package(); if (length(l)) { print(l); quit(status = 1L) }'
 
-echo "pre-push: lint + NEWS checks passed ✓" >&2
+# 3. R CMD check (mirrors the Verify `check` job) — fails on errors AND
+#    warnings. Skipped (not failed) when rcmdcheck / the Suggests toolchain is
+#    unavailable, so a fresh clone still benefits from steps 1-2.
+if [ "${SKIP_RCMDCHECK:-}" = "1" ]; then
+  echo "pre-push: SKIP_RCMDCHECK=1 set — skipping R CMD check" >&2
+elif ! Rscript -e 'quit(status = if (requireNamespace("rcmdcheck", quietly = TRUE)) 0L else 1L)' >/dev/null 2>&1; then
+  echo "pre-push: rcmdcheck not installed — skipping R CMD check (install the" >&2
+  echo "          package Suggests to arm the full local gate)." >&2
+else
+  echo "pre-push: R CMD check (--as-cran; fails on errors + warnings) ..." >&2
+  Rscript -e 'q <- rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning", quiet = TRUE)'
+fi
+
+echo "pre-push: verify gate passed ✓" >&2
