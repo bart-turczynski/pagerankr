@@ -82,8 +82,17 @@
 #'     under `"leak"` — and `FALSE` when skipped / kept as crawled under
 #'     `"keep"`; combine with `policy` to distinguish relabel from leak), and
 #'     `out_of_scope` (a data frame of the offending `source` / `target` /
-#'     `signal` rows, or `NULL` when there were none). Recorded regardless of
-#'     policy.}
+#'     `signal` rows, or `NULL` when there were none), and `collisions` (a data
+#'     frame of **fold-target collisions** — uncrawled URLs that a fold
+#'     relabeled a crawled source onto while they were ALSO independently
+#'     linked, so the two silently merge into one vertex and the crawled page
+#'     absorbs the URL's inbound link equity; columns `target`,
+#'     `n_independent_refs` and the folded `source`(s) — or `NULL` when none). A
+#'     collision triggers a `warning()` naming the merged URL(s). This
+#'     diagnostic requires crawl-URL knowledge to distinguish an uncrawled fold
+#'     target from a genuinely crawled leaf page, so it is only computed when an
+#'     `indexability_df` is supplied to [pagerank()]; without it, `collisions`
+#'     is `NULL`. Recorded regardless of `out_of_scope_fold` policy.}
 #' }
 #'
 #' The constructor [new_transition_audit()] is internal plumbing for
@@ -141,6 +150,11 @@ NULL
 #'   under `"leak"`), `FALSE` when they were skipped (kept) under `"keep"`.
 #' @param out_of_scope_fold_list Data frame or `NULL`, the out-of-scope folds
 #'   as `source` / `target` / `signal` rows.
+#' @param fold_collisions Data frame or `NULL`, fold-target collisions detected
+#'   on the pre-fold edge list: rows of `target` / `n_independent_refs` /
+#'   `source` for uncrawled URLs that a fold relabeled a crawled source onto
+#'   while they were also independently linked. `NULL` when no `indexability_df`
+#'   crawl-URL set was available to detect them.
 #' @param config A named list of the relevant [pagerank()] configuration.
 #' @return An object of class `"transition_audit"` (see [transition_audit]).
 #' @noRd
@@ -169,6 +183,7 @@ new_transition_audit <- function(n_input_rows = 0L,
                                  n_out_of_scope_folds = 0L,
                                  out_of_scope_folds_applied = TRUE,
                                  out_of_scope_fold_list = NULL,
+                                 fold_collisions = NULL,
                                  config = list()) {
   n_input_rows <- as.integer(n_input_rows)
   n_edges <- as.integer(n_edges)
@@ -255,11 +270,16 @@ new_transition_audit <- function(n_input_rows = 0L,
     # relabeled (folded through) and FALSE when they were skipped (kept as
     # crawled); `out_of_scope` is a data frame of the offending
     # source/target/signal rows, or NULL when there were none.
+    # `collisions` (SF-scope / PAGE-rjrduvmy) records fold-target collisions:
+    # uncrawled URLs a fold relabeled a crawled source onto while they were also
+    # independently linked, silently merging inbound equity. A data frame of
+    # target/n_independent_refs/source rows, or NULL when there were none.
     fold = list(
       policy = out_of_scope_fold,
       n_out_of_scope = as.integer(n_out_of_scope_folds),
       applied = isTRUE(out_of_scope_folds_applied),
-      out_of_scope = out_of_scope_fold_list
+      out_of_scope = out_of_scope_fold_list,
+      collisions = fold_collisions
     )
   )
 
@@ -359,6 +379,17 @@ print.transition_audit <- function(x, ...) {
         "skipped (kept)"
       }
       cat("  Action:             ", action, "\n")
+    }
+    if (is.data.frame(x$fold$collisions) && nrow(x$fold$collisions) > 0L) {
+      cat("  Fold-target collisions (merged inbound equity):\n")
+      for (i in seq_len(nrow(x$fold$collisions))) {
+        cat(
+          "    - ", x$fold$collisions$target[i],
+          " (", x$fold$collisions$n_independent_refs[i],
+          " independent ref(s); source: ", x$fold$collisions$source[i], ")\n",
+          sep = ""
+        )
+      }
     }
   }
 

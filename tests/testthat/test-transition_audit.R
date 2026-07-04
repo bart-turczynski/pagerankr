@@ -57,7 +57,7 @@ describe("transition_audit structure", {
     )
     expect_setequal(
       names(audit$fold),
-      c("policy", "n_out_of_scope", "applied", "out_of_scope")
+      c("policy", "n_out_of_scope", "applied", "out_of_scope", "collisions")
     )
   })
 

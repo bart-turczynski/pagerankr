@@ -1,5 +1,16 @@
 # pagerankr 0.0.0.9000
 
+* `pagerank()` now detects **fold-target collisions**: when a canonical/redirect
+  relabels a crawled page's node onto an *uncrawled* URL that is ALSO
+  independently referenced as a genuine link endpoint, the two silently merge
+  into one vertex and the crawled page absorbs the URL's inbound link equity.
+  `pagerank()` emits a `warning()` naming the merged URL(s) and records them in
+  the `fold` section of the `transition_audit` object under a new `collisions`
+  field (a data frame of `target` / `n_independent_refs` / `source`, or `NULL`
+  when none). The crawl's known-URL set (`indexability_df`) is used to tell an
+  uncrawled fold target from a genuinely crawled leaf page, so the diagnostic is
+  only computed when an `indexability_df` is supplied (PAGE-rjrduvmy).
+
 * `pagerank()` now warns when a `keep_domains` / `exclude_domains` /
   `keep_hosts` / `exclude_hosts` value matched the crawled input but no node
   after folding — i.e. an out-of-scope canonical/redirect rewrote the crawled

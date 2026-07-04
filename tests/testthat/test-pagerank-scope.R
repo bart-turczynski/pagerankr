@@ -286,3 +286,106 @@ describe("folded-away domain filter warning (PAGE-owdnylqo)", {
     )
   })
 })
+
+describe("fold-target collision detection (PAGE-rjrduvmy)", {
+  # A collision: a canonical folds a crawled page (pages.dev/X) onto .com/X --
+  # a URL that is UNCRAWLED (absent from indexability_df) yet ALSO the target of
+  # a genuine, independent link. The two silently merge into one vertex,
+  # inflating .com/X's PageRank invisibly.
+  it("flags a fold that merges onto an independently-linked uncrawled URL", {
+    edges <- data.frame(
+      from = c("http://pages.dev/X/", "http://blog.com/"),
+      to   = c("http://pages.dev/out/", "http://target.com/X/"),
+      stringsAsFactors = FALSE
+    )
+    can <- data.frame(
+      from = "http://pages.dev/X/",
+      to   = "http://target.com/X/",
+      stringsAsFactors = FALSE
+    )
+    # The crawl knows pages.dev/X (+ its outlink and the blog) but NOT
+    # target.com/X, so target.com/X is an uncrawled fold target.
+    idx <- data.frame(
+      url = c(
+        "http://pages.dev/X/", "http://pages.dev/out/", "http://blog.com/"
+      ),
+      indexability_status = "",
+      stringsAsFactors = FALSE
+    )
+    expect_warning(
+      pr <- pagerank(edges,
+        canonicals_df = can, indexability_df = idx, drop_isolates_flag = FALSE
+      ),
+      "target.com/X"
+    )
+    audit <- attr(pr, "transition_audit")
+    expect_true(is.data.frame(audit$fold$collisions))
+    expect_true("http://target.com/X/" %in% audit$fold$collisions$target)
+    row <- audit$fold$collisions[
+      audit$fold$collisions$target == "http://target.com/X/",
+    ]
+    expect_equal(row$n_independent_refs, 1L)
+    expect_true(grepl("pages.dev/X", row$source))
+  })
+
+  it("does not flag a fold onto a genuinely crawled leaf page", {
+    # B is a genuinely crawled LEAF page: it has no outlinks (appears only as a
+    # `to`) but IS in the crawl table (indexability_df), so folding A -> B is a
+    # correct merge, not a collision. This is the SF-fixture case.
+    edges <- data.frame(
+      from = c("http://a/", "http://c/"),
+      to   = c("http://b/", "http://b/"),
+      stringsAsFactors = FALSE
+    )
+    red <- data.frame(
+      from = "http://a/", to = "http://b/", stringsAsFactors = FALSE
+    )
+    idx <- data.frame(
+      url = c("http://a/", "http://b/", "http://c/"),
+      indexability_status = "",
+      stringsAsFactors = FALSE
+    )
+    expect_no_warning(
+      pr <- pagerank(edges,
+        redirects_df = red, indexability_df = idx, drop_isolates_flag = FALSE
+      )
+    )
+    audit <- attr(pr, "transition_audit")
+    expect_null(audit$fold$collisions)
+  })
+
+  it("skips detection (NULL, no warning) when no indexability_df is supplied", {
+    # b2 fallback: without crawl-URL knowledge, an uncrawled fold target is
+    # indistinguishable from a crawled leaf page, so detection is a no-op.
+    edges <- data.frame(
+      from = c("http://pages.dev/X/", "http://blog.com/"),
+      to   = c("http://pages.dev/out/", "http://target.com/X/"),
+      stringsAsFactors = FALSE
+    )
+    can <- data.frame(
+      from = "http://pages.dev/X/",
+      to   = "http://target.com/X/",
+      stringsAsFactors = FALSE
+    )
+    expect_no_warning(
+      pr <- pagerank(edges, canonicals_df = can, drop_isolates_flag = FALSE)
+    )
+    audit <- attr(pr, "transition_audit")
+    expect_null(audit$fold$collisions)
+  })
+
+  it("leaves collisions NULL on a fold-free run", {
+    edges <- data.frame(
+      from = "http://a/", to = "http://b/", stringsAsFactors = FALSE
+    )
+    idx <- data.frame(
+      url = c("http://a/", "http://b/"), indexability_status = "",
+      stringsAsFactors = FALSE
+    )
+    audit <- attr(
+      pagerank(edges, indexability_df = idx, drop_isolates_flag = FALSE),
+      "transition_audit"
+    )
+    expect_null(audit$fold$collisions)
+  })
+})
