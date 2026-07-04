@@ -10,6 +10,8 @@ pagerank_screaming_frog(
   link_origins = NULL,
   placement_weights = NULL,
   weight_col = NULL,
+  apply_canonicals = TRUE,
+  apply_redirects = TRUE,
   ...
 )
 }
@@ -31,6 +33,18 @@ rejected. Edges whose placement is not named receive weight `1`.}
 
 \item{weight_col}{Optional existing edge weight column to pass to
 [pagerank()]. Cannot be combined with `placement_weights`.}
+
+\item{apply_canonicals}{Logical flag (default `TRUE`). When `TRUE` the
+bundle's `rel=canonical` signals are folded into the graph via
+[pagerank()]'s `canonicals_df`. Set `FALSE` for an as-crawled run that
+preserves the crawled node identities (no canonical folding) — useful when
+canonicals point off the crawled domain (e.g. a mirror/staging host) and
+would otherwise relabel crawled pages onto uncrawled targets.}
+
+\item{apply_redirects}{Logical flag (default `TRUE`). When `TRUE` the
+bundle's redirect signals are folded into the graph via [pagerank()]'s
+`redirects_df`. Set `FALSE` to skip redirect folding and keep the
+as-crawled node identities.}
 
 \item{...}{Additional scoring controls passed to [pagerank()], such as
 `self_loops`, `drop_isolates_flag`, `nofollow_action`,
