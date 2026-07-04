@@ -133,6 +133,8 @@ summary.screaming_frog_bundle <- function(object, ...) {
       edges = nrow(object$edges),
       redirects = nrow(object$redirects),
       canonicals = nrow(object$canonicals),
+      canonicals_off_domain =
+        object$diagnostics$counts$canonicals_off_domain,
       excluded_type_rows = object$diagnostics$links$excluded_type_rows,
       dropped_invalid_endpoints =
         object$diagnostics$links$dropped_invalid_endpoints,
@@ -161,6 +163,7 @@ print.screaming_frog_bundle <- function(x, ...) {
   cat("  Redirects:    ", s$redirects, "\n")
   cat("  Canonicals:   ", s$canonicals, "\n")
   cat("\nLosses / reconciliation\n")
+  cat("  Canonicals off domain:  ", s$canonicals_off_domain, "\n")
   cat("  Excluded by type:       ", s$excluded_type_rows, "\n")
   cat("  Invalid graph endpoints:", s$dropped_invalid_endpoints, "\n")
   cat("  Edge endpoints absent:  ", s$absent_internal_edge_endpoints, "\n")
@@ -177,6 +180,13 @@ print.screaming_frog_bundle <- function(x, ...) {
   internal_hosts <- internal_hosts[!is.na(internal_hosts)]
   graph_urls <- unique(c(edges$from, edges$to))
 
+  canonical_targets_absent <- .sf_absent_signal_targets(
+    internal$canonicals, internal_urls, internal_hosts
+  )
+  n_canonicals_off_domain <- sum(
+    canonical_targets_absent$classification == "external_endpoint"
+  )
+
   list(
     counts = list(
       nodes = nrow(nodes),
@@ -184,6 +194,7 @@ print.screaming_frog_bundle <- function(x, ...) {
       edges = nrow(edges),
       redirects = nrow(internal$redirects),
       canonicals = nrow(internal$canonicals),
+      canonicals_off_domain = n_canonicals_off_domain,
       indexability = nrow(internal$indexability)
     ),
     inputs = list(
@@ -240,9 +251,7 @@ print.screaming_frog_bundle <- function(x, ...) {
       redirect_targets_absent = .sf_absent_signal_targets(
         internal$redirects, internal_urls, internal_hosts
       ),
-      canonical_targets_absent = .sf_absent_signal_targets(
-        internal$canonicals, internal_urls, internal_hosts
-      )
+      canonical_targets_absent = canonical_targets_absent
     ),
     distributions = list(
       hosts = .sf_count_vector(.sf_url_host(nodes$url), "host"),
