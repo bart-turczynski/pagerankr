@@ -133,14 +133,22 @@ flagged), `"error"` (error on genuine disagreement), or `"canonical_wins"`
 [build_fold_map()].}
 
 \item{keep_domains}{Optional character vector of domains to keep. When
-provided, edges are filtered via [filter_links_by_domain()] before
-PageRank calculation so that only links where both endpoints belong
-to one of the specified domains are included. Useful for restricting
-to internal links. Default `NULL` (no domain filtering).}
+  provided, edges are filtered via [filter_links_by_domain()] so that only
+  links where both endpoints belong to one of the specified domains are
+  included. Useful for restricting to internal links. Default `NULL` (no
+  domain filtering).
+
+  **Ordering:** filtering runs *after* redirect/canonical folding, so it
+  scopes the post-fold (canonical) namespace, not the crawled input. If an
+  out-of-scope canonical/redirect rewrites the crawled domain onto a
+  different one, filtering on the crawled domain matches nothing (an empty
+  graph). To scope the INPUT you crawled, run [filter_links_by_domain()] on
+  the edge list *before* calling `pagerank()`.}
 
 \item{exclude_domains}{Optional character vector of domains to exclude.
 Edges where either endpoint belongs to one of these domains are removed.
-Default `NULL` (no exclusion).}
+Like `keep_domains`, this filters the post-fold namespace (see the ordering
+note above). Default `NULL` (no exclusion).}
 
 \item{keep_hosts}{Optional character vector of exact hosts to keep (e.g.
 `"www.example.com"`), as opposed to registrable domains. Matched on the

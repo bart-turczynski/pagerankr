@@ -221,14 +221,22 @@ target, signal) are recorded in the `fold` section of the
 `transition_audit` object. See [transition_audit].}
 
 \item{keep_domains}{Optional character vector of domains to keep. When
-provided, edges are filtered via [filter_links_by_domain()] before
-PageRank calculation so that only links where both endpoints belong
-to one of the specified domains are included. Useful for restricting
-to internal links. Default `NULL` (no domain filtering).}
+  provided, edges are filtered via [filter_links_by_domain()] so that only
+  links where both endpoints belong to one of the specified domains are
+  included. Useful for restricting to internal links. Default `NULL` (no
+  domain filtering).
+
+  **Ordering:** filtering runs *after* redirect/canonical folding, so it
+  scopes the post-fold (canonical) namespace, not the crawled input. If an
+  out-of-scope canonical/redirect rewrites the crawled domain onto a
+  different one, filtering on the crawled domain matches nothing (an empty
+  graph). To scope the INPUT you crawled, run [filter_links_by_domain()] on
+  the edge list *before* calling `pagerank()`.}
 
 \item{exclude_domains}{Optional character vector of domains to exclude.
 Edges where either endpoint belongs to one of these domains are removed.
-Default `NULL` (no exclusion).}
+Like `keep_domains`, this filters the post-fold namespace (see the ordering
+note above). Default `NULL` (no exclusion).}
 
 \item{keep_hosts}{Optional character vector of exact hosts to keep (e.g.
 `"www.example.com"`), as opposed to registrable domains. Matched on the
@@ -470,6 +478,27 @@ igraph's treatment of parallel edges. Use `"aggregate"` when duplicate rows
 should be collapsed loss-aware, especially with an existing `weight_col`;
 numeric duplicate weights are summed instead of silently keeping the first
 row.
+
+## Fold-then-filter ordering (domain / host scope)
+
+Redirect and canonical folding runs **before** the
+`keep_domains` / `exclude_domains` / `keep_hosts` / `exclude_hosts`
+filter. Folding can rewrite the node namespace: an out-of-scope canonical
+(e.g. every `staging.example.dev` page declaring a `example.com` canonical)
+relabels crawled nodes onto a domain you never crawled. Because the filter
+then sees only the post-fold (canonical) namespace, filtering on the domain
+you actually crawled matches nothing and returns an empty graph.
+
+`pagerank()` detects this specific case -- a filter value that classified
+one or more crawled (pre-fold) nodes but no surviving post-fold node -- and
+emits an actionable `warning()` naming the folded-away value(s) and pointing
+at the out-of-scope fold as the cause. This is a diagnostic only; the
+fold-then-filter order is unchanged.
+
+To scope the **input you crawled**, filter first: run
+[filter_links_by_domain()] on the edge list (and, if used, the redirect /
+canonical data frames) *before* calling `pagerank()`. To scope the folded
+graph, filter on the post-fold (canonical) domain/host instead.
 }
 \examples{
 # Basic example
