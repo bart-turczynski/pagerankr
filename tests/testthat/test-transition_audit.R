@@ -25,7 +25,7 @@ describe("transition_audit structure", {
       names(audit),
       c(
         "counts", "coverage", "normalization", "dropped", "duplicates",
-        "config", "mass"
+        "config", "mass", "fold"
       )
     )
     expect_setequal(
@@ -54,6 +54,10 @@ describe("transition_audit structure", {
     expect_setequal(
       names(audit$mass),
       c("reported", "sink", "hidden", "total")
+    )
+    expect_setequal(
+      names(audit$fold),
+      c("policy", "n_out_of_scope", "applied", "out_of_scope")
     )
   })
 
