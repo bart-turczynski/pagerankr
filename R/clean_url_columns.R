@@ -50,6 +50,13 @@
 #' NA values in the specified columns are preserved in the output. Downstream
 #' functions in the pagerankr workflow (such as get_unique_edges and pagerank)
 #' will automatically drop any edge where either from or to is NA.
+#'
+#' Tokens that `rurl` cannot parse as a URL (e.g. a dotless bare label such as
+#' `"A"`, which newer `rurl` normalizes to NA) are left as their raw input value
+#' rather than becoming NA. This keeps unparseable but non-missing node
+#' identities as opaque nodes instead of silently dropping them, so an odd URL
+#' in a crawl is scored as its own node rather than vanishing. Only genuinely
+#' missing (NA) inputs stay NA.
 clean_url_columns <- function(data_frame,
                               columns = c("from", "to"),
                               ...) {
@@ -97,6 +104,17 @@ clean_url_columns <- function(data_frame,
         rurl::get_clean_url,
         c(list(unique_urls_to_clean), rurl_args)
       )
+
+      # `rurl::get_clean_url()` returns NA for inputs it cannot parse as a URL
+      # (e.g. a dotless bare token such as "A"). `unique_urls_to_clean` is
+      # already NA-free (na.omit above), so any NA here is a parse failure, not
+      # a genuine NA input. Fall back to the raw token for those so unparseable
+      # node identities survive as opaque nodes instead of collapsing to NA and
+      # being silently dropped by get_unique_edges() -- mirroring
+      # `.apply_fold_map()`, which likewise leaves unmapped values untouched.
+      unparseable <- is.na(cleaned_unique)
+      cleaned_unique[unparseable] <- unique_urls_to_clean[unparseable]
+
       cleaned_url_lookup <- stats::setNames(
         cleaned_unique, unique_urls_to_clean
       )

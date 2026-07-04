@@ -143,11 +143,10 @@ describe("clean_url_columns memoization (conceptual)", {
     cleaned_1 <- clean_url_columns(df_repeated, columns = "urls")
     # Fragment and query dropped, host lowercased, path case preserved
     expect_equal(cleaned_1$urls[1], "https://example.com/Page")
-    # Adjust expectation: if rurl does not encode the space, expect a space.
-    # If it turns it into NA, expect NA. Based on output, the actual value is
-    # "http://sub.example.com/another path".
-    # Path case preserved, space NOT encoded by rurl
-    expect_equal(cleaned_1$urls[2], "http://sub.example.com/another path")
+    # Path case preserved and, under the pinned `path_encoding = "keep"`
+    # profile, rurl (>= 2.1.0) preserves the existing percent-encoding verbatim
+    # (older rurl decoded "%20" to a space). "keep" means keep.
+    expect_equal(cleaned_1$urls[2], "http://sub.example.com/another%20path")
     expect_equal(cleaned_1$urls[3], cleaned_1$urls[1])
     expect_equal(cleaned_1$urls[4], cleaned_1$urls[2])
 
@@ -163,6 +162,32 @@ describe("clean_url_columns memoization (conceptual)", {
     expect_equal(cleaned_2_default_behavior$urls[1], "https://example.com/Page")
     # This test previously failed because it passed an unsupported argument.
     # By removing the argument, we test default behavior which should pass.
+  })
+})
+
+describe("clean_url_columns unparseable-token handling", {
+  it("preserves dotless bare tokens rurl cannot parse as URLs", {
+    # Newer rurl normalizes dotless labels (e.g. "A") to NA. clean_url_columns
+    # must keep them as opaque node identities rather than dropping them.
+    df <- data.frame(from = c("A", "B"), to = c("B", "A"))
+    cleaned <- clean_url_columns(df, columns = c("from", "to"))
+    expect_equal(cleaned$from, c("A", "B"))
+    expect_equal(cleaned$to, c("B", "A"))
+  })
+
+  it("cleans real URLs while preserving unparseable tokens together", {
+    df <- data.frame(url = c("A", "Http://Example.COM/x", NA))
+    cleaned <- clean_url_columns(df, columns = "url")
+    expect_equal(cleaned$url[1], "A")
+    expect_equal(cleaned$url[2], "http://example.com/x")
+    expect_true(is.na(cleaned$url[3]))
+  })
+
+  it("keeps pagerank() scoring a graph built from bare labels", {
+    edges <- data.frame(from = c("A", "B"), to = c("B", "A"))
+    pr <- pagerank(edges)
+    expect_equal(nrow(pr), 2)
+    expect_equal(sum(pr$pagerank), 1, tolerance = 1e-9)
   })
 })
 
