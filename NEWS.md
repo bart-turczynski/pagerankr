@@ -1,5 +1,14 @@
 # pagerankr 0.0.0.9000
 
+* `pagerank()` now warns when a `keep_domains` / `exclude_domains` /
+  `keep_hosts` / `exclude_hosts` value matched the crawled input but no node
+  after folding — i.e. an out-of-scope canonical/redirect rewrote the crawled
+  domain/host away before filtering (which runs after folding). The warning
+  names the folded-away value(s) and points at the fold as the cause. The
+  fold-then-filter ordering is now documented explicitly in the `pagerank()`
+  and `filter_links_by_domain()` docs; to scope the crawled input, filter with
+  `filter_links_by_domain()` before calling `pagerank()` (PAGE-owdnylqo).
+
 * `out_of_scope_fold` gains a third policy, `"leak"`: a crawled page whose
   canonical/redirect folds out of scope is treated like an external redirect —
   its inbound equity is routed onto a dedicated leak sink and evaporates out of
