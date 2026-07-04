@@ -1,5 +1,15 @@
 # pagerankr 0.0.0.9000
 
+* `pagerank()` gains an `out_of_scope_fold` argument (`"relabel"` default, or
+  `"keep"`) governing composed fold-map entries whose target is not itself a
+  crawled node. `"relabel"` preserves current behavior (fold crawled sources
+  onto uncrawled canonical/redirect targets); `"keep"` drops those out-of-scope
+  entries before folding so crawled pages retain their as-crawled identity
+  rather than being relabeled to phantom vertices (the same filtered map folds
+  the TIPR prior). Regardless of policy, the count and list of out-of-scope
+  folds (source, target, signal) are recorded in a new `fold` section of the
+  `transition_audit` object (PAGE-ttlaxjkw).
+
 * Code-quality pass: `anyNA()` replaces `any(is.na())`, `!all(x)` replaces
   `any(!x)`, nested `ifelse()` replaced with vectorized assignment,
   `expect_gt()`/`expect_lt()`/`expect_length()`/`expect_null()` adopted where
