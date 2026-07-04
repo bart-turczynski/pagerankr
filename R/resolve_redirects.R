@@ -402,7 +402,12 @@ resolve_redirects <- function(edge_list_df,
     loop_verts <- igraph::V(g)[scc$membership == scc_id]
     loop_names <- igraph::V(g)$name[loop_verts]
 
-    # Find node with highest in-degree within the cycle
+    # Pick the cycle node with the highest GLOBAL in-degree as the sink -- this
+    # counts inbound edges from outside the cycle too, so the most-redirected-to
+    # page becomes the canonical destination (in a bare cycle every within-cycle
+    # in-degree is 1, so external inbound is the meaningful tie-breaker; ties
+    # fall back to first vertex order). Behaviour asserted in
+    # test-resolve_redirects.R "break_arrow with asymmetric in-degree".
     in_deg <- igraph::degree(g, v = loop_verts, mode = "in")
     sink_idx <- which.max(in_deg)
     sink_name <- loop_names[sink_idx]
@@ -452,6 +457,17 @@ resolve_redirects <- function(edge_list_df,
       if (!is.na(resolved[current])) {
         # Already resolved: apply to whole chain
         final <- resolved[current]
+        for (ci in chain) resolved[ci] <- final
+        break
+      }
+
+      if (current %in% chain) {
+        # Defensive: a cycle reached this traversal, which should be impossible
+        # given the out-degree <= 1 invariant plus loop_handling in
+        # .resolve_via_graph. Break rather than spin forever -- resolve the
+        # chain to the re-encountered node so callers get a usable map instead
+        # of a silent hang. Mirrors the guard in audit_redirects.R's traversal.
+        final <- vnames[current]
         for (ci in chain) resolved[ci] <- final
         break
       }
