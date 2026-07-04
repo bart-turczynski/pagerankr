@@ -27,12 +27,13 @@ Applies `rurl::get_clean_url` to specified columns of a data
   (see Details), with any arguments in `...` overriding individual knobs.
 }
 \details{
-The canonicalization profile pins every `rurl` knob explicitly
-(`protocol_handling = "keep"`, `case_handling = "lower_host"`, and the
-remaining knobs at their faithful defaults) so node identities do not depend
-on `rurl`'s own (version-dependent) defaults. The values mirror `rurl`'s
-current defaults, so this is behavior-preserving; it guards against future
-default drift and keeps the cleaning and domain-filtering paths symmetrical.
+The canonicalization profile ([canonical_profile()]) pins every `rurl` knob
+explicitly so node identities do not depend on `rurl`'s own
+(version-dependent) defaults, and keeps the cleaning and domain-filtering
+paths symmetrical. Most knobs equal `rurl`'s current defaults; the two path
+knobs (`path_normalization = "dot_segments"`, `path_encoding = "decode"`)
+intentionally override `rurl` 2.1.0's redefined `"none"`/`"keep"` defaults to
+preserve the committed canonical key. See [canonical_profile()] for details.
 
 NA values in the specified columns are preserved in the output. Downstream
 functions in the pagerankr workflow (such as get_unique_edges and pagerank)

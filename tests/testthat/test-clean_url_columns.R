@@ -143,10 +143,9 @@ describe("clean_url_columns memoization (conceptual)", {
     cleaned_1 <- clean_url_columns(df_repeated, columns = "urls")
     # Fragment and query dropped, host lowercased, path case preserved
     expect_equal(cleaned_1$urls[1], "https://example.com/Page")
-    # Path case preserved and, under the pinned `path_encoding = "keep"`
-    # profile, rurl (>= 2.1.0) preserves the existing percent-encoding verbatim
-    # (older rurl decoded "%20" to a space). "keep" means keep.
-    expect_equal(cleaned_1$urls[2], "http://sub.example.com/another%20path")
+    # Path case preserved; under the pinned profile (`path_encoding = "decode"`)
+    # the percent-encoded space is decoded, per the committed canonical key.
+    expect_equal(cleaned_1$urls[2], "http://sub.example.com/another path")
     expect_equal(cleaned_1$urls[3], cleaned_1$urls[1])
     expect_equal(cleaned_1$urls[4], cleaned_1$urls[2])
 
