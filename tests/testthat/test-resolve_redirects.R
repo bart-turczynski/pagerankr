@@ -660,10 +660,11 @@ describe("loop_handling = 'break_arrow'", {
       from = c("X", "Y"),
       to = c("A", "D")
     )
-    # A -> B -> C -> A is a cycle; D -> E is linear
-    # In the cycle, A has in-degree 2 (from C within cycle + from X via edge)
-    # but within the SCC, in-degrees are A:1(from C), B:1(from A), C:1(from B)
-    # Highest in-degree within SCC: all equal, so first is picked
+    # A -> B -> C -> A is a cycle; D -> E is linear.
+    # break_arrow picks the sink by GLOBAL in-degree (external inbound counts):
+    # here the redirect graph has no external inbound to the cycle, so A/B/C are
+    # all in-degree 1 and the first vertex (A) is picked. (The X/Y edges are in
+    # the edge list, not the redirect graph, so they don't affect sink choice.)
     redirects <- data.frame(
       from = c("A", "B", "C", "D"),
       to = c("B", "C", "A", "E")
@@ -710,6 +711,24 @@ describe("loop_handling = 'break_arrow'", {
     )
     # A -> B (B is sink, B->A removed). X -> A -> B
     expect_equal(resolved$to, "B")
+  })
+})
+
+
+describe(".build_canonical_map cycle guard", {
+  it("terminates on a residual cycle instead of hanging", {
+    # Defensive guard: a cyclic graph should never reach .build_canonical_map
+    # (loop_handling breaks cycles upstream), but if one ever did, the traversal
+    # must break rather than spin forever. Feed it an unbroken 2-cycle directly.
+    g <- igraph::graph_from_data_frame(
+      data.frame(from = c("A", "B"), to = c("B", "A")),
+      directed = TRUE
+    )
+    m <- .build_canonical_map(g)
+    expect_length(m, 2)
+    # No hang, no NA; both nodes resolve to a single terminal within the cycle.
+    expect_false(any(is.na(m)))
+    expect_true(all(m %in% c("A", "B")))
   })
 })
 
