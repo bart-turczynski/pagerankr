@@ -860,6 +860,12 @@ pagerank <- function(edge_list_df,
   audit_oos_sources <- character(0)
   audit_oos_targets <- character(0)
   audit_oos_signals <- character(0)
+  # Fold-target collisions (SF-scope / PAGE-rjrduvmy). Populated on the pre-fold
+  # edge list when a fold relabels a crawled source onto an uncrawled URL that
+  # is ALSO independently linked, silently merging their inbound equity. A data
+  # frame of the merged targets, or NULL when none. See the collision-detection
+  # block at the fold-application site below.
+  audit_collisions_df <- NULL
   # `relabel` applies the out-of-scope entries; `keep` skips them; `leak`
   # routes the crawled source onto the leak sink. `applied` is TRUE when the
   # out-of-scope folds were acted upon (relabeled through, or routed to the
@@ -934,6 +940,102 @@ pagerank <- function(edge_list_df,
     }
 
     if (length(fold_map) > 0) {
+      # --- Fold-target collision detection (SF-scope / PAGE-rjrduvmy). ---
+      # Computed on the PRE-fold edge endpoints, using the fold map exactly as
+      # it will be applied (after any keep/leak dropping above). A fold entry
+      # `source -> target` COLLIDES when the relabel silently merges the crawled
+      # source's node with a node that already carries genuine, INDEPENDENT
+      # inbound links to `target`, inflating its PageRank invisibly:
+      #   (1) `target` is a pure link-target -- it appears ONLY as a `to`, never
+      #       as a `from`, AND is NOT a known crawled URL (absent from the crawl
+      #       table `indexability_df`). This second clause is what separates the
+      #       harmful case (an UNCRAWLED canonical/redirect target, e.g. a
+      #       production URL a staged page folds onto) from a benign fold onto a
+      #       genuinely crawled LEAF page (a real 200 page that simply has no
+      #       outlinks -- it appears only as a `to` too, but IS in the crawl
+      #       table, so it is not flagged); AND
+      #   (2) `target` is independently referenced -- it is the `to` of >=1 edge
+      #       whose `from` is NOT itself a source folding onto `target` (i.e.
+      #       not the folding sources' own edges to their canonical target); AND
+      #   (3) >=1 source folding onto `target` is an actual pre-fold edge
+      #       endpoint, so the relabel genuinely merges a crawled node onto it.
+      # A normal redirect/canonical onto a genuinely crawled target (a `from`,
+      # or a leaf listed in `indexability_df`) is NOT flagged -- correct merge.
+      #
+      # b2 fallback: this diagnostic REQUIRES crawl-URL knowledge. Without
+      # `indexability_df` there is no way to tell a crawled leaf page from an
+      # uncrawled fold target (they are identical in the edge list), so
+      # detection is skipped entirely and `collisions` stays NULL.
+      have_crawl_urls <- !is.null(indexability_df) && nrow(indexability_df) > 0
+      if (have_crawl_urls) {
+        # Known crawled URLs, canonicalized into the SAME namespace as the edges
+        # / fold targets (indexability URLs are not cleaned elsewhere, so clean
+        # them here through the same resolved profile when edge cleaning is on).
+        crawl_urls <- as.character(indexability_df[[indexability_url_col]])
+        if (clean_edge_urls) {
+          idx_tmp <- data.frame(u = crawl_urls, stringsAsFactors = FALSE)
+          idx_tmp <- do.call(
+            clean_url_columns,
+            c(list(data_frame = idx_tmp, columns = "u"), effective_rurl_params)
+          )
+          crawl_urls <- as.character(idx_tmp$u)
+        }
+        crawl_urls <- unique(stats::na.omit(crawl_urls))
+
+        prefold_from <- as.character(current_edge_list[[edge_from_col]])
+        prefold_to <- as.character(current_edge_list[[edge_to_col]])
+        fold_sources <- names(fold_map)
+        fold_targets <- unname(fold_map)
+
+        coll_targets <- character(0)
+        coll_nrefs <- integer(0)
+        coll_sources <- character(0)
+
+        # Candidate targets: pure link-targets (never a `from`) that are ALSO
+        # not known crawled URLs.
+        cand_targets <- unique(fold_targets[
+          !(fold_targets %in% prefold_from) & !(fold_targets %in% crawl_urls)
+        ])
+        for (tgt in cand_targets) {
+          srcs <- fold_sources[fold_targets == tgt]
+          # A merge only happens if >=1 folding source is a real crawled node.
+          if (!any(srcs %in% prefold_nodes)) {
+            next
+          }
+          # Independent inbound references: edges to `tgt` from a page that is
+          # not one of the sources folding onto `tgt`.
+          indep <- prefold_to == tgt & !(prefold_from %in% srcs)
+          n_indep <- sum(indep, na.rm = TRUE)
+          if (n_indep > 0L) {
+            coll_targets <- c(coll_targets, tgt)
+            coll_nrefs <- c(coll_nrefs, as.integer(n_indep))
+            coll_sources <- c(
+              coll_sources, paste(unique(srcs[srcs %in% prefold_nodes]),
+                collapse = ", "
+              )
+            )
+          }
+        }
+
+        if (length(coll_targets) > 0) {
+          audit_collisions_df <- data.frame(
+            target = coll_targets,
+            n_independent_refs = coll_nrefs,
+            source = coll_sources,
+            stringsAsFactors = FALSE
+          )
+          warning(
+            "Fold-target collision: canonical/redirect folding relabeled ",
+            "crawled page(s) onto uncrawled URL(s) that are ALSO ",
+            "independently linked, silently merging their inbound link equity ",
+            "and inflating PageRank: ",
+            paste0("`", coll_targets, "`", collapse = ", "),
+            ". Inspect `attr(result, \"transition_audit\")$fold$collisions`.",
+            call. = FALSE
+          )
+        }
+      }
+
       for (col_name in c(edge_from_col, edge_to_col)) {
         if (col_name %in% names(current_edge_list)) {
           current_edge_list[[col_name]] <- .apply_fold_map(
@@ -1504,6 +1606,7 @@ pagerank <- function(edge_list_df,
     n_out_of_scope_folds = length(audit_oos_sources),
     out_of_scope_folds_applied = audit_oos_applied,
     out_of_scope_fold_list = audit_oos_fold_df,
+    fold_collisions = audit_collisions_df,
     config = list(
       self_loops = self_loops,
       drop_isolates_flag = drop_isolates_flag,

@@ -86,8 +86,17 @@ fields are **stable**; callers may rely on them being present.
     under `"leak"` — and `FALSE` when skipped / kept as crawled under
     `"keep"`; combine with `policy` to distinguish relabel from leak), and
     `out_of_scope` (a data frame of the offending `source` / `target` /
-    `signal` rows, or `NULL` when there were none). Recorded regardless of
-    policy.}
+    `signal` rows, or `NULL` when there were none), and `collisions` (a data
+    frame of **fold-target collisions** — uncrawled URLs that a fold
+    relabeled a crawled source onto while they were ALSO independently
+    linked, so the two silently merge into one vertex and the crawled page
+    absorbs the URL's inbound link equity; columns `target`,
+    `n_independent_refs` and the folded `source`(s) — or `NULL` when none). A
+    collision triggers a `warning()` naming the merged URL(s). This
+    diagnostic requires crawl-URL knowledge to distinguish an uncrawled fold
+    target from a genuinely crawled leaf page, so it is only computed when an
+    `indexability_df` is supplied to [pagerank()]; without it, `collisions`
+    is `NULL`. Recorded regardless of `out_of_scope_fold` policy.}
 }
 
 The constructor [new_transition_audit()] is internal plumbing for
