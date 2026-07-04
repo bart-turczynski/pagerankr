@@ -66,22 +66,28 @@ fields are **stable**; callers may rely on them being present.
     mass on returned, visible pages — equals the summed result scores),
     `sink` (the **evaporated mass**: authority sent to the synthetic
     nofollow-evaporation sink under `nofollow_action = "evaporate"`),
-    `hidden` (the **hidden mass**: authority trapped on hidden /
-    robots-blocked nodes removed under `robots_blocked_action = "vanish"`),
-    and `total` (their sum, which reconciles to 1 by construction). These
-    are the precise components of the deficit between the reported scores
-    and 1 — it is evaporated and hidden mass, not undifferentiated
-    "leakage". Each is `NULL` when the stationary vector is undefined (e.g.
-    an empty graph).}
+    `leaked` (the **leaked mass**: authority sent to the synthetic leak sink
+    under `out_of_scope_fold = "leak"`, i.e. equity that flowed into
+    out-of-scope-folded sources and left the measured graph — `0` when no
+    leak occurred), `hidden` (the **hidden mass**: authority trapped on
+    hidden / robots-blocked nodes removed under
+    `robots_blocked_action = "vanish"`), and `total` (their sum, which
+    reconciles to 1 by construction). These are the precise components of
+    the deficit between the reported scores and 1 — it is evaporated, leaked
+    and hidden mass, not undifferentiated "leakage". Each is `NULL` when the
+    stationary vector is undefined (e.g. an empty graph).}
   \item{fold}{A list recording how **out-of-scope folds** were handled — a
     composed fold-map entry whose *target* (the representative a crawled
     source folds onto) is not itself a crawled node, which silently invents
     a phantom vertex. `policy` (the `out_of_scope_fold` argument,
-    `"relabel"` or `"keep"`), `n_out_of_scope` (count of such entries),
-    `applied` (logical: `TRUE` when they were relabeled / folded through,
-    `FALSE` when skipped / kept as crawled), and `out_of_scope` (a data
-    frame of the offending `source` / `target` / `signal` rows, or `NULL`
-    when there were none). Recorded regardless of policy.}
+    `"relabel"`, `"keep"` or `"leak"`), `n_out_of_scope` (count of such
+    entries), `applied` (logical: `TRUE` when they were acted upon —
+    relabeled / folded through under `"relabel"`, or routed to the leak sink
+    under `"leak"` — and `FALSE` when skipped / kept as crawled under
+    `"keep"`; combine with `policy` to distinguish relabel from leak), and
+    `out_of_scope` (a data frame of the offending `source` / `target` /
+    `signal` rows, or `NULL` when there were none). Recorded regardless of
+    policy.}
 }
 
 The constructor [new_transition_audit()] is internal plumbing for

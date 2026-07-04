@@ -77,6 +77,64 @@ describe("out_of_scope_fold policy", {
     expect_true("http://q/" %in% nodes)
     expect_false("http://out/" %in% nodes)
   })
+
+  it("leak: routes the out-of-scope source's inbound equity out of the graph", {
+    pr_leak <- pagerank(edges,
+      canonicals_df = can, out_of_scope_fold = "leak",
+      drop_isolates_flag = FALSE
+    )
+    nodes <- pr_leak[[1]]
+    # The out-of-scope target is NOT invented as a vertex.
+    expect_false("http://c/" %in% nodes)
+    # The leaking source itself does not rank (routed onto the leak sink).
+    expect_false("http://a/" %in% nodes)
+    # The synthetic leak sink is internal and never reported.
+    expect_false("__pr_leak_sink__" %in% nodes)
+    # z survives but is NOT credited the leaked inbound equity (a -> z dropped),
+    # so its only mass is teleport -- strictly less than under relabel/keep,
+    # where a passes equity to z.
+    pr_keep <- pagerank(edges,
+      canonicals_df = can, out_of_scope_fold = "keep",
+      drop_isolates_flag = FALSE
+    )
+    z_leak <- pr_leak[[2]][pr_leak[[1]] == "http://z/"]
+    z_keep <- pr_keep[[2]][pr_keep[[1]] == "http://z/"]
+    expect_lt(z_leak, z_keep)
+  })
+
+  it("leak: records the leaked mass and reconciles the mass accounting", {
+    audit <- attr(
+      pagerank(edges,
+        canonicals_df = can, out_of_scope_fold = "leak",
+        drop_isolates_flag = FALSE
+      ),
+      "transition_audit"
+    )
+    # The inbound equity left the measured graph as leaked mass.
+    expect_gt(audit$mass$leaked, 0)
+    # reported + sink + leaked + hidden == total, and total reconciles to 1.
+    expect_equal(
+      audit$mass$reported + audit$mass$sink +
+        audit$mass$leaked + audit$mass$hidden,
+      audit$mass$total,
+      tolerance = 1e-8
+    )
+    expect_equal(audit$mass$total, 1, tolerance = 1e-8)
+  })
+
+  it("leak: leaked mass is zero when no fold is out of scope", {
+    # Canonical y -> a is in scope (a crawled), so nothing leaks.
+    can_in <- data.frame(from = "http://y/", to = "http://a/")
+    audit <- attr(
+      pagerank(edges,
+        canonicals_df = can_in, out_of_scope_fold = "leak",
+        drop_isolates_flag = FALSE
+      ),
+      "transition_audit"
+    )
+    expect_equal(audit$mass$leaked, 0)
+    expect_equal(audit$mass$total, 1, tolerance = 1e-8)
+  })
 })
 
 describe("transition_audit fold section", {
@@ -114,6 +172,22 @@ describe("transition_audit fold section", {
     expect_equal(audit$fold$policy, "keep")
     expect_equal(audit$fold$n_out_of_scope, 1L)
     expect_false(audit$fold$applied)
+    expect_equal(audit$fold$out_of_scope$target, "http://c/")
+  })
+
+  it("reports policy == 'leak' and applied == TRUE under leak", {
+    audit <- attr(
+      pagerank(edges,
+        canonicals_df = can, out_of_scope_fold = "leak",
+        drop_isolates_flag = FALSE
+      ),
+      "transition_audit"
+    )
+    expect_equal(audit$fold$policy, "leak")
+    expect_equal(audit$fold$n_out_of_scope, 1L)
+    # Under leak the out-of-scope folds are acted upon (routed to the sink).
+    expect_true(audit$fold$applied)
+    expect_equal(audit$fold$out_of_scope$source, "http://a/")
     expect_equal(audit$fold$out_of_scope$target, "http://c/")
   })
 

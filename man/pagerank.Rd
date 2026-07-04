@@ -36,7 +36,7 @@ pagerank(
     "most_frequent", "prune_source", "resolve_if_consistent"),
   canonical_loop_handling = c("error", "prune_loop", "break_arrow"),
   canonical_conflict_policy = c("redirect_wins", "error", "canonical_wins"),
-  out_of_scope_fold = c("relabel", "keep"),
+  out_of_scope_fold = c("relabel", "keep", "leak"),
   keep_domains = NULL,
   exclude_domains = NULL,
   keep_hosts = NULL,
@@ -206,6 +206,15 @@ point at the uncrawled production domain). One of:
     applying it, so crawled source nodes retain their as-crawled identity.
     The same filtered map is applied to the TIPR prior fold, keeping edges
     and prior in one namespace.}
+  \item{`"leak"`}{Treat each such crawled source like an external redirect:
+    route it onto a synthetic **leak sink** node (distinct from the
+    nofollow sink) so the equity flowing INTO it leaves the measured graph
+    ("these pages won't rank; equity goes elsewhere"). The source's own
+    teleport prior is routed to the sink too. The evaporated equity is
+    reported as **leaked mass** in the `mass` section of the
+    `transition_audit` (`reported + sink + hidden + leaked = 1`). The leak
+    sink is created whenever there is at least one out-of-scope fold,
+    regardless of `nofollow_action`.}
 }
 Regardless of policy, the count and list of out-of-scope folds (source,
 target, signal) are recorded in the `fold` section of the
@@ -298,16 +307,18 @@ A data frame with node names and their PageRank scores. When
   nofollow evaporation, indexability handling, or `robots_blocked_action =
   "vanish"` is active, the returned scores may sum to less than 1. The
   difference is not undifferentiated "leakage": it is decomposed into
-  **evaporated mass** (authority sent to the nofollow sink) and **hidden
-  mass** (authority trapped on robots-blocked nodes removed from the
-  results). The full breakdown — reported / evaporated (sink) / hidden /
-  total (= 1) — is recorded in the `mass` field of the transition audit
-  (see below).
+  **evaporated mass** (authority sent to the nofollow sink), **leaked mass**
+  (authority sent to the leak sink under `out_of_scope_fold = "leak"`), and
+  **hidden mass** (authority trapped on robots-blocked nodes removed from the
+  results). The full breakdown — reported / evaporated (sink) / leaked /
+  hidden / total (= 1) — is recorded in the `mass` field of the transition
+  audit (see below).
 
   The data frame additionally carries a `"transition_audit"` attribute (a
   [transition_audit] object) recording how the transition graph was built:
   row/edge counts, behavioral-weight coverage, normalization totals, the
-  page-mass decomposition (reported / evaporated / hidden / total), dropped
+  page-mass decomposition (reported / evaporated / leaked / hidden / total),
+  dropped
   data (rows lost to NA / dedup / self-loops, unmatched prior URLs), and the
   model configuration used. Retrieve it with
   `attr(result, "transition_audit")`. This attribute is backward-compatible:
