@@ -1,5 +1,15 @@
 # pagerankr 0.0.0.9000
 
+* `clean_url_columns()` now preserves tokens that `rurl` cannot parse as a URL
+  (e.g. a dotless bare label such as `"A"`) as their raw value instead of
+  turning them into NA. Newer `rurl` (>= 2.1.0) normalizes such dotless tokens
+  to NA; combined with the `rurl` floor bump in the PAGE-ssuowttj follow-up,
+  this had silently collapsed non-URL node identities to NA — they were then
+  dropped by `get_unique_edges()`, so [pagerank()] returned an empty result for
+  any graph built from bare labels. Unparseable-but-present tokens are now kept
+  as opaque nodes (only genuinely missing NA inputs stay NA), mirroring
+  `.apply_fold_map()`'s leave-unmapped-values-untouched contract.
+
 * `filter_links_by_domain()`'s encoding-independent registrable-domain matching
   now reads `rurl`'s new `domain_ascii` column (`rurl` >= 2.1.0) instead of a
   separate IDNA-forced parse. `.build_url_maps()` parses each unique URL once
