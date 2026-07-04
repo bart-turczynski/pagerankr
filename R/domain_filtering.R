@@ -9,6 +9,16 @@
 #' [pagerank()]. For example, to scope a PageRank analysis to a single site
 #' or exclude CDN / tracking domains.
 #'
+#' **Ordering relative to folding:** when `pagerank()` calls this filter
+#' internally (via its `keep_domains` / `exclude_domains` / `keep_hosts` /
+#' `exclude_hosts` arguments), the filter runs *after* redirect and canonical
+#' folding, so it scopes the post-fold (canonical) namespace. If an out-of-scope
+#' canonical/redirect rewrites the crawled domain/host onto a different one,
+#' filtering on the crawled value inside `pagerank()` matches nothing. To
+#' domain-scope the **crawled input** instead, call `filter_links_by_domain()`
+#' on the edge list yourself *before* folding (i.e. before passing it to
+#' `pagerank()`).
+#'
 #' @param edge_list_df A data frame representing the edge list, with at least
 #'   two URL columns.
 #' @param from_col Name of the source URL column. Default `"from"`.

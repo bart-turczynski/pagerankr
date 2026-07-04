@@ -202,3 +202,87 @@ describe("transition_audit fold section", {
     expect_null(audit$fold$out_of_scope)
   })
 })
+
+describe("folded-away domain filter warning (PAGE-owdnylqo)", {
+  # Repro: a crawl on tidioreviews.pages.dev whose canonicals fold every node
+  # onto the never-crawled tidioreviews.com. Filtering on the crawled domain
+  # (which runs AFTER folding) then matches nothing.
+  crawled <- "tidioreviews.pages.dev"
+  folded <- "tidioreviews.com"
+  edges <- data.frame(
+    from = c(
+      "https://tidioreviews.pages.dev/",
+      "https://tidioreviews.pages.dev/a",
+      "https://tidioreviews.pages.dev/b"
+    ),
+    to = c(
+      "https://tidioreviews.pages.dev/a",
+      "https://tidioreviews.pages.dev/b",
+      "https://tidioreviews.pages.dev/"
+    )
+  )
+  # Every crawled node declares a canonical onto tidioreviews.com.
+  can <- data.frame(
+    from = c(
+      "https://tidioreviews.pages.dev/",
+      "https://tidioreviews.pages.dev/a",
+      "https://tidioreviews.pages.dev/b"
+    ),
+    to = c(
+      "https://tidioreviews.com/",
+      "https://tidioreviews.com/a",
+      "https://tidioreviews.com/b"
+    )
+  )
+
+  it("warns, naming the crawled value and pointing at the fold", {
+    expect_warning(
+      pagerank(
+        edges,
+        canonicals_df = can,
+        keep_domains = crawled,
+        drop_isolates_flag = FALSE
+      ),
+      regexp = crawled
+    )
+    # The warning also blames the fold, not the filter.
+    expect_warning(
+      pagerank(
+        edges,
+        canonicals_df = can,
+        keep_domains = crawled,
+        drop_isolates_flag = FALSE
+      ),
+      regexp = "fold"
+    )
+  })
+
+  it("does not warn for a normal same-domain crawl (post-fold match)", {
+    # Canonicals fold within the crawled domain, so keep_domains still matches.
+    can_in <- data.frame(
+      from = "https://tidioreviews.pages.dev/a",
+      to = "https://tidioreviews.pages.dev/"
+    )
+    expect_no_warning(
+      pagerank(
+        edges,
+        canonicals_df = can_in,
+        keep_domains = crawled,
+        drop_isolates_flag = FALSE
+      )
+    )
+  })
+
+  it("does not warn for a genuinely absent domain (no pre-fold match)", {
+    # example.org appears nowhere pre- or post-fold: this is an ordinary empty
+    # filter result, not a folded-away crawled domain.
+    expect_no_warning(
+      pagerank(
+        edges,
+        canonicals_df = can,
+        keep_domains = "example.org",
+        drop_isolates_flag = FALSE
+      )
+    )
+  })
+})

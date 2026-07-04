@@ -157,13 +157,21 @@
 #'   target, signal) are recorded in the `fold` section of the
 #'   `transition_audit` object. See [transition_audit].
 #' @param keep_domains Optional character vector of domains to keep. When
-#'   provided, edges are filtered via [filter_links_by_domain()] before
-#'   PageRank calculation so that only links where both endpoints belong
-#'   to one of the specified domains are included. Useful for restricting
-#'   to internal links. Default `NULL` (no domain filtering).
+#'   provided, edges are filtered via [filter_links_by_domain()] so that only
+#'   links where both endpoints belong to one of the specified domains are
+#'   included. Useful for restricting to internal links. Default `NULL` (no
+#'   domain filtering).
+#'
+#'   **Ordering:** filtering runs *after* redirect/canonical folding, so it
+#'   scopes the post-fold (canonical) namespace, not the crawled input. If an
+#'   out-of-scope canonical/redirect rewrites the crawled domain onto a
+#'   different one, filtering on the crawled domain matches nothing (an empty
+#'   graph). To scope the INPUT you crawled, run [filter_links_by_domain()] on
+#'   the edge list *before* calling `pagerank()`.
 #' @param exclude_domains Optional character vector of domains to exclude.
 #'   Edges where either endpoint belongs to one of these domains are removed.
-#'   Default `NULL` (no exclusion).
+#'   Like `keep_domains`, this filters the post-fold namespace (see the ordering
+#'   note above). Default `NULL` (no exclusion).
 #' @param keep_hosts Optional character vector of exact hosts to keep (e.g.
 #'   `"www.example.com"`), as opposed to registrable domains. Matched on the
 #'   exact host using the same canonicalization profile as cleaning, so IDN
@@ -353,6 +361,27 @@
 #' should be collapsed loss-aware, especially with an existing `weight_col`;
 #' numeric duplicate weights are summed instead of silently keeping the first
 #' row.
+#'
+#' ## Fold-then-filter ordering (domain / host scope)
+#'
+#' Redirect and canonical folding runs **before** the
+#' `keep_domains` / `exclude_domains` / `keep_hosts` / `exclude_hosts`
+#' filter. Folding can rewrite the node namespace: an out-of-scope canonical
+#' (e.g. every `staging.example.dev` page declaring a `example.com` canonical)
+#' relabels crawled nodes onto a domain you never crawled. Because the filter
+#' then sees only the post-fold (canonical) namespace, filtering on the domain
+#' you actually crawled matches nothing and returns an empty graph.
+#'
+#' `pagerank()` detects this specific case -- a filter value that classified
+#' one or more crawled (pre-fold) nodes but no surviving post-fold node -- and
+#' emits an actionable `warning()` naming the folded-away value(s) and pointing
+#' at the out-of-scope fold as the cause. This is a diagnostic only; the
+#' fold-then-filter order is unchanged.
+#'
+#' To scope the **input you crawled**, filter first: run
+#' [filter_links_by_domain()] on the edge list (and, if used, the redirect /
+#' canonical data frames) *before* calling `pagerank()`. To scope the folded
+#' graph, filter on the post-fold (canonical) domain/host instead.
 #'
 #' @return A data frame with node names and their PageRank scores. When
 #'   nofollow evaporation, indexability handling, or `robots_blocked_action =
@@ -794,6 +823,18 @@ pagerank <- function(edge_list_df,
     }
   }
 
+  # Snapshot of the crawled node namespace as it stands BEFORE any redirect /
+  # canonical fold is applied (cleaned edge endpoints only; indexability URLs
+  # are not part of scope). Captured here so the domain filter (step 2.7) can
+  # tell whether a keep/exclude value that matches zero surviving nodes did so
+  # because an out-of-scope fold rewrote the crawled domain/host away. Kept
+  # local and independent of the fold block's own `prefold_nodes` (which is
+  # scoped to that block and only computed when the map is non-empty).
+  sf_prefold_nodes <- unique(stats::na.omit(c(
+    as.character(current_edge_list[[edge_from_col]]),
+    as.character(current_edge_list[[edge_to_col]])
+  )))
+
   # --- 2. Redirect + canonical resolution (one composed fold map) ---
   # Build the single composed fold map ONCE from both signals (it is the empty
   # map when neither is supplied, and the plain redirect map when canonicals are
@@ -904,8 +945,50 @@ pagerank <- function(edge_list_df,
   }
 
   # --- 2.7. Domain / host filtering ---
+  # NOTE ON ORDERING: filtering runs AFTER the fold above, so it scopes the
+  # post-fold (canonical) namespace, not the crawled input. When an
+  # out-of-scope canonical/redirect rewrites the crawled domain/host onto a
+  # different one, a filter naming the crawled value silently matches nothing.
+  # We detect that case and warn (below). To scope the INPUT you crawled, run
+  # filter_links_by_domain() on the edge list BEFORE calling pagerank().
   if (!is.null(keep_domains) || !is.null(exclude_domains) ||
         !is.null(keep_hosts) || !is.null(exclude_hosts)) {
+    # The post-fold node namespace the filter actually sees (folded edge
+    # endpoints, before the filter drops anything). Compared against the
+    # pre-fold snapshot so the fold -- not the filter -- is isolated as the
+    # cause of a folded-away value.
+    sf_postfold_nodes <- unique(stats::na.omit(c(
+      as.character(current_edge_list[[edge_from_col]]),
+      as.character(current_edge_list[[edge_to_col]])
+    )))
+
+    # Identify keep/exclude value(s) that classified one or more crawled
+    # (pre-fold) nodes but no surviving post-fold node -- i.e. folded out of
+    # scope. Reuses filter_links_by_domain()'s own extraction + resolution
+    # (same rurl profile, same PSL) so pre/post comparison keys match the
+    # filter exactly.
+    folded_away <- .sf_folded_away_filter_values(
+      prefold_nodes = sf_prefold_nodes,
+      postfold_nodes = sf_postfold_nodes,
+      domain_values = c(keep_domains, exclude_domains),
+      host_values = c(keep_hosts, exclude_hosts),
+      rurl_params = effective_rurl_params
+    )
+    if (length(folded_away) > 0) {
+      warning(
+        "Domain/host filter value(s) ",
+        paste0("`", folded_away, "`", collapse = ", "),
+        " matched the crawled input but no node after canonical/redirect ",
+        "folding. An out-of-scope canonical/redirect fold rewrote the crawled ",
+        "node(s) onto a different domain/host BEFORE filtering, so filtering ",
+        "on the crawled value now matches zero nodes. Filtering happens AFTER ",
+        "folding: to scope the crawled input, run `filter_links_by_domain()` ",
+        "on the edge list before `pagerank()`; to scope the folded graph, ",
+        "filter on the post-fold (canonical) domain/host instead.",
+        call. = FALSE
+      )
+    }
+
     # Forward the same resolved canonicalization profile used for cleaning, so
     # the filter extracts hosts/domains exactly as the (already cleaned) node
     # keys were derived (host_encoding, www_handling, subdomain levels, etc.).
@@ -1450,6 +1533,68 @@ pagerank <- function(edge_list_df,
   attr(pagerank_results, "convergence") <- convergence
 
   pagerank_results
+}
+
+#' Detect keep/exclude filter values folded out of scope.
+#'
+#' Returns the subset of the supplied domain / host filter values that
+#' classified one or more crawled (pre-fold) nodes but no surviving post-fold
+#' node -- i.e. an out-of-scope canonical/redirect fold rewrote the crawled
+#' domain/host away before the domain filter ran. Presence is tested by
+#' delegating to [filter_links_by_domain()] in `return_report` mode on a
+#' self-loop edge list of the node set: a self-loop row survives a single-value
+#' keep filter iff that node is classified on the named domain/host, so this
+#' reuses the filter's own extraction + resolution (same rurl profile, same
+#' PSL) rather than re-parsing hosts here.
+#' @keywords internal
+#' @noRd
+.sf_folded_away_filter_values <- function(prefold_nodes,
+                                          postfold_nodes,
+                                          domain_values,
+                                          host_values,
+                                          rurl_params) {
+  present <- function(nodes, value, type) {
+    if (length(nodes) == 0) {
+      return(FALSE)
+    }
+    probe_df <- data.frame(
+      from = nodes, to = nodes, stringsAsFactors = FALSE
+    )
+    args <- list(
+      edge_list_df = probe_df,
+      return_report = TRUE,
+      rurl_params = rurl_params
+    )
+    if (identical(type, "domain")) {
+      args$keep_domains <- value
+    } else {
+      args$keep_hosts <- value
+    }
+    report <- do.call(filter_links_by_domain, args)$report
+    isTRUE(report$rows_after > 0)
+  }
+
+  keep_present <- function(values) {
+    values <- values[!is.na(values) & nzchar(values)]
+    unique(values)
+  }
+  domain_values <- keep_present(domain_values)
+  host_values <- keep_present(host_values)
+
+  folded_away <- character(0)
+  for (value in domain_values) {
+    if (present(prefold_nodes, value, "domain") &&
+          !present(postfold_nodes, value, "domain")) {
+      folded_away <- c(folded_away, value)
+    }
+  }
+  for (value in host_values) {
+    if (present(prefold_nodes, value, "host") &&
+          !present(postfold_nodes, value, "host")) {
+      folded_away <- c(folded_away, value)
+    }
+  }
+  unique(folded_away)
 }
 
 #' Apply pagerank() duplicate-edge policy.
