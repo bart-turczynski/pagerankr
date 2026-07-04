@@ -19,6 +19,20 @@
 #'   The cross-repo contract requires **semantic** to pin the identical profile;
 #'   change both repos together.
 #'
+#'   **Accepted divergence on un-canonicalizable input.** For a value `rurl`
+#'   cannot parse (an unsupported scheme like `mailto:`/`tel:`, whitespace, a
+#'   dotless bare token), `rurl` returns `NA`. pagerankr's [clean_url_columns()]
+#'   keeps such a value as its raw self so it survives as an opaque graph node
+#'   (see that function; PR #50), whereas semantic's `canonical_url()` returns
+#'   `None` and drops it (FR-05 rurl byte-parity). This is intentional and does
+#'   **not** break the `node_score` <-> `page` join: valid URLs still produce
+#'   byte-identical keys on both sides (the actual contract), and in the
+#'   semantic -> pagerankr bridge semantic canonicalizes and drops
+#'   un-canonicalizable inputs *before* pagerankr sees the edges, so the raw
+#'   fallback never fires on that path. It only affects pagerankr run standalone
+#'   on raw crawl data, where such tokens become opaque nodes instead of being
+#'   dropped.
+#'
 #' @return A named list of `rurl` canonicalization arguments.
 #' @export
 canonical_profile <- function() {

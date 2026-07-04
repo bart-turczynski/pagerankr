@@ -43,7 +43,9 @@ Tokens that `rurl` cannot parse as a URL (e.g. a dotless bare label such as
 rather than becoming NA. This keeps unparseable but non-missing node
 identities as opaque nodes instead of silently dropping them, so an odd URL
 in a crawl is scored as its own node rather than vanishing. Only genuinely
-missing (NA) inputs stay NA.
+missing (NA) inputs stay NA. This raw-fallback is a deliberate, accepted
+divergence from the sibling `semantic` project (which drops such inputs); see
+[canonical_profile()] for why it does not desync the cross-repo node join.
 }
 \examples{
 df <- data.frame(
