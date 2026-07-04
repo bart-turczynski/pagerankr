@@ -19,6 +19,16 @@
 #'   rejected. Edges whose placement is not named receive weight `1`.
 #' @param weight_col Optional existing edge weight column to pass to
 #'   [pagerank()]. Cannot be combined with `placement_weights`.
+#' @param apply_canonicals Logical flag (default `TRUE`). When `TRUE` the
+#'   bundle's `rel=canonical` signals are folded into the graph via
+#'   [pagerank()]'s `canonicals_df`. Set `FALSE` for an as-crawled run that
+#'   preserves the crawled node identities (no canonical folding) — useful when
+#'   canonicals point off the crawled domain (e.g. a mirror/staging host) and
+#'   would otherwise relabel crawled pages onto uncrawled targets.
+#' @param apply_redirects Logical flag (default `TRUE`). When `TRUE` the
+#'   bundle's redirect signals are folded into the graph via [pagerank()]'s
+#'   `redirects_df`. Set `FALSE` to skip redirect folding and keep the
+#'   as-crawled node identities.
 #' @param ... Additional scoring controls passed to [pagerank()], such as
 #'   `self_loops`, `drop_isolates_flag`, `nofollow_action`,
 #'   `robots_blocked_action`, `rurl_params`, prior settings, and `damping`.
@@ -49,11 +59,17 @@ pagerank_screaming_frog <- function(bundle,
                                     link_origins = NULL,
                                     placement_weights = NULL,
                                     weight_col = NULL,
+                                    apply_canonicals = TRUE,
+                                    apply_redirects = TRUE,
                                     ...) {
   if (!inherits(bundle, "screaming_frog_bundle")) {
     stop("`bundle` must be a `screaming_frog_bundle` object.", call. = FALSE)
   }
   .sf_validate_bundle_for_pagerank(bundle)
+  apply_canonicals <- .sf_validate_fold_flag(
+    apply_canonicals, "apply_canonicals"
+  )
+  apply_redirects <- .sf_validate_fold_flag(apply_redirects, "apply_redirects")
 
   dots <- list(...)
   reserved <- intersect(
@@ -142,8 +158,16 @@ pagerank_screaming_frog <- function(bundle,
   pr_args <- c(
     list(
       edge_list_df = edges,
-      redirects_df = .sf_nullable_df(bundle$redirects),
-      canonicals_df = .sf_nullable_df(bundle$canonicals),
+      redirects_df = if (apply_redirects) {
+        .sf_nullable_df(bundle$redirects)
+      } else {
+        NULL
+      },
+      canonicals_df = if (apply_canonicals) {
+        .sf_nullable_df(bundle$canonicals)
+      } else {
+        NULL
+      },
       indexability_df = .sf_nullable_df(bundle$indexability),
       edge_from_col = "from",
       edge_to_col = "to",
@@ -172,6 +196,10 @@ pagerank_screaming_frog <- function(bundle,
         placement_weights = placement_weights,
         weight_col = weight_col,
         effective_weight_col = effective_weight_col,
+        apply_canonicals = apply_canonicals,
+        apply_redirects = apply_redirects,
+        canonicals_off_domain =
+          bundle$diagnostics$counts$canonicals_off_domain,
         nofollow_col = "nofollow"
       )
     ),
@@ -214,6 +242,13 @@ pagerank_screaming_frog <- function(bundle,
       call. = FALSE
     )
   }
+}
+
+.sf_validate_fold_flag <- function(x, arg) {
+  if (!is.logical(x) || length(x) != 1L || is.na(x)) {
+    stop("`", arg, "` must be a single `TRUE` or `FALSE`.", call. = FALSE)
+  }
+  x
 }
 
 .sf_validate_accepted_placements <- function(x) {

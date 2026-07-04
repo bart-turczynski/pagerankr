@@ -1,5 +1,19 @@
 # pagerankr 0.0.0.9000
 
+* `pagerank_screaming_frog()` gains `apply_canonicals` and `apply_redirects`
+  toggles (both `TRUE` by default, preserving current behavior). Setting either
+  to `FALSE` skips folding the bundle's canonical / redirect signals into
+  [pagerank()] (passes `canonicals_df` / `redirects_df` as `NULL`), giving a
+  supported as-crawled run that keeps the crawled node identities — the escape
+  hatch for crawls whose canonicals point off the crawled domain (mirror /
+  staging hosts) and would otherwise relabel crawled pages onto uncrawled
+  targets. The reserved-arg guard still blocks the raw `canonicals_df` /
+  `redirects_df` pagerank arguments. `screaming_frog_bundle()` now reports an
+  off-domain canonical count (`counts$canonicals_off_domain`, surfaced in
+  `summary()`/`print()`), reusing the existing absent-target classification, and
+  the wrapper exposes it on the `screaming_frog_import` audit so the
+  mirror-staging scenario is visible at import and scoring time (PAGE-rfbqzsac).
+
 * `pagerank()` now detects **fold-target collisions**: when a canonical/redirect
   relabels a crawled page's node onto an *uncrawled* URL that is ALSO
   independently referenced as a genuine link endpoint, the two silently merge
