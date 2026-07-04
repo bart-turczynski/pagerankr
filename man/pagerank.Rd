@@ -36,6 +36,7 @@ pagerank(
     "most_frequent", "prune_source", "resolve_if_consistent"),
   canonical_loop_handling = c("error", "prune_loop", "break_arrow"),
   canonical_conflict_policy = c("redirect_wins", "error", "canonical_wins"),
+  out_of_scope_fold = c("relabel", "keep"),
   keep_domains = NULL,
   exclude_domains = NULL,
   keep_hosts = NULL,
@@ -189,6 +190,26 @@ the 3xx wins and the canonical on a redirecting source is ignored and
 flagged), `"error"` (error on genuine disagreement), or `"canonical_wins"`
 (the declared canonical wins for that source, still flagged). See
 [build_fold_map()].}
+
+\item{out_of_scope_fold}{Policy for composed fold-map entries whose
+**target** (the representative a source folds onto) is not itself a crawled
+node. The crawled node set is the unique, non-`NA` edge endpoints captured
+immediately before folding (indexability URLs are not part of scope). Such
+an out-of-scope fold silently relabels a crawled page onto an uncrawled
+URL, inventing a phantom vertex (e.g. a staging crawl whose canonicals all
+point at the uncrawled production domain). One of:
+\describe{
+  \item{`"relabel"`}{(Default) Apply the full fold map unchanged,
+    relabeling crawled sources onto their out-of-scope targets. Preserves
+    historical behavior.}
+  \item{`"keep"`}{Drop the out-of-scope entries from the fold map before
+    applying it, so crawled source nodes retain their as-crawled identity.
+    The same filtered map is applied to the TIPR prior fold, keeping edges
+    and prior in one namespace.}
+}
+Regardless of policy, the count and list of out-of-scope folds (source,
+target, signal) are recorded in the `fold` section of the
+`transition_audit` object. See [transition_audit].}
 
 \item{keep_domains}{Optional character vector of domains to keep. When
 provided, edges are filtered via [filter_links_by_domain()] before

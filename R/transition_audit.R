@@ -69,6 +69,15 @@
 #'     and 1 — it is evaporated and hidden mass, not undifferentiated
 #'     "leakage". Each is `NULL` when the stationary vector is undefined (e.g.
 #'     an empty graph).}
+#'   \item{fold}{A list recording how **out-of-scope folds** were handled — a
+#'     composed fold-map entry whose *target* (the representative a crawled
+#'     source folds onto) is not itself a crawled node, which silently invents
+#'     a phantom vertex. `policy` (the `out_of_scope_fold` argument,
+#'     `"relabel"` or `"keep"`), `n_out_of_scope` (count of such entries),
+#'     `applied` (logical: `TRUE` when they were relabeled / folded through,
+#'     `FALSE` when skipped / kept as crawled), and `out_of_scope` (a data
+#'     frame of the offending `source` / `target` / `signal` rows, or `NULL`
+#'     when there were none). Recorded regardless of policy.}
 #' }
 #'
 #' The constructor [new_transition_audit()] is internal plumbing for
@@ -113,6 +122,14 @@ NULL
 #'   evaporation occurred.
 #' @param mass_hidden Numeric, stationary mass trapped on hidden / vanished
 #'   robots-blocked nodes that were removed from the results. `0` when none.
+#' @param out_of_scope_fold Character, the `out_of_scope_fold` policy used
+#'   (`"relabel"` or `"keep"`).
+#' @param n_out_of_scope_folds Integer, count of composed fold-map entries whose
+#'   target was not a crawled node.
+#' @param out_of_scope_folds_applied Logical, `TRUE` when the out-of-scope folds
+#'   were relabeled (applied), `FALSE` when they were skipped (kept).
+#' @param out_of_scope_fold_list Data frame or `NULL`, the out-of-scope folds
+#'   as `source` / `target` / `signal` rows.
 #' @param config A named list of the relevant [pagerank()] configuration.
 #' @return An object of class `"transition_audit"` (see [transition_audit]).
 #' @noRd
@@ -136,6 +153,10 @@ new_transition_audit <- function(n_input_rows = 0L,
                                  mass_reported = NA_real_,
                                  mass_evaporated = NA_real_,
                                  mass_hidden = NA_real_,
+                                 out_of_scope_fold = "relabel",
+                                 n_out_of_scope_folds = 0L,
+                                 out_of_scope_folds_applied = TRUE,
+                                 out_of_scope_fold_list = NULL,
                                  config = list()) {
   n_input_rows <- as.integer(n_input_rows)
   n_edges <- as.integer(n_edges)
@@ -207,7 +228,20 @@ new_transition_audit <- function(n_input_rows = 0L,
     # `hidden` is the mass trapped on hidden/vanished robots-blocked nodes;
     # `total` is their sum, which reconciles to 1 by construction. Left as the
     # reserved NULL stubs when the stationary vector is undefined (empty graph).
-    mass = mass
+    mass = mass,
+    # --- Out-of-scope fold accounting (SF-scope / PAGE-ttlaxjkw). ---
+    # Records how composed fold-map entries whose TARGET is not a crawled node
+    # were handled. `policy` is the `out_of_scope_fold` argument;
+    # `n_out_of_scope` counts such entries; `applied` is TRUE when they were
+    # relabeled (folded through) and FALSE when they were skipped (kept as
+    # crawled); `out_of_scope` is a data frame of the offending
+    # source/target/signal rows, or NULL when there were none.
+    fold = list(
+      policy = out_of_scope_fold,
+      n_out_of_scope = as.integer(n_out_of_scope_folds),
+      applied = isTRUE(out_of_scope_folds_applied),
+      out_of_scope = out_of_scope_fold_list
+    )
   )
 
   class(audit) <- "transition_audit"
@@ -289,6 +323,20 @@ print.transition_audit <- function(x, ...) {
     cat("  Evaporated (sink):  ", fmt_mass(x$mass$sink), "\n")
     cat("  Hidden (robots):    ", fmt_mass(x$mass$hidden), "\n")
     cat("  Total:              ", fmt_mass(x$mass$total), "\n")
+  }
+
+  # Out-of-scope fold accounting: reported regardless of policy.
+  if (!is.null(x$fold)) {
+    cat("\nOut-of-scope folds (target not a crawled node)\n")
+    cat("  Policy:             ", x$fold$policy, "\n")
+    cat("  Out-of-scope folds: ", x$fold$n_out_of_scope, "\n")
+    if (x$fold$n_out_of_scope > 0L) {
+      cat(
+        "  Action:             ",
+        if (isTRUE(x$fold$applied)) "relabeled (applied)" else "skipped (kept)",
+        "\n"
+      )
+    }
   }
 
   invisible(x)

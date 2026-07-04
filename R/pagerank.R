@@ -128,6 +128,25 @@
 #'   flagged), `"error"` (error on genuine disagreement), or `"canonical_wins"`
 #'   (the declared canonical wins for that source, still flagged). See
 #'   [build_fold_map()].
+#' @param out_of_scope_fold Policy for composed fold-map entries whose
+#'   **target** (the representative a source folds onto) is not itself a crawled
+#'   node. The crawled node set is the unique, non-`NA` edge endpoints captured
+#'   immediately before folding (indexability URLs are not part of scope). Such
+#'   an out-of-scope fold silently relabels a crawled page onto an uncrawled
+#'   URL, inventing a phantom vertex (e.g. a staging crawl whose canonicals all
+#'   point at the uncrawled production domain). One of:
+#'   \describe{
+#'     \item{`"relabel"`}{(Default) Apply the full fold map unchanged,
+#'       relabeling crawled sources onto their out-of-scope targets. Preserves
+#'       historical behavior.}
+#'     \item{`"keep"`}{Drop the out-of-scope entries from the fold map before
+#'       applying it, so crawled source nodes retain their as-crawled identity.
+#'       The same filtered map is applied to the TIPR prior fold, keeping edges
+#'       and prior in one namespace.}
+#'   }
+#'   Regardless of policy, the count and list of out-of-scope folds (source,
+#'   target, signal) are recorded in the `fold` section of the
+#'   `transition_audit` object. See [transition_audit].
 #' @param keep_domains Optional character vector of domains to keep. When
 #'   provided, edges are filtered via [filter_links_by_domain()] before
 #'   PageRank calculation so that only links where both endpoints belong
@@ -451,6 +470,7 @@ pagerank <- function(edge_list_df,
                        "error",
                        "canonical_wins"
                      ),
+                     out_of_scope_fold = c("relabel", "keep"),
                      keep_domains = NULL,
                      exclude_domains = NULL,
                      keep_hosts = NULL,
@@ -477,6 +497,7 @@ pagerank <- function(edge_list_df,
   canonical_duplicate_from_policy <- match.arg(canonical_duplicate_from_policy)
   canonical_loop_handling <- match.arg(canonical_loop_handling)
   canonical_conflict_policy <- match.arg(canonical_conflict_policy)
+  out_of_scope_fold <- match.arg(out_of_scope_fold)
   prior_transform <- match.arg(prior_transform)
 
   if (!is.data.frame(edge_list_df)) {
@@ -780,6 +801,16 @@ pagerank <- function(edge_list_df,
   audit_has_redirects <- FALSE
   audit_has_canonicals <- FALSE
 
+  # Out-of-scope fold diagnostics (populated regardless of `out_of_scope_fold`;
+  # wired into the transition_audit `fold` section at the constructor below).
+  # An out-of-scope fold is a composed fold-map entry whose TARGET is not a
+  # crawled node -- folding it invents a phantom vertex.
+  audit_oos_sources <- character(0)
+  audit_oos_targets <- character(0)
+  audit_oos_signals <- character(0)
+  # `relabel` applies the out-of-scope entries; `keep` skips them.
+  audit_oos_applied <- identical(out_of_scope_fold, "relabel")
+
   fold_map <- character(0)
   if (has_redirects || has_canonicals) {
     fold <- .compose_fold_map(
@@ -800,6 +831,32 @@ pagerank <- function(edge_list_df,
     if (length(fold$signal) > 0) {
       audit_has_redirects <- any(fold$signal == "redirect")
       audit_has_canonicals <- any(fold$signal == "canonical")
+    }
+
+    if (length(fold_map) > 0) {
+      # Pre-fold crawled node set: unique, non-NA edge endpoints captured
+      # IMMEDIATELY BEFORE the fold is applied. Indexability URLs are NOT part
+      # of scope -- the crawled set is edge endpoints only.
+      prefold_nodes <- unique(stats::na.omit(c(
+        as.character(current_edge_list[[edge_from_col]]),
+        as.character(current_edge_list[[edge_to_col]])
+      )))
+
+      # Out-of-scope entries: fold targets that are not crawled nodes.
+      oos_mask <- !(unname(fold_map) %in% prefold_nodes)
+      if (any(oos_mask)) {
+        audit_oos_sources <- names(fold_map)[oos_mask]
+        audit_oos_targets <- unname(fold_map)[oos_mask]
+        audit_oos_signals <- unname(fold$signal[audit_oos_sources])
+      }
+
+      # Under `keep`, drop the out-of-scope entries before applying the map to
+      # edges (and, below, the TIPR prior) so crawled sources retain their
+      # as-crawled identity and edges + prior stay in one namespace. `relabel`
+      # (default) applies the full map unchanged.
+      if (identical(out_of_scope_fold, "keep") && any(oos_mask)) {
+        fold_map <- fold_map[!oos_mask]
+      }
     }
 
     if (length(fold_map) > 0) {
@@ -1215,6 +1272,19 @@ pagerank <- function(edge_list_df,
     NA_real_
   }
 
+  # Out-of-scope fold list (source, target, signal) for the audit `fold`
+  # section; NULL when there were no out-of-scope folds.
+  audit_oos_fold_df <- if (length(audit_oos_sources) > 0) {
+    data.frame(
+      source = audit_oos_sources,
+      target = audit_oos_targets,
+      signal = audit_oos_signals,
+      stringsAsFactors = FALSE
+    )
+  } else {
+    NULL
+  }
+
   transition_audit <- new_transition_audit(
     n_input_rows = audit_n_input_rows,
     n_edges = audit_n_edges,
@@ -1235,6 +1305,10 @@ pagerank <- function(edge_list_df,
     mass_reported = audit_pagerank_total,
     mass_evaporated = mass_evaporated,
     mass_hidden = mass_hidden,
+    out_of_scope_fold = out_of_scope_fold,
+    n_out_of_scope_folds = length(audit_oos_sources),
+    out_of_scope_folds_applied = audit_oos_applied,
+    out_of_scope_fold_list = audit_oos_fold_df,
     config = list(
       self_loops = self_loops,
       drop_isolates_flag = drop_isolates_flag,
