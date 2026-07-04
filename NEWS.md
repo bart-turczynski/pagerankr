@@ -1,5 +1,14 @@
 # pagerankr 0.0.0.9000
 
+* `canonical_profile()` now pins `path_normalization = "dot_segments"` and
+  `path_encoding = "decode"` (previously `"none"` / `"keep"`). `rurl` 2.1.0
+  silently redefined those two default values to keep the path verbatim, which
+  changed node keys for any URL with dot-segments (`/a/../b`) or percent-encoding
+  (`/%41`, `%20`) and desynced the pagerankr <-> semantic node join. Pinning the
+  explicit values restores the original committed key (path percent-decoded,
+  dot-segments removed) and keeps node identities stable across the `rurl`
+  upgrade. The `semantic` sibling pins the identical profile (changed together).
+
 * `clean_url_columns()` now preserves tokens that `rurl` cannot parse as a URL
   (e.g. a dotless bare label such as `"A"`) as their raw value instead of
   turning them into NA. Newer `rurl` (>= 2.1.0) normalizes such dotless tokens

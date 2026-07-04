@@ -18,11 +18,22 @@ The single, explicit set of `rurl` canonicalization arguments
   to `"lower_host"`) and previously desynced the pagerankr <-> semantic join.
 }
 \details{
-The canonical node key is **scheme + host + path** (port, query,
-  fragment and userinfo are dropped by `get_clean_url`). These ten arguments
-  fix exactly how that key is derived. The values below intentionally mirror
-  `rurl`'s current defaults, so pinning them is behavior-preserving today
-  and purely guards against future default drift.
+The canonical node key is **scheme + host + path**, with the path
+  percent-decoded and RFC 3986 dot-segments removed (port, query, fragment
+  and userinfo are dropped by `get_clean_url`). These ten arguments fix
+  exactly how that key is derived.
+
+  The pinned values are chosen to reproduce that committed canonical key, not
+  to match `rurl`'s defaults. As of `rurl` 2.1.0 they intentionally
+  **override** two defaults: `path_normalization = "dot_segments"` (default
+  `"none"`) and `path_encoding = "decode"` (default `"keep"`). `rurl` 2.1.0
+  redefined its `"none"`/`"keep"` path defaults to keep the path verbatim,
+  which silently changed the key and desynced the pagerankr <-> semantic
+  join for paths containing dot-segments or percent-encoding; pinning the
+  explicit values above restores the original keys. The remaining knobs still
+  equal `rurl`'s current defaults. (The anti-drift guarantee ultimately lives
+  in semantic's byte-parity oracle test, which caught this; the pin is a
+  convenience that must be re-pinned when a dependency redefines a value.)
 
   The same ten arguments are accepted by both `rurl::get_clean_url()` (the
   cleaning path) and `rurl::safe_parse_url()` (the domain-filtering path), so
