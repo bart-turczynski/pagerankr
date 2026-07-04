@@ -143,6 +143,15 @@
 #'       applying it, so crawled source nodes retain their as-crawled identity.
 #'       The same filtered map is applied to the TIPR prior fold, keeping edges
 #'       and prior in one namespace.}
+#'     \item{`"leak"`}{Treat each such crawled source like an external redirect:
+#'       route it onto a synthetic **leak sink** node (distinct from the
+#'       nofollow sink) so the equity flowing INTO it leaves the measured graph
+#'       ("these pages won't rank; equity goes elsewhere"). The source's own
+#'       teleport prior is routed to the sink too. The evaporated equity is
+#'       reported as **leaked mass** in the `mass` section of the
+#'       `transition_audit` (`reported + sink + hidden + leaked = 1`). The leak
+#'       sink is created whenever there is at least one out-of-scope fold,
+#'       regardless of `nofollow_action`.}
 #'   }
 #'   Regardless of policy, the count and list of out-of-scope folds (source,
 #'   target, signal) are recorded in the `fold` section of the
@@ -349,16 +358,18 @@
 #'   nofollow evaporation, indexability handling, or `robots_blocked_action =
 #'   "vanish"` is active, the returned scores may sum to less than 1. The
 #'   difference is not undifferentiated "leakage": it is decomposed into
-#'   **evaporated mass** (authority sent to the nofollow sink) and **hidden
-#'   mass** (authority trapped on robots-blocked nodes removed from the
-#'   results). The full breakdown — reported / evaporated (sink) / hidden /
-#'   total (= 1) — is recorded in the `mass` field of the transition audit
-#'   (see below).
+#'   **evaporated mass** (authority sent to the nofollow sink), **leaked mass**
+#'   (authority sent to the leak sink under `out_of_scope_fold = "leak"`), and
+#'   **hidden mass** (authority trapped on robots-blocked nodes removed from the
+#'   results). The full breakdown — reported / evaporated (sink) / leaked /
+#'   hidden / total (= 1) — is recorded in the `mass` field of the transition
+#'   audit (see below).
 #'
 #'   The data frame additionally carries a `"transition_audit"` attribute (a
 #'   [transition_audit] object) recording how the transition graph was built:
 #'   row/edge counts, behavioral-weight coverage, normalization totals, the
-#'   page-mass decomposition (reported / evaporated / hidden / total), dropped
+#'   page-mass decomposition (reported / evaporated / leaked / hidden / total),
+#'   dropped
 #'   data (rows lost to NA / dedup / self-loops, unmatched prior URLs), and the
 #'   model configuration used. Retrieve it with
 #'   `attr(result, "transition_audit")`. This attribute is backward-compatible:
@@ -470,7 +481,7 @@ pagerank <- function(edge_list_df,
                        "error",
                        "canonical_wins"
                      ),
-                     out_of_scope_fold = c("relabel", "keep"),
+                     out_of_scope_fold = c("relabel", "keep", "leak"),
                      keep_domains = NULL,
                      exclude_domains = NULL,
                      keep_hosts = NULL,
@@ -808,8 +819,21 @@ pagerank <- function(edge_list_df,
   audit_oos_sources <- character(0)
   audit_oos_targets <- character(0)
   audit_oos_signals <- character(0)
-  # `relabel` applies the out-of-scope entries; `keep` skips them.
-  audit_oos_applied <- identical(out_of_scope_fold, "relabel")
+  # `relabel` applies the out-of-scope entries; `keep` skips them; `leak`
+  # routes the crawled source onto the leak sink. `applied` is TRUE when the
+  # out-of-scope folds were acted upon (relabeled through, or routed to the
+  # leak sink) and FALSE when they were skipped / kept as crawled.
+  audit_oos_applied <- out_of_scope_fold %in% c("relabel", "leak")
+
+  # Leak sink: a synthetic node, distinct from the nofollow sink, that absorbs
+  # the equity flowing into out-of-scope-folded sources under
+  # `out_of_scope_fold = "leak"`, so it evaporates out of the measured graph.
+  # Sources to leak are recorded here and routed to the sink after domain
+  # filtering (mirroring the nofollow sink, so the synthetic node is never
+  # subject to host/domain rules).
+  leak_sink_name <- "__pr_leak_sink__"
+  used_leak_sink <- FALSE
+  leak_sources <- character(0)
 
   fold_map <- character(0)
   if (has_redirects || has_canonicals) {
@@ -853,9 +877,18 @@ pagerank <- function(edge_list_df,
       # Under `keep`, drop the out-of-scope entries before applying the map to
       # edges (and, below, the TIPR prior) so crawled sources retain their
       # as-crawled identity and edges + prior stay in one namespace. `relabel`
-      # (default) applies the full map unchanged.
-      if (identical(out_of_scope_fold, "keep") && any(oos_mask)) {
-        fold_map <- fold_map[!oos_mask]
+      # (default) applies the full map unchanged. `leak` also drops the entries
+      # from the fold map (so the source keeps its as-crawled identity through
+      # folding + domain filtering) but records the sources so they can be
+      # routed onto the leak sink afterwards.
+      if (any(oos_mask)) {
+        if (identical(out_of_scope_fold, "keep")) {
+          fold_map <- fold_map[!oos_mask]
+        } else if (identical(out_of_scope_fold, "leak")) {
+          fold_map <- fold_map[!oos_mask]
+          leak_sources <- audit_oos_sources
+          used_leak_sink <- TRUE
+        }
       }
     }
 
@@ -899,6 +932,33 @@ pagerank <- function(edge_list_df,
     as.character(current_edge_list[[edge_to_col]])
   )))
 
+  # --- 2.75. Leak out-of-scope-folded sources to the leak sink ---
+  # Under out_of_scope_fold = "leak", a crawled page whose canonical / redirect
+  # folds OUT of scope is treated like an external redirect: its RECEIVED equity
+  # should leave the measured graph. Inbound edges (... -> source) are
+  # retargeted onto the dedicated leak sink so that equity reaches the sink (a
+  # pure trap via its self-loop) and evaporates; the source's OUTBOUND edges are
+  # dropped, since an external-redirect target contributes no links to the
+  # measured graph and the leaked equity must not flow back to any surviving
+  # page. Done AFTER domain filtering (so the synthetic sink node is never
+  # subject to host/domain rules).
+  # The leaked source is removed from the vertex universe (it must not linger as
+  # an isolate), but its out-targets stay in scope. The sink self-loop is added
+  # later, after deduplication, so `self_loops = "drop"` cannot strip it.
+  if (used_leak_sink && length(leak_sources) > 0) {
+    if (nrow(current_edge_list) > 0) {
+      if (edge_to_col %in% names(current_edge_list)) {
+        to_leak_mask <- current_edge_list[[edge_to_col]] %in% leak_sources
+        current_edge_list[[edge_to_col]][to_leak_mask] <- leak_sink_name
+      }
+      if (edge_from_col %in% names(current_edge_list)) {
+        from_leak_mask <- current_edge_list[[edge_from_col]] %in% leak_sources
+        current_edge_list <- current_edge_list[!from_leak_mask, , drop = FALSE]
+      }
+    }
+    all_vertex_universe <- setdiff(all_vertex_universe, leak_sources)
+  }
+
   # --- 2.8. Prior preparation (TIPR) ---
   # Canonicalize the prior URLs with the SAME rurl settings as the edges and
   # fold them through the SAME redirect map, summing happens later in
@@ -930,6 +990,14 @@ pagerank <- function(edge_list_df,
       folded_prior_df[[prior_url_col]] <- .apply_fold_map(
         folded_prior_df[[prior_url_col]], fold_map
       )
+    }
+
+    # Under `leak`, route the prior on a leaking source onto the leak sink too,
+    # so the source's own teleport equity leaves the measured graph alongside
+    # its received equity (the sink is excluded from teleport below).
+    if (used_leak_sink && length(leak_sources) > 0) {
+      prior_leak_mask <- folded_prior_df[[prior_url_col]] %in% leak_sources
+      folded_prior_df[[prior_url_col]][prior_leak_mask] <- leak_sink_name
     }
   }
 
@@ -1119,6 +1187,33 @@ pagerank <- function(edge_list_df,
     }
   }
 
+  # --- 3.7. Leak sink self-loop ---
+  # When `out_of_scope_fold = "leak"` routed at least one source onto the leak
+  # sink (in step 2.75), add a self-loop so the sink is not a dangling node and
+  # the equity that reached it stays trapped (and evaporates when the sink is
+  # removed from the results). Added here, after deduplication, so
+  # `self_loops = "drop"` cannot strip it -- mirroring the nofollow sink.
+  if (used_leak_sink && nrow(current_edge_list) > 0) {
+    leak_sink_row <- stats::setNames(
+      data.frame(leak_sink_name, leak_sink_name),
+      c(edge_from_col, edge_to_col)
+    )
+    extra_cols <- setdiff(
+      names(current_edge_list),
+      c(edge_from_col, edge_to_col)
+    )
+    for (col in extra_cols) {
+      if (is.logical(current_edge_list[[col]])) {
+        leak_sink_row[[col]] <- FALSE
+      } else if (is.numeric(current_edge_list[[col]])) {
+        leak_sink_row[[col]] <- 1
+      } else {
+        leak_sink_row[[col]] <- NA
+      }
+    }
+    current_edge_list <- rbind(current_edge_list, leak_sink_row)
+  }
+
   # --- 4. Handle Isolates ---
   # After nofollow/indexability steps, the edge list may contain new nodes
 
@@ -1167,11 +1262,14 @@ pagerank <- function(edge_list_df,
     }
   }
 
-  # Only the synthetic nofollow sink is excluded from teleport; robots/404
+  # The synthetic nofollow and leak sinks are excluded from teleport; robots/404
   # self-loop nodes are real pages and keep their authority.
   prior_exclude_nodes <- character(0)
   if (used_nofollow_sink) {
     prior_exclude_nodes <- c(prior_exclude_nodes, nofollow_sink_name)
+  }
+  if (used_leak_sink) {
+    prior_exclude_nodes <- c(prior_exclude_nodes, leak_sink_name)
   }
 
   # --- 5. Compute PageRank ---
@@ -1209,10 +1307,14 @@ pagerank <- function(edge_list_df,
   # written off as undifferentiated "leakage":
   #   * evaporated mass = stationary mass parked on the nofollow sink (the
   #     authority a source wasted on nofollowed outlinks);
+  #   * leaked mass     = stationary mass parked on the leak sink (the authority
+  #     that flowed into out-of-scope-folded sources under
+  #     `out_of_scope_fold = "leak"`, treated like an external redirect);
   #   * hidden mass      = stationary mass trapped on robots-blocked nodes that
   #     were removed under `robots_blocked_action = "vanish"`.
   # Captured here, fed into the transition audit's mass$ fields in step 7.
   mass_evaporated <- 0
+  mass_leaked <- 0
   mass_hidden <- 0
   if (nrow(pagerank_results) > 0) {
     pr_node_col <- names(pagerank_results)[1]
@@ -1225,6 +1327,15 @@ pagerank <- function(edge_list_df,
         na.rm = TRUE
       )
       pagerank_results <- pagerank_results[!sink_mask, , drop = FALSE]
+    }
+
+    # Remove leak sink node (measure its leaked mass first)
+    if (used_leak_sink) {
+      leak_sink_mask <- pagerank_results[[pr_node_col]] == leak_sink_name
+      mass_leaked <- sum(pagerank_results[[pr_value_col]][leak_sink_mask],
+        na.rm = TRUE
+      )
+      pagerank_results <- pagerank_results[!leak_sink_mask, , drop = FALSE]
     }
 
     # Remove robots-blocked nodes if vanish action (measure hidden mass first)
@@ -1304,6 +1415,7 @@ pagerank <- function(edge_list_df,
     pagerank_total = audit_pagerank_total,
     mass_reported = audit_pagerank_total,
     mass_evaporated = mass_evaporated,
+    mass_leaked = mass_leaked,
     mass_hidden = mass_hidden,
     out_of_scope_fold = out_of_scope_fold,
     n_out_of_scope_folds = length(audit_oos_sources),

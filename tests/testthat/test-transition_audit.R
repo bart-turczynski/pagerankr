@@ -53,7 +53,7 @@ describe("transition_audit structure", {
     )
     expect_setequal(
       names(audit$mass),
-      c("reported", "sink", "hidden", "total")
+      c("reported", "sink", "leaked", "hidden", "total")
     )
     expect_setequal(
       names(audit$fold),
@@ -68,6 +68,7 @@ describe("transition_audit structure", {
     audit <- attr(pagerank(edges, clean_edge_urls = FALSE), "transition_audit")
     expect_equal(audit$mass$reported, 1, tolerance = 1e-8)
     expect_equal(audit$mass$sink, 0)
+    expect_equal(audit$mass$leaked, 0)
     expect_equal(audit$mass$hidden, 0)
     expect_equal(audit$mass$total, 1, tolerance = 1e-8)
   })

@@ -1,5 +1,15 @@
 # pagerankr 0.0.0.9000
 
+* `out_of_scope_fold` gains a third policy, `"leak"`: a crawled page whose
+  canonical/redirect folds out of scope is treated like an external redirect —
+  its inbound equity is routed onto a dedicated leak sink and evaporates out of
+  the measured graph (its outbound edges are dropped), so it does not rank and
+  its equity is not credited to any surviving page. The evaporated equity is
+  reported as a new `leaked` term in the `transition_audit` `mass` accounting,
+  which now decomposes as `reported + sink + leaked + hidden = total` (`= 1`);
+  `leaked` is `0` for `"relabel"`/`"keep"` runs so their totals are unchanged.
+  The `fold` audit section reports `policy == "leak"` (PAGE-xkmqsbqv).
+
 * `pagerank()` gains an `out_of_scope_fold` argument (`"relabel"` default, or
   `"keep"`) governing composed fold-map entries whose target is not itself a
   crawled node. `"relabel"` preserves current behavior (fold crawled sources
