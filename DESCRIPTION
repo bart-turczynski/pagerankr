@@ -10,7 +10,7 @@ Language: en-US
 LazyData: true
 Imports:
     igraph,
-    rurl (>= 1.3.0),
+    rurl (>= 2.1.0),
     utils
 Remotes:
     bart-turczynski/rurl
