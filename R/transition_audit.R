@@ -62,22 +62,28 @@
 #'     mass on returned, visible pages — equals the summed result scores),
 #'     `sink` (the **evaporated mass**: authority sent to the synthetic
 #'     nofollow-evaporation sink under `nofollow_action = "evaporate"`),
-#'     `hidden` (the **hidden mass**: authority trapped on hidden /
-#'     robots-blocked nodes removed under `robots_blocked_action = "vanish"`),
-#'     and `total` (their sum, which reconciles to 1 by construction). These
-#'     are the precise components of the deficit between the reported scores
-#'     and 1 — it is evaporated and hidden mass, not undifferentiated
-#'     "leakage". Each is `NULL` when the stationary vector is undefined (e.g.
-#'     an empty graph).}
+#'     `leaked` (the **leaked mass**: authority sent to the synthetic leak sink
+#'     under `out_of_scope_fold = "leak"`, i.e. equity that flowed into
+#'     out-of-scope-folded sources and left the measured graph — `0` when no
+#'     leak occurred), `hidden` (the **hidden mass**: authority trapped on
+#'     hidden / robots-blocked nodes removed under
+#'     `robots_blocked_action = "vanish"`), and `total` (their sum, which
+#'     reconciles to 1 by construction). These are the precise components of
+#'     the deficit between the reported scores and 1 — it is evaporated, leaked
+#'     and hidden mass, not undifferentiated "leakage". Each is `NULL` when the
+#'     stationary vector is undefined (e.g. an empty graph).}
 #'   \item{fold}{A list recording how **out-of-scope folds** were handled — a
 #'     composed fold-map entry whose *target* (the representative a crawled
 #'     source folds onto) is not itself a crawled node, which silently invents
 #'     a phantom vertex. `policy` (the `out_of_scope_fold` argument,
-#'     `"relabel"` or `"keep"`), `n_out_of_scope` (count of such entries),
-#'     `applied` (logical: `TRUE` when they were relabeled / folded through,
-#'     `FALSE` when skipped / kept as crawled), and `out_of_scope` (a data
-#'     frame of the offending `source` / `target` / `signal` rows, or `NULL`
-#'     when there were none). Recorded regardless of policy.}
+#'     `"relabel"`, `"keep"` or `"leak"`), `n_out_of_scope` (count of such
+#'     entries), `applied` (logical: `TRUE` when they were acted upon —
+#'     relabeled / folded through under `"relabel"`, or routed to the leak sink
+#'     under `"leak"` — and `FALSE` when skipped / kept as crawled under
+#'     `"keep"`; combine with `policy` to distinguish relabel from leak), and
+#'     `out_of_scope` (a data frame of the offending `source` / `target` /
+#'     `signal` rows, or `NULL` when there were none). Recorded regardless of
+#'     policy.}
 #' }
 #'
 #' The constructor [new_transition_audit()] is internal plumbing for
@@ -120,14 +126,19 @@ NULL
 #' @param mass_evaporated Numeric, stationary mass sent to the nofollow
 #'   evaporation sink (authority wasted on nofollowed outlinks). `0` when no
 #'   evaporation occurred.
+#' @param mass_leaked Numeric, stationary mass sent to the leak sink under
+#'   `out_of_scope_fold = "leak"` (authority that flowed into
+#'   out-of-scope-folded sources, treated like an external redirect). `0` when
+#'   no leak occurred.
 #' @param mass_hidden Numeric, stationary mass trapped on hidden / vanished
 #'   robots-blocked nodes that were removed from the results. `0` when none.
 #' @param out_of_scope_fold Character, the `out_of_scope_fold` policy used
-#'   (`"relabel"` or `"keep"`).
+#'   (`"relabel"`, `"keep"` or `"leak"`).
 #' @param n_out_of_scope_folds Integer, count of composed fold-map entries whose
 #'   target was not a crawled node.
 #' @param out_of_scope_folds_applied Logical, `TRUE` when the out-of-scope folds
-#'   were relabeled (applied), `FALSE` when they were skipped (kept).
+#'   were acted upon (relabeled under `"relabel"`, or routed to the leak sink
+#'   under `"leak"`), `FALSE` when they were skipped (kept) under `"keep"`.
 #' @param out_of_scope_fold_list Data frame or `NULL`, the out-of-scope folds
 #'   as `source` / `target` / `signal` rows.
 #' @param config A named list of the relevant [pagerank()] configuration.
@@ -152,6 +163,7 @@ new_transition_audit <- function(n_input_rows = 0L,
                                  pagerank_total = NA_real_,
                                  mass_reported = NA_real_,
                                  mass_evaporated = NA_real_,
+                                 mass_leaked = NA_real_,
                                  mass_hidden = NA_real_,
                                  out_of_scope_fold = "relabel",
                                  n_out_of_scope_folds = 0L,
@@ -168,21 +180,26 @@ new_transition_audit <- function(n_input_rows = 0L,
   }
 
   # Page-mass accounting. The internal stationary vector sums to 1; we split
-  # it into reported (visible) mass, evaporated (nofollow-sink) mass, and
-  # hidden (robots-blocked vanish) mass, whose total reconciles to 1. When the
-  # stationary vector is undefined (empty graph -> reported is NA) we leave the
-  # reserved NULL stubs in place rather than fabricating a decomposition.
+  # it into reported (visible) mass, evaporated (nofollow-sink) mass, leaked
+  # (leak-sink) mass, and hidden (robots-blocked vanish) mass, whose total
+  # reconciles to 1. When the stationary vector is undefined (empty graph ->
+  # reported is NA) we leave the reserved NULL stubs in place rather than
+  # fabricating a decomposition.
   mass <- if (is.na(mass_reported)) {
-    list(reported = NULL, sink = NULL, hidden = NULL, total = NULL)
+    list(
+      reported = NULL, sink = NULL, leaked = NULL, hidden = NULL, total = NULL
+    )
   } else {
     reported <- as.numeric(mass_reported)
     sink <- if (is.na(mass_evaporated)) 0 else as.numeric(mass_evaporated)
+    leaked <- if (is.na(mass_leaked)) 0 else as.numeric(mass_leaked)
     hidden <- if (is.na(mass_hidden)) 0 else as.numeric(mass_hidden)
     list(
       reported = reported,
       sink = sink,
+      leaked = leaked,
       hidden = hidden,
-      total = reported + sink + hidden
+      total = reported + sink + leaked + hidden
     )
   }
 
@@ -221,13 +238,15 @@ new_transition_audit <- function(n_input_rows = 0L,
       duplicate_edges = duplicate_edges
     ),
     config = config,
-    # --- Mass accounting (B2 / PAGE-mqsxrcdz). ---
+    # --- Mass accounting (B2 / PAGE-mqsxrcdz; leaked: PAGE-xkmqsbqv). ---
     # Decomposes the internal stationary vector (which always sums to 1) into
     # its accounted-for components. `reported` is the visible page mass;
     # `sink` is the EVAPORATED mass (authority sent to the nofollow sink);
-    # `hidden` is the mass trapped on hidden/vanished robots-blocked nodes;
-    # `total` is their sum, which reconciles to 1 by construction. Left as the
-    # reserved NULL stubs when the stationary vector is undefined (empty graph).
+    # `leaked` is the LEAKED mass (authority sent to the leak sink under
+    # `out_of_scope_fold = "leak"`); `hidden` is the mass trapped on
+    # hidden/vanished robots-blocked nodes; `total` is their sum, which
+    # reconciles to 1 by construction. Left as the reserved NULL stubs when the
+    # stationary vector is undefined (empty graph).
     mass = mass,
     # --- Out-of-scope fold accounting (SF-scope / PAGE-ttlaxjkw). ---
     # Records how composed fold-map entries whose TARGET is not a crawled node
@@ -321,6 +340,7 @@ print.transition_audit <- function(x, ...) {
     cat("\nPage mass (stationary vector sums to 1)\n")
     cat("  Reported (visible): ", fmt_mass(x$mass$reported), "\n")
     cat("  Evaporated (sink):  ", fmt_mass(x$mass$sink), "\n")
+    cat("  Leaked (out-scope): ", fmt_mass(x$mass$leaked), "\n")
     cat("  Hidden (robots):    ", fmt_mass(x$mass$hidden), "\n")
     cat("  Total:              ", fmt_mass(x$mass$total), "\n")
   }
@@ -331,11 +351,14 @@ print.transition_audit <- function(x, ...) {
     cat("  Policy:             ", x$fold$policy, "\n")
     cat("  Out-of-scope folds: ", x$fold$n_out_of_scope, "\n")
     if (x$fold$n_out_of_scope > 0L) {
-      cat(
-        "  Action:             ",
-        if (isTRUE(x$fold$applied)) "relabeled (applied)" else "skipped (kept)",
-        "\n"
-      )
+      action <- if (identical(x$fold$policy, "leak")) {
+        "routed to leak sink"
+      } else if (isTRUE(x$fold$applied)) {
+        "relabeled (applied)"
+      } else {
+        "skipped (kept)"
+      }
+      cat("  Action:             ", action, "\n")
     }
   }
 
