@@ -15,6 +15,14 @@ live case study unless stated otherwise.
 - The crawl carried a wrinkle that turned into the most instructive finding:
   every page's `rel=canonical` pointed to the **production** host
   `tidioreviews.com`, which was never crawled.
+- **Two crawls now exist**, straddling a shipped internal-linking intervention:
+  a **pre-intervention** crawl (the one the numbers throughout §1–§9 were
+  computed from) and a **post-intervention** crawl taken after a de-sink /
+  conduit epic that carried out the recommendations in §6 and §8. The measured
+  before/after is written up in §10. (Provenance note: the pre-intervention
+  crawl CSVs were recoverable from the site repo's git history even after the
+  working copies were overwritten — crawl exports stored under fixed filenames
+  should be committed or archived per-date so a baseline is never lost.)
 
 ---
 
@@ -146,7 +154,8 @@ analysis is only meaningful after boilerplate is removed.
 A page hoards PageRank when it has many inlinks and few outlinks (high in/out
 ratio). `/about/affiliate-disclosure/`: in=67, out=2, ratio 33.5. The fix for a
 hoarder is to turn the sink into a conduit (add relevant outlinks), *not* to cut
-inlinks — and often you *can't* cut them (compliance).
+inlinks — and often you *can't* cut them (compliance). **This recommendation was
+later shipped and re-measured — see §10.**
 
 Note for practitioners: **`nofollow` will not redistribute equity to money
 pages.** Since Google's 2019 change, nofollow is a hint and the equity
@@ -184,7 +193,8 @@ architecture change on the stored graph before touching the site. Example: on
 pages raised their PR by **+28% to +40%** while costing the donor hubs
 **−0.38% each** — near-free authority redistribution. This is the honest way to
 justify (or reject) an internal-linking recommendation: show the redistribution,
-do not assert it.
+do not assert it. **The follow-up test of this method — did a shipped
+intervention move the metrics the way the model predicted? — is §10.**
 
 ---
 
@@ -205,6 +215,78 @@ honest.
 
 ---
 
+## 10. Closed loop: the modeled de-sink, shipped and re-measured
+
+Every finding above is a *snapshot*. This one is a *diff across an
+intervention*: the site shipped the de-sink recommended in §6 (turn the two
+compliance sinks into conduits) plus the starved-page feeding modeled in §8
+(section-index links into commercial pages), and a second crawl was taken. This
+is the rare closed loop — diagnose → model → ship → **re-measure on a real
+crawl** — that separates a method from an anecdote.
+
+**The recovered baseline reproduces the notes exactly.** The pre-intervention
+crawl scored `/about/methodology/` at editorial PR **0.307** and
+`/about/affiliate-disclosure/` at **0.237** — bit-for-bit the §4 figures. So the
+before/after below is measured on the same instrument that produced §1–§9, not a
+re-derivation.
+
+**Editorial (content-only) graph — the sinks drained, the money pages filled.**
+
+| page | editorial PR: before → after | Δ | rank |
+|------|------------------------------:|----:|------|
+| `/about/methodology/`          | 0.307 → 0.007 | **−97.7%** | #1 → #40 |
+| `/about/affiliate-disclosure/` | 0.237 → 0.010 | −95.9% | #2 → #27 |
+| `/about/contact/`              | 0.138 → 0.006 | −95.4% | #3 → #48 |
+| `/about/faq/`                  | 0.042 → 0.010 | −75.9% | #4 → #26 |
+| `/pricing/`                    | 0.015 → 0.064 | **+325%**  | #6 → #2 |
+| `/pricing/free-plan/`          | 0.005 → 0.061 | +1096% | #17 → #3 |
+| `/features/ai-agent/`          | 0.006 → 0.045 | +705%  | #13 → #5 |
+| `/pricing/free-trial/`         | 0.004 → 0.041 | +996%  | #26 → #7 |
+| homepage `/en-us/`             | 0.003 → 0.011 | +270%  | #48 → #23 |
+
+Concentration collapsed exactly as a de-sink predicts: editorial **Gini
+0.763 → 0.472**, **top-5 share 76.2% → 31.1%**, entropy 2.53 → 3.75. Authority
+that four sitewide in-content hubs were hoarding got spread across the discretionary
+graph, landing disproportionately on commercial pages. Every money page gained;
+none regressed.
+
+**Mechanism — the byline reclassification (a placement gotcha worth its own
+line).** The single biggest lever was *not* new links but **re-placement**: the
+sitewide methodology/disclosure byline links were moved into a semantic
+`<nav aria-label="Editorial standards">`, so Screaming Frog reclassifies them
+from `Content` to `Navigation`. They simply **leave the editorial graph**
+(content edges fell 339 → 232). Corollary to §4: in-content boilerplate is a
+second nav — and the fix can be to *make the HTML say so*, which is both correct
+semantics and the cheapest possible de-sink.
+
+**Full graph — insensitive, as §2/§9 warned.** The full graph barely twitched:
+Gini 0.305 → 0.273, Pearson(before, after) = 0.9999, every commercial page
+within **+0.69% to +0.76%** (numerical noise on a near-uniform vector). The
+entire intervention is an *editorial-graph* phenomenon, invisible to the
+boilerplate-dominated full graph. This is the clearest single confirmation of §9:
+the lens you choose decides whether you can even see the change.
+
+**Honest confounds (state these in any writeup).** This is a two-crawl natural
+experiment, not a controlled `simulate_changes()` on one fixed graph, so:
+- The node set changed — 4 pages were retired/merged during the epic
+  (`/submit/`, `/company/funding/`, `/company/headquarters/`, `/tidio/`), and
+  total editorial edges fell (339 → 232). **Absolute editorial PR levels are
+  therefore not directly comparable across crawls; read rank shifts,
+  concentration metrics (Gini / top-share / entropy), and relative deltas** — the
+  same "relative before/after lens" discipline §9 argues for.
+- The effect blends two moves: (a) the byline content→nav reclassification and
+  (b) genuine new conduit/feeder links. The re-measure captures the *net*, which
+  is what shipped; attributing shares between them needs the per-unit models
+  (which existed and pointed the same direction).
+
+**Lesson.** A `simulate_changes()` projection and a post-ship re-crawl agreed in
+*direction and rough magnitude* — the model was decision-useful, not just
+decorative. That agreement, on a real site, is the strongest claim the toolkit
+can make: **the views are diagnostic, the models are predictive, and the loop
+closes.**
+
+---
+
 ## Paper hooks (candidate angles)
 
 - **The canonical-vs-redirect distinction in link-graph modeling**, with the
@@ -216,3 +298,13 @@ honest.
 - **A reproducible internal-link audit workflow in R** — Screaming Frog bundle →
   placement-weighted PageRank + CheiRank + `simulate_changes`, with mass
   accounting and provenance, on a real site.
+- **Close the loop: does the model predict the re-crawl?** — the strongest hook.
+  Diagnose sinks → model a fix with `simulate_changes` → ship it → re-crawl →
+  show the projection and the measured before/after agree (§10). Positions
+  `pagerankr` as *predictive*, not just descriptive, and gives the "living /
+  multi-site" paper its template: one section per site, each an intervention
+  with a modeled projection and a re-measured outcome. Also seeds a
+  **placement-as-intervention** sub-angle (the byline content→nav
+  reclassification as the cheapest de-sink) and a **methods caveat** on
+  two-crawl natural experiments (read rank/concentration/relative deltas, not
+  absolute PR).
