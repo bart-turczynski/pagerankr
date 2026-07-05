@@ -1,5 +1,14 @@
 # pagerankr 0.0.0.9000
 
+* Documented that `canonical_profile()` deliberately leaves `rurl`'s
+  component-dropping knobs unpinned (`query_handling`, `port_handling`, and the
+  `url_standard` selector added in `rurl` 2.2.0) -- they have no effect on the
+  scheme+host+path node key at their defaults. Added a behavioral guard in
+  `test-canonicalization.R` asserting a canonical key drops the port, query, and
+  fragment, so a future `rurl` default flip on an unpinned knob is caught here
+  rather than silently changing node identity. No node keys change; verified
+  against `rurl` 2.2.0.
+
 * `canonical_profile()` now pins `path_normalization = "dot_segments"` and
   `path_encoding = "decode"` (previously `"none"` / `"keep"`). `rurl` 2.1.0
   silently redefined those two default values to keep the path verbatim, which

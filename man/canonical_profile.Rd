@@ -10,12 +10,15 @@ canonical_profile()
 A named list of `rurl` canonicalization arguments.
 }
 \description{
-The single, explicit set of `rurl` canonicalization arguments
-  that define a pagerankr node identity. Every knob `rurl::get_clean_url()`
-  (and `rurl::safe_parse_url()`) accepts is pinned here with an explicit
-  value, so node keys never depend on `rurl`'s own defaults -- which have
-  changed across `rurl` versions (e.g. `case_handling` flipped from `"keep"`
-  to `"lower_host"`) and previously desynced the pagerankr <-> semantic join.
+The explicit set of `rurl` canonicalization arguments that
+  determine a pagerankr node identity (scheme + host + path). Every knob that
+  *shapes that key* is pinned here with an explicit value, so node keys never
+  depend on `rurl`'s own defaults -- which have changed across `rurl`
+  versions (e.g. `case_handling` flipped from `"keep"` to `"lower_host"`) and
+  previously desynced the pagerankr <-> semantic join. Knobs that only govern
+  components the key drops (port, query, fragment, userinfo) are deliberately
+  left unpinned -- see the "Knobs deliberately left unpinned" note in
+  @details.
 }
 \details{
 The canonical node key is **scheme + host + path**, with the path
@@ -38,6 +41,19 @@ The canonical node key is **scheme + host + path**, with the path
   The same ten arguments are accepted by both `rurl::get_clean_url()` (the
   cleaning path) and `rurl::safe_parse_url()` (the domain-filtering path), so
   one profile drives both and the two paths stay symmetrical.
+
+  **Knobs deliberately left unpinned.** `rurl::get_clean_url()` has grown
+  options that govern components the node key does not carry:
+  `query_handling` (default `"drop"`) and its param sub-options,
+  `port_handling` (default `"exclude"`), and the `url_standard` selector
+  (default `NULL` -- no standard profile, added in `rurl` 2.2.0). Under the
+  scheme+host+path key these have no visible effect at their defaults, so
+  pinning them would add noise without changing identity. They are
+  intentionally **not** part of this profile;
+  instead the behavioral guard in `test-canonicalization.R` asserts that a
+  canonical key really does drop the port, query, and fragment, so a future
+  `rurl` default flip on one of these unpinned knobs is caught on the
+  pagerankr side rather than silently changing node identity.
 
   The cross-repo contract requires **semantic** to pin the identical profile;
   change both repos together.

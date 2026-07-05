@@ -1,7 +1,7 @@
 context("canonicalization profile")
 
 describe("canonical_profile", {
-  it("pins every rurl::get_clean_url canonicalization knob explicitly", {
+  it("pins every node-identity rurl::get_clean_url knob explicitly", {
     profile <- canonical_profile()
     expect_named(
       profile,
@@ -35,6 +35,26 @@ describe("canonical_profile", {
         info = paste("profile diverges from rurl default for", k)
       )
     }
+  })
+
+  it("drops port, query, and fragment from the canonical key", {
+    # Behavioral guard for the knobs the profile deliberately leaves unpinned
+    # (query_handling, port_handling, url_standard). The node key is
+    # scheme+host+path; assert those components really are dropped so a future
+    # rurl default flip on an unpinned knob is caught here rather than silently
+    # changing node identity. See canonical_profile() @details.
+    key <- do.call(
+      rurl::get_clean_url,
+      c(
+        list(url = "http://Example.COM:8080/a/../b?utm_source=x#frag"),
+        canonical_profile()
+      )
+    )
+    expect_false(grepl("8080", key, fixed = TRUE))
+    expect_false(grepl("utm_source", key, fixed = TRUE))
+    expect_false(grepl("frag", key, fixed = TRUE))
+    # Positive control: host lowered, dot-segment removed, scheme kept.
+    expect_identical(unname(key), "http://example.com/b")
   })
 })
 
