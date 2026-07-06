@@ -96,38 +96,14 @@ filter_links_by_domain <- function(edge_list_df,
   # host/domain extraction here matches how node URLs were (or will be) cleaned.
   rurl_profile <- .resolve_rurl_params(rurl_params)
   # --- Validation ---
-  if (!is.data.frame(edge_list_df)) {
-    stop("`edge_list_df` must be a data frame.", call. = FALSE)
-  }
-  if (nrow(edge_list_df) > 0 &&
-        !all(c(from_col, to_col) %in% names(edge_list_df))) {
-    stop(
-      "`edge_list_df` must have '", from_col, "' and '", to_col, "' columns.",
-      call. = FALSE
-    )
-  }
-  if (!is.null(keep_domains) && !is.character(keep_domains)) {
-    stop("`keep_domains` must be a character vector or NULL.", call. = FALSE)
-  }
-  if (!is.null(keep_hosts) && !is.character(keep_hosts)) {
-    stop("`keep_hosts` must be a character vector or NULL.", call. = FALSE)
-  }
-  if (!is.null(ignore_domains) && !is.character(ignore_domains)) {
-    stop("`ignore_domains` must be a character vector or NULL.", call. = FALSE)
-  }
-  if (!is.null(ignore_hosts) && !is.character(ignore_hosts)) {
-    stop("`ignore_hosts` must be a character vector or NULL.", call. = FALSE)
-  }
+  .validate_filter_inputs(
+    edge_list_df, from_col, to_col,
+    keep_domains, keep_hosts, ignore_domains, ignore_hosts
+  )
 
   # --- Early return if empty ---
   if (nrow(edge_list_df) == 0) {
-    if (return_report) {
-      return(list(
-        filtered_df = edge_list_df,
-        report = list(rows_before = 0L, rows_after = 0L, rows_dropped = 0L)
-      ))
-    }
-    return(edge_list_df)
+    return(.empty_filter_result(edge_list_df, return_report, 0L))
   }
 
   # --- Build filter lists ---
@@ -147,14 +123,9 @@ filter_links_by_domain <- function(edge_list_df,
 
   # No filters active -- return as-is
   if (!has_keep_list && !has_ignore_list) {
-    if (return_report) {
-      n <- nrow(edge_list_df)
-      return(list(
-        filtered_df = edge_list_df,
-        report = list(rows_before = n, rows_after = n, rows_dropped = 0L)
-      ))
-    }
-    return(edge_list_df)
+    return(.empty_filter_result(
+      edge_list_df, return_report, nrow(edge_list_df)
+    ))
   }
 
   # --- Extract host/domain for all unique URLs ---
@@ -182,22 +153,87 @@ filter_links_by_domain <- function(edge_list_df,
   row.names(filtered_df) <- NULL
 
   if (return_report) {
-    return(list(
-      filtered_df = filtered_df,
-      report = list(
-        rows_before = nrow(edge_list_df),
-        rows_after = nrow(filtered_df),
-        rows_dropped = nrow(edge_list_df) - nrow(filtered_df),
-        keep_domains = keep_domains_resolved,
-        keep_hosts = keep_hosts_resolved,
-        ignore_domains = ignore_domains_resolved,
-        ignore_hosts = ignore_hosts_resolved
-      )
+    return(.build_filter_report(
+      edge_list_df, filtered_df,
+      keep_domains_resolved, keep_hosts_resolved,
+      ignore_domains_resolved, ignore_hosts_resolved
     ))
   }
   filtered_df
 }
 
+
+# --- Validation / result helpers ---
+
+#' Error unless `x` is NULL or a character vector
+#' @noRd
+.check_char_or_null <- function(x, name) {
+  if (is.null(x)) {
+    return(invisible())
+  }
+  if (!is.character(x)) {
+    stop("`", name, "` must be a character vector or NULL.", call. = FALSE)
+  }
+  invisible()
+}
+
+#' Validate the inputs to [filter_links_by_domain()]
+#'
+#' Preserves the original validation order and error-message text verbatim.
+#' @noRd
+.validate_filter_inputs <- function(edge_list_df, from_col, to_col,
+                                    keep_domains, keep_hosts,
+                                    ignore_domains, ignore_hosts) {
+  if (!is.data.frame(edge_list_df)) {
+    stop("`edge_list_df` must be a data frame.", call. = FALSE)
+  }
+  if (nrow(edge_list_df) > 0 &&
+        !all(c(from_col, to_col) %in% names(edge_list_df))) {
+    stop(
+      "`edge_list_df` must have '", from_col, "' and '", to_col, "' columns.",
+      call. = FALSE
+    )
+  }
+  .check_char_or_null(keep_domains, "keep_domains")
+  .check_char_or_null(keep_hosts, "keep_hosts")
+  .check_char_or_null(ignore_domains, "ignore_domains")
+  .check_char_or_null(ignore_hosts, "ignore_hosts")
+  invisible()
+}
+
+#' Build the pass-through result for empty / no-filter cases
+#'
+#' Returns `edge_list_df` unchanged, or (when `return_report`) a list carrying
+#' the unfiltered frame plus a minimal row-count report.
+#' @noRd
+.empty_filter_result <- function(edge_list_df, return_report, n) {
+  if (return_report) {
+    return(list(
+      filtered_df = edge_list_df,
+      report = list(rows_before = n, rows_after = n, rows_dropped = 0L)
+    ))
+  }
+  edge_list_df
+}
+
+#' Assemble the full filter report list
+#' @noRd
+.build_filter_report <- function(edge_list_df, filtered_df,
+                                 keep_domains, keep_hosts,
+                                 ignore_domains, ignore_hosts) {
+  list(
+    filtered_df = filtered_df,
+    report = list(
+      rows_before = nrow(edge_list_df),
+      rows_after = nrow(filtered_df),
+      rows_dropped = nrow(edge_list_df) - nrow(filtered_df),
+      keep_domains = keep_domains,
+      keep_hosts = keep_hosts,
+      ignore_domains = ignore_domains,
+      ignore_hosts = ignore_hosts
+    )
+  )
+}
 
 # --- Internal helpers ---
 #
