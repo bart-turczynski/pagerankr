@@ -124,37 +124,100 @@ aggregate_edges <- function(edge_list_df,
   self_loops <- match.arg(self_loops)
   nofollow_policy <- match.arg(nofollow_policy)
 
+  .validate_aggregate_inputs(edge_list_df, agg, preserve_cols, from_col, to_col)
+
+  # Empty input: return as-is (mirrors get_unique_edges()), reconstructing
+  # the from/to columns when the input is a bare data.frame().
+  if (nrow(edge_list_df) == 0) {
+    return(.aggregate_empty_input(edge_list_df, from_col, to_col))
+  }
+
+  edge_list_df <- .prepare_edge_rows(edge_list_df, self_loops, from_col, to_col)
+
+  # If nothing remains, return an empty frame preserving column structure.
+  if (nrow(edge_list_df) == 0) {
+    empty_result_df <- edge_list_df[FALSE, , drop = FALSE]
+    row.names(empty_result_df) <- NULL
+    return(empty_result_df)
+  }
+
+  key_cols <- c(from_col, to_col)
+  value_cols <- setdiff(names(edge_list_df), key_cols)
+
+  # Validate that requested columns actually exist.
+  .validate_agg_cols(agg, preserve_cols, value_cols)
+
+  collapse_cols <- setdiff(value_cols, preserve_cols)
+
+  # Resolve grouping. Group key preserves first-appearance order.
+  row_groups <- .build_row_groups(edge_list_df, from_col, to_col)
+
+  # from/to take the first value of each group (constant within a group).
+  result <- .init_result_frame(edge_list_df, row_groups, from_col, to_col)
+
+  # Aggregate the collapsible columns.
+  result <- .aggregate_collapse_cols(
+    result, edge_list_df, collapse_cols, agg, nofollow_policy, row_groups
+  )
+
+  # Preserve columns as per-group list-columns.
+  result <- .preserve_group_cols(
+    result, edge_list_df, preserve_cols, row_groups
+  )
+
+  # Restore original column order (from/to/value columns).
+  result <- result[, names(edge_list_df), drop = FALSE]
+  row.names(result) <- NULL
+  result
+}
+
+#' Validate the top-level arguments to [aggregate_edges()].
+#' @keywords internal
+#' @noRd
+.validate_aggregate_inputs <- function(edge_list_df, agg, preserve_cols,
+                                       from_col, to_col) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  if (!is.list(agg) || (length(agg) > 0 && is.null(names(agg)))) {
+  if (!is.list(agg)) {
+    stop("`agg` must be a named list.", call. = FALSE)
+  }
+  if (length(agg) > 0 && is.null(names(agg))) {
     stop("`agg` must be a named list.", call. = FALSE)
   }
   if (!is.character(preserve_cols)) {
     stop("`preserve_cols` must be a character vector.", call. = FALSE)
   }
-
-  if (nrow(edge_list_df) > 0 &&
-        !all(c(from_col, to_col) %in% names(edge_list_df))) {
+  if (nrow(edge_list_df) == 0) {
+    return(invisible(NULL))
+  }
+  if (!all(c(from_col, to_col) %in% names(edge_list_df))) {
     stop(
       "`edge_list_df` must have specified 'from' and 'to' ",
       "columns if not empty.",
       call. = FALSE
     )
   }
+  invisible(NULL)
+}
 
-  # Empty input: return as-is (mirrors get_unique_edges()), reconstructing
-  # the from/to columns when the input is a bare data.frame().
-  if (nrow(edge_list_df) == 0) {
-    if (ncol(edge_list_df) == 0) {
-      empty_df <- data.frame()
-      empty_df[[from_col]] <- character(0)
-      empty_df[[to_col]] <- character(0)
-      return(empty_df)
-    }
-    return(edge_list_df)
+#' Handle an empty edge list, reconstructing from/to on a bare data frame.
+#' @keywords internal
+#' @noRd
+.aggregate_empty_input <- function(edge_list_df, from_col, to_col) {
+  if (ncol(edge_list_df) == 0) {
+    empty_df <- data.frame()
+    empty_df[[from_col]] <- character(0)
+    empty_df[[to_col]] <- character(0)
+    return(empty_df)
   }
+  edge_list_df
+}
 
+#' Drop NA edges, coerce from/to to character, and handle self-loops.
+#' @keywords internal
+#' @noRd
+.prepare_edge_rows <- function(edge_list_df, self_loops, from_col, to_col) {
   # Drop any edge where from or to is NA.
   edge_list_df <- edge_list_df[
     !is.na(edge_list_df[[from_col]]) & !is.na(edge_list_df[[to_col]]), ,
@@ -170,18 +233,13 @@ aggregate_edges <- function(edge_list_df,
     is_self_loop <- edge_list_df[[from_col]] == edge_list_df[[to_col]]
     edge_list_df <- edge_list_df[!is_self_loop, , drop = FALSE]
   }
+  edge_list_df
+}
 
-  # If nothing remains, return an empty frame preserving column structure.
-  if (nrow(edge_list_df) == 0) {
-    empty_result_df <- edge_list_df[FALSE, , drop = FALSE]
-    row.names(empty_result_df) <- NULL
-    return(empty_result_df)
-  }
-
-  key_cols <- c(from_col, to_col)
-  value_cols <- setdiff(names(edge_list_df), key_cols)
-
-  # Validate that requested columns actually exist.
+#' Validate that `agg` / `preserve_cols` name real, non-overlapping columns.
+#' @keywords internal
+#' @noRd
+.validate_agg_cols <- function(agg, preserve_cols, value_cols) {
   unknown_agg <- setdiff(names(agg), value_cols)
   if (length(unknown_agg) > 0) {
     stop(
@@ -206,18 +264,25 @@ aggregate_edges <- function(edge_list_df,
       call. = FALSE
     )
   }
+  invisible(NULL)
+}
 
-  collapse_cols <- setdiff(value_cols, preserve_cols)
-
-  # Resolve grouping. Group key preserves first-appearance order.
+#' Split row indices into first-appearance-ordered from/to groups.
+#' @keywords internal
+#' @noRd
+.build_row_groups <- function(edge_list_df, from_col, to_col) {
   group_key <- paste(
     edge_list_df[[from_col]], edge_list_df[[to_col]],
     sep = "\r"
   )
   group_factor <- factor(group_key, levels = unique(group_key))
-  row_groups <- split(seq_len(nrow(edge_list_df)), group_factor)
+  split(seq_len(nrow(edge_list_df)), group_factor)
+}
 
-  # from/to take the first value of each group (constant within a group).
+#' Build the result frame seeded with one from/to row per group.
+#' @keywords internal
+#' @noRd
+.init_result_frame <- function(edge_list_df, row_groups, from_col, to_col) {
   first_idx <- vapply(row_groups, function(idx) idx[[1L]], integer(1))
   result <- data.frame(
     edge_list_df[[from_col]][first_idx],
@@ -225,8 +290,14 @@ aggregate_edges <- function(edge_list_df,
     check.names = FALSE
   )
   names(result) <- c(from_col, to_col)
+  result
+}
 
-  # Aggregate the collapsible columns.
+#' Reduce each collapsible column to one value per from/to group.
+#' @keywords internal
+#' @noRd
+.aggregate_collapse_cols <- function(result, edge_list_df, collapse_cols,
+                                     agg, nofollow_policy, row_groups) {
   for (col in collapse_cols) {
     rule <- if (col %in% names(agg)) agg[[col]] else NULL
     fun <- resolve_agg_fun(rule, edge_list_df[[col]], nofollow_policy, col)
@@ -241,16 +312,18 @@ aggregate_edges <- function(edge_list_df,
     }
     result[[col]] <- unlist(reduced, use.names = FALSE)
   }
+  result
+}
 
-  # Preserve columns as per-group list-columns.
+#' Attach preserved columns as per-group list-columns.
+#' @keywords internal
+#' @noRd
+.preserve_group_cols <- function(result, edge_list_df, preserve_cols,
+                                 row_groups) {
   for (col in preserve_cols) {
     values <- edge_list_df[[col]]
     result[[col]] <- unname(lapply(row_groups, function(idx) values[idx]))
   }
-
-  # Restore original column order (from/to/value columns).
-  result <- result[, names(edge_list_df), drop = FALSE]
-  row.names(result) <- NULL
   result
 }
 
