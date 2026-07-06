@@ -409,4 +409,128 @@ describe("pagerank_screaming_frog()", {
       "single `TRUE` or `FALSE`"
     )
   })
+
+  it("requires an actual screaming_frog_bundle object", {
+    expect_error(
+      pagerank_screaming_frog(list(edges = data.frame())),
+      "must be a `screaming_frog_bundle` object"
+    )
+  })
+
+  it("rejects malformed weight_col values", {
+    bundle <- sf_pr_bundle_fixture()
+
+    expect_error(
+      pagerank_screaming_frog(bundle, weight_col = 123),
+      "single non-empty string or NULL"
+    )
+    expect_error(
+      pagerank_screaming_frog(bundle, weight_col = c("a", "b")),
+      "single non-empty string or NULL"
+    )
+    expect_error(
+      pagerank_screaming_frog(bundle, weight_col = NA_character_),
+      "single non-empty string or NULL"
+    )
+    expect_error(
+      pagerank_screaming_frog(bundle, weight_col = ""),
+      "single non-empty string or NULL"
+    )
+  })
+
+  it("rejects a weight_col absent from bundle$edges", {
+    bundle <- sf_pr_bundle_fixture()
+
+    expect_error(
+      pagerank_screaming_frog(bundle, weight_col = "does_not_exist"),
+      "is not present in"
+    )
+  })
+
+  it("rejects filters that leave no graph-eligible edges", {
+    bundle <- sf_pr_bundle_fixture()
+
+    expect_error(
+      pagerank_screaming_frog(bundle, accepted_placements = "sidebar"),
+      "after Screaming Frog wrapper filters"
+    )
+  })
+
+  it("requires the standard bundle fields, edges frame, and edge columns", {
+    bundle <- sf_pr_bundle_fixture()
+
+    incomplete <- bundle
+    incomplete$diagnostics <- NULL
+    expect_error(
+      pagerank_screaming_frog(incomplete),
+      "missing required field"
+    )
+
+    not_a_frame <- bundle
+    not_a_frame$edges <- "not a data frame"
+    expect_error(
+      pagerank_screaming_frog(not_a_frame),
+      "must be a data frame"
+    )
+
+    missing_col <- bundle
+    missing_col$edges <- missing_col$edges[
+      , setdiff(names(missing_col$edges), "nofollow"),
+      drop = FALSE
+    ]
+    expect_error(
+      pagerank_screaming_frog(missing_col),
+      "missing required column"
+    )
+  })
+
+  it("rejects malformed accepted_placements values", {
+    bundle <- sf_pr_bundle_fixture()
+
+    expect_error(
+      pagerank_screaming_frog(bundle, accepted_placements = 123),
+      "character vector or NULL"
+    )
+    expect_error(
+      pagerank_screaming_frog(bundle, accepted_placements = "bogus"),
+      "must contain only"
+    )
+  })
+
+  it("rejects malformed link_origins values", {
+    bundle <- sf_pr_bundle_fixture()
+
+    expect_error(
+      pagerank_screaming_frog(bundle, link_origins = 123),
+      "character vector or NULL"
+    )
+    expect_error(
+      pagerank_screaming_frog(bundle, link_origins = "bogus"),
+      "must contain only"
+    )
+  })
+
+  it("rejects malformed placement_weights values", {
+    bundle <- sf_pr_bundle_fixture()
+
+    expect_error(
+      pagerank_screaming_frog(bundle, placement_weights = c(3, 2)),
+      "named positive numeric vector"
+    )
+    expect_error(
+      pagerank_screaming_frog(bundle, placement_weights = c(nav = -1)),
+      "finite positive values"
+    )
+    expect_error(
+      pagerank_screaming_frog(bundle, placement_weights = c(bogus = 2)),
+      "must contain only"
+    )
+    expect_error(
+      pagerank_screaming_frog(
+        bundle,
+        placement_weights = c(nav = 1, NAV = 2)
+      ),
+      "must be unique"
+    )
+  })
 })
