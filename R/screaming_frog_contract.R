@@ -188,56 +188,75 @@ NULL
 }
 
 #' @noRd
-#' @export
-.sf_read_input <- function(x, export_kind, fields = NULL) {
-  export_kind <- match.arg(export_kind, .sf_contract()$export_kinds)
-  schema <- .sf_schema(export_kind)
-
+.sf_validate_fields <- function(fields, schema, export_kind) {
   if (is.null(fields)) {
     fields <- schema$order
   }
-  if (!is.character(fields) || anyNA(fields) ||
-        !all(fields %in% schema$order)) {
+  ok <- is.character(fields)
+  if (ok && anyNA(fields)) {
+    ok <- FALSE
+  }
+  if (ok && !all(fields %in% schema$order)) {
+    ok <- FALSE
+  }
+  if (!ok) {
     stop(
       "`fields` must contain normalized fields from the `",
       export_kind, "` contract.",
       call. = FALSE
     )
   }
-  fields <- schema$order[schema$order %in% unique(fields)]
-  required_fields <- unique(c(schema$required, fields))
+  schema$order[schema$order %in% unique(fields)]
+}
 
-  if (is.data.frame(x)) {
-    resolved <- .sf_resolve_schema(names(x), export_kind)
-    selected <- resolved$columns[required_fields]
-    selected <- selected[!is.na(selected)]
-    out <- x[, unname(selected), drop = FALSE]
-  } else if (is.character(x) && length(x) == 1L && !is.na(x)) {
-    if (!file.exists(x)) {
-      stop("Screaming Frog input file does not exist: ", x, call. = FALSE)
-    }
-    header <- utils::read.csv(
-      x,
-      nrows = 0L,
-      check.names = FALSE,
-      fileEncoding = "UTF-8-BOM"
-    )
-    resolved <- .sf_resolve_schema(names(header), export_kind)
-    selected <- resolved$columns[required_fields]
-    selected <- selected[!is.na(selected)]
-    col_classes <- rep("NULL", ncol(header))
-    col_classes[match(unname(selected), names(header))] <- "character"
-    out <- utils::read.csv(
-      x,
-      check.names = FALSE,
-      colClasses = col_classes,
-      na.strings = character(0),
-      fileEncoding = "UTF-8-BOM"
-    )
-  } else {
-    stop("`x` must be a data frame or a single file path.", call. = FALSE)
+#' @noRd
+.sf_read_df <- function(x, export_kind, required_fields) {
+  resolved <- .sf_resolve_schema(names(x), export_kind)
+  selected <- resolved$columns[required_fields]
+  selected <- selected[!is.na(selected)]
+  out <- x[, unname(selected), drop = FALSE]
+  list(out = out, resolved = resolved)
+}
+
+#' @noRd
+.sf_read_file <- function(x, export_kind, required_fields) {
+  if (!file.exists(x)) {
+    stop("Screaming Frog input file does not exist: ", x, call. = FALSE)
   }
+  header <- utils::read.csv(
+    x,
+    nrows = 0L,
+    check.names = FALSE,
+    fileEncoding = "UTF-8-BOM"
+  )
+  resolved <- .sf_resolve_schema(names(header), export_kind)
+  selected <- resolved$columns[required_fields]
+  selected <- selected[!is.na(selected)]
+  col_classes <- rep("NULL", ncol(header))
+  col_classes[match(unname(selected), names(header))] <- "character"
+  out <- utils::read.csv(
+    x,
+    check.names = FALSE,
+    colClasses = col_classes,
+    na.strings = character(0),
+    fileEncoding = "UTF-8-BOM"
+  )
+  list(out = out, resolved = resolved)
+}
 
+#' @noRd
+.sf_dispatch_read <- function(x, export_kind, required_fields) {
+  if (is.data.frame(x)) {
+    return(.sf_read_df(x, export_kind, required_fields))
+  }
+  if (is.character(x) && length(x) == 1L && !is.na(x)) {
+    return(.sf_read_file(x, export_kind, required_fields))
+  }
+  stop("`x` must be a data frame or a single file path.", call. = FALSE)
+}
+
+#' @noRd
+.sf_finalize_output <- function(out, resolved, fields, export_kind) {
   canonical_names <- names(resolved$columns)[
     match(names(out), unname(resolved$columns))
   ]
@@ -260,6 +279,19 @@ NULL
     ignored_columns = resolved$ignored
   )
   out
+}
+
+#' @noRd
+#' @export
+.sf_read_input <- function(x, export_kind, fields = NULL) {
+  export_kind <- match.arg(export_kind, .sf_contract()$export_kinds)
+  schema <- .sf_schema(export_kind)
+
+  fields <- .sf_validate_fields(fields, schema, export_kind)
+  required_fields <- unique(c(schema$required, fields))
+
+  read <- .sf_dispatch_read(x, export_kind, required_fields)
+  .sf_finalize_output(read$out, read$resolved, fields, export_kind)
 }
 
 #' @noRd
