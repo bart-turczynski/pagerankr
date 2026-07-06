@@ -17,3 +17,19 @@
 \description{
 Print a Screaming Frog bundle
 }
+\examples{
+internal <- data.frame(
+  Address = c("https://example.com/", "https://example.com/a"),
+  `Status Code` = c("200", "200"),
+  check.names = FALSE
+)
+links <- data.frame(
+  Type = "Hyperlink",
+  Source = "https://example.com/",
+  Destination = "https://example.com/a",
+  Follow = "TRUE",
+  check.names = FALSE
+)
+bundle <- screaming_frog_bundle(internal, links, "all_outlinks")
+print(bundle)
+}
