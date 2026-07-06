@@ -295,13 +295,11 @@ describe("fold-target collision detection (PAGE-rjrduvmy)", {
   it("flags a fold that merges onto an independently-linked uncrawled URL", {
     edges <- data.frame(
       from = c("http://pages.dev/X/", "http://blog.com/"),
-      to   = c("http://pages.dev/out/", "http://target.com/X/"),
-      stringsAsFactors = FALSE
+      to   = c("http://pages.dev/out/", "http://target.com/X/")
     )
     can <- data.frame(
       from = "http://pages.dev/X/",
-      to   = "http://target.com/X/",
-      stringsAsFactors = FALSE
+      to   = "http://target.com/X/"
     )
     # The crawl knows pages.dev/X (+ its outlink and the blog) but NOT
     # target.com/X, so target.com/X is an uncrawled fold target.
@@ -309,8 +307,7 @@ describe("fold-target collision detection (PAGE-rjrduvmy)", {
       url = c(
         "http://pages.dev/X/", "http://pages.dev/out/", "http://blog.com/"
       ),
-      indexability_status = "",
-      stringsAsFactors = FALSE
+      indexability_status = ""
     )
     expect_warning(
       pr <- pagerank(edges,
@@ -334,16 +331,14 @@ describe("fold-target collision detection (PAGE-rjrduvmy)", {
     # correct merge, not a collision. This is the SF-fixture case.
     edges <- data.frame(
       from = c("http://a/", "http://c/"),
-      to   = c("http://b/", "http://b/"),
-      stringsAsFactors = FALSE
+      to   = c("http://b/", "http://b/")
     )
     red <- data.frame(
-      from = "http://a/", to = "http://b/", stringsAsFactors = FALSE
+      from = "http://a/", to = "http://b/"
     )
     idx <- data.frame(
       url = c("http://a/", "http://b/", "http://c/"),
-      indexability_status = "",
-      stringsAsFactors = FALSE
+      indexability_status = ""
     )
     expect_no_warning(
       pr <- pagerank(edges,
@@ -359,13 +354,11 @@ describe("fold-target collision detection (PAGE-rjrduvmy)", {
     # indistinguishable from a crawled leaf page, so detection is a no-op.
     edges <- data.frame(
       from = c("http://pages.dev/X/", "http://blog.com/"),
-      to   = c("http://pages.dev/out/", "http://target.com/X/"),
-      stringsAsFactors = FALSE
+      to   = c("http://pages.dev/out/", "http://target.com/X/")
     )
     can <- data.frame(
       from = "http://pages.dev/X/",
-      to   = "http://target.com/X/",
-      stringsAsFactors = FALSE
+      to   = "http://target.com/X/"
     )
     expect_no_warning(
       pr <- pagerank(edges, canonicals_df = can, drop_isolates_flag = FALSE)
@@ -376,11 +369,10 @@ describe("fold-target collision detection (PAGE-rjrduvmy)", {
 
   it("leaves collisions NULL on a fold-free run", {
     edges <- data.frame(
-      from = "http://a/", to = "http://b/", stringsAsFactors = FALSE
+      from = "http://a/", to = "http://b/"
     )
     idx <- data.frame(
-      url = c("http://a/", "http://b/"), indexability_status = "",
-      stringsAsFactors = FALSE
+      url = c("http://a/", "http://b/"), indexability_status = ""
     )
     audit <- attr(
       pagerank(edges, indexability_df = idx, drop_isolates_flag = FALSE),
