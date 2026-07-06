@@ -99,6 +99,13 @@ new_pagerank_convergence <- function(algo = "prpack",
 #' @param x A `pagerank_convergence` object.
 #' @param ... Unused; for S3 compatibility.
 #' @return `x`, invisibly.
+#' @examples
+#' edges <- data.frame(
+#'   from = c("A", "B", "C"), to = c("B", "C", "A")
+#' )
+#' pr <- compute_pagerank(edges)
+#' conv <- attr(pr, "convergence")
+#' print(conv)
 #' @export
 print.pagerank_convergence <- function(x, ...) {
   cat("=== PageRank Convergence ===\n\n")

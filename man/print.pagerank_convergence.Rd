@@ -17,3 +17,11 @@
 \description{
 Print a pagerank_convergence object
 }
+\examples{
+edges <- data.frame(
+  from = c("A", "B", "C"), to = c("B", "C", "A")
+)
+pr <- compute_pagerank(edges)
+conv <- attr(pr, "convergence")
+print(conv)
+}
