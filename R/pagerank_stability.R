@@ -72,19 +72,7 @@ pagerank_stability <- function(edge_list_df,
                                reference = 0.85,
                                top_k = 10,
                                ...) {
-  if (!is.data.frame(edge_list_df)) {
-    stop("`edge_list_df` must be a data frame.", call. = FALSE)
-  }
-  if (!is.numeric(reference) || length(reference) != 1 || is.na(reference) ||
-        reference <= 0 || reference >= 1) {
-    stop(
-      "`reference` must be a single number strictly between 0 and 1.",
-      call. = FALSE
-    )
-  }
-  if (!is.numeric(top_k) || length(top_k) != 1 || is.na(top_k) || top_k < 1) {
-    stop("`top_k` must be a single positive integer.", call. = FALSE)
-  }
+  .check_stability_args(edge_list_df, reference, top_k)
   top_k <- as.integer(top_k)
 
   # The reference must be one of the solved alphas so it can serve as baseline.
@@ -106,38 +94,109 @@ pagerank_stability <- function(edge_list_df,
   out$nodes_lost <- NA_integer_
 
   for (i in seq_len(nrow(out))) {
-    a <- out$alpha[i]
-    rows_a <- sens[sens$alpha == a, , drop = FALSE] # score-descending
-    if (nrow(rows_a) == 0) next
-
-    k_eff <- min(top_k, nrow(ref_rows), nrow(rows_a))
-
-    if (isTRUE(all.equal(a, reference))) {
-      out$spearman_rho[i] <- 1
-      out$mean_abs_delta[i] <- 0
-      out$nodes_gained[i] <- 0L
-      out$nodes_lost[i] <- 0L
-      out$top_k_overlap[i] <- if (k_eff > 0) 1 else NA_real_
-      next
-    }
-
-    frame_a <- data.frame(
-      node_name = rows_a$url,
-      pagerank = rows_a$score
-    )
-    cmp <- attr(compare_pagerank(ref_frame, frame_a), "summary")
-    out$spearman_rho[i] <- cmp$spearman_rho
-    out$mean_abs_delta[i] <- cmp$mean_abs_delta
-    out$nodes_gained[i] <- cmp$nodes_gained
-    out$nodes_lost[i] <- cmp$nodes_lost
-
-    if (k_eff > 0) {
-      top_ref <- ref_rows$url[seq_len(k_eff)]
-      top_a <- rows_a$url[seq_len(k_eff)]
-      out$top_k_overlap[i] <- length(intersect(top_ref, top_a)) / k_eff
-    }
+    out <- .stability_fill_row(out, i, sens, ref_rows, ref_frame,
+                               reference, top_k)
   }
 
+  .finalize_stability_out(out, sens, reference, top_k)
+}
+
+#' Validate `pagerank_stability()` scalar arguments.
+#'
+#' Guards are delegated to sequential-`if` predicates (rather than `||`-chains)
+#' so each check stays cheap for cyclomatic-complexity budgeting; validation
+#' order and error text are preserved verbatim.
+#' @return Invisibly `NULL`; called for its side effect of `stop()`ing.
+#' @noRd
+.check_stability_args <- function(edge_list_df, reference, top_k) {
+  if (!is.data.frame(edge_list_df)) {
+    stop("`edge_list_df` must be a data frame.", call. = FALSE)
+  }
+  if (!.is_valid_reference(reference)) {
+    stop(
+      "`reference` must be a single number strictly between 0 and 1.",
+      call. = FALSE
+    )
+  }
+  if (!.is_valid_top_k(top_k)) {
+    stop("`top_k` must be a single positive integer.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Is `reference` a single number strictly in (0, 1)?
+#'
+#' Sequential guards (returning `FALSE` on the first failure) keep each test
+#' cheap for cyclomatic complexity while preserving the original condition set.
+#' @return `TRUE` if valid, `FALSE` otherwise.
+#' @noRd
+.is_valid_reference <- function(reference) {
+  if (!is.numeric(reference)) return(FALSE)
+  if (length(reference) != 1) return(FALSE)
+  if (is.na(reference)) return(FALSE)
+  if (reference <= 0) return(FALSE)
+  if (reference >= 1) return(FALSE)
+  TRUE
+}
+
+#' Is `top_k` a single positive number?
+#'
+#' Sequential guards keep each test cheap for cyclomatic complexity while
+#' preserving the original condition set.
+#' @return `TRUE` if valid, `FALSE` otherwise.
+#' @noRd
+.is_valid_top_k <- function(top_k) {
+  if (!is.numeric(top_k)) return(FALSE)
+  if (length(top_k) != 1) return(FALSE)
+  if (is.na(top_k)) return(FALSE)
+  if (top_k < 1) return(FALSE)
+  TRUE
+}
+
+#' Fill the stability metrics for a single row (one swept alpha).
+#'
+#' @return The `out` data frame with row `i` populated.
+#' @noRd
+.stability_fill_row <- function(out, i, sens, ref_rows, ref_frame,
+                                reference, top_k) {
+  a <- out$alpha[i]
+  rows_a <- sens[sens$alpha == a, , drop = FALSE] # score-descending
+  if (nrow(rows_a) == 0) return(out)
+
+  k_eff <- min(top_k, nrow(ref_rows), nrow(rows_a))
+
+  if (isTRUE(all.equal(a, reference))) {
+    out$spearman_rho[i] <- 1
+    out$mean_abs_delta[i] <- 0
+    out$nodes_gained[i] <- 0L
+    out$nodes_lost[i] <- 0L
+    out$top_k_overlap[i] <- if (k_eff > 0) 1 else NA_real_
+    return(out)
+  }
+
+  frame_a <- data.frame(
+    node_name = rows_a$url,
+    pagerank = rows_a$score
+  )
+  cmp <- attr(compare_pagerank(ref_frame, frame_a), "summary")
+  out$spearman_rho[i] <- cmp$spearman_rho
+  out$mean_abs_delta[i] <- cmp$mean_abs_delta
+  out$nodes_gained[i] <- cmp$nodes_gained
+  out$nodes_lost[i] <- cmp$nodes_lost
+
+  if (k_eff > 0) {
+    top_ref <- ref_rows$url[seq_len(k_eff)]
+    top_a <- rows_a$url[seq_len(k_eff)]
+    out$top_k_overlap[i] <- length(intersect(top_ref, top_a)) / k_eff
+  }
+  out
+}
+
+#' Reorder columns and attach the `pagerank_stability()` result attributes.
+#'
+#' @return The finalized one-row-per-alpha stability data frame.
+#' @noRd
+.finalize_stability_out <- function(out, sens, reference, top_k) {
   # Lead with the stability metrics, then the convergence metadata.
   conv_cols <- c(
     "algo", "iters", "iters_estimate", "residual", "tol", "converged",
