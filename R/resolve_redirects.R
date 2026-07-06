@@ -124,28 +124,10 @@ resolve_redirects <- function(edge_list_df,
   loop_handling <- match.arg(loop_handling)
 
   # --- Input Validation ---
-  if (!is.data.frame(edge_list_df)) {
-    stop("`edge_list_df` must be a data frame.", call. = FALSE)
-  }
-  if (nrow(edge_list_df) > 0 &&
-        !all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
-    stop(
-      "`edge_list_df` must have '", edge_from_col, "' and '",
-      edge_to_col, "' columns if not empty.",
-      call. = FALSE
-    )
-  }
-
-  if (!is.data.frame(redirects_df)) {
-    stop("`redirects_df` must be a data frame.", call. = FALSE)
-  }
-  if (nrow(redirects_df) > 0 &&
-        !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
-    stop("`redirects_df` must have '", redirect_from_col, "' and '",
-      redirect_to_col, "' columns if not empty.",
-      call. = FALSE
-    )
-  }
+  .validate_redirect_inputs(
+    edge_list_df, redirects_df,
+    edge_from_col, edge_to_col, redirect_from_col, redirect_to_col
+  )
 
   # If redirects_df is empty or has no valid rules, return edge_list_df as is.
   if (nrow(redirects_df) == 0) {
@@ -153,15 +135,9 @@ resolve_redirects <- function(edge_list_df,
   }
 
   # Filter out NA values and self-referencing redirects (from == to).
-  na_mask <- !is.na(redirects_df[[redirect_from_col]]) &
-    !is.na(redirects_df[[redirect_to_col]])
-  redirects_df <- redirects_df[na_mask, , drop = FALSE]
-
-  if (nrow(redirects_df) > 0) {
-    self_ref <- as.character(redirects_df[[redirect_from_col]]) ==
-      as.character(redirects_df[[redirect_to_col]])
-    redirects_df <- redirects_df[!self_ref, , drop = FALSE]
-  }
+  redirects_df <- .clean_redirect_pairs(
+    redirects_df, redirect_from_col, redirect_to_col
+  )
 
   # --- Preprocess: handle conflicting redirects ---
   redirect_sources <- as.character(redirects_df[[redirect_from_col]])
@@ -187,6 +163,76 @@ resolve_redirects <- function(edge_list_df,
   }
 
   # --- Apply map to edge list (vectorized) ---
+  .apply_map_to_edges(edge_list_df, canonical_map, edge_from_col, edge_to_col)
+}
+
+
+#' Validate `resolve_redirects()` inputs
+#'
+#' Stops with the original error text if either data frame is malformed or is
+#' missing its required columns. Split into sequential `if` guards (rather than
+#' `&&`-chains) to keep cyclomatic complexity low.
+#' @noRd
+.validate_redirect_inputs <- function(edge_list_df, redirects_df,
+                                      edge_from_col, edge_to_col,
+                                      redirect_from_col, redirect_to_col) {
+  if (!is.data.frame(edge_list_df)) {
+    stop("`edge_list_df` must be a data frame.", call. = FALSE)
+  }
+  if (nrow(edge_list_df) > 0) {
+    if (!all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
+      stop(
+        "`edge_list_df` must have '", edge_from_col, "' and '",
+        edge_to_col, "' columns if not empty.",
+        call. = FALSE
+      )
+    }
+  }
+
+  if (!is.data.frame(redirects_df)) {
+    stop("`redirects_df` must be a data frame.", call. = FALSE)
+  }
+  if (nrow(redirects_df) > 0) {
+    if (!all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
+      stop("`redirects_df` must have '", redirect_from_col, "' and '",
+        redirect_to_col, "' columns if not empty.",
+        call. = FALSE
+      )
+    }
+  }
+
+  invisible(NULL)
+}
+
+
+#' Drop NA and self-referencing redirect rows
+#'
+#' Removes rows where either endpoint is NA, then removes self-references
+#' (from == to, compared as characters).
+#' @noRd
+.clean_redirect_pairs <- function(redirects_df, redirect_from_col,
+                                  redirect_to_col) {
+  na_mask <- !is.na(redirects_df[[redirect_from_col]]) &
+    !is.na(redirects_df[[redirect_to_col]])
+  redirects_df <- redirects_df[na_mask, , drop = FALSE]
+
+  if (nrow(redirects_df) > 0) {
+    self_ref <- as.character(redirects_df[[redirect_from_col]]) ==
+      as.character(redirects_df[[redirect_to_col]])
+    redirects_df <- redirects_df[!self_ref, , drop = FALSE]
+  }
+
+  redirects_df
+}
+
+
+#' Apply a canonical map to the edge-list source/target columns
+#'
+#' Vectorised replacement of both edge columns (when present) via
+#' [.apply_fold_map()].
+#' @noRd
+.apply_map_to_edges <- function(edge_list_df, canonical_map,
+                                edge_from_col, edge_to_col) {
   resolved_edge_list <- edge_list_df
 
   for (col_name in c(edge_from_col, edge_to_col)) {
@@ -446,44 +492,9 @@ resolve_redirects <- function(edge_list_df,
   resolved <- rep(NA_character_, n)
 
   # Iterative traversal with memoisation
-
   for (i in seq_len(n)) {
-    if (!is.na(resolved[i])) next
-
-    # Walk the chain, collecting indices
-    chain <- integer(0)
-    current <- i
-    while (TRUE) {
-      if (!is.na(resolved[current])) {
-        # Already resolved: apply to whole chain
-        final <- resolved[current]
-        for (ci in chain) resolved[ci] <- final
-        break
-      }
-
-      if (current %in% chain) {
-        # Defensive: a cycle reached this traversal, which should be impossible
-        # given the out-degree <= 1 invariant plus loop_handling in
-        # .resolve_via_graph. Break rather than spin forever -- resolve the
-        # chain to the re-encountered node so callers get a usable map instead
-        # of a silent hang. Mirrors the guard in audit_redirects.R's traversal.
-        final <- vnames[current]
-        for (ci in chain) resolved[ci] <- final
-        break
-      }
-
-      chain <- c(chain, current)
-      out_neighbors <- out_list[[current]]
-      if (length(out_neighbors) == 0) {
-        # Terminal node
-        final <- vnames[current]
-        for (ci in chain) resolved[ci] <- final
-        break
-      }
-
-      # Follow the first (and ideally only) outgoing edge
-      next_idx <- as.integer(out_neighbors[1])
-      current <- next_idx
+    if (is.na(resolved[i])) {
+      resolved <- .fold_chain_from(i, resolved, out_list, vnames)
     }
   }
 
@@ -492,6 +503,54 @@ resolve_redirects <- function(edge_list_df,
   canonical <- stats::setNames(resolved, vnames)
   # Keep all entries -- the caller filters by match()
   canonical
+}
+
+
+#' Walk one redirect chain to its terminal and fold it into `resolved`
+#'
+#' Follows outgoing edges from `start` (out-degree <= 1 after loop handling)
+#' until reaching an already-resolved node, a terminal node, or -- defensively
+#' -- a re-encountered node (which would indicate a cycle that should be
+#' impossible here). Every visited source in the chain is then set to the
+#' terminal destination. Returns the updated `resolved` vector.
+#' @noRd
+.fold_chain_from <- function(start, resolved, out_list, vnames) {
+  chain <- integer(0)
+  current <- start
+
+  while (TRUE) {
+    if (!is.na(resolved[current])) {
+      # Already resolved: apply to whole chain
+      return(.assign_chain(resolved, chain, resolved[current]))
+    }
+
+    if (current %in% chain) {
+      # Defensive: a cycle reached this traversal, which should be impossible
+      # given the out-degree <= 1 invariant plus loop_handling in
+      # .resolve_via_graph. Break rather than spin forever -- resolve the
+      # chain to the re-encountered node so callers get a usable map instead
+      # of a silent hang. Mirrors the guard in audit_redirects.R's traversal.
+      return(.assign_chain(resolved, chain, vnames[current]))
+    }
+
+    chain <- c(chain, current)
+    out_neighbors <- out_list[[current]]
+    if (length(out_neighbors) == 0) {
+      # Terminal node
+      return(.assign_chain(resolved, chain, vnames[current]))
+    }
+
+    # Follow the first (and ideally only) outgoing edge
+    current <- as.integer(out_neighbors[1])
+  }
+}
+
+
+#' Assign a terminal destination to every index in a redirect chain
+#' @noRd
+.assign_chain <- function(resolved, chain, final) {
+  for (ci in chain) resolved[ci] <- final
+  resolved
 }
 
 
@@ -572,36 +631,60 @@ resolve_redirects <- function(edge_list_df,
   }
 
   if (policy == "most_frequent") {
-    # For non-conflicting sources: just deduplicate
-    is_conflict <- sources %in% conflicting_sources
-    non_conflict <- redirects_df[!is_conflict, , drop = FALSE]
-    if (nrow(non_conflict) > 0) {
-      nc_key <- paste0(non_conflict[[from_col]], "\t", non_conflict[[to_col]])
-      non_conflict <- non_conflict[!duplicated(nc_key), , drop = FALSE]
-    }
-
-    # For conflicting sources: find the mode target per source
-    conflict_df <- redirects_df[is_conflict, , drop = FALSE]
-    resolved_rows <- lapply(conflicting_sources, function(src) {
-      idx <- conflict_df[[from_col]] == src
-      src_targets <- conflict_df[[to_col]][idx]
-      freq <- table(src_targets)
-      max_freq <- max(freq)
-      candidates <- names(freq)[freq == max_freq]
-      # Tie-break: first occurrence in original data
-      winner <- candidates[1]
-      for (cand in candidates) {
-        if (match(cand, src_targets) < match(winner, src_targets)) {
-          winner <- cand
-        }
-      }
-      data.frame(from = src, to = winner)
-    })
-    resolved <- do.call(rbind, resolved_rows)
-    names(resolved) <- c(from_col, to_col)
-    return(rbind(non_conflict, resolved))
+    return(.resolve_most_frequent(
+      redirects_df, from_col, to_col, conflicting_sources
+    ))
   }
 
   # Should not reach here due to match.arg in caller, but as safeguard
   stop("Unknown duplicate_from_policy: ", policy, call. = FALSE) # nocov
+}
+
+
+#' Resolve conflicting sources by keeping the most frequent target
+#'
+#' Non-conflicting sources are simply deduplicated; each conflicting source is
+#' reduced to its modal target (ties broken by first occurrence) via
+#' [.most_frequent_target()].
+#' @noRd
+.resolve_most_frequent <- function(redirects_df, from_col, to_col,
+                                   conflicting_sources) {
+  # For non-conflicting sources: just deduplicate
+  is_conflict <- redirects_df[[from_col]] %in% conflicting_sources
+  non_conflict <- redirects_df[!is_conflict, , drop = FALSE]
+  if (nrow(non_conflict) > 0) {
+    nc_key <- paste0(non_conflict[[from_col]], "\t", non_conflict[[to_col]])
+    non_conflict <- non_conflict[!duplicated(nc_key), , drop = FALSE]
+  }
+
+  # For conflicting sources: find the mode target per source
+  conflict_df <- redirects_df[is_conflict, , drop = FALSE]
+  resolved_rows <- lapply(conflicting_sources, function(src) {
+    .most_frequent_target(conflict_df, from_col, to_col, src)
+  })
+  resolved <- do.call(rbind, resolved_rows)
+  names(resolved) <- c(from_col, to_col)
+  rbind(non_conflict, resolved)
+}
+
+
+#' Pick the modal target for one conflicting source
+#'
+#' Returns a one-row `data.frame(from, to)` with the most frequent target for
+#' `src`; ties are broken by earliest occurrence in `conflict_df`.
+#' @noRd
+.most_frequent_target <- function(conflict_df, from_col, to_col, src) {
+  idx <- conflict_df[[from_col]] == src
+  src_targets <- conflict_df[[to_col]][idx]
+  freq <- table(src_targets)
+  max_freq <- max(freq)
+  candidates <- names(freq)[freq == max_freq]
+  # Tie-break: first occurrence in original data
+  winner <- candidates[1]
+  for (cand in candidates) {
+    if (match(cand, src_targets) < match(winner, src_targets)) {
+      winner <- cand
+    }
+  }
+  data.frame(from = src, to = winner)
 }
