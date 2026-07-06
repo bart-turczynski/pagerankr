@@ -1,20 +1,17 @@
 # Verification gate: lint + a single Ubuntu R CMD check. Full cross-platform
-# coverage lives in full-check.yml.
+# coverage lives in full-check.yml (on-demand / release tags only).
 #
-# TEMPORARY (GitHub-hosted runners disabled on this account): the routine gate
-# has moved LOCAL — the .githooks/pre-push hook runs these same checks on every
-# push (see CONTRIBUTING.md). Remote runs only on demand (workflow_dispatch) or
-# at CRAN-submission prep (release tags 'v*'). To restore per-push/PR remote
-# runs, uncomment the push.branches / pull_request triggers below.
+# This is the routine remote gate: it runs on every push to main and on every
+# pull request. The .githooks/pre-push hook mirrors these same checks locally as
+# defense-in-depth for a fresh clone (see CONTRIBUTING.md).
 name: Verify
 
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     tags: ['v*']
-  # push:
-  #   branches: [main]
-  # pull_request:
+  pull_request:
 
 permissions: read-all
 

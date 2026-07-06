@@ -107,6 +107,9 @@ docs/
 # Scratch / research notes (not part of package or repo)
 _scratch/
 
+# Local orchestration / worklog notes (internal, not part of package or repo)
+worklog/
+
 # Fiberplane local issue tracking
 .fp/*
 !.fp/config.toml
