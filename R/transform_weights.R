@@ -80,22 +80,7 @@ transform_weights <- function(x,
                               descending = TRUE) {
   method <- match.arg(method)
 
-  # --- Validation ---
-  if (!is.numeric(x)) {
-    stop("`x` must be a numeric vector.", call. = FALSE)
-  }
-  if (!is.numeric(alpha) || length(alpha) != 1 || alpha <= 0) {
-    stop("`alpha` must be a single positive number.", call. = FALSE)
-  }
-  if (!is.numeric(offset) || length(offset) != 1) {
-    stop("`offset` must be a single number.", call. = FALSE)
-  }
-  if (!is.numeric(floor_value) || length(floor_value) != 1 || floor_value < 0) {
-    stop("`floor_value` must be a single non-negative number.", call. = FALSE)
-  }
-  if (!is.logical(descending) || length(descending) != 1) {
-    stop("`descending` must be TRUE or FALSE.", call. = FALSE)
-  }
+  .tw_validate(x, alpha, offset, floor_value, descending)
 
   # Handle all-NA or empty input
   non_na <- !is.na(x)
@@ -103,64 +88,116 @@ transform_weights <- function(x,
     return(x)
   }
 
-  result <- rep(NA_real_, length(x))
-
   if (method == "none") {
     return(x)
   }
 
   vals <- x[non_na]
+  result <- rep(NA_real_, length(x))
+  result[non_na] <- .tw_compute(
+    method, vals, alpha, offset, floor_value, descending
+  )
+  result
+}
 
+#' Validate transform_weights parameters
+#'
+#' Preserves the original short-circuit order and error-message text.
+#'
+#' @noRd
+.tw_validate <- function(x, alpha, offset, floor_value, descending) {
+  if (!is.numeric(x)) {
+    stop("`x` must be a numeric vector.", call. = FALSE)
+  }
+  msg_alpha <- "`alpha` must be a single positive number."
+  if (!is.numeric(alpha)) stop(msg_alpha, call. = FALSE)
+  if (length(alpha) != 1) stop(msg_alpha, call. = FALSE)
+  if (alpha <= 0) stop(msg_alpha, call. = FALSE)
+
+  msg_offset <- "`offset` must be a single number."
+  if (!is.numeric(offset)) stop(msg_offset, call. = FALSE)
+  if (length(offset) != 1) stop(msg_offset, call. = FALSE)
+
+  msg_floor <- "`floor_value` must be a single non-negative number."
+  if (!is.numeric(floor_value)) stop(msg_floor, call. = FALSE)
+  if (length(floor_value) != 1) stop(msg_floor, call. = FALSE)
+  if (floor_value < 0) stop(msg_floor, call. = FALSE)
+
+  msg_desc <- "`descending` must be TRUE or FALSE."
+  if (!is.logical(descending)) stop(msg_desc, call. = FALSE)
+  if (length(descending) != 1) stop(msg_desc, call. = FALSE)
+  invisible(NULL)
+}
+
+#' Dispatch a single transform method over the non-NA values
+#'
+#' @return Numeric vector aligned to the non-NA entries of `x`.
+#' @noRd
+.tw_compute <- function(method, vals, alpha, offset, floor_value, descending) {
   if (method == "rank_linear") {
-    n <- length(vals)
-    if (descending) {
-      r <- rank(-vals, ties.method = "average")
-    } else {
-      r <- rank(vals, ties.method = "average")
-    }
-    result[non_na] <- (n - r + 1) / n
-    return(result)
+    return(.tw_rank_linear(vals, descending))
   }
-
   if (method == "zipf") {
-    n <- length(vals)
-    if (descending) {
-      r <- rank(-vals, ties.method = "average")
-    } else {
-      r <- rank(vals, ties.method = "average")
-    }
-    result[non_na] <- 1 / (r^alpha)
-    return(result)
+    return(.tw_zipf(vals, alpha, descending))
   }
-
   if (method == "log") {
-    result[non_na] <- log(vals + offset)
-    return(result)
+    return(log(vals + offset))
   }
-
   if (method == "minmax") {
-    mn <- min(vals)
-    mx <- max(vals)
-    if (mx == mn) {
-      # All values identical
-      result[non_na] <- 1.0
-    } else {
-      scaled <- (vals - mn) / (mx - mn)
-      result[non_na] <- scaled * (1 - floor_value) + floor_value
-    }
-    return(result)
+    return(.tw_minmax(vals, floor_value))
   }
-
   if (method == "percentile") {
-    n <- length(vals)
-    if (descending) {
-      r <- rank(vals, ties.method = "average")
-    } else {
-      r <- rank(-vals, ties.method = "average")
-    }
-    result[non_na] <- r / n
-    return(result)
+    return(.tw_percentile(vals, descending))
   }
+  vals # nocov
+}
 
-  result # nocov
+#' Rank helper for rank-based transforms
+#'
+#' Returns ranks where, when `descending` is TRUE, higher input values get
+#' lower rank numbers (rank 1 = highest value).
+#'
+#' @noRd
+.tw_rank <- function(vals, descending) {
+  if (descending) {
+    return(rank(-vals, ties.method = "average"))
+  }
+  rank(vals, ties.method = "average")
+}
+
+#' rank_linear transform
+#' @noRd
+.tw_rank_linear <- function(vals, descending) {
+  n <- length(vals)
+  r <- .tw_rank(vals, descending)
+  (n - r + 1) / n
+}
+
+#' zipf transform
+#' @noRd
+.tw_zipf <- function(vals, alpha, descending) {
+  r <- .tw_rank(vals, descending)
+  1 / (r^alpha)
+}
+
+#' minmax transform
+#' @noRd
+.tw_minmax <- function(vals, floor_value) {
+  mn <- min(vals)
+  mx <- max(vals)
+  if (mx == mn) {
+    # All values identical
+    return(1.0)
+  }
+  scaled <- (vals - mn) / (mx - mn)
+  scaled * (1 - floor_value) + floor_value
+}
+
+#' percentile transform
+#' @noRd
+.tw_percentile <- function(vals, descending) {
+  n <- length(vals)
+  # Percentile uses the inverse rank orientation of the other rank methods.
+  r <- .tw_rank(vals, !descending)
+  r / n
 }
