@@ -121,6 +121,82 @@ describe("validate_edge_weights", {
       "finite non-negative"
     )
   })
+
+  it("validates weight_col as a single non-empty column name", {
+    edges <- data.frame(from = "A", weight = 1)
+
+    expect_error(
+      validate_edge_weights(edges, weight_col = 123),
+      "single non-empty column name"
+    )
+    expect_error(
+      validate_edge_weights(edges, weight_col = c("weight", "w2")),
+      "single non-empty column name"
+    )
+    expect_error(
+      validate_edge_weights(edges, weight_col = NA_character_),
+      "single non-empty column name"
+    )
+    expect_error(
+      validate_edge_weights(edges, weight_col = ""),
+      "single non-empty column name"
+    )
+  })
+
+  it("validates expected_total as NULL or one finite non-negative number", {
+    edges <- data.frame(from = "A", weight = 1)
+
+    expect_error(
+      validate_edge_weights(edges, expected_total = "bad"),
+      "finite non-negative"
+    )
+    expect_error(
+      validate_edge_weights(edges, expected_total = c(1, 2)),
+      "finite non-negative"
+    )
+    expect_error(
+      validate_edge_weights(edges, expected_total = NA_real_),
+      "finite non-negative"
+    )
+    expect_error(
+      validate_edge_weights(edges, expected_total = Inf),
+      "finite non-negative"
+    )
+  })
+
+  it("validates tolerance as one finite non-negative number", {
+    edges <- data.frame(from = "A", weight = 1)
+
+    expect_error(
+      validate_edge_weights(edges, tolerance = "bad"),
+      "finite non-negative"
+    )
+    expect_error(
+      validate_edge_weights(edges, tolerance = c(0.1, 0.2)),
+      "finite non-negative"
+    )
+    expect_error(
+      validate_edge_weights(edges, tolerance = NA_real_),
+      "finite non-negative"
+    )
+    expect_error(
+      validate_edge_weights(edges, tolerance = -1),
+      "finite non-negative"
+    )
+  })
+
+  it("summarizes a source group when the source itself is NA", {
+    edges <- data.frame(
+      from = c(NA_character_, NA_character_, "B"),
+      to = c("X", "Y", "Z"),
+      weight = c(1, 1, 1)
+    )
+    report <- validate_edge_weights(edges)
+
+    expect_true(any(is.na(report$source)))
+    na_row <- report[is.na(report$source), ]
+    expect_equal(na_row$n_edges, 2)
+  })
 })
 
 describe("compute_pagerank edge-weight validation", {
