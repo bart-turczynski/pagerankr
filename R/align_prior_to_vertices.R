@@ -112,20 +112,7 @@ align_prior_to_vertices <- function(vertex_names,
 
   # --- Validation ---
   vertex_names <- as.character(vertex_names)
-  if (!is.data.frame(prior_df)) {
-    stop("`prior_df` must be a data frame.", call. = FALSE)
-  }
-  if (nrow(prior_df) > 0 &&
-        !all(c(prior_url_col, prior_weight_col) %in% names(prior_df))) {
-    stop("`prior_df` must have '", prior_url_col, "' and '", prior_weight_col,
-      "' columns.",
-      call. = FALSE
-    )
-  }
-  if (!is.numeric(alpha) || length(alpha) != 1 || is.na(alpha) ||
-        alpha < 0 || alpha > 1) {
-    stop("`alpha` must be a single number between 0 and 1.", call. = FALSE)
-  }
+  .align_validate(prior_df, prior_url_col, prior_weight_col, alpha)
 
   n <- length(vertex_names)
   if (n == 0) {
@@ -133,11 +120,70 @@ align_prior_to_vertices <- function(vertex_names,
   }
 
   exclude_nodes <- as.character(exclude_nodes)
-  is_excluded <- vertex_names %in% exclude_nodes
-  real <- !is_excluded
+  real <- !(vertex_names %in% exclude_nodes)
   n_real <- sum(real)
 
   # --- Aggregate raw prior weights per URL (sum; raw counts are additive) ---
+  agg <- .align_aggregate_prior(prior_df, prior_url_col, prior_weight_col)
+
+  # --- Match, transform, and normalize the authority component ---
+  auth <- .align_compute_authority(
+    vertex_names, agg$urls, agg$w, real, transform
+  )
+
+  # --- Uniform component over real (non-excluded) vertices ---
+  uniform <- rep(0, n)
+  if (n_real > 0) uniform[real] <- 1 / n_real
+
+  # --- Mixture + normalization (with uniform fallback) ---
+  p <- .align_mix_normalize(
+    auth$auth_share, uniform, n_real, n, alpha, verbose
+  )
+
+  # --- Diagnostics ---
+  if (verbose) {
+    .align_emit_diagnostics(
+      vertex_names, agg$urls, agg$w, auth$has_auth, n_real,
+      auth$auth_sum, transform, alpha
+    )
+  }
+
+  p
+}
+
+#' Validate align_prior_to_vertices inputs
+#' @noRd
+.align_validate <- function(prior_df, prior_url_col, prior_weight_col, alpha) {
+  if (!is.data.frame(prior_df)) {
+    stop("`prior_df` must be a data frame.", call. = FALSE)
+  }
+  if (nrow(prior_df) > 0) {
+    if (!all(c(prior_url_col, prior_weight_col) %in% names(prior_df))) {
+      stop("`prior_df` must have '", prior_url_col, "' and '", prior_weight_col,
+        "' columns.",
+        call. = FALSE
+      )
+    }
+  }
+  .align_validate_alpha(alpha)
+  invisible(NULL)
+}
+
+#' Validate the alpha mixture knob
+#' @noRd
+.align_validate_alpha <- function(alpha) {
+  msg <- "`alpha` must be a single number between 0 and 1."
+  if (!is.numeric(alpha)) stop(msg, call. = FALSE)
+  if (length(alpha) != 1) stop(msg, call. = FALSE)
+  if (is.na(alpha)) stop(msg, call. = FALSE)
+  if (alpha < 0) stop(msg, call. = FALSE)
+  if (alpha > 1) stop(msg, call. = FALSE)
+  invisible(NULL)
+}
+
+#' Aggregate raw prior weights per URL (sum; raw counts are additive)
+#' @noRd
+.align_aggregate_prior <- function(prior_df, prior_url_col, prior_weight_col) {
   prior_urls <- character(0)
   prior_w <- numeric(0)
   if (nrow(prior_df) > 0) {
@@ -152,7 +198,14 @@ align_prior_to_vertices <- function(vertex_names,
       prior_w <- as.numeric(agg)
     }
   }
+  list(urls = prior_urls, w = prior_w)
+}
 
+#' Match prior onto vertices and build the normalized authority share
+#' @noRd
+.align_compute_authority <- function(vertex_names, prior_urls, prior_w, real,
+                                     transform) {
+  n <- length(vertex_names)
   # --- Match onto vertices (absent vertices -> raw 0) ---
   idx <- match(vertex_names, prior_urls)
   raw <- ifelse(is.na(idx), 0, prior_w[idx])
@@ -168,51 +221,48 @@ align_prior_to_vertices <- function(vertex_names,
   }
   auth_sum <- sum(authority)
   auth_share <- if (auth_sum > 0) authority / auth_sum else rep(0, n)
+  list(auth_share = auth_share, auth_sum = auth_sum, has_auth = has_auth)
+}
 
-  # --- Uniform component over real (non-excluded) vertices ---
-  uniform <- rep(0, n)
-  if (n_real > 0) uniform[real] <- 1 / n_real
-
-  # --- Mixture ---
+#' Mix uniform + authority teleport and normalize to sum 1
+#' @noRd
+.align_mix_normalize <- function(auth_share, uniform, n_real, n, alpha,
+                                 verbose) {
   p <- alpha * uniform + (1 - alpha) * auth_share
-
   s <- sum(p)
-  if (s <= 0) {
-    # alpha == 0 and nothing matched: fall back to uniform over real vertices.
-    if (n_real > 0) {
-      p <- uniform
-      if (verbose) {
-        warning("Prior matched no vertices; falling back to uniform teleport ",
-          "over the ", n_real, " non-excluded vertices.",
-          call. = FALSE
-        )
-      }
-    } else {
-      p <- rep(1 / n, n) # degenerate: everything excluded
+  if (s > 0) {
+    return(p / s)
+  }
+  # alpha == 0 and nothing matched: fall back to uniform over real vertices.
+  if (n_real > 0) {
+    if (verbose) {
+      warning("Prior matched no vertices; falling back to uniform teleport ",
+        "over the ", n_real, " non-excluded vertices.",
+        call. = FALSE
+      )
     }
-  } else {
-    p <- p / s
+    return(uniform)
   }
+  rep(1 / n, n) # degenerate: everything excluded
+}
 
-  # --- Diagnostics ---
-  if (verbose) {
-    n_auth <- sum(has_auth)
-    matched_urls <- unique(vertex_names[has_auth])
-    unmatched_mask <- !(prior_urls %in% vertex_names)
-    n_unmatched <- sum(unmatched_mask)
-    w_unmatched <- sum(prior_w[unmatched_mask])
-    uniform_mass <- if (auth_sum > 0) alpha else 1
-    message(sprintf(
-      paste0(
-        "TIPR prior aligned: %d/%d real vertices carry authority; ",
-        "transform='%s', alpha=%.3g (uniform mass ~%.1f%%). ",
-        "%d prior URL(s) (sum weight %.0f) did not fold onto any vertex ",
-        "and were dropped."
-      ),
-      n_auth, n_real, transform, alpha, uniform_mass * 100,
-      n_unmatched, w_unmatched
-    ))
-  }
-
-  p
+#' Emit TIPR coverage diagnostics via message()
+#' @noRd
+.align_emit_diagnostics <- function(vertex_names, prior_urls, prior_w, has_auth,
+                                    n_real, auth_sum, transform, alpha) {
+  n_auth <- sum(has_auth)
+  unmatched_mask <- !(prior_urls %in% vertex_names)
+  n_unmatched <- sum(unmatched_mask)
+  w_unmatched <- sum(prior_w[unmatched_mask])
+  uniform_mass <- if (auth_sum > 0) alpha else 1
+  message(sprintf(
+    paste0(
+      "TIPR prior aligned: %d/%d real vertices carry authority; ",
+      "transform='%s', alpha=%.3g (uniform mass ~%.1f%%). ",
+      "%d prior URL(s) (sum weight %.0f) did not fold onto any vertex ",
+      "and were dropped."
+    ),
+    n_auth, n_real, transform, alpha, uniform_mass * 100,
+    n_unmatched, w_unmatched
+  ))
 }
