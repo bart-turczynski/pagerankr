@@ -26,7 +26,7 @@ pagerankr: SEO-Focused PageRank Modeling Toolkit
 
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![Verify](https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml)
+[![R-CMD-check](https://github.com/bart-turczynski/pagerankr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 `pagerankr` is an SEO-focused R toolkit for PageRank modeling on crawl
@@ -71,14 +71,12 @@ edges <- data.frame(
            "http://example.com/blog"),
   to   = c("http://example.com/about",
            "http://example.com/home",
-           "http://example.com/home"),
-  stringsAsFactors = FALSE
+           "http://example.com/home")
 )
 
 redirects <- data.frame(
   from = "http://example.com/old-blog",
-  to   = "http://example.com/blog",
-  stringsAsFactors = FALSE
+  to   = "http://example.com/blog"
 )
 
 pr <- pagerank(edges, redirects_df = redirects)
@@ -165,8 +163,7 @@ pagerank_screaming_frog(
 edges_w <- data.frame(
   from = c("Home", "Home", "Home"),
   to = c("About", "Blog", "Contact"),
-  position = c(1, 2, 5),
-  stringsAsFactors = FALSE
+  position = c(1, 2, 5)
 )
 
 edges_w$weight <- transform_weights(
