@@ -225,6 +225,18 @@ describe("ga4_page_transitions: edge cases", {
     # /a->NA and NA->/b both dropped; no usable transition remains.
     expect_equal(nrow(res), 0L)
   })
+
+  it("returns empty when events_df has only a single row", {
+    events <- data.frame(
+      user_pseudo_id = "u1",
+      ga_session_id = 1,
+      page_location = "/a",
+      event_timestamp = 1
+    )
+    res <- ga4_page_transitions(events)
+    expect_equal(nrow(res), 0L)
+    expect_identical(names(res), c("from", "to", "n"))
+  })
 })
 
 
@@ -252,6 +264,61 @@ describe("ga4_page_transitions: validation", {
     )
     expect_error(
       ga4_page_transitions(events, drop_self_transitions = "yes"),
+      "must be TRUE or FALSE"
+    )
+  })
+
+  it("errors when a scalar-string argument is not a character", {
+    events <- data.frame(
+      user_pseudo_id = "u1", ga_session_id = 1,
+      page_location = "/a", event_timestamp = 1
+    )
+    expect_error(
+      ga4_page_transitions(events, user_id_col = 123),
+      "must be a single non-NA character string"
+    )
+  })
+
+  it("errors when a scalar-string argument has length != 1", {
+    events <- data.frame(
+      user_pseudo_id = "u1", ga_session_id = 1,
+      page_location = "/a", event_timestamp = 1
+    )
+    expect_error(
+      ga4_page_transitions(events, user_id_col = c("a", "b")),
+      "must be a single non-NA character string"
+    )
+  })
+
+  it("errors when a scalar-string argument is NA", {
+    events <- data.frame(
+      user_pseudo_id = "u1", ga_session_id = 1,
+      page_location = "/a", event_timestamp = 1
+    )
+    expect_error(
+      ga4_page_transitions(events, user_id_col = NA_character_),
+      "must be a single non-NA character string"
+    )
+  })
+
+  it("errors when drop_self_transitions has length != 1", {
+    events <- data.frame(
+      user_pseudo_id = "u1", ga_session_id = 1,
+      page_location = "/a", event_timestamp = 1
+    )
+    expect_error(
+      ga4_page_transitions(events, drop_self_transitions = c(TRUE, FALSE)),
+      "must be TRUE or FALSE"
+    )
+  })
+
+  it("errors when drop_self_transitions is NA", {
+    events <- data.frame(
+      user_pseudo_id = "u1", ga_session_id = 1,
+      page_location = "/a", event_timestamp = 1
+    )
+    expect_error(
+      ga4_page_transitions(events, drop_self_transitions = NA),
       "must be TRUE or FALSE"
     )
   })
