@@ -304,3 +304,63 @@ describe("transition_audit print method branches", {
     expect_output(print(audit), "Counted dup edges")
   })
 })
+
+describe("transition_audit print helpers for degenerate structures", {
+  it(".print_ta_duplicates is silent when duplicates is NULL", {
+    expect_silent(.print_ta_duplicates(list(duplicates = NULL)))
+  })
+
+  it(".print_ta_fold is silent when fold is NULL", {
+    expect_silent(.print_ta_fold(list(fold = NULL)))
+  })
+
+  it("is silent on fold-target collisions with zero rows", {
+    audit <- pagerankr::new_transition_audit(
+      fold_collisions = data.frame(
+        target = character(0), n_independent_refs = integer(0),
+        source = character(0)
+      )
+    )
+    out <- paste(capture.output(print(audit)), collapse = "\n")
+    expect_false(grepl("Fold-target collisions", out))
+  })
+
+  it("prints fold-target collision rows when present", {
+    audit <- pagerankr::new_transition_audit(
+      fold_collisions = data.frame(
+        target = "https://example.com/z",
+        n_independent_refs = 2L,
+        source = "https://example.com/a"
+      )
+    )
+    expect_output(print(audit), "Fold-target collisions")
+    expect_output(print(audit), "independent ref")
+  })
+
+  it("prints the leak action when out-of-scope folds route to the leak sink", {
+    audit <- pagerankr::new_transition_audit(
+      out_of_scope_fold = "leak",
+      n_out_of_scope_folds = 1L,
+      out_of_scope_folds_applied = TRUE
+    )
+    expect_output(print(audit), "routed to leak sink")
+  })
+
+  it("prints the relabeled action when out-of-scope folds were applied", {
+    audit <- pagerankr::new_transition_audit(
+      out_of_scope_fold = "relabel",
+      n_out_of_scope_folds = 1L,
+      out_of_scope_folds_applied = TRUE
+    )
+    expect_output(print(audit), "relabeled (applied)", fixed = TRUE)
+  })
+
+  it("prints the skipped action when out-of-scope folds were kept", {
+    audit <- pagerankr::new_transition_audit(
+      out_of_scope_fold = "keep",
+      n_out_of_scope_folds = 1L,
+      out_of_scope_folds_applied = FALSE
+    )
+    expect_output(print(audit), "skipped (kept)", fixed = TRUE)
+  })
+})
