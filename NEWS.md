@@ -21,7 +21,7 @@
 * `clean_url_columns()` now preserves tokens that `rurl` cannot parse as a URL
   (e.g. a dotless bare label such as `"A"`) as their raw value instead of
   turning them into NA. Newer `rurl` (>= 2.1.0) normalizes such dotless tokens
-  to NA; combined with the `rurl` floor bump in the PAGE-ssuowttj follow-up,
+  to NA; combined with the `rurl` floor bump in the follow-up,
   this had silently collapsed non-URL node identities to NA — they were then
   dropped by `get_unique_edges()`, so [pagerank()] returned an empty result for
   any graph built from bare labels. Unparseable-but-present tokens are now kept
@@ -33,8 +33,7 @@
   separate IDNA-forced parse. `.build_url_maps()` parses each unique URL once
   (host + `domain_ascii`) rather than twice, and the `.domain_profile()`
   forced-idna helper is gone. Behavior is unchanged — `münchen.de` and
-  `xn--mnchen-3ya.de` still fold to one key under every `host_encoding`
-  (PAGE-ssuowttj follow-up).
+  `xn--mnchen-3ya.de` still fold to one key under every `host_encoding`.
 
 * `pagerank_screaming_frog()` gains `apply_canonicals` and `apply_redirects`
   toggles (both `TRUE` by default, preserving current behavior). Setting either
@@ -43,23 +42,24 @@
   supported as-crawled run that keeps the crawled node identities — the escape
   hatch for crawls whose canonicals point off the crawled domain (mirror /
   staging hosts) and would otherwise relabel crawled pages onto uncrawled
-  targets. The reserved-arg guard still blocks the raw `canonicals_df` /
+  targets. The reserved-argument guard still blocks the raw `canonicals_df` /
   `redirects_df` pagerank arguments. `screaming_frog_bundle()` now reports an
   off-domain canonical count (`counts$canonicals_off_domain`, surfaced in
   `summary()`/`print()`), reusing the existing absent-target classification, and
   the wrapper exposes it on the `screaming_frog_import` audit so the
-  mirror-staging scenario is visible at import and scoring time (PAGE-rfbqzsac).
+  mirror-staging scenario is visible at import and scoring time.
 
 * `pagerank()` now detects **fold-target collisions**: when a canonical/redirect
   relabels a crawled page's node onto an *uncrawled* URL that is ALSO
   independently referenced as a genuine link endpoint, the two silently merge
-  into one vertex and the crawled page absorbs the URL's inbound link equity.
+  into one vertex and the crawled page absorbs the inbound link equity of that
+  uncrawled URL.
   `pagerank()` emits a `warning()` naming the merged URL(s) and records them in
   the `fold` section of the `transition_audit` object under a new `collisions`
   field (a data frame of `target` / `n_independent_refs` / `source`, or `NULL`
   when none). The crawl's known-URL set (`indexability_df`) is used to tell an
   uncrawled fold target from a genuinely crawled leaf page, so the diagnostic is
-  only computed when an `indexability_df` is supplied (PAGE-rjrduvmy).
+  only computed when an `indexability_df` is supplied.
 
 * `pagerank()` now warns when a `keep_domains` / `exclude_domains` /
   `keep_hosts` / `exclude_hosts` value matched the crawled input but no node
@@ -68,7 +68,7 @@
   names the folded-away value(s) and points at the fold as the cause. The
   fold-then-filter ordering is now documented explicitly in the `pagerank()`
   and `filter_links_by_domain()` docs; to scope the crawled input, filter with
-  `filter_links_by_domain()` before calling `pagerank()` (PAGE-owdnylqo).
+  `filter_links_by_domain()` before calling `pagerank()`.
 
 * `out_of_scope_fold` gains a third policy, `"leak"`: a crawled page whose
   canonical/redirect folds out of scope is treated like an external redirect —
@@ -78,7 +78,7 @@
   reported as a new `leaked` term in the `transition_audit` `mass` accounting,
   which now decomposes as `reported + sink + leaked + hidden = total` (`= 1`);
   `leaked` is `0` for `"relabel"`/`"keep"` runs so their totals are unchanged.
-  The `fold` audit section reports `policy == "leak"` (PAGE-xkmqsbqv).
+  The `fold` audit section reports `policy == "leak"`.
 
 * `pagerank()` gains an `out_of_scope_fold` argument (`"relabel"` default, or
   `"keep"`) governing composed fold-map entries whose target is not itself a
@@ -88,7 +88,7 @@
   rather than being relabeled to phantom vertices (the same filtered map folds
   the TIPR prior). Regardless of policy, the count and list of out-of-scope
   folds (source, target, signal) are recorded in a new `fold` section of the
-  `transition_audit` object (PAGE-ttlaxjkw).
+  `transition_audit` object.
 
 * Code-quality pass: `anyNA()` replaces `any(is.na())`, `!all(x)` replaces
   `any(!x)`, nested `ifelse()` replaced with vectorized assignment,
@@ -106,7 +106,7 @@
   solver exposes it), and a solver-independent post-hoc L1 residual
   `||Gx - x||_1` of the returned vector — a genuine quality check comparable
   across both back-ends. Docs cover the damping/iteration-count rule of thumb
-  `log10(eps) / log10(damping)` (PAGE-wyxhjfip).
+  `log10(eps) / log10(damping)`.
 * New `topic_feeder_pagerank()` and `feeder_seed_prior()` answer the inverse of
   `topic_sensitive_pagerank()`: not "which page is most authoritative *for* this
   cluster" but "which pages *feed / power* this cluster" — the internal hubs
@@ -120,7 +120,7 @@
   orchestration over the existing TIPR personalization path on the reversed
   graph — no new solver. New `topic_feeder_pagerank` vignette walks through the
   AI-Agent-cluster use case and contrasts it with the forward authority view and
-  with HITS hubs (PAGE-gwjdxmlm).
+  with HITS hubs.
 * New `salsa()` and `compute_salsa()` add Lempel & Moran's (2001) SALSA hub and
   authority scores: a stochastic variant of HITS that runs the
   mutual-reinforcement step as PageRank-style random walks on the bipartite
@@ -134,7 +134,7 @@
   side sums to 1; coverage differs from PageRank by design (`hub` is `NA` for
   pure sinks, `authority` is `NA` for pure sources). v1 is unweighted; a
   weighted extension is deferred. Documented as a site-graph adaptation of the
-  original focused-subgraph algorithm (PAGE-sghubtxk).
+  original focused-subgraph algorithm.
 * New `trustrank()` and `trust_seed_prior()` add TrustRank-style seed-biased
   PageRank (Gyöngyi, Garcia-Molina & Pedersen, 2004): personalized PageRank
   whose teleport vector is concentrated on a set of trusted seed pages, so
@@ -145,8 +145,7 @@
   wrapper that builds the seed prior and runs `pagerank()` with it. Pure
   orchestration over the existing TIPR personalization path — no new solver;
   seed selection is the caller's (it is seed-biased PageRank, not a spam
-  classifier). New `trustrank` vignette walks through a worked example
-  (PAGE-bdgzgwmb).
+  classifier). New `trustrank` vignette walks through a worked example.
 * New `topic_sensitive_pagerank()` computes per-topic PageRank by running the
   existing `pagerank()` engine once per topic with a teleport prior biased
   toward each topic's seed cluster, then blends the per-topic scores into a
@@ -156,7 +155,7 @@
   `data.frame`. Returns one score column per topic plus a weight-normalized
   `blended` column, with the per-topic `transition_audit` objects attached.
   Pure orchestration over the TIPR personalization path — no new solver, and
-  topic membership is supplied by the caller, not inferred (PAGE-yubrkleu).
+  topic membership is supplied by the caller, not inferred.
 * New `smooth_transitions()` shrinks sparse empirical page-transition shares
   (e.g. from `ga4_page_transitions()`) toward the crawl-graph link structure,
   so no valid crawled link is ever assigned exactly zero probability. Uses a
@@ -165,7 +164,7 @@
   fallback to the prior, optional weighted priors, and an `origin` diagnostic
   (`both` / `empirical_only` / `structural_only`). Time decay and
   device/template/channel segmentation are handled upstream by shaping the
-  count input (PAGE-hafjjear).
+  count input.
 * New `hits()` and `compute_hits()` add Kleinberg's HITS hub and authority
   scores, computed with `igraph::hits_scores()` over the same cleaned,
   redirect/canonical-folded, domain-filtered, deduplicated link graph as
@@ -173,71 +172,65 @@
   cover the matrix formulation (authority = dominant eigenvector of `A^T A`,
   hub = dominant eigenvector of `A A^T`) and the whole-graph caveat: unlike
   Kleinberg's query-focused base set, these are site-wide structural
-  centralities (PAGE-ymcxurfd).
+  centralities.
 * `pagerank()` now has an explicit `duplicate_edge_policy` for repeated
   `from -> to` rows after URL folding and filtering. The default `"collapse"`
   preserves the standard binary/destination-level PageRank convention and
   previous results; opt-in `"aggregate"` sums duplicate numeric weights with
   `aggregate_edges()` semantics; opt-in `"count_instances"` models a
   link-slot surfer where repeated links increase transition probability and
-  records instance-count details in the transition audit (PAGE-akyureac).
+  records instance-count details in the transition audit.
 * Recorded representative Screaming Frog crawl acceptance results and added
   package-level operational documentation for required exports, default graph
-  policy, optional origin/placement policies, and contract pinning
-  (PAGE-ikcyjqic).
+  policy, optional origin/placement policies, and contract pinning.
 * New `pagerank_screaming_frog()` scores a `screaming_frog_bundle()` through
   the existing `pagerank()` pipeline, feeding only graph-eligible hyperlink
   edges while attaching Screaming Frog import diagnostics beside the transition
   audit. Placement/origin filtering and placement-derived weighting are
-  explicit opt-ins (PAGE-sgyfclym).
+  explicit opt-ins.
 * New `screaming_frog_bundle()` composes Internal: All and All Inlinks/Outlinks
   adapters into the stable crawl handoff object with raw observations, graph
   edges, node signals, cross-table reconciliation diagnostics, provenance, and
-  concise print/summary methods (PAGE-uggwyfop).
+  concise print/summary methods.
 * New canonical and composed URL-resolution helpers:
   `resolve_canonicals()`, `resolve_canonical_urls()`, and
   `resolve_folded_urls()` expose the existing fold-map engine for rel=canonical
-  and redirect+canonical URL folding without duplicating resolver logic
-  (PAGE-mhtjirux).
+  and redirect+canonical URL folding without duplicating resolver logic.
 * Documented the indexed-corpus assumption used by `pagerank()`: noindex
   pages may receive authority but their outlinks are treated as nofollow for
   propagation within the indexed graph. The docs now distinguish
   slot-consuming `"evaporate"`, slot-removing `"drop"`, and normally followed
-  `"keep"` without attributing this package model to Google (PAGE-aniklatq).
+  `"keep"` without attributing this package model to Google.
 * New `screaming_frog_links()` imports **All Inlinks** and **All Outlinks**
   with identical Source-to-Destination orientation, preserving raw duplicate
   observations while deriving explicit Hyperlink-only graph edges with
-  nofollow, placement, origin, endpoint, and exclusion diagnostics
-  (PAGE-gzitxahc).
+  nofollow, placement, origin, endpoint, and exclusion diagnostics.
 * New `screaming_frog_internal()` imports UTF-8/BOM **Internal: All** exports
   with alias-insensitive schema detection and selective file reads. It returns
   deterministic node, redirect, canonical, and indexability tables while
   preserving raw URLs and reporting missing, duplicate, invalid, and ignored
-  input facts (PAGE-bleererh).
+  input facts.
 * `pagerank()` now attaches a `transition_audit` provenance object to its result
   as `attr(result, "transition_audit")` (backward-compatible): row/edge counts,
   behavioral-weight coverage, normalization total, dropped data (NA / dedup /
   self-loop rows, unmatched prior URLs), robots-blocked count, and the model
-  configuration used. Has a `print` method (PAGE-czbpthiz).
+  configuration used. Has a `print` method.
 * The `transition_audit` object's `mass` field now decomposes the page-mass
   deficit precisely into `reported` (visible page mass), `sink` (evaporated
   nofollow-sink mass), `hidden` (robots-blocked mass), and `total` (= 1 by
   construction) — replacing undifferentiated "leakage" language with precise
-  evaporated/hidden accounting (PAGE-mqsxrcdz).
+  evaporated/hidden accounting.
 * New `aggregate_edges()`: loss-aware post-fold edge aggregation with explicit
   per-column semantics (sum counts, boolean conflict policy `any`/`all`/
-  `majority`/`error`, `preserve_cols` list-columns for placement features)
-  (PAGE-aiigeiyz).
+  `majority`/`error`, `preserve_cols` list-columns for placement features).
 * New `transform_edge_weights()`: per-source grouped weight transforms reusing
   `transform_weights()` methods, emitting a per-source `transition_probability`
-  that sums to 1 within each `by` group (PAGE-bvhojxhd).
+  that sums to 1 within each `by` group.
 * New `ga4_page_transitions()`: consecutive-page-view transition counts from a
   GA4 BigQuery export with a deterministic session/event ordering contract
-  (timestamp + batch tie-breaks). A transition signal, not a link-click signal
-  (PAGE-tcjwgtqd).
+  (timestamp + batch tie-breaks). A transition signal, not a link-click signal.
 * New `ga4_entrance_teleport()`: entrance/landing-page counts as a teleport
   (reset) vector reusing the `prior_df` / `align_prior_to_vertices()` machinery;
-  documented as a proxy, distinct from the backlink-authority prior
-  (PAGE-bajcmzez).
+  documented as a proxy, distinct from the backlink-authority prior.
 
 * Initial CI and lint baseline.

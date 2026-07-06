@@ -90,7 +90,7 @@ fields are **stable**; callers may rely on them being present.
     frame of **fold-target collisions** — uncrawled URLs that a fold
     relabeled a crawled source onto while they were ALSO independently
     linked, so the two silently merge into one vertex and the crawled page
-    absorbs the URL's inbound link equity; columns `target`,
+    absorbs the inbound link equity of that uncrawled URL; columns `target`,
     `n_independent_refs` and the folded `source`(s) — or `NULL` when none). A
     collision triggers a `warning()` naming the merged URL(s). This
     diagnostic requires crawl-URL knowledge to distinguish an uncrawled fold

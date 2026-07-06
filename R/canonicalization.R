@@ -32,7 +32,7 @@
 #'
 #'   **Knobs deliberately left unpinned.** `rurl::get_clean_url()` has grown
 #'   options that govern components the node key does not carry:
-#'   `query_handling` (default `"drop"`) and its param sub-options,
+#'   `query_handling` (default `"drop"`) and its parameter sub-options,
 #'   `port_handling` (default `"exclude"`), and the `url_standard` selector
 #'   (default `NULL` -- no standard profile, added in `rurl` 2.2.0). Under the
 #'   scheme+host+path key these have no visible effect at their defaults, so
