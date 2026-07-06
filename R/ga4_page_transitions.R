@@ -110,10 +110,6 @@ ga4_page_transitions <- function(events_df,
                                  count_col = "n",
                                  drop_self_transitions = TRUE) {
   # --- Validation ---
-  if (!is.data.frame(events_df)) {
-    stop("`events_df` must be a data frame.", call. = FALSE)
-  }
-
   char_args <- list(
     user_id_col = user_id_col,
     session_id_col = session_id_col,
@@ -123,41 +119,18 @@ ga4_page_transitions <- function(events_df,
     to_col = to_col,
     count_col = count_col
   )
-  for (nm in names(char_args)) {
-    val <- char_args[[nm]]
-    if (!is.character(val) || length(val) != 1 || is.na(val)) {
-      stop("`", nm, "` must be a single non-NA character string.",
-        call. = FALSE
-      )
-    }
-  }
-
-  if (!is.logical(drop_self_transitions) ||
-        length(drop_self_transitions) != 1 ||
-        is.na(drop_self_transitions)) {
-    stop("`drop_self_transitions` must be TRUE or FALSE.", call. = FALSE)
-  }
+  .ga4_validate_args(events_df, char_args, drop_self_transitions)
 
   # Required identity / page / ordering columns.
   required_cols <- c(user_id_col, session_id_col, page_col, timestamp_col)
-  missing_required <- required_cols[!required_cols %in% names(events_df)]
-  if (length(missing_required) > 0) {
-    stop(
-      "`events_df` is missing required column(s): ",
-      paste(missing_required, collapse = ", "), ".",
-      call. = FALSE
-    )
-  }
+  .ga4_check_required_cols(events_df, required_cols)
 
   # Optional tie-break columns, applied in the documented order. Skip any that
   # the user did not supply in `events_df`.
-  tie_break_cols <- c(
-    batch_page_id_col, batch_ordering_id_col, batch_event_index_col
+  tie_break_cols <- .ga4_resolve_tie_break_cols(
+    c(batch_page_id_col, batch_ordering_id_col, batch_event_index_col),
+    events_df
   )
-  tie_break_cols <- tie_break_cols[
-    !vapply(tie_break_cols, is.null, logical(1))
-  ]
-  tie_break_cols <- tie_break_cols[tie_break_cols %in% names(events_df)]
 
   # --- Empty input: return an empty edge list with the right shape. ---
   empty_result <- function() {
@@ -173,6 +146,100 @@ ga4_page_transitions <- function(events_df,
   }
 
   # --- Deterministic ordering contract ---
+  ordered <- .ga4_order_events(
+    events_df, user_id_col, session_id_col, page_col, timestamp_col,
+    tie_break_cols
+  )
+
+  # --- Build within-session consecutive transitions ---
+  if (length(ordered$page) < 2L) {
+    return(empty_result())
+  }
+
+  trans <- .ga4_build_transitions(
+    ordered$user, ordered$session, ordered$page, drop_self_transitions
+  )
+
+  if (length(trans$from) == 0) {
+    return(empty_result())
+  }
+
+  # --- Aggregate to transition counts ---
+  .ga4_aggregate_transitions(
+    trans$from, trans$to, from_col, to_col, count_col
+  )
+}
+
+#' Validate a single scalar non-NA character argument.
+#' @noRd
+.ga4_check_scalar_string <- function(val, nm) {
+  msg <- paste0("`", nm, "` must be a single non-NA character string.")
+  if (!is.character(val)) {
+    stop(msg, call. = FALSE)
+  }
+  if (length(val) != 1) {
+    stop(msg, call. = FALSE)
+  }
+  if (is.na(val)) {
+    stop(msg, call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+#' Validate the `drop_self_transitions` flag.
+#' @noRd
+.ga4_check_drop_self <- function(drop_self_transitions) {
+  msg <- "`drop_self_transitions` must be TRUE or FALSE."
+  if (!is.logical(drop_self_transitions)) {
+    stop(msg, call. = FALSE)
+  }
+  if (length(drop_self_transitions) != 1) {
+    stop(msg, call. = FALSE)
+  }
+  if (is.na(drop_self_transitions)) {
+    stop(msg, call. = FALSE)
+  }
+  invisible(TRUE)
+}
+
+#' Validate `events_df` shape and all scalar arguments, in order.
+#' @noRd
+.ga4_validate_args <- function(events_df, char_args, drop_self_transitions) {
+  if (!is.data.frame(events_df)) {
+    stop("`events_df` must be a data frame.", call. = FALSE)
+  }
+  for (nm in names(char_args)) {
+    .ga4_check_scalar_string(char_args[[nm]], nm)
+  }
+  .ga4_check_drop_self(drop_self_transitions)
+  invisible(TRUE)
+}
+
+#' Ensure all required columns are present in `events_df`.
+#' @noRd
+.ga4_check_required_cols <- function(events_df, required_cols) {
+  missing_required <- required_cols[!required_cols %in% names(events_df)]
+  if (length(missing_required) > 0) {
+    stop(
+      "`events_df` is missing required column(s): ",
+      paste(missing_required, collapse = ", "), ".",
+      call. = FALSE
+    )
+  }
+  invisible(TRUE)
+}
+
+#' Drop tie-break columns that are NULL or absent from `events_df`.
+#' @noRd
+.ga4_resolve_tie_break_cols <- function(cols, events_df) {
+  cols <- cols[!vapply(cols, is.null, logical(1))]
+  cols[cols %in% names(events_df)]
+}
+
+#' Apply the deterministic ordering contract and return ordered vectors.
+#' @noRd
+.ga4_order_events <- function(events_df, user_id_col, session_id_col, page_col,
+                              timestamp_col, tie_break_cols) {
   # Order by session identity, then event_timestamp, then the batch tie-break
   # fields in order, then original row order as a final stabilizer.
   page <- as.character(events_df[[page_col]])
@@ -186,15 +253,14 @@ ga4_page_transitions <- function(events_df,
   )
   ord <- do.call(order, order_keys)
 
-  user <- user[ord]
-  session <- session[ord]
-  page <- page[ord]
+  list(user = user[ord], session = session[ord], page = page[ord])
+}
 
-  # --- Build within-session consecutive transitions ---
+#' Build within-session consecutive from/to transition vectors.
+#' @noRd
+.ga4_build_transitions <- function(user, session, page,
+                                   drop_self_transitions) {
   n <- length(page)
-  if (n < 2L) {
-    return(empty_result())
-  }
 
   # A transition is valid only between adjacent rows of the SAME session.
   # Compare each row with its predecessor.
@@ -216,11 +282,13 @@ ga4_page_transitions <- function(events_df,
     to_vec <- to_vec[not_self]
   }
 
-  if (length(from_vec) == 0) {
-    return(empty_result())
-  }
+  list(from = from_vec, to = to_vec)
+}
 
-  # --- Aggregate to transition counts ---
+#' Aggregate from/to vectors into a stable-ordered transition-count edge list.
+#' @noRd
+.ga4_aggregate_transitions <- function(from_vec, to_vec, from_col, to_col,
+                                       count_col) {
   agg <- stats::aggregate(
     list(count = rep(1L, length(from_vec))),
     by = list(from = from_vec, to = to_vec),
