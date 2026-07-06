@@ -17,3 +17,11 @@
 \description{
 Print a transition_audit object
 }
+\examples{
+# A transition_audit is attached to every pagerank() result; print it to
+# get a human-readable construction / provenance summary.
+edges <- data.frame(from = c("a", "a", "b"), to = c("b", "c", "c"))
+result <- pagerank(edges)
+audit <- attr(result, "transition_audit")
+print(audit)
+}
