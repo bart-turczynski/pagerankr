@@ -125,6 +125,22 @@ screaming_frog_bundle <- function(internal,
 #' @param ... Unused; for S3 compatibility.
 #' @return A compact named list of row counts and reconciliation counts.
 #' @export
+#'
+#' @examples
+#' internal <- data.frame(
+#'   Address = c("https://example.com/", "https://example.com/a"),
+#'   `Status Code` = c("200", "200"),
+#'   check.names = FALSE
+#' )
+#' links <- data.frame(
+#'   Type = "Hyperlink",
+#'   Source = "https://example.com/",
+#'   Destination = "https://example.com/a",
+#'   Follow = "TRUE",
+#'   check.names = FALSE
+#' )
+#' bundle <- screaming_frog_bundle(internal, links, "all_outlinks")
+#' summary(bundle)
 summary.screaming_frog_bundle <- function(object, ...) {
   structure(
     list(
@@ -153,6 +169,22 @@ summary.screaming_frog_bundle <- function(object, ...) {
 #' @param ... Unused; for S3 compatibility.
 #' @return `x`, invisibly.
 #' @export
+#'
+#' @examples
+#' internal <- data.frame(
+#'   Address = c("https://example.com/", "https://example.com/a"),
+#'   `Status Code` = c("200", "200"),
+#'   check.names = FALSE
+#' )
+#' links <- data.frame(
+#'   Type = "Hyperlink",
+#'   Source = "https://example.com/",
+#'   Destination = "https://example.com/a",
+#'   Follow = "TRUE",
+#'   check.names = FALSE
+#' )
+#' bundle <- screaming_frog_bundle(internal, links, "all_outlinks")
+#' print(bundle)
 print.screaming_frog_bundle <- function(x, ...) {
   s <- summary(x)
   cat("=== Screaming Frog Bundle ===\n\n")
