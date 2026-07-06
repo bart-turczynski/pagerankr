@@ -87,6 +87,20 @@ describe("pagerank_grid basic functionality", {
     expect_error(pagerank_grid("bad", list(m = list())), "data frame")
   })
 
+  it("errors when params_grid is not a list", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(
+      pagerank_grid(edges, 1:3),
+      "must be a non-empty named list"
+    )
+  })
+
+  it("errors when params_grid has a mix of named and unnamed entries", {
+    edges <- data.frame(from = "A", to = "B")
+    params <- list(m1 = list(damping = 0.85), list(damping = 0.5))
+    expect_error(pagerank_grid(edges, params), "must be named")
+  })
+
   it("handles model that returns empty results", {
     # An edge list that, after cleaning, has no valid edges for a model
     edges <- data.frame(from = c("A"), to = c(NA))

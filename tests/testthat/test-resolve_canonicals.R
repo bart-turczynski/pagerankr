@@ -69,6 +69,29 @@ describe("resolve_canonical_urls()", {
 
     expect_identical(result$resolved, "C")
   })
+
+  it("errors when urls is not a character vector", {
+    canonicals <- data.frame(from = "A", to = "B")
+    expect_error(
+      resolve_canonical_urls(123, canonicals),
+      "`urls` must be a character vector."
+    )
+  })
+
+  it("errors when canonicals_df is not a data frame", {
+    expect_error(
+      resolve_canonical_urls("A", "not a data frame"),
+      "`canonicals_df` must be a data frame."
+    )
+  })
+
+  it("errors when canonicals_df is missing required columns", {
+    canonicals <- data.frame(foo = "A", bar = "B")
+    expect_error(
+      resolve_canonical_urls("A", canonicals),
+      "`canonicals_df` must have 'from' and 'to' columns."
+    )
+  })
 })
 
 describe("resolve_canonicals()", {
@@ -115,6 +138,36 @@ describe("resolve_canonicals()", {
 
     expect_identical(result$source_url, "A")
     expect_identical(result$target_url, "C")
+  })
+
+  it("returns the edge list unchanged when the fold map is empty", {
+    edges <- data.frame(
+      from = c("A", "X"),
+      to = c("B", "Y")
+    )
+    canonicals <- data.frame(from = character(0), to = character(0))
+
+    result <- resolve_canonicals(edges, canonicals)
+
+    expect_identical(result$from, edges$from)
+    expect_identical(result$to, edges$to)
+  })
+
+  it("errors when edge_list_df is not a data frame", {
+    canonicals <- data.frame(from = "A", to = "B")
+    expect_error(
+      resolve_canonicals("not a data frame", canonicals),
+      "`edge_list_df` must be a data frame."
+    )
+  })
+
+  it("errors when edge_list_df is missing required columns", {
+    edges <- data.frame(x = "A", y = "B")
+    canonicals <- data.frame(from = "A", to = "B")
+    expect_error(
+      resolve_canonicals(edges, canonicals),
+      "`edge_list_df` must have 'from' and 'to' columns if not empty."
+    )
   })
 })
 
