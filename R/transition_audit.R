@@ -287,20 +287,23 @@ new_transition_audit <- function(n_input_rows = 0L,
   audit
 }
 
-#' Print a transition_audit object
-#'
+#' Print the counts section of a transition_audit
 #' @param x A `transition_audit` object.
-#' @param ... Unused; for S3 compatibility.
-#' @return `x`, invisibly.
-#' @export
-print.transition_audit <- function(x, ...) {
-  cat("=== Transition Construction Audit ===\n\n")
-
+#' @return `NULL`, invisibly; called for its printed output.
+#' @noRd
+.print_ta_counts <- function(x) {
   cat("Counts\n")
   cat("  Input rows:        ", x$counts$n_input_rows, "\n")
   cat("  Edges (scored):    ", x$counts$n_edges, "\n")
   cat("  Vertices (result): ", x$counts$n_vertices, "\n")
+  invisible(NULL)
+}
 
+#' Print the dropped/collapsed section of a transition_audit
+#' @param x A `transition_audit` object.
+#' @return `NULL`, invisibly; called for its printed output.
+#' @noRd
+.print_ta_dropped <- function(x) {
   cat("\nDropped / collapsed\n")
   cat("  Rows w/ NA endpoint:", x$dropped$n_rows_na, "\n")
   cat("  Duplicate rows:     ", x$dropped$n_rows_duplicate, "\n")
@@ -312,86 +315,148 @@ print.transition_audit <- function(x, ...) {
   if (x$dropped$n_robots_blocked > 0L) {
     cat("  Robots-blocked URLs:", x$dropped$n_robots_blocked, "\n")
   }
+  invisible(NULL)
+}
 
+#' Print the behavioral-coverage section of a transition_audit
+#' @param x A `transition_audit` object.
+#' @return `NULL`, invisibly; called for its printed output.
+#' @noRd
+.print_ta_coverage <- function(x) {
   cat("\nBehavioral coverage\n")
-  if (isTRUE(x$coverage$weighted)) {
-    cat("  Weight column:      ", x$coverage$weight_col, "\n")
-    cat("  Weighted edges:     ", x$coverage$n_edges_weighted, "\n")
-    cat(
-      "  Coverage:           ",
-      if (is.na(x$coverage$coverage)) {
-        "NA"
-      } else {
-        pct <- formatC(100 * x$coverage$coverage, digits = 1, format = "f")
-        paste0(pct, "%")
-      },
-      "\n"
-    )
-  } else {
+  if (!isTRUE(x$coverage$weighted)) {
     cat("  (unweighted / all edges equal)\n")
+    return(invisible(NULL))
   }
-
-  if (!is.null(x$duplicates)) {
-    cat("\nDuplicate edge policy\n")
-    cat("  Policy:             ", x$duplicates$policy, "\n")
-    cat("  Duplicate rows:     ", x$duplicates$n_duplicate_rows, "\n")
-    if (!is.null(x$duplicates$instance_count_col)) {
-      cat("  Instance count col: ", x$duplicates$instance_count_col, "\n")
-    }
-    if (is.data.frame(x$duplicates$duplicate_edges)) {
-      cat("  Counted dup edges:  ", nrow(x$duplicates$duplicate_edges), "\n")
-    }
+  cat("  Weight column:      ", x$coverage$weight_col, "\n")
+  cat("  Weighted edges:     ", x$coverage$n_edges_weighted, "\n")
+  cov <- if (is.na(x$coverage$coverage)) {
+    "NA"
+  } else {
+    paste0(formatC(100 * x$coverage$coverage, digits = 1, format = "f"), "%")
   }
+  cat("  Coverage:           ", cov, "\n")
+  invisible(NULL)
+}
 
+#' Print the duplicate-edge-policy section of a transition_audit
+#' @param x A `transition_audit` object.
+#' @return `NULL`, invisibly; called for its printed output.
+#' @noRd
+.print_ta_duplicates <- function(x) {
+  if (is.null(x$duplicates)) {
+    return(invisible(NULL))
+  }
+  cat("\nDuplicate edge policy\n")
+  cat("  Policy:             ", x$duplicates$policy, "\n")
+  cat("  Duplicate rows:     ", x$duplicates$n_duplicate_rows, "\n")
+  if (!is.null(x$duplicates$instance_count_col)) {
+    cat("  Instance count col: ", x$duplicates$instance_count_col, "\n")
+  }
+  if (is.data.frame(x$duplicates$duplicate_edges)) {
+    cat("  Counted dup edges:  ", nrow(x$duplicates$duplicate_edges), "\n")
+  }
+  invisible(NULL)
+}
+
+#' Print the normalization section of a transition_audit
+#' @param x A `transition_audit` object.
+#' @return `NULL`, invisibly; called for its printed output.
+#' @noRd
+.print_ta_normalization <- function(x) {
+  total <- if (is.na(x$normalization$pagerank_total)) {
+    "NA"
+  } else {
+    formatC(x$normalization$pagerank_total, digits = 6, format = "f")
+  }
   cat("\nNormalization\n")
-  cat(
-    "  PageRank total:     ",
-    if (is.na(x$normalization$pagerank_total)) {
-      "NA"
-    } else {
-      formatC(x$normalization$pagerank_total, digits = 6, format = "f")
-    },
-    "\n"
-  )
+  cat("  PageRank total:     ", total, "\n")
+  invisible(NULL)
+}
 
+#' Print the page-mass section of a transition_audit
+#' @param x A `transition_audit` object.
+#' @return `NULL`, invisibly; called for its printed output.
+#' @noRd
+.print_ta_mass <- function(x) {
   # Mass accounting: only report once the stationary vector is defined.
-  if (!is.null(x$mass$total)) {
-    fmt_mass <- function(v) formatC(v, digits = 6, format = "f")
-    cat("\nPage mass (stationary vector sums to 1)\n")
-    cat("  Reported (visible): ", fmt_mass(x$mass$reported), "\n")
-    cat("  Evaporated (sink):  ", fmt_mass(x$mass$sink), "\n")
-    cat("  Leaked (out-scope): ", fmt_mass(x$mass$leaked), "\n")
-    cat("  Hidden (robots):    ", fmt_mass(x$mass$hidden), "\n")
-    cat("  Total:              ", fmt_mass(x$mass$total), "\n")
+  if (is.null(x$mass$total)) {
+    return(invisible(NULL))
   }
+  fmt_mass <- function(v) formatC(v, digits = 6, format = "f")
+  cat("\nPage mass (stationary vector sums to 1)\n")
+  cat("  Reported (visible): ", fmt_mass(x$mass$reported), "\n")
+  cat("  Evaporated (sink):  ", fmt_mass(x$mass$sink), "\n")
+  cat("  Leaked (out-scope): ", fmt_mass(x$mass$leaked), "\n")
+  cat("  Hidden (robots):    ", fmt_mass(x$mass$hidden), "\n")
+  cat("  Total:              ", fmt_mass(x$mass$total), "\n")
+  invisible(NULL)
+}
 
+#' Print the fold-target collisions of a transition_audit
+#' @param x A `transition_audit` object.
+#' @return `NULL`, invisibly; called for its printed output.
+#' @noRd
+.print_ta_fold_collisions <- function(x) {
+  collisions <- x$fold$collisions
+  if (!is.data.frame(collisions)) {
+    return(invisible(NULL))
+  }
+  if (nrow(collisions) == 0L) {
+    return(invisible(NULL))
+  }
+  cat("  Fold-target collisions (merged inbound equity):\n")
+  for (i in seq_len(nrow(collisions))) {
+    cat(
+      "    - ", collisions$target[i],
+      " (", collisions$n_independent_refs[i],
+      " independent ref(s); source: ", collisions$source[i], ")\n",
+      sep = ""
+    )
+  }
+  invisible(NULL)
+}
+
+#' Print the out-of-scope fold section of a transition_audit
+#' @param x A `transition_audit` object.
+#' @return `NULL`, invisibly; called for its printed output.
+#' @noRd
+.print_ta_fold <- function(x) {
   # Out-of-scope fold accounting: reported regardless of policy.
-  if (!is.null(x$fold)) {
-    cat("\nOut-of-scope folds (target not a crawled node)\n")
-    cat("  Policy:             ", x$fold$policy, "\n")
-    cat("  Out-of-scope folds: ", x$fold$n_out_of_scope, "\n")
-    if (x$fold$n_out_of_scope > 0L) {
-      action <- if (identical(x$fold$policy, "leak")) {
-        "routed to leak sink"
-      } else if (isTRUE(x$fold$applied)) {
-        "relabeled (applied)"
-      } else {
-        "skipped (kept)"
-      }
-      cat("  Action:             ", action, "\n")
-    }
-    if (is.data.frame(x$fold$collisions) && nrow(x$fold$collisions) > 0L) {
-      cat("  Fold-target collisions (merged inbound equity):\n")
-      for (i in seq_len(nrow(x$fold$collisions))) {
-        cat(
-          "    - ", x$fold$collisions$target[i],
-          " (", x$fold$collisions$n_independent_refs[i],
-          " independent ref(s); source: ", x$fold$collisions$source[i], ")\n",
-          sep = ""
-        )
-      }
-    }
+  if (is.null(x$fold)) {
+    return(invisible(NULL))
   }
+  cat("\nOut-of-scope folds (target not a crawled node)\n")
+  cat("  Policy:             ", x$fold$policy, "\n")
+  cat("  Out-of-scope folds: ", x$fold$n_out_of_scope, "\n")
+  if (x$fold$n_out_of_scope > 0L) {
+    action <- if (identical(x$fold$policy, "leak")) {
+      "routed to leak sink"
+    } else if (isTRUE(x$fold$applied)) {
+      "relabeled (applied)"
+    } else {
+      "skipped (kept)"
+    }
+    cat("  Action:             ", action, "\n")
+  }
+  .print_ta_fold_collisions(x)
+  invisible(NULL)
+}
 
+#' Print a transition_audit object
+#'
+#' @param x A `transition_audit` object.
+#' @param ... Unused; for S3 compatibility.
+#' @return `x`, invisibly.
+#' @export
+print.transition_audit <- function(x, ...) {
+  cat("=== Transition Construction Audit ===\n\n")
+  .print_ta_counts(x)
+  .print_ta_dropped(x)
+  .print_ta_coverage(x)
+  .print_ta_duplicates(x)
+  .print_ta_normalization(x)
+  .print_ta_mass(x)
+  .print_ta_fold(x)
   invisible(x)
 }
