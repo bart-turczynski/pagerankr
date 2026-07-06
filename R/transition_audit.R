@@ -158,6 +158,24 @@ NULL
 #' @param config A named list of the relevant [pagerank()] configuration.
 #' @return An object of class `"transition_audit"` (see [transition_audit]).
 #' @keywords internal
+#' @examples
+#' # Low-level plumbing: normally you obtain a transition_audit via
+#' # attr(pagerank(...), "transition_audit") rather than by hand. Every
+#' # argument defaults, so a bare call yields a well-formed, empty-graph object.
+#' audit <- new_transition_audit()
+#' audit$counts
+#'
+#' # Populate a few fields to describe a small scored graph.
+#' audit <- new_transition_audit(
+#'   n_input_rows = 4L,
+#'   n_edges = 3L,
+#'   n_vertices = 3L,
+#'   n_rows_duplicate = 1L,
+#'   pagerank_total = 1,
+#'   mass_reported = 1
+#' )
+#' audit$counts$n_edges
+#' audit$dropped$n_rows_collapsed
 #' @export
 new_transition_audit <- function(n_input_rows = 0L,
                                  n_edges = 0L,
@@ -448,6 +466,13 @@ new_transition_audit <- function(n_input_rows = 0L,
 #' @param x A `transition_audit` object.
 #' @param ... Unused; for S3 compatibility.
 #' @return `x`, invisibly.
+#' @examples
+#' # A transition_audit is attached to every pagerank() result; print it to
+#' # get a human-readable construction / provenance summary.
+#' edges <- data.frame(from = c("a", "a", "b"), to = c("b", "c", "c"))
+#' result <- pagerank(edges)
+#' audit <- attr(result, "transition_audit")
+#' print(audit)
 #' @export
 print.transition_audit <- function(x, ...) {
   cat("=== Transition Construction Audit ===\n\n")
