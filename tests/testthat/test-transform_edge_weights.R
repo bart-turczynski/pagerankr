@@ -181,6 +181,80 @@ describe("transform_edge_weights: validation", {
     expect_equal(nrow(out), 0)
     expect_true(all(c("weight", "transition_probability") %in% names(out)))
   })
+
+  it("errors when value_col is not a character", {
+    edges <- multi_source_edges()
+    expect_error(
+      transform_edge_weights(edges, 123),
+      "`value_col` must be a single column name"
+    )
+  })
+
+  it("errors when value_col has length != 1", {
+    edges <- multi_source_edges()
+    expect_error(
+      transform_edge_weights(edges, c("position", "position")),
+      "`value_col` must be a single column name"
+    )
+  })
+
+  it("errors when by is not a character", {
+    edges <- multi_source_edges()
+    expect_error(
+      transform_edge_weights(edges, "position", by = 123),
+      "`by` must be one or more column names"
+    )
+  })
+
+  it("errors when by has length < 1", {
+    edges <- multi_source_edges()
+    expect_error(
+      transform_edge_weights(edges, "position", by = character(0)),
+      "`by` must be one or more column names"
+    )
+  })
+
+  it("errors when weight_col is not a character", {
+    edges <- multi_source_edges()
+    expect_error(
+      transform_edge_weights(edges, "position", weight_col = 123),
+      "`weight_col` must be a single column name"
+    )
+  })
+
+  it("errors when weight_col has length != 1", {
+    edges <- multi_source_edges()
+    expect_error(
+      transform_edge_weights(edges, "position", weight_col = c("w", "w2")),
+      "`weight_col` must be a single column name"
+    )
+  })
+
+  it("errors when prob_col is not a character", {
+    edges <- multi_source_edges()
+    expect_error(
+      transform_edge_weights(edges, "position", prob_col = 123),
+      "`prob_col` must be a single column name"
+    )
+  })
+
+  it("errors when prob_col has length != 1", {
+    edges <- multi_source_edges()
+    expect_error(
+      transform_edge_weights(edges, "position", prob_col = c("p", "p2")),
+      "`prob_col` must be a single column name"
+    )
+  })
+
+  it("yields NA probabilities when a group's weight total is non-finite", {
+    edges <- data.frame(
+      from = c("A", "A"),
+      to = c("B", "C"),
+      position = c(Inf, 1)
+    )
+    out <- transform_edge_weights(edges, "position", method = "none")
+    expect_true(all(is.na(out$transition_probability)))
+  })
 })
 
 
