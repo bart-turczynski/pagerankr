@@ -193,6 +193,48 @@ describe("transform_weights: input validation", {
       "must be TRUE or FALSE"
     )
   })
+
+  it("errors on non-numeric alpha", {
+    expect_error(
+      transform_weights(1:3, "zipf", alpha = "bad"),
+      "positive number"
+    )
+  })
+
+  it("errors on alpha with length != 1", {
+    expect_error(
+      transform_weights(1:3, "zipf", alpha = c(1, 2)),
+      "positive number"
+    )
+  })
+
+  it("errors on offset with length != 1", {
+    expect_error(
+      transform_weights(1:3, "log", offset = c(1, 2)),
+      "single number"
+    )
+  })
+
+  it("errors on non-numeric floor_value", {
+    expect_error(
+      transform_weights(1:3, "minmax", floor_value = "bad"),
+      "non-negative"
+    )
+  })
+
+  it("errors on floor_value with length != 1", {
+    expect_error(
+      transform_weights(1:3, "minmax", floor_value = c(0.1, 0.2)),
+      "non-negative"
+    )
+  })
+
+  it("errors on descending with length != 1", {
+    expect_error(
+      transform_weights(1:3, "zipf", descending = c(TRUE, FALSE)),
+      "must be TRUE or FALSE"
+    )
+  })
 })
 
 
