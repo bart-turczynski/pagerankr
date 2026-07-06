@@ -51,7 +51,28 @@ export_graph <- function(pagerank_df,
                          edge_attrs = NULL) {
   format <- match.arg(format)
 
-  # --- Validation ---
+  .export_validate(
+    pagerank_df, edge_list_df, file,
+    edge_from_col, edge_to_col, pr_url_col, pr_score_col
+  )
+
+  built <- .export_build_graph(
+    pagerank_df, edge_list_df,
+    edge_from_col, edge_to_col, pr_url_col, pr_score_col,
+    node_attrs, edge_attrs
+  )
+
+  .export_write(built, file, format)
+
+  invisible(file)
+}
+
+
+#' Validate export_graph arguments
+#' @noRd
+.export_validate <- function(pagerank_df, edge_list_df, file,
+                             edge_from_col, edge_to_col,
+                             pr_url_col, pr_score_col) {
   if (!is.data.frame(pagerank_df)) {
     stop("`pagerank_df` must be a data frame.", call. = FALSE)
   }
@@ -72,41 +93,80 @@ export_graph <- function(pagerank_df,
       call. = FALSE
     )
   }
-  if (!is.character(file) || length(file) != 1) {
+  if (!is.character(file)) {
     stop("`file` must be a single file path string.", call. = FALSE)
   }
+  if (length(file) != 1) {
+    stop("`file` must be a single file path string.", call. = FALSE)
+  }
+  invisible(NULL)
+}
 
-  # --- Build igraph ---
+
+#' Build the igraph object plus edge/vertex data frames for export
+#' @noRd
+.export_build_graph <- function(pagerank_df, edge_list_df,
+                                edge_from_col, edge_to_col,
+                                pr_url_col, pr_score_col,
+                                node_attrs, edge_attrs) {
   edges_for_graph <- data.frame(
     from = as.character(edge_list_df[[edge_from_col]]),
     to = as.character(edge_list_df[[edge_to_col]])
   )
+  edges_for_graph <- .export_add_edge_attrs(
+    edges_for_graph, edge_list_df, edge_attrs
+  )
 
-  # Add edge attributes
-  if (!is.null(edge_attrs)) {
-    for (attr_name in edge_attrs) {
-      if (attr_name %in% names(edge_list_df)) {
-        edges_for_graph[[attr_name]] <- edge_list_df[[attr_name]]
-      }
-    }
-  }
-
-  # Build vertex data from pagerank_df
-  pr_urls <- as.character(pagerank_df[[pr_url_col]])
-  vertices <- data.frame(name = pr_urls)
+  vertices <- data.frame(name = as.character(pagerank_df[[pr_url_col]]))
   vertices$pagerank <- pagerank_df[[pr_score_col]]
+  vertices <- .export_add_node_attrs(vertices, pagerank_df, node_attrs)
+  vertices <- .export_add_missing_verts(vertices, edges_for_graph)
 
-  # Add optional node attributes
-  if (!is.null(node_attrs) && is.list(node_attrs)) {
-    for (attr_name in names(node_attrs)) {
-      col_name <- node_attrs[[attr_name]]
-      if (col_name %in% names(pagerank_df)) {
-        vertices[[attr_name]] <- pagerank_df[[col_name]]
-      }
+  g <- igraph::graph_from_data_frame(edges_for_graph,
+    directed = TRUE,
+    vertices = vertices
+  )
+  list(g = g, edges = edges_for_graph, vertices = vertices)
+}
+
+
+#' Append optional edge attribute columns
+#' @noRd
+.export_add_edge_attrs <- function(edges_for_graph, edge_list_df, edge_attrs) {
+  if (is.null(edge_attrs)) {
+    return(edges_for_graph)
+  }
+  for (attr_name in edge_attrs) {
+    if (attr_name %in% names(edge_list_df)) {
+      edges_for_graph[[attr_name]] <- edge_list_df[[attr_name]]
     }
   }
+  edges_for_graph
+}
 
-  # Include any edge-list-only vertices not in pagerank_df
+
+#' Append optional vertex attribute columns
+#' @noRd
+.export_add_node_attrs <- function(vertices, pagerank_df, node_attrs) {
+  if (is.null(node_attrs)) {
+    return(vertices)
+  }
+  if (!is.list(node_attrs)) {
+    return(vertices)
+  }
+  for (attr_name in names(node_attrs)) {
+    col_name <- node_attrs[[attr_name]]
+    if (col_name %in% names(pagerank_df)) {
+      vertices[[attr_name]] <- pagerank_df[[col_name]]
+    }
+  }
+  vertices
+}
+
+
+#' Include edge-list-only vertices not present in pagerank_df
+#' @noRd
+.export_add_missing_verts <- function(vertices, edges_for_graph) {
   edge_verts <- unique(c(edges_for_graph$from, edges_for_graph$to))
   missing_verts <- setdiff(edge_verts, vertices$name)
   if (length(missing_verts) > 0) {
@@ -114,24 +174,23 @@ export_graph <- function(pagerank_df,
     extra$pagerank <- 0
     vertices <- rbind(vertices, extra)
   }
+  vertices
+}
 
-  g <- igraph::graph_from_data_frame(edges_for_graph,
-    directed = TRUE,
-    vertices = vertices
-  )
 
-  # --- Export ---
+#' Dispatch the export write by format
+#' @noRd
+.export_write <- function(built, file, format) {
   if (format == "graphml") {
-    igraph::write_graph(g, file, format = "graphml")
+    igraph::write_graph(built$g, file, format = "graphml")
   } else if (format == "dot") {
-    .write_dot(g, file)
+    .write_dot(built$g, file)
   } else if (format == "edgelist") {
-    .write_edgelist_csv(edges_for_graph, vertices, file)
+    .write_edgelist_csv(built$edges, built$vertices, file)
   } else if (format == "pajek") {
-    igraph::write_graph(g, file, format = "pajek")
+    igraph::write_graph(built$g, file, format = "pajek")
   }
-
-  invisible(file)
+  invisible(NULL)
 }
 
 
