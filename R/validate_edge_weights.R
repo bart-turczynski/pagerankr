@@ -39,17 +39,50 @@ validate_edge_weights <- function(edge_list_df,
                                   action = c("error", "warning", "none")) {
   action <- match.arg(action)
 
+  vew_validate_args(
+    edge_list_df, weight_col, from_col, expected_total, tolerance
+  )
+
+  if (nrow(edge_list_df) == 0) {
+    return(vew_empty_report())
+  }
+
+  sources <- as.character(edge_list_df[[from_col]])
+  weights <- edge_list_df[[weight_col]]
+  unique_sources <- unique(sources)
+
+  report <- vew_build_report(
+    unique_sources, sources, weights, expected_total, tolerance
+  )
+
+  if (all(report$valid)) {
+    return(report)
+  }
+  if (action == "none") {
+    return(report)
+  }
+
+  message <- vew_problem_message(report, weight_col, expected_total, tolerance)
+  if (action == "error") {
+    stop(message, call. = FALSE)
+  }
+  warning(message, call. = FALSE)
+
+  report
+}
+
+#' Validate scalar arguments to [validate_edge_weights()]
+#'
+#' Runs every input guard in the original short-circuit order, raising the
+#' same error text as the monolithic validator.
+#' @noRd
+vew_validate_args <- function(edge_list_df, weight_col, from_col,
+                              expected_total, tolerance) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  if (!is.character(weight_col) || length(weight_col) != 1 ||
-        is.na(weight_col) || !nzchar(weight_col)) {
-    stop("`weight_col` must be a single non-empty column name.", call. = FALSE)
-  }
-  if (!is.character(from_col) || length(from_col) != 1 ||
-        is.na(from_col) || !nzchar(from_col)) {
-    stop("`from_col` must be a single non-empty column name.", call. = FALSE)
-  }
+  vew_check_col_name(weight_col, "weight_col")
+  vew_check_col_name(from_col, "from_col")
 
   missing_cols <- setdiff(c(from_col, weight_col), names(edge_list_df))
   if (length(missing_cols) > 0) {
@@ -62,21 +95,83 @@ validate_edge_weights <- function(edge_list_df,
   if (!is.numeric(edge_list_df[[weight_col]])) {
     stop("`weight_col` '", weight_col, "' must be numeric.", call. = FALSE)
   }
-  if (!is.null(expected_total) &&
-        (!is.numeric(expected_total) || length(expected_total) != 1 ||
-           is.na(expected_total) || !is.finite(expected_total) ||
-           expected_total < 0)) {
-    stop(
-      "`expected_total` must be NULL or one finite non-negative number.",
-      call. = FALSE
-    )
-  }
-  if (!is.numeric(tolerance) || length(tolerance) != 1 ||
-        is.na(tolerance) || !is.finite(tolerance) || tolerance < 0) {
-    stop("`tolerance` must be one finite non-negative number.", call. = FALSE)
-  }
+  vew_check_expected_total(expected_total)
+  vew_check_tolerance(tolerance)
+  invisible(NULL)
+}
 
-  empty_report <- data.frame(
+#' Validate a single-column-name argument
+#' @noRd
+vew_check_col_name <- function(value, arg_name) {
+  msg <- sprintf(
+    "`%s` must be a single non-empty column name.", arg_name
+  )
+  if (!is.character(value)) {
+    stop(msg, call. = FALSE)
+  }
+  if (length(value) != 1) {
+    stop(msg, call. = FALSE)
+  }
+  if (is.na(value)) {
+    stop(msg, call. = FALSE)
+  }
+  if (!nzchar(value)) {
+    stop(msg, call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Validate the optional `expected_total` argument
+#' @noRd
+vew_check_expected_total <- function(expected_total) {
+  if (is.null(expected_total)) {
+    return(invisible(NULL))
+  }
+  msg <- "`expected_total` must be NULL or one finite non-negative number."
+  if (!is.numeric(expected_total)) {
+    stop(msg, call. = FALSE)
+  }
+  if (length(expected_total) != 1) {
+    stop(msg, call. = FALSE)
+  }
+  if (is.na(expected_total)) {
+    stop(msg, call. = FALSE)
+  }
+  if (!is.finite(expected_total)) {
+    stop(msg, call. = FALSE)
+  }
+  if (expected_total < 0) {
+    stop(msg, call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Validate the `tolerance` argument
+#' @noRd
+vew_check_tolerance <- function(tolerance) {
+  msg <- "`tolerance` must be one finite non-negative number."
+  if (!is.numeric(tolerance)) {
+    stop(msg, call. = FALSE)
+  }
+  if (length(tolerance) != 1) {
+    stop(msg, call. = FALSE)
+  }
+  if (is.na(tolerance)) {
+    stop(msg, call. = FALSE)
+  }
+  if (!is.finite(tolerance)) {
+    stop(msg, call. = FALSE)
+  }
+  if (tolerance < 0) {
+    stop(msg, call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Empty per-source report skeleton
+#' @noRd
+vew_empty_report <- function() {
+  data.frame(
     source = character(0),
     n_edges = integer(0),
     total = numeric(0),
@@ -88,43 +183,53 @@ validate_edge_weights <- function(edge_list_df,
     total_ok = logical(0),
     valid = logical(0)
   )
-  if (nrow(edge_list_df) == 0) {
-    return(empty_report)
+}
+
+#' Summarise one source's outgoing weights into a report row
+#' @noRd
+vew_summarize_source <- function(source, sources, weights,
+                                 expected_total, tolerance) {
+  idx <- if (is.na(source)) {
+    is.na(sources)
+  } else {
+    !is.na(sources) & sources == source
+  }
+  values <- weights[idx]
+  finite_values <- values[is.finite(values)]
+  has_invalid <- !all(is.finite(values))
+  total <- if (has_invalid) NA_real_ else sum(values)
+  all_zero <- length(values) > 0 && !has_invalid && all(values == 0)
+  total_ok <- if (is.null(expected_total)) {
+    NA
+  } else {
+    !has_invalid && abs(total - expected_total) <= tolerance
   }
 
-  sources <- as.character(edge_list_df[[from_col]])
-  weights <- edge_list_df[[weight_col]]
-  unique_sources <- unique(sources)
+  data.frame(
+    source = source,
+    n_edges = length(values),
+    total = total,
+    n_negative = sum(finite_values < 0),
+    n_na = sum(is.na(values) & !is.nan(values)),
+    n_nan = sum(is.nan(values)),
+    n_infinite = sum(is.infinite(values)),
+    all_zero = all_zero,
+    total_ok = total_ok
+  )
+}
 
-  report_rows <- lapply(unique_sources, function(source) {
-    idx <- if (is.na(source)) {
-      is.na(sources)
-    } else {
-      !is.na(sources) & sources == source
-    }
-    values <- weights[idx]
-    finite_values <- values[is.finite(values)]
-    has_invalid <- !all(is.finite(values))
-    total <- if (has_invalid) NA_real_ else sum(values)
-    all_zero <- length(values) > 0 && !has_invalid && all(values == 0)
-    total_ok <- if (is.null(expected_total)) {
-      NA
-    } else {
-      !has_invalid && abs(total - expected_total) <= tolerance
-    }
-
-    data.frame(
-      source = source,
-      n_edges = length(values),
-      total = total,
-      n_negative = sum(finite_values < 0),
-      n_na = sum(is.na(values) & !is.nan(values)),
-      n_nan = sum(is.nan(values)),
-      n_infinite = sum(is.infinite(values)),
-      all_zero = all_zero,
-      total_ok = total_ok
-    )
-  })
+#' Assemble the full per-source report with a `valid` flag
+#' @noRd
+vew_build_report <- function(unique_sources, sources, weights,
+                             expected_total, tolerance) {
+  report_rows <- lapply(
+    unique_sources,
+    vew_summarize_source,
+    sources = sources,
+    weights = weights,
+    expected_total = expected_total,
+    tolerance = tolerance
+  )
 
   report <- do.call(rbind, report_rows)
   rownames(report) <- NULL
@@ -134,57 +239,54 @@ validate_edge_weights <- function(edge_list_df,
     report$n_infinite == 0 &
     !report$all_zero &
     (is.na(report$total_ok) | report$total_ok)
+  report
+}
 
-  if (!all(report$valid) && action != "none") {
-    problems <- character(0)
-    n_negative <- sum(report$n_negative)
-    n_non_finite <- sum(report$n_na + report$n_nan + report$n_infinite)
-    n_all_zero <- sum(report$all_zero)
-    n_bad_total <- if (is.null(expected_total)) 0L else sum(!report$total_ok)
+#' Build the human-readable failure message from a report
+#' @noRd
+vew_problem_message <- function(report, weight_col, expected_total, tolerance) {
+  problems <- character(0)
+  n_negative <- sum(report$n_negative)
+  n_non_finite <- sum(report$n_na + report$n_nan + report$n_infinite)
+  n_all_zero <- sum(report$all_zero)
+  n_bad_total <- if (is.null(expected_total)) 0L else sum(!report$total_ok)
 
-    if (n_negative > 0) {
-      problems <- c(problems, sprintf("%d negative weight(s)", n_negative))
-    }
-    if (n_non_finite > 0) {
-      problems <- c(
-        problems,
-        sprintf(
-          "%d non-finite weight(s): %d NA, %d NaN, %d Inf",
-          n_non_finite,
-          sum(report$n_na),
-          sum(report$n_nan),
-          sum(report$n_infinite)
-        )
+  if (n_negative > 0) {
+    problems <- c(problems, sprintf("%d negative weight(s)", n_negative))
+  }
+  if (n_non_finite > 0) {
+    problems <- c(
+      problems,
+      sprintf(
+        "%d non-finite weight(s): %d NA, %d NaN, %d Inf",
+        n_non_finite,
+        sum(report$n_na),
+        sum(report$n_nan),
+        sum(report$n_infinite)
       )
-    }
-    if (n_all_zero > 0) {
-      problems <- c(
-        problems,
-        sprintf("%d source(s) with all-zero outgoing weights", n_all_zero)
-      )
-    }
-    if (n_bad_total > 0) {
-      problems <- c(
-        problems,
-        sprintf(
-          "%d source total(s) outside %.6g +/- %.6g",
-          n_bad_total,
-          expected_total,
-          tolerance
-        )
-      )
-    }
-
-    message <- paste0(
-      "Invalid edge weights in `", weight_col, "`: ",
-      paste(problems, collapse = "; "),
-      ". Inspect `validate_edge_weights()` for per-source details."
     )
-    if (action == "error") {
-      stop(message, call. = FALSE)
-    }
-    warning(message, call. = FALSE)
+  }
+  if (n_all_zero > 0) {
+    problems <- c(
+      problems,
+      sprintf("%d source(s) with all-zero outgoing weights", n_all_zero)
+    )
+  }
+  if (n_bad_total > 0) {
+    problems <- c(
+      problems,
+      sprintf(
+        "%d source total(s) outside %.6g +/- %.6g",
+        n_bad_total,
+        expected_total,
+        tolerance
+      )
+    )
   }
 
-  report
+  paste0(
+    "Invalid edge weights in `", weight_col, "`: ",
+    paste(problems, collapse = "; "),
+    ". Inspect `validate_edge_weights()` for per-source details."
+  )
 }
