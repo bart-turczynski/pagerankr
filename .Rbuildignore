@@ -30,3 +30,4 @@
 ^notes$
 ^worklog$
 ^ACKNOWLEDGMENTS\.md$
+^_pkgdown\.yml$
