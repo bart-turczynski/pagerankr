@@ -977,48 +977,75 @@ pagerank <- function(edge_list_df,
                                           domain_values,
                                           host_values,
                                           rurl_params) {
-  present <- function(nodes, value, type) {
-    if (length(nodes) == 0) {
-      return(FALSE)
-    }
-    probe_df <- data.frame(
-      from = nodes, to = nodes, stringsAsFactors = FALSE
-    )
-    args <- list(
-      edge_list_df = probe_df,
-      return_report = TRUE,
-      rurl_params = rurl_params
-    )
-    if (identical(type, "domain")) {
-      args$keep_domains <- value
-    } else {
-      args$keep_hosts <- value
-    }
-    report <- do.call(filter_links_by_domain, args)$report
-    isTRUE(report$rows_after > 0)
-  }
+  domain_values <- .sf_faf_keep_present(domain_values)
+  host_values <- .sf_faf_keep_present(host_values)
 
-  keep_present <- function(values) {
-    values <- values[!is.na(values) & nzchar(values)]
-    unique(values)
-  }
-  domain_values <- keep_present(domain_values)
-  host_values <- keep_present(host_values)
-
-  folded_away <- character(0)
-  for (value in domain_values) {
-    if (present(prefold_nodes, value, "domain") &&
-          !present(postfold_nodes, value, "domain")) {
-      folded_away <- c(folded_away, value)
-    }
-  }
-  for (value in host_values) {
-    if (present(prefold_nodes, value, "host") &&
-          !present(postfold_nodes, value, "host")) {
-      folded_away <- c(folded_away, value)
-    }
-  }
+  folded_away <- c(
+    .sf_faf_collect(
+      domain_values, prefold_nodes, postfold_nodes, "domain", rurl_params
+    ),
+    .sf_faf_collect(
+      host_values, prefold_nodes, postfold_nodes, "host", rurl_params
+    )
+  )
   unique(folded_away)
+}
+
+#' Drop NA/empty filter values and de-duplicate.
+#' @keywords internal
+#' @noRd
+.sf_faf_keep_present <- function(values) {
+  values <- values[!is.na(values) & nzchar(values)]
+  unique(values)
+}
+
+#' Test whether a domain/host filter value classifies any of `nodes`.
+#'
+#' Probes [filter_links_by_domain()] in `return_report` mode on a self-loop
+#' edge list of the node set: a self-loop row survives a single-value keep
+#' filter iff that node is classified on the named domain/host.
+#' @keywords internal
+#' @noRd
+.sf_faf_present <- function(nodes, value, type, rurl_params) {
+  if (length(nodes) == 0) {
+    return(FALSE)
+  }
+  probe_df <- data.frame(
+    from = nodes, to = nodes, stringsAsFactors = FALSE
+  )
+  args <- list(
+    edge_list_df = probe_df,
+    return_report = TRUE,
+    rurl_params = rurl_params
+  )
+  if (identical(type, "domain")) {
+    args$keep_domains <- value
+  } else {
+    args$keep_hosts <- value
+  }
+  report <- do.call(filter_links_by_domain, args)$report
+  isTRUE(report$rows_after > 0)
+}
+
+#' Collect filter values present pre-fold but folded away post-fold.
+#' @keywords internal
+#' @noRd
+.sf_faf_collect <- function(values,
+                            prefold_nodes,
+                            postfold_nodes,
+                            type,
+                            rurl_params) {
+  folded_away <- character(0)
+  for (value in values) {
+    if (!.sf_faf_present(prefold_nodes, value, type, rurl_params)) {
+      next
+    }
+    if (.sf_faf_present(postfold_nodes, value, type, rurl_params)) {
+      next
+    }
+    folded_away <- c(folded_away, value)
+  }
+  folded_away
 }
 
 #' Apply pagerank() duplicate-edge policy.
