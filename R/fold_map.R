@@ -210,49 +210,12 @@ build_fold_map <- function(redirects_df = NULL,
   conflict_sources <- intersect(redirect_sources, canonical_sources)
 
   # --- Cross-signal conflict audit (same-source disagreements) ---
-  conflicts <- empty_conflicts
-  ignored_canonicals <- empty_ignored
-  if (length(conflict_sources) > 0) {
-    r_to <- unname(r_term[conflict_sources])
-    c_to <- unname(c_term[conflict_sources])
-    # Redirect-resolve the canonical terminal so disagreement is judged on the
-    # final destinations, not the raw canonical hop.
-    c_resolved <- .apply_fold_map(c_to, r_term)
-    disagrees <- c_resolved != r_to
-
-    resolution <- switch(canonical_conflict_policy,
-      redirect_wins = "redirect",
-      canonical_wins = "canonical",
-      error = ifelse(disagrees, "error", "redirect")
-    )
-    conflicts <- data.frame(
-      source = conflict_sources,
-      redirect_to = r_to,
-      canonical_to = c_to,
-      disagrees = disagrees,
-      resolution = resolution
-    )
-
-    if (canonical_conflict_policy == "error" && any(disagrees)) {
-      bad <- conflicts[conflicts$disagrees, , drop = FALSE]
-      stop(
-        "Redirect/canonical conflict on ", nrow(bad),
-        " source(s) under canonical_conflict_policy = \"error\". First: '",
-        bad$source[1], "' redirects to '", bad$redirect_to[1],
-        "' but declares canonical '", bad$canonical_to[1], "'.",
-        call. = FALSE
-      )
-    }
-
-    # Under redirect_wins, the canonical on a redirecting source is ignored.
-    if (canonical_conflict_policy == "redirect_wins") {
-      ignored_canonicals <- data.frame(
-        source = conflict_sources,
-        canonical_to = c_to,
-        redirect_to = r_to
-      )
-    }
-  }
+  audit <- .audit_cross_signal_conflicts(
+    conflict_sources, r_term, c_term, canonical_conflict_policy,
+    empty_conflicts, empty_ignored
+  )
+  conflicts <- audit$conflicts
+  ignored_canonicals <- audit$ignored_canonicals
 
   # --- Build the combined one-hop graph with per-source precedence ---
   # redirect edges: every effective redirect source, unless canonical_wins
@@ -311,4 +274,72 @@ build_fold_map <- function(redirects_df = NULL,
     conflicts = conflicts,
     ignored_canonicals = ignored_canonicals
   )
+}
+
+
+#' Audit same-source redirect-vs-canonical disagreements
+#'
+#' Computes the cross-signal conflict table (and, under `"redirect_wins"`, the
+#' ignored-canonicals table) for sources that fold under both signals. Judges
+#' disagreement on final destinations by redirect-resolving the canonical
+#' terminal first. Errors under `"error"` when any conflict truly disagrees.
+#'
+#' @param conflict_sources Character vector of sources folded by both signals.
+#' @param r_term,c_term The standalone redirect / canonical terminal maps.
+#' @param canonical_conflict_policy See [build_fold_map()].
+#' @param empty_conflicts,empty_ignored Zero-row template data frames returned
+#'   when there are no conflict sources.
+#' @return A list with `conflicts` and `ignored_canonicals` data frames.
+#' @noRd
+.audit_cross_signal_conflicts <- function(conflict_sources, r_term, c_term,
+                                          canonical_conflict_policy,
+                                          empty_conflicts, empty_ignored) {
+  if (length(conflict_sources) == 0) {
+    return(list(
+      conflicts = empty_conflicts, ignored_canonicals = empty_ignored
+    ))
+  }
+
+  r_to <- unname(r_term[conflict_sources])
+  c_to <- unname(c_term[conflict_sources])
+  # Redirect-resolve the canonical terminal so disagreement is judged on the
+  # final destinations, not the raw canonical hop.
+  c_resolved <- .apply_fold_map(c_to, r_term)
+  disagrees <- c_resolved != r_to
+
+  resolution <- switch(canonical_conflict_policy,
+    redirect_wins = "redirect",
+    canonical_wins = "canonical",
+    error = ifelse(disagrees, "error", "redirect")
+  )
+  conflicts <- data.frame(
+    source = conflict_sources,
+    redirect_to = r_to,
+    canonical_to = c_to,
+    disagrees = disagrees,
+    resolution = resolution
+  )
+
+  if (canonical_conflict_policy == "error" && any(disagrees)) {
+    bad <- conflicts[conflicts$disagrees, , drop = FALSE]
+    stop(
+      "Redirect/canonical conflict on ", nrow(bad),
+      " source(s) under canonical_conflict_policy = \"error\". First: '",
+      bad$source[1], "' redirects to '", bad$redirect_to[1],
+      "' but declares canonical '", bad$canonical_to[1], "'.",
+      call. = FALSE
+    )
+  }
+
+  # Under redirect_wins, the canonical on a redirecting source is ignored.
+  ignored_canonicals <- empty_ignored
+  if (canonical_conflict_policy == "redirect_wins") {
+    ignored_canonicals <- data.frame(
+      source = conflict_sources,
+      canonical_to = c_to,
+      redirect_to = r_to
+    )
+  }
+
+  list(conflicts = conflicts, ignored_canonicals = ignored_canonicals)
 }
