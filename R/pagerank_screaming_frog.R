@@ -72,6 +72,44 @@ pagerank_screaming_frog <- function(bundle,
   apply_redirects <- .sf_validate_fold_flag(apply_redirects, "apply_redirects")
 
   dots <- list(...)
+  .sf_check_reserved_dots(dots)
+  .sf_validate_weight_col(weight_col, placement_weights)
+
+  edges <- bundle$edges
+  input_edges <- nrow(edges)
+
+  accepted_placements <- .sf_validate_accepted_placements(
+    accepted_placements
+  )
+  edges <- .sf_filter_by_placements(edges, accepted_placements)
+
+  link_origins <- .sf_validate_link_origins(link_origins)
+  edges <- .sf_filter_by_origins(edges, link_origins)
+
+  weighted <- .sf_apply_placement_weights(edges, placement_weights, weight_col)
+  edges <- weighted$edges
+  placement_weights <- weighted$placement_weights
+  effective_weight_col <- weighted$effective_weight_col
+
+  .sf_check_effective_weight_col(effective_weight_col, edges)
+  .sf_check_nonempty_edges(edges)
+
+  pr_args <- .sf_build_pr_args(
+    edges, bundle, apply_redirects, apply_canonicals,
+    effective_weight_col, dots
+  )
+  result <- do.call(pagerank, pr_args)
+
+  attr(result, "screaming_frog_import") <- .sf_build_import_attr(
+    bundle, input_edges, edges, accepted_placements, link_origins,
+    placement_weights, weight_col, effective_weight_col,
+    apply_canonicals, apply_redirects
+  )
+
+  result
+}
+
+.sf_check_reserved_dots <- function(dots) {
   reserved <- intersect(
     names(dots),
     c(
@@ -89,45 +127,56 @@ pagerank_screaming_frog <- function(bundle,
       call. = FALSE
     )
   }
+  invisible(NULL)
+}
 
+.sf_validate_weight_col <- function(weight_col, placement_weights) {
   if (!is.null(weight_col) && !is.null(placement_weights)) {
     stop(
       "`weight_col` cannot be combined with `placement_weights`.",
       call. = FALSE
     )
   }
-  if (!is.null(weight_col) &&
-        (!is.character(weight_col) || length(weight_col) != 1L ||
-           is.na(weight_col) || !nzchar(weight_col))) {
+  if (is.null(weight_col)) {
+    return(invisible(NULL))
+  }
+  if (!is.character(weight_col) || length(weight_col) != 1L) {
     stop("`weight_col` must be a single non-empty string or NULL.",
       call. = FALSE
     )
   }
-
-  edges <- bundle$edges
-  input_edges <- nrow(edges)
-
-  accepted_placements <- .sf_validate_accepted_placements(
-    accepted_placements
-  )
-  if (!is.null(accepted_placements)) {
-    edges <- edges[
-      !is.na(edges$placement) & edges$placement %in% accepted_placements,
-      ,
-      drop = FALSE
-    ]
+  if (is.na(weight_col) || !nzchar(weight_col)) {
+    stop("`weight_col` must be a single non-empty string or NULL.",
+      call. = FALSE
+    )
   }
+  invisible(NULL)
+}
 
-  link_origins <- .sf_validate_link_origins(link_origins)
+.sf_filter_by_placements <- function(edges, accepted_placements) {
+  if (is.null(accepted_placements)) {
+    return(edges)
+  }
+  edges[
+    !is.na(edges$placement) & edges$placement %in% accepted_placements,
+    ,
+    drop = FALSE
+  ]
+}
+
+.sf_filter_by_origins <- function(edges, link_origins) {
   origin_keys <- .sf_link_origin_key(edges$link_origin)
-  if (!is.null(link_origins)) {
-    edges <- edges[
-      !is.na(origin_keys) & origin_keys %in% link_origins,
-      ,
-      drop = FALSE
-    ]
+  if (is.null(link_origins)) {
+    return(edges)
   }
+  edges[
+    !is.na(origin_keys) & origin_keys %in% link_origins,
+    ,
+    drop = FALSE
+  ]
+}
 
+.sf_apply_placement_weights <- function(edges, placement_weights, weight_col) {
   effective_weight_col <- weight_col
   if (!is.null(placement_weights)) {
     placement_weights <- .sf_validate_placement_weights(placement_weights)
@@ -138,15 +187,28 @@ pagerank_screaming_frog <- function(bundle,
       unname(placement_weights[edges$placement[weighted]])
     effective_weight_col <- ".__sf_placement_weight__"
   }
-  if (!is.null(effective_weight_col) &&
-        nrow(edges) > 0L && !(effective_weight_col %in% names(edges))) {
+  list(
+    edges = edges,
+    placement_weights = placement_weights,
+    effective_weight_col = effective_weight_col
+  )
+}
+
+.sf_check_effective_weight_col <- function(effective_weight_col, edges) {
+  if (is.null(effective_weight_col)) {
+    return(invisible(NULL))
+  }
+  if (nrow(edges) > 0L && !(effective_weight_col %in% names(edges))) {
     stop(
       "`weight_col` '", effective_weight_col,
       "' is not present in `bundle$edges`.",
       call. = FALSE
     )
   }
+  invisible(NULL)
+}
 
+.sf_check_nonempty_edges <- function(edges) {
   if (nrow(edges) == 0L) {
     stop(
       "`bundle` has no graph-eligible edges after Screaming Frog wrapper ",
@@ -154,20 +216,26 @@ pagerank_screaming_frog <- function(bundle,
       call. = FALSE
     )
   }
+  invisible(NULL)
+}
 
-  pr_args <- c(
+.sf_build_pr_args <- function(edges, bundle, apply_redirects,
+                              apply_canonicals, effective_weight_col, dots) {
+  redirects_df <- if (apply_redirects) {
+    .sf_nullable_df(bundle$redirects)
+  } else {
+    NULL
+  }
+  canonicals_df <- if (apply_canonicals) {
+    .sf_nullable_df(bundle$canonicals)
+  } else {
+    NULL
+  }
+  c(
     list(
       edge_list_df = edges,
-      redirects_df = if (apply_redirects) {
-        .sf_nullable_df(bundle$redirects)
-      } else {
-        NULL
-      },
-      canonicals_df = if (apply_canonicals) {
-        .sf_nullable_df(bundle$canonicals)
-      } else {
-        NULL
-      },
+      redirects_df = redirects_df,
+      canonicals_df = canonicals_df,
       indexability_df = .sf_nullable_df(bundle$indexability),
       edge_from_col = "from",
       edge_to_col = "to",
@@ -182,9 +250,14 @@ pagerank_screaming_frog <- function(bundle,
     ),
     dots
   )
-  result <- do.call(pagerank, pr_args)
+}
 
-  attr(result, "screaming_frog_import") <- structure(
+.sf_build_import_attr <- function(bundle, input_edges, edges,
+                                  accepted_placements, link_origins,
+                                  placement_weights, weight_col,
+                                  effective_weight_col, apply_canonicals,
+                                  apply_redirects) {
+  structure(
     list(
       diagnostics = bundle$diagnostics,
       provenance = bundle$provenance,
@@ -205,8 +278,6 @@ pagerank_screaming_frog <- function(bundle,
     ),
     class = "screaming_frog_import_audit"
   )
-
-  result
 }
 
 .sf_validate_bundle_for_pagerank <- function(bundle) {
