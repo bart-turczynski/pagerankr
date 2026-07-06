@@ -167,13 +167,77 @@ smooth_transitions <- function(empirical_df,
                                to_col = "to",
                                prob_col = "transition_probability") {
   # --- Validation ---
+  .validate_smooth_frames(empirical_df, structural_df)
+  .validate_smooth_char_args(count_col, from_col, to_col, prob_col)
+  .validate_smooth_shrinkage(k, min_support, lambda_fn)
+  .validate_smooth_weight_col_arg(structural_weight_col)
+  .validate_smooth_columns(
+    empirical_df, structural_df, from_col, to_col, count_col,
+    structural_weight_col
+  )
+
+  # --- Normalise both inputs to from/to/value triples (NA-dropped, summed) ---
+  emp <- .collapse_edge_values(
+    empirical_df, from_col, to_col, empirical_df[[count_col]]
+  )
+  if (is.null(structural_weight_col)) {
+    struct_vals <- rep(1, nrow(structural_df))
+  } else {
+    struct_vals <- structural_df[[structural_weight_col]]
+  }
+  struct <- .collapse_edge_values(
+    structural_df, from_col, to_col, struct_vals
+  )
+
+  # Structural weights must be positive to act as a prior; non-positive or NA
+  # weights carry no prior mass and are dropped.
+  struct <- struct[is.finite(struct$value) & struct$value > 0, , drop = FALSE]
+
+  if (nrow(emp) == 0 && nrow(struct) == 0) {
+    return(.empty_smooth_result(from_col, to_col, prob_col))
+  }
+
+  # --- Per-source smoothing over the union of sources ---
+  sources <- unique(c(emp$from, struct$from))
+
+  pieces <- lapply(sources, function(src) {
+    .smooth_one_source(src, emp, struct, min_support, lambda_fn, k)
+  })
+
+  out <- do.call(rbind, pieces)
+
+  # Drop edges that carry no transition mass (only possible for an
+  # empirical_only edge from a below-min_support source).
+  out <- out[out$prob > 0, , drop = FALSE]
+
+  # Stable output order.
+  out <- out[order(out$from, out$to), , drop = FALSE]
+  row.names(out) <- NULL
+
+  names(out) <- c(
+    from_col, to_col, prob_col, "empirical_count", "empirical_share",
+    "structural_prior", "support", "lambda", "origin"
+  )
+  out
+}
+
+#' Validate that both smoothing inputs are data frames.
+#' @keywords internal
+#' @noRd
+.validate_smooth_frames <- function(empirical_df, structural_df) {
   if (!is.data.frame(empirical_df)) {
     stop("`empirical_df` must be a data frame.", call. = FALSE)
   }
   if (!is.data.frame(structural_df)) {
     stop("`structural_df` must be a data frame.", call. = FALSE)
   }
+  invisible(NULL)
+}
 
+#' Validate that the column-name arguments are single non-NA strings.
+#' @keywords internal
+#' @noRd
+.validate_smooth_char_args <- function(count_col, from_col, to_col, prob_col) {
   char_args <- list(
     count_col = count_col, from_col = from_col,
     to_col = to_col, prob_col = prob_col
@@ -186,21 +250,53 @@ smooth_transitions <- function(empirical_df,
       )
     }
   }
+  invisible(NULL)
+}
 
-  if (!is.numeric(k) || length(k) != 1 || is.na(k) || k <= 0) {
+#' Validate the shrinkage-strength arguments (`k`, `min_support`, `lambda_fn`).
+#' @keywords internal
+#' @noRd
+.validate_smooth_shrinkage <- function(k, min_support, lambda_fn) {
+  .validate_positive_k(k)
+  .validate_min_support(min_support)
+  if (!is.null(lambda_fn)) {
+    if (!is.function(lambda_fn)) {
+      stop("`lambda_fn` must be a function or NULL.", call. = FALSE)
+    }
+  }
+  invisible(NULL)
+}
+
+#' Validate that `k` is a single strictly-positive number.
+#' @keywords internal
+#' @noRd
+.validate_positive_k <- function(k) {
+  bad <- !is.numeric(k) || length(k) != 1
+  if (bad || is.na(k) || k <= 0) {
     stop(
       "`k` must be a single positive number. A positive `k` is what ",
       "guarantees every crawled link keeps non-zero probability.",
       call. = FALSE
     )
   }
-  if (!is.numeric(min_support) || length(min_support) != 1 ||
-        is.na(min_support) || min_support < 0) {
+  invisible(NULL)
+}
+
+#' Validate that `min_support` is a single non-negative number.
+#' @keywords internal
+#' @noRd
+.validate_min_support <- function(min_support) {
+  bad <- !is.numeric(min_support) || length(min_support) != 1
+  if (bad || is.na(min_support) || min_support < 0) {
     stop("`min_support` must be a single non-negative number.", call. = FALSE)
   }
-  if (!is.null(lambda_fn) && !is.function(lambda_fn)) {
-    stop("`lambda_fn` must be a function or NULL.", call. = FALSE)
-  }
+  invisible(NULL)
+}
+
+#' Validate that `structural_weight_col` is a single non-NA string or NULL.
+#' @keywords internal
+#' @noRd
+.validate_smooth_weight_col_arg <- function(structural_weight_col) {
   if (!is.null(structural_weight_col) &&
         (!is.character(structural_weight_col) ||
            length(structural_weight_col) != 1 ||
@@ -211,8 +307,15 @@ smooth_transitions <- function(empirical_df,
       call. = FALSE
     )
   }
+  invisible(NULL)
+}
 
-  # Required columns in each input.
+#' Validate that required columns are present and typed correctly.
+#' @keywords internal
+#' @noRd
+.validate_smooth_columns <- function(empirical_df, structural_df, from_col,
+                                     to_col, count_col,
+                                     structural_weight_col) {
   emp_required <- c(from_col, to_col, count_col)
   emp_missing <- emp_required[!emp_required %in% names(empirical_df)]
   if (length(emp_missing) > 0) {
@@ -246,135 +349,130 @@ smooth_transitions <- function(empirical_df,
       call. = FALSE
     )
   }
+  invisible(NULL)
+}
 
-  # --- Normalise both inputs to from/to/value triples (NA-dropped, summed) ---
-  emp <- .collapse_edge_values(
-    empirical_df, from_col, to_col, empirical_df[[count_col]]
+#' Build the zero-row result data frame with the requested column names.
+#' @keywords internal
+#' @noRd
+.empty_smooth_result <- function(from_col, to_col, prob_col) {
+  out <- data.frame(
+    a = character(0), b = character(0),
+    p = numeric(0), ec = numeric(0), es = numeric(0),
+    sp = numeric(0), su = numeric(0), lam = numeric(0),
+    origin = character(0)
   )
-  if (is.null(structural_weight_col)) {
-    struct_vals <- rep(1, nrow(structural_df))
-  } else {
-    struct_vals <- structural_df[[structural_weight_col]]
-  }
-  struct <- .collapse_edge_values(
-    structural_df, from_col, to_col, struct_vals
-  )
-
-  # Structural weights must be positive to act as a prior; non-positive or NA
-  # weights carry no prior mass and are dropped.
-  struct <- struct[is.finite(struct$value) & struct$value > 0, , drop = FALSE]
-
-  empty_result <- function() {
-    out <- data.frame(
-      a = character(0), b = character(0),
-      p = numeric(0), ec = numeric(0), es = numeric(0),
-      sp = numeric(0), su = numeric(0), lam = numeric(0),
-      origin = character(0)
-    )
-    names(out) <- c(
-      from_col, to_col, prob_col, "empirical_count", "empirical_share",
-      "structural_prior", "support", "lambda", "origin"
-    )
-    out
-  }
-
-  if (nrow(emp) == 0 && nrow(struct) == 0) {
-    return(empty_result())
-  }
-
-  # --- Per-source smoothing over the union of sources ---
-  sources <- unique(c(emp$from, struct$from))
-
-  pieces <- lapply(sources, function(src) {
-    e <- emp[emp$from == src, , drop = FALSE]
-    s <- struct[struct$from == src, , drop = FALSE]
-
-    n_i <- sum(e$value)
-    has_emp <- n_i > 0
-    struct_total <- sum(s$value)
-    has_struct <- struct_total > 0
-
-    # Per-source shrinkage weight.
-    if (!has_emp) {
-      lambda <- 0
-    } else if (!has_struct) {
-      lambda <- 1
-    } else if (n_i < min_support) {
-      lambda <- 0
-    } else if (!is.null(lambda_fn)) {
-      lambda <- lambda_fn(n_i)
-      if (!is.numeric(lambda) || length(lambda) != 1 || is.na(lambda) ||
-            lambda < 0 || lambda > 1) {
-        stop(
-          "`lambda_fn` must return a single value in [0, 1]; got an invalid ",
-          "result for source '", src, "'.",
-          call. = FALSE
-        )
-      }
-    } else {
-      lambda <- n_i / (n_i + k)
-    }
-
-    # Union of targets for this source.
-    targets <- unique(c(e$to, s$to))
-
-    emp_share <- if (has_emp) {
-      vapply(targets, function(t) {
-        cc <- e$value[e$to == t]
-        if (length(cc) == 0) 0 else sum(cc) / n_i
-      }, numeric(1))
-    } else {
-      rep(0, length(targets))
-    }
-    prior <- if (has_struct) {
-      vapply(targets, function(t) {
-        ww <- s$value[s$to == t]
-        if (length(ww) == 0) 0 else sum(ww) / struct_total
-      }, numeric(1))
-    } else {
-      rep(0, length(targets))
-    }
-    emp_count <- vapply(targets, function(t) {
-      cc <- e$value[e$to == t]
-      if (length(cc) == 0) 0 else sum(cc)
-    }, numeric(1))
-
-    prob <- lambda * emp_share + (1 - lambda) * prior
-
-    in_emp <- targets %in% e$to
-    in_struct <- targets %in% s$to
-    origin <- rep("structural_only", length(in_emp))
-    origin[in_emp] <- "empirical_only"
-    origin[in_emp & in_struct] <- "both"
-
-    data.frame(
-      from = rep(src, length(targets)),
-      to = targets,
-      prob = prob,
-      empirical_count = emp_count,
-      empirical_share = emp_share,
-      structural_prior = prior,
-      support = rep(n_i, length(targets)),
-      lambda = rep(lambda, length(targets)),
-      origin = origin
-    )
-  })
-
-  out <- do.call(rbind, pieces)
-
-  # Drop edges that carry no transition mass (only possible for an
-  # empirical_only edge from a below-min_support source).
-  out <- out[out$prob > 0, , drop = FALSE]
-
-  # Stable output order.
-  out <- out[order(out$from, out$to), , drop = FALSE]
-  row.names(out) <- NULL
-
   names(out) <- c(
     from_col, to_col, prob_col, "empirical_count", "empirical_share",
     "structural_prior", "support", "lambda", "origin"
   )
   out
+}
+
+#' Validate a `lambda_fn` return value is a single number in [0, 1].
+#' @keywords internal
+#' @noRd
+.validate_lambda_value <- function(lambda, src) {
+  bad <- !is.numeric(lambda) || length(lambda) != 1
+  if (bad || is.na(lambda) || lambda < 0 || lambda > 1) {
+    stop(
+      "`lambda_fn` must return a single value in [0, 1]; got an invalid ",
+      "result for source '", src, "'.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' Resolve the per-source shrinkage weight lambda.
+#'
+#' Applies the special cases (no empirical data, no prior, insufficient
+#' support), then a caller-supplied `lambda_fn` if given, else the default
+#' `n_i / (n_i + k)` rule.
+#' @keywords internal
+#' @noRd
+.compute_source_lambda <- function(n_i, has_emp, has_struct, min_support,
+                                   lambda_fn, k, src) {
+  if (!has_emp) {
+    return(0)
+  }
+  if (!has_struct) {
+    return(1)
+  }
+  if (n_i < min_support) {
+    return(0)
+  }
+  if (!is.null(lambda_fn)) {
+    lambda <- lambda_fn(n_i)
+    .validate_lambda_value(lambda, src)
+    return(lambda)
+  }
+  n_i / (n_i + k)
+}
+
+#' Sum an aligned value vector per requested target.
+#'
+#' Returns a numeric vector aligned to `targets`; a target with no matching
+#' rows contributes 0.
+#' @keywords internal
+#' @noRd
+.sum_by_target <- function(targets, to_vec, value_vec) {
+  vapply(targets, function(t) {
+    v <- value_vec[to_vec == t]
+    if (length(v) == 0) 0 else sum(v)
+  }, numeric(1))
+}
+
+#' Compute the smoothed transition rows for a single source page.
+#' @keywords internal
+#' @noRd
+.smooth_one_source <- function(src, emp, struct, min_support, lambda_fn, k) {
+  e <- emp[emp$from == src, , drop = FALSE]
+  s <- struct[struct$from == src, , drop = FALSE]
+
+  n_i <- sum(e$value)
+  has_emp <- n_i > 0
+  struct_total <- sum(s$value)
+  has_struct <- struct_total > 0
+
+  lambda <- .compute_source_lambda(
+    n_i, has_emp, has_struct, min_support, lambda_fn, k, src
+  )
+
+  # Union of targets for this source.
+  targets <- unique(c(e$to, s$to))
+
+  emp_count <- .sum_by_target(targets, e$to, e$value)
+  emp_share <- if (has_emp) {
+    emp_count / n_i
+  } else {
+    rep(0, length(targets))
+  }
+  prior <- if (has_struct) {
+    .sum_by_target(targets, s$to, s$value) / struct_total
+  } else {
+    rep(0, length(targets))
+  }
+
+  prob <- lambda * emp_share + (1 - lambda) * prior
+
+  in_emp <- targets %in% e$to
+  in_struct <- targets %in% s$to
+  origin <- rep("structural_only", length(in_emp))
+  origin[in_emp] <- "empirical_only"
+  origin[in_emp & in_struct] <- "both"
+
+  data.frame(
+    from = rep(src, length(targets)),
+    to = targets,
+    prob = prob,
+    empirical_count = emp_count,
+    empirical_share = emp_share,
+    structural_prior = prior,
+    support = rep(n_i, length(targets)),
+    lambda = rep(lambda, length(targets)),
+    origin = origin
+  )
 }
 
 #' Collapse a from/to edge list with an aligned value vector to summed triples.
