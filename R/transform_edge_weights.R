@@ -78,20 +78,51 @@ transform_edge_weights <- function(edge_list_df,
                                    ...) {
   method <- match.arg(method)
 
-  # --- Validation ---
+  .validate_tew_args(edge_list_df, value_col, by, weight_col, prob_col)
+
+  res <- .compute_tew_columns(edge_list_df, value_col, by, method, ...)
+
+  edge_list_df[[weight_col]] <- res$weight
+  edge_list_df[[prob_col]] <- res$prob
+  edge_list_df
+}
+
+#' Validate arguments for transform_edge_weights()
+#'
+#' Preserves the original validation order and error-message text. The
+#' compound \code{||} guards are expanded into sequential \code{if}
+#' statements (same order, same messages) to keep cyclomatic complexity low.
+#'
+#' @return Invisibly \code{NULL}; called for its side effect of stopping on
+#'   invalid input.
+#' @noRd
+.validate_tew_args <- function(edge_list_df, value_col, by,
+                               weight_col, prob_col) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  if (!is.character(value_col) || length(value_col) != 1) {
+  if (!is.character(value_col)) {
     stop("`value_col` must be a single column name.", call. = FALSE)
   }
-  if (!is.character(by) || length(by) < 1) {
+  if (length(value_col) != 1) {
+    stop("`value_col` must be a single column name.", call. = FALSE)
+  }
+  if (!is.character(by)) {
     stop("`by` must be one or more column names.", call. = FALSE)
   }
-  if (!is.character(weight_col) || length(weight_col) != 1) {
+  if (length(by) < 1) {
+    stop("`by` must be one or more column names.", call. = FALSE)
+  }
+  if (!is.character(weight_col)) {
     stop("`weight_col` must be a single column name.", call. = FALSE)
   }
-  if (!is.character(prob_col) || length(prob_col) != 1) {
+  if (length(weight_col) != 1) {
+    stop("`weight_col` must be a single column name.", call. = FALSE)
+  }
+  if (!is.character(prob_col)) {
+    stop("`prob_col` must be a single column name.", call. = FALSE)
+  }
+  if (length(prob_col) != 1) {
     stop("`prob_col` must be a single column name.", call. = FALSE)
   }
 
@@ -106,30 +137,55 @@ transform_edge_weights <- function(edge_list_df,
   if (!is.numeric(edge_list_df[[value_col]])) {
     stop("`value_col` (", value_col, ") must be numeric.", call. = FALSE)
   }
+  invisible(NULL)
+}
 
+#' Compute per-group transformed weights and transition probabilities
+#'
+#' Applies \code{transform_weights()} independently within each \code{by}
+#' group, then normalizes to a within-group probability. Degenerate groups
+#' (all-\code{NA} or non-positive sum) retain \code{NA} probabilities.
+#'
+#' @return A list with numeric vectors \code{weight} and \code{prob}, each of
+#'   length \code{nrow(edge_list_df)}, in original row order.
+#' @noRd
+.compute_tew_columns <- function(edge_list_df, value_col, by, method, ...) {
   n <- nrow(edge_list_df)
   weight <- rep(NA_real_, n)
   prob <- rep(NA_real_, n)
 
-  if (n > 0) {
-    # Build a per-row group key from the `by` column(s), preserving order.
-    group_key <- interaction(edge_list_df[by], drop = TRUE, lex.order = TRUE)
-    row_idx <- split(seq_len(n), group_key)
-
-    for (idx in row_idx) {
-      vals <- edge_list_df[[value_col]][idx]
-      w <- transform_weights(vals, method = method, ...)
-      weight[idx] <- w
-
-      total <- sum(w, na.rm = TRUE)
-      if (is.finite(total) && total > 0) {
-        prob[idx] <- w / total
-      }
-      # else: leave NA (degenerate / all-NA / zero-sum choice set)
-    }
+  if (n == 0) {
+    return(list(weight = weight, prob = prob))
   }
 
-  edge_list_df[[weight_col]] <- weight
-  edge_list_df[[prob_col]] <- prob
-  edge_list_df
+  # Build a per-row group key from the `by` column(s), preserving order.
+  group_key <- interaction(edge_list_df[by], drop = TRUE, lex.order = TRUE)
+  row_idx <- split(seq_len(n), group_key)
+
+  for (idx in row_idx) {
+    vals <- edge_list_df[[value_col]][idx]
+    w <- transform_weights(vals, method = method, ...)
+    weight[idx] <- w
+    prob[idx] <- .tew_group_prob(w)
+    # degenerate / all-NA / zero-sum choice sets keep NA
+  }
+
+  list(weight = weight, prob = prob)
+}
+
+#' Normalize a group's transformed weights into a probability vector
+#'
+#' @param w Numeric vector of transformed weights for one \code{by} group.
+#' @return A numeric vector the same length as \code{w}: the within-group
+#'   probabilities, or all \code{NA} when the group sum is not finite/positive.
+#' @noRd
+.tew_group_prob <- function(w) {
+  total <- sum(w, na.rm = TRUE)
+  if (!is.finite(total)) {
+    return(rep(NA_real_, length(w)))
+  }
+  if (total <= 0) {
+    return(rep(NA_real_, length(w)))
+  }
+  w / total
 }
