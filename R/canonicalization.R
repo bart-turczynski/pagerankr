@@ -62,6 +62,15 @@
 #'
 #' @return A named list of `rurl` canonicalization arguments.
 #' @export
+#' @examples
+#' # The pinned profile that determines pagerankr node identity.
+#' profile <- canonical_profile()
+#' str(profile)
+#'
+#' # Key knobs that shape the scheme + host + path node key.
+#' profile$case_handling      # "lower_host"
+#' profile$path_normalization # "dot_segments"
+#' profile$path_encoding      # "decode"
 canonical_profile <- function() {
   list(
     protocol_handling = "keep",
