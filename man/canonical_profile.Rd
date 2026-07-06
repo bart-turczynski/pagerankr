@@ -72,3 +72,13 @@ The canonical node key is **scheme + host + path**, with the path
   on raw crawl data, where such tokens become opaque nodes instead of being
   dropped.
 }
+\examples{
+# The pinned profile that determines pagerankr node identity.
+profile <- canonical_profile()
+str(profile)
+
+# Key knobs that shape the scheme + host + path node key.
+profile$case_handling      # "lower_host"
+profile$path_normalization # "dot_segments"
+profile$path_encoding      # "decode"
+}
