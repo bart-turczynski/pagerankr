@@ -61,46 +61,81 @@ simulate_changes <- function(edge_list_df,
                              edge_to_col = "to",
                              label_baseline = "baseline",
                              label_proposed = "proposed") {
-  # --- Validation ---
+  .validate_simulate_inputs(
+    edge_list_df, add_links_df, remove_links_df,
+    add_redirects_df, redirects_df, edge_from_col, edge_to_col
+  )
+
+  proposed_edges <- .build_proposed_edges(
+    edge_list_df, add_links_df, remove_links_df,
+    edge_from_col, edge_to_col
+  )
+  proposed_redirects <- .build_proposed_redirects(
+    redirects_df, add_redirects_df
+  )
+
+  pr_baseline <- pagerank(edge_list_df, redirects_df = redirects_df, ...)
+  pr_proposed <- pagerank(proposed_edges,
+    redirects_df = proposed_redirects,
+    ...
+  )
+
+  compare_pagerank(pr_baseline, pr_proposed,
+    label_a = label_baseline, label_b = label_proposed
+  )
+}
+
+#' Validate a link data frame argument for simulate_changes()
+#' @noRd
+.validate_link_df <- function(df, arg_name, required_cols, from_col, to_col) {
+  if (is.null(df)) {
+    return(invisible(NULL))
+  }
+  if (!is.data.frame(df)) {
+    stop("`", arg_name, "` must be a data frame or NULL.", call. = FALSE)
+  }
+  if (nrow(df) > 0 && !all(required_cols %in% names(df))) {
+    stop("`", arg_name, "` must have '", from_col, "' and '",
+      to_col, "' columns.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' Validate a redirect data frame argument for simulate_changes()
+#' @noRd
+.validate_redirect_df <- function(df, arg_name) {
+  if (!is.null(df) && !is.data.frame(df)) {
+    stop("`", arg_name, "` must be a data frame or NULL.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Validate all inputs to simulate_changes()
+#' @noRd
+.validate_simulate_inputs <- function(edge_list_df, add_links_df,
+                                      remove_links_df, add_redirects_df,
+                                      redirects_df, from_col, to_col) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  required_cols <- c(edge_from_col, edge_to_col)
+  required_cols <- c(from_col, to_col)
+  .validate_link_df(
+    add_links_df, "add_links_df", required_cols, from_col, to_col
+  )
+  .validate_link_df(
+    remove_links_df, "remove_links_df", required_cols, from_col, to_col
+  )
+  .validate_redirect_df(add_redirects_df, "add_redirects_df")
+  .validate_redirect_df(redirects_df, "redirects_df")
+  invisible(NULL)
+}
 
-  if (!is.null(add_links_df)) {
-    if (!is.data.frame(add_links_df)) {
-      stop("`add_links_df` must be a data frame or NULL.", call. = FALSE)
-    }
-    if (nrow(add_links_df) > 0 &&
-          !all(required_cols %in% names(add_links_df))) {
-      stop("`add_links_df` must have '", edge_from_col, "' and '",
-        edge_to_col, "' columns.",
-        call. = FALSE
-      )
-    }
-  }
-
-  if (!is.null(remove_links_df)) {
-    if (!is.data.frame(remove_links_df)) {
-      stop("`remove_links_df` must be a data frame or NULL.", call. = FALSE)
-    }
-    if (nrow(remove_links_df) > 0 &&
-          !all(required_cols %in% names(remove_links_df))) {
-      stop("`remove_links_df` must have '", edge_from_col, "' and '",
-        edge_to_col, "' columns.",
-        call. = FALSE
-      )
-    }
-  }
-
-  if (!is.null(add_redirects_df) && !is.data.frame(add_redirects_df)) {
-    stop("`add_redirects_df` must be a data frame or NULL.", call. = FALSE)
-  }
-  if (!is.null(redirects_df) && !is.data.frame(redirects_df)) {
-    stop("`redirects_df` must be a data frame or NULL.", call. = FALSE)
-  }
-
-  # --- Build proposed edge list ---
+#' Build the proposed edge list from adds and removes
+#' @noRd
+.build_proposed_edges <- function(edge_list_df, add_links_df,
+                                  remove_links_df, from_col, to_col) {
   proposed_edges <- edge_list_df
 
   if (!is.null(add_links_df) && nrow(add_links_df) > 0) {
@@ -113,19 +148,24 @@ simulate_changes <- function(edge_list_df,
 
   if (!is.null(remove_links_df) && nrow(remove_links_df) > 0) {
     remove_key <- paste0(
-      as.character(remove_links_df[[edge_from_col]]), "\t",
-      as.character(remove_links_df[[edge_to_col]])
+      as.character(remove_links_df[[from_col]]), "\t",
+      as.character(remove_links_df[[to_col]])
     )
     current_key <- paste0(
-      as.character(proposed_edges[[edge_from_col]]), "\t",
-      as.character(proposed_edges[[edge_to_col]])
+      as.character(proposed_edges[[from_col]]), "\t",
+      as.character(proposed_edges[[to_col]])
     )
     proposed_edges <- proposed_edges[!(current_key %in% remove_key), ,
       drop = FALSE
     ]
   }
 
-  # --- Build proposed redirects ---
+  proposed_edges
+}
+
+#' Build the proposed redirect table from the baseline and additions
+#' @noRd
+.build_proposed_redirects <- function(redirects_df, add_redirects_df) {
   proposed_redirects <- redirects_df
 
   if (!is.null(add_redirects_df) && nrow(add_redirects_df) > 0) {
@@ -143,15 +183,5 @@ simulate_changes <- function(edge_list_df,
     }
   }
 
-  # --- Run both models ---
-  pr_baseline <- pagerank(edge_list_df, redirects_df = redirects_df, ...)
-  pr_proposed <- pagerank(proposed_edges,
-    redirects_df = proposed_redirects,
-    ...
-  )
-
-  # --- Compare ---
-  compare_pagerank(pr_baseline, pr_proposed,
-    label_a = label_baseline, label_b = label_proposed
-  )
+  proposed_redirects
 }
