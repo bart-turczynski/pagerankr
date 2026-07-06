@@ -44,17 +44,45 @@ pagerank_grid <- function(edge_list_df,
                           ...,
                           edge_from_col = "from",
                           edge_to_col = "to") {
-  # --- Validation ---
+  .validate_pagerank_grid(edge_list_df, params_grid)
+
+  results_list <- .run_pagerank_grid(
+    edge_list_df = edge_list_df,
+    params_grid = params_grid,
+    redirects_df = redirects_df,
+    common_args = list(...),
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col
+  )
+
+  .combine_pagerank_grid(results_list)
+}
+
+#' Validate inputs to [pagerank_grid()]
+#' @noRd
+.validate_pagerank_grid <- function(edge_list_df, params_grid) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  if (!is.list(params_grid) || length(params_grid) == 0) {
+  if (!is.list(params_grid)) {
     stop(
       "`params_grid` must be a non-empty named list of parameter lists.",
       call. = FALSE
     )
   }
-  if (is.null(names(params_grid)) || any(names(params_grid) == "")) {
+  if (length(params_grid) == 0) {
+    stop(
+      "`params_grid` must be a non-empty named list of parameter lists.",
+      call. = FALSE
+    )
+  }
+  if (is.null(names(params_grid))) {
+    stop(
+      "All entries in `params_grid` must be named (these become model IDs).",
+      call. = FALSE
+    )
+  }
+  if (any(names(params_grid) == "")) {
     stop(
       "All entries in `params_grid` must be named (these become model IDs).",
       call. = FALSE
@@ -68,50 +96,74 @@ pagerank_grid <- function(edge_list_df,
       )
     }
   }
+  invisible(NULL)
+}
 
-  # --- Shared (common) arguments ---
-  common_args <- list(...)
+#' Build the argument list for a single [pagerank()] call in the grid
+#' @noRd
+.build_grid_call_args <- function(model_params,
+                                  edge_list_df,
+                                  redirects_df,
+                                  edge_from_col,
+                                  edge_to_col,
+                                  common_args) {
+  call_args <- c(
+    list(
+      edge_list_df = edge_list_df,
+      redirects_df = redirects_df,
+      edge_from_col = edge_from_col,
+      edge_to_col = edge_to_col
+    ),
+    common_args
+  )
+  # Override with model-specific params
+  for (pname in names(model_params)) {
+    call_args[[pname]] <- model_params[[pname]]
+  }
+  call_args
+}
 
-  # --- Run pagerank for each parameter set ---
+#' Run [pagerank()] for every parameter set in the grid
+#' @noRd
+.run_pagerank_grid <- function(edge_list_df,
+                               params_grid,
+                               redirects_df,
+                               common_args,
+                               edge_from_col,
+                               edge_to_col) {
   results_list <- vector("list", length(params_grid))
   model_names <- names(params_grid)
 
   for (i in seq_along(params_grid)) {
-    model_id <- model_names[i]
-    model_params <- params_grid[[i]]
-
-    # Merge: model_params override common_args
-    call_args <- c(
-      list(
-        edge_list_df = edge_list_df,
-        redirects_df = redirects_df,
-        edge_from_col = edge_from_col,
-        edge_to_col = edge_to_col
-      ),
-      common_args
+    call_args <- .build_grid_call_args(
+      model_params = params_grid[[i]],
+      edge_list_df = edge_list_df,
+      redirects_df = redirects_df,
+      edge_from_col = edge_from_col,
+      edge_to_col = edge_to_col,
+      common_args = common_args
     )
-    # Override with model-specific params
-    for (pname in names(model_params)) {
-      call_args[[pname]] <- model_params[[pname]]
-    }
 
     pr_result <- do.call(pagerank, call_args)
 
     if (nrow(pr_result) > 0) {
-      pr_result$model_id <- model_id
+      pr_result$model_id <- model_names[i]
     } else {
       pr_result$model_id <- character(0)
     }
     results_list[[i]] <- pr_result
   }
 
-  # --- Combine ---
+  results_list
+}
+
+#' Combine per-model results into a single data frame with `model_id` first
+#' @noRd
+.combine_pagerank_grid <- function(results_list) {
   combined <- do.call(rbind, results_list)
   row.names(combined) <- NULL
 
   # Reorder columns: model_id first
   col_order <- c("model_id", setdiff(names(combined), "model_id"))
-  combined <- combined[, col_order, drop = FALSE]
-
-  combined
+  combined[, col_order, drop = FALSE]
 }
