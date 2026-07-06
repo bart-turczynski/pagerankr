@@ -105,6 +105,33 @@ test_that("input validation", {
   )
 })
 
+test_that("additional invalid reference/top_k branches are rejected", {
+  expect_error(
+    pagerank_stability(edges, reference = "nope"),
+    "single number strictly between 0 and 1"
+  )
+  expect_error(
+    pagerank_stability(edges, reference = NA_real_),
+    "single number strictly between 0 and 1"
+  )
+  expect_error(
+    pagerank_stability(edges, reference = -0.1),
+    "single number strictly between 0 and 1"
+  )
+  expect_error(
+    pagerank_stability(edges, top_k = "nope"),
+    "single positive integer"
+  )
+  expect_error(
+    pagerank_stability(edges, top_k = c(1, 2)),
+    "single positive integer"
+  )
+  expect_error(
+    pagerank_stability(edges, top_k = NA_integer_),
+    "single positive integer"
+  )
+})
+
 test_that("empty graph yields per-alpha rows with NA metrics", {
   empty <- data.frame(
     from = character(0), to = character(0)

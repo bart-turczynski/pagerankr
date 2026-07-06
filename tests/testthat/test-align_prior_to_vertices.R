@@ -152,6 +152,45 @@ test_that("validation rejects bad alpha and missing columns", {
   )
 })
 
+test_that("prior_df must be a data frame", {
+  expect_error(
+    align_prior_to_vertices(c("a", "b"), "not a data frame", verbose = FALSE),
+    "must be a data frame"
+  )
+})
+
+test_that("additional invalid alpha branches are rejected", {
+  v <- c("a", "b")
+  prior <- data.frame(url = "a", weight = 1)
+  expect_error(
+    align_prior_to_vertices(v, prior, alpha = "nope", verbose = FALSE),
+    "single number between 0 and 1"
+  )
+  expect_error(
+    align_prior_to_vertices(v, prior, alpha = c(0, 1), verbose = FALSE),
+    "single number between 0 and 1"
+  )
+  expect_error(
+    align_prior_to_vertices(v, prior, alpha = NA_real_, verbose = FALSE),
+    "single number between 0 and 1"
+  )
+  expect_error(
+    align_prior_to_vertices(v, prior, alpha = -0.5, verbose = FALSE),
+    "single number between 0 and 1"
+  )
+})
+
+test_that("degenerate case: all vertices excluded falls back to equal split", {
+  v <- c("a", "b")
+  prior <- data.frame(url = "a", weight = 10)
+  p <- align_prior_to_vertices(
+    v, prior,
+    exclude_nodes = c("a", "b"),
+    verbose = FALSE
+  )
+  expect_equal(unname(p), c(0.5, 0.5))
+})
+
 test_that("coverage diagnostics report dropped (unmatched) prior weight", {
   v <- c("a")
   prior <- data.frame(
