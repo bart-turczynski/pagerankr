@@ -166,88 +166,25 @@ compute_pagerank <- function(edge_list_df,
   # We re-expose them as friendly aliases for the ARPACK back-end's
   # options$tol / options$maxiter. PRPACK (the default, direct solver) has no
   # such knobs, so supplying either control transparently switches to ARPACK.
-  if (!is.null(eps)) {
-    if (!is.numeric(eps) || length(eps) != 1 || is.na(eps) || eps <= 0) {
-      stop("`eps` must be a single positive number or NULL.", call. = FALSE)
-    }
-  }
-  if (!is.null(niter)) {
-    if (!is.numeric(niter) || length(niter) != 1 || is.na(niter) ||
-          niter < 1) {
-      stop("`niter` must be a single positive integer or NULL.", call. = FALSE)
-    }
-    niter <- as.integer(niter)
-  }
-  if ((!is.null(eps) || !is.null(niter)) && algo == "prpack") {
-    message(
-      "`eps`/`niter` are only honoured by the ARPACK solver; switching ",
-      "`algo` to \"arpack\". Pass `algo = \"arpack\"` explicitly to silence ",
-      "this message."
-    )
-    algo <- "arpack"
-  }
+  # See .validate_and_select_solver.
+  .cc <- .validate_and_select_solver(eps, niter, algo)
+  eps <- .cc$eps
+  niter <- .cc$niter
+  algo <- .cc$algo
 
-  # --- Input Validation ---
-  if (!is.data.frame(edge_list_df)) {
-    stop("`edge_list_df` must be a data frame.", call. = FALSE)
-  }
-  if (nrow(edge_list_df) > 0 &&
-        !all(c(from_col, to_col) %in% names(edge_list_df))) {
-    stop("`edge_list_df` must have '", from_col, "' and '", to_col,
-      "' columns if not empty.",
-      call. = FALSE
-    )
-  }
-  if (!is.null(vertices_df)) {
-    if (!is.data.frame(vertices_df)) {
-      stop("`vertices_df` must be a data frame or NULL.", call. = FALSE)
-    }
-    if (nrow(vertices_df) > 0 && !(vertex_col_name %in% names(vertices_df))) {
-      stop("`vertices_df` must have a column named '", vertex_col_name,
-        "' if not empty.",
-        call. = FALSE
-      )
-    }
-  }
-  if (!is.numeric(damping) || length(damping) != 1 ||
-        damping < 0 || damping > 1) {
-    stop(
-      "`damping` must be a single numeric value between 0 and 1.",
-      call. = FALSE
-    )
-  }
-  if (!is.logical(reverse) || length(reverse) != 1 || is.na(reverse)) {
-    stop("`reverse` must be a single logical value.", call. = FALSE)
-  }
-  if (!is.character(pr_node_col) || length(pr_node_col) != 1 ||
-        nchar(pr_node_col) == 0) {
-    stop("`pr_node_col` must be a non-empty character string.", call. = FALSE)
-  }
-  if (!is.character(pr_value_col) || length(pr_value_col) != 1 ||
-        nchar(pr_value_col) == 0) {
-    stop("`pr_value_col` must be a non-empty character string.", call. = FALSE)
-  }
-  if (pr_node_col == pr_value_col) {
-    stop("`pr_node_col` and `pr_value_col` must be different.", call. = FALSE)
-  }
-  if (!is.null(weight_col)) {
-    if (!is.character(weight_col) || length(weight_col) != 1) {
-      stop(
-        "`weight_col` must be a single character string or NULL.",
-        call. = FALSE
-      )
-    }
-    if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
-      stop("`weight_col` '", weight_col, "' not found in `edge_list_df`.",
-        call. = FALSE
-      )
-    }
-    if (nrow(edge_list_df) > 0 && !is.numeric(edge_list_df[[weight_col]])) {
-      stop("`weight_col` '", weight_col, "' must be a numeric column.",
-        call. = FALSE
-      )
-    }
-  }
+  # --- Input validation (see .validate_compute_pagerank_args) ---
+  .validate_compute_pagerank_args(
+    edge_list_df = edge_list_df,
+    vertices_df = vertices_df,
+    damping = damping,
+    reverse = reverse,
+    pr_node_col = pr_node_col,
+    pr_value_col = pr_value_col,
+    weight_col = weight_col,
+    from_col = from_col,
+    to_col = to_col,
+    vertex_col_name = vertex_col_name
+  )
 
   # --- Prepare Empty Result & Graph Vertices ---
   empty_pr_result <- stats::setNames(
@@ -258,223 +195,89 @@ compute_pagerank <- function(edge_list_df,
   empty_pr_result[[pr_node_col]] <- character(0)
   empty_pr_result[[pr_value_col]] <- numeric(0)
 
-  defined_nodes <- NULL
-  if (!is.null(vertices_df) && nrow(vertices_df) > 0 &&
-        vertex_col_name %in% names(vertices_df)) {
-    defined_nodes <- unique(
-      stats::na.omit(as.character(vertices_df[[vertex_col_name]]))
-    )
-    # Treat empty after na.omit as NULL
-    if (length(defined_nodes) == 0) defined_nodes <- NULL
-  }
+  defined_nodes <- .compute_defined_nodes(vertices_df, vertex_col_name)
 
-  # --- Prepare Edges (Remove NAs) ---
-  valid_edges_df <- NULL
-  weight_vector <- NULL
-  if (nrow(edge_list_df) > 0) {
-    # Select from/to (and weight if present) columns
-    cols_to_keep <- c(from_col, to_col)
-    if (!is.null(weight_col)) cols_to_keep <- c(cols_to_keep, weight_col)
-    edges_for_graph <- edge_list_df[, cols_to_keep, drop = FALSE]
-    edges_for_graph[[from_col]] <- as.character(edges_for_graph[[from_col]])
-    edges_for_graph[[to_col]] <- as.character(edges_for_graph[[to_col]])
+  # --- Prepare edges (remove NAs, extract aligned weight vector) ---
+  .pe <- .prepare_graph_edges(
+    edge_list_df = edge_list_df,
+    from_col = from_col,
+    to_col = to_col,
+    weight_col = weight_col,
+    weight_expected_total = weight_expected_total,
+    weight_tolerance = weight_tolerance,
+    weight_validation = weight_validation
+  )
+  valid_edges_df <- .pe$valid_edges_df
+  weight_vector <- .pe$weight_vector
 
-    # igraph cannot handle NAs in edge lists for graph_from_data_frame
-    na_in_edges <- is.na(edges_for_graph[[from_col]]) |
-      is.na(edges_for_graph[[to_col]])
-    valid_edges_df <- edges_for_graph[!na_in_edges, , drop = FALSE]
-
-    # Extract aligned weight vector after NA removal
-    if (!is.null(weight_col) && nrow(valid_edges_df) > 0) {
-      validate_edge_weights(
-        edge_list_df = valid_edges_df,
-        weight_col = weight_col,
-        from_col = from_col,
-        expected_total = weight_expected_total,
-        tolerance = weight_tolerance,
-        action = weight_validation
-      )
-      weight_vector <- valid_edges_df[[weight_col]]
-      # Pass only from/to to graph_from_data_frame (weights set via edge attr)
-      valid_edges_df <- valid_edges_df[, c(from_col, to_col), drop = FALSE]
-    }
-  } else {
-    # No rows in edge_list_df, so valid_edges_df remains an empty structure
-    valid_edges_df <- data.frame(
-      matrix(ncol = 2, nrow = 0, dimnames = list(NULL, c(from_col, to_col)))
-    )
-    valid_edges_df[[from_col]] <- character(0)
-    valid_edges_df[[to_col]] <- character(0)
-  }
-
-  # --- Create Graph ---
-  # If no valid edges and no defined nodes, result is an empty graph/empty
-  # PR results.
+  # --- Create graph ---
+  # If no valid edges and no defined nodes, the result is an empty graph.
   if (nrow(valid_edges_df) == 0 && is.null(defined_nodes)) {
     return(empty_pr_result)
   }
-
-  current_graph <- NULL
-  if (nrow(valid_edges_df) > 0) {
-    # Reverse / inverse PageRank (CheiRank): flip edge orientation by feeding
-    # graph_from_data_frame the columns in (to, from) order. It keys on column
-    # POSITION (1 = source, 2 = target), not name, so swapping the order
-    # transposes the graph. Weights are aligned by row and the vertex set is
-    # order-independent, so neither is affected by the flip.
-    edges_for_construction <- if (reverse) {
-      valid_edges_df[, c(to_col, from_col), drop = FALSE]
-    } else {
-      valid_edges_df
-    }
-    # If defined_nodes is NULL, igraph infers vertices from valid_edges_df.
-    # If defined_nodes is provided, it uses them (and adds any from
-    # valid_edges_df not in defined_nodes).
-    current_graph <- igraph::graph_from_data_frame(
-      d = edges_for_construction,
-      directed = TRUE,
-      vertices = defined_nodes
-    )
-    # Set edge weights if provided (igraph::page_rank auto-detects weight attr)
-    if (!is.null(weight_vector)) {
-      igraph::E(current_graph)$weight <- weight_vector
-    }
-  } else { # No valid edges, but defined_nodes might exist
-    if (!is.null(defined_nodes) && length(defined_nodes) > 0) {
-      current_graph <- igraph::make_empty_graph(
-        n = length(defined_nodes), directed = TRUE
-      )
-      igraph::V(current_graph)$name <- defined_nodes
-    } else {
-      # Should have been caught by the check above, but as a safeguard.
-      return(empty_pr_result)
-    }
-  }
-
-  # If graph has no vertices (e.g. defined_nodes was empty and edges were
-  # empty), return empty.
-  if (igraph::vcount(current_graph) == 0) {
+  current_graph <- .build_pagerank_graph(
+    valid_edges_df = valid_edges_df,
+    defined_nodes = defined_nodes,
+    weight_vector = weight_vector,
+    reverse = reverse,
+    from_col = from_col,
+    to_col = to_col
+  )
+  # NULL (unreachable safeguard) or a vertex-less graph => empty result.
+  if (is.null(current_graph) || igraph::vcount(current_graph) == 0) {
     return(empty_pr_result)
   }
 
   # --- Build TIPR personalization vector (aligned to final vertex set) ---
-  personalized_vec <- NULL
-  if (!is.null(prior_df)) {
-    personalized_vec <- align_prior_to_vertices(
-      vertex_names = igraph::V(current_graph)$name,
-      prior_df = prior_df,
-      prior_url_col = prior_url_col,
-      prior_weight_col = prior_weight_col,
-      transform = prior_transform,
-      alpha = prior_alpha,
-      exclude_nodes = prior_exclude_nodes,
-      verbose = prior_verbose
-    )
-  }
-
-  # --- Compute PageRank ---
-  # Build ARPACK options only when that solver is in use; PRPACK ignores them.
-  pr_options <- NULL
-  if (algo == "arpack") {
-    pr_options <- igraph::arpack_defaults()
-    if (!is.null(eps)) pr_options$tol <- eps
-    if (!is.null(niter)) pr_options$maxiter <- niter
-  }
-  pr_igraph_output <- tryCatch(
-    {
-      if (is.null(personalized_vec)) {
-        igraph::page_rank(
-          graph = current_graph, algo = algo, damping = damping,
-          options = pr_options, ...
-        )
-      } else {
-        igraph::page_rank(
-          graph = current_graph, algo = algo, damping = damping,
-          personalized = personalized_vec, options = pr_options, ...
-        )
-      }
-    },
-    error = function(e) {
-      warning("igraph::page_rank computation failed: ", e$message,
-        call. = FALSE
-      )
-      NULL # Return NULL on error to distinguish from valid empty results
-    }
+  personalized_vec <- .compute_personalization(
+    graph = current_graph,
+    prior_df = prior_df,
+    prior_url_col = prior_url_col,
+    prior_weight_col = prior_weight_col,
+    prior_transform = prior_transform,
+    prior_alpha = prior_alpha,
+    prior_exclude_nodes = prior_exclude_nodes,
+    prior_verbose = prior_verbose
   )
 
-  if (is.null(pr_igraph_output) || is.null(pr_igraph_output$vector) ||
-        length(pr_igraph_output$vector) == 0) {
-    # This handles errors from page_rank or cases where it returns an empty
-    # vector (e.g. graph with nodes but no edges)
-    # For a graph with nodes but no edges, igraph::page_rank gives equal
-    # scores. If vcount > 0, vector shouldn't be empty.
-    # However, if an error occurred or if somehow an empty vector is returned
-    # for vcount > 0, return empty_pr_result.
-    # If defined_nodes existed but no edges, PR is 1/N for each. Let's ensure
-    # this is handled.
-    if (igraph::vcount(current_graph) > 0 &&
-          (is.null(pr_igraph_output) ||
-             length(pr_igraph_output$vector) == 0)) {
-      # This case implies something went wrong, or a graph of isolates for
-      # which PR might be 1/N for each.
-      # igraph::page_rank on isolates assigns them 1/vcount.
-      # If pr_igraph_output$vector is truly empty when it shouldn't be, it's
-      # an issue.
-      # Let's assume if vcount > 0, pr_result$vector will be non-empty from
-      # igraph for isolates.
-      # If pr_igraph_output is NULL (error) or its vector is empty
-      # unexpectedly, return empty_pr_result.
-      return(empty_pr_result)
-    }
-    # If caught by length(pr_result$vector) == 0, implies no nodes had PR
-    # computed or graph was empty.
-  }
-
-  # --- Format Results ---
-  pagerank_df <- data.frame(
-    node = names(pr_igraph_output$vector),
-    pagerank_val = pr_igraph_output$vector,
-    row.names = NULL
+  # --- Compute PageRank (see .run_page_rank) ---
+  pr_igraph_output <- .run_page_rank(
+    graph = current_graph,
+    algo = algo,
+    damping = damping,
+    personalized_vec = personalized_vec,
+    eps = eps,
+    niter = niter,
+    ...
   )
-  names(pagerank_df) <- c(pr_node_col, pr_value_col)
 
-  # Attach the aligned teleport share so the input prior sits next to the
-  # score.
-  if (!is.null(personalized_vec)) {
-    pw <- stats::setNames(personalized_vec, igraph::V(current_graph)$name)
-    pagerank_df[["prior_weight"]] <- unname(pw[pagerank_df[[pr_node_col]]])
+  # A NULL output (page_rank errored) or an empty score vector cannot be
+  # formatted. Since the graph has >= 1 vertex here (guaranteed above), that
+  # only happens on failure, so return the empty result. Equivalent to the
+  # previous nested guard given vcount(current_graph) > 0.
+  if (.is_empty_pagerank_output(pr_igraph_output)) {
+    return(empty_pr_result)
   }
 
-  # Order by pagerank descending by default (optional, but common)
+  # --- Format results (scores + optional prior_weight column) ---
+  pagerank_df <- .format_pagerank_output(
+    pr_igraph_output = pr_igraph_output,
+    pr_node_col = pr_node_col,
+    pr_value_col = pr_value_col,
+    personalized_vec = personalized_vec,
+    graph = current_graph
+  )
 
-  # --- Convergence diagnostic ---
-  # Residual is computed post hoc from the returned vector and is therefore
-  # solver-independent (PRPACK exposes no iteration count, but its direct
-  # solution still has a measurable residual). Iterations / ARPACK info are
-  # read from the solver output when available. See [pagerank_convergence].
-  residual <- .pagerank_l1_residual(
+  # --- Convergence diagnostic (see .build_convergence_attr) ---
+  attr(pagerank_df, "convergence") <- .build_convergence_attr(
     graph = current_graph,
     x = pr_igraph_output$vector,
-    damping = damping,
-    teleport = personalized_vec
-  )
-  tol <- if (!is.null(eps)) eps else 1e-3
-  arpack_iters <- NA_integer_
-  arpack_info <- NA_integer_
-  if (algo == "arpack" && !is.null(pr_igraph_output$options)) {
-    arpack_iters <- as.integer(pr_igraph_output$options$iter)
-    arpack_info <- as.integer(pr_igraph_output$options$info)
-  }
-  tol_met <- is.finite(residual) && residual <= tol &&
-    (algo != "arpack" || (!is.na(arpack_info) && arpack_info == 0L))
-  attr(pagerank_df, "convergence") <- new_pagerank_convergence(
     algo = algo,
-    iters = arpack_iters,
-    residual = residual,
-    tol = tol,
-    tol_met = tol_met,
-    info = arpack_info,
-    eps = if (!is.null(eps)) eps else NA_real_,
-    niter = if (!is.null(niter)) niter else NA_integer_
+    damping = damping,
+    personalized_vec = personalized_vec,
+    eps = eps,
+    niter = niter,
+    arpack_options = pr_igraph_output$options
   )
 
   pagerank_df
@@ -522,4 +325,438 @@ compute_pagerank <- function(edge_list_df,
   x_new <- damping * inflow +
     (damping * dangling_mass + (1 - damping)) * teleport_vec
   sum(abs(x_new - x))
+}
+
+#' Validate the convergence controls and pick the solver back-end.
+#'
+#' `eps` / `niter` are friendly aliases for the ARPACK `options$tol` /
+#' `options$maxiter`; PRPACK ignores them, so supplying either transparently
+#' switches `algo` to `"arpack"` (with an informational message). `niter` is
+#' coerced to integer.
+#' @return A list with the validated `eps`, `niter`, and (possibly switched)
+#'   `algo`.
+#' @keywords internal
+#' @noRd
+.validate_and_select_solver <- function(eps, niter, algo) {
+  .assert_positive_number_or_null(eps)
+  niter <- .coerce_niter_or_null(niter)
+  if ((!is.null(eps) || !is.null(niter)) && algo == "prpack") {
+    message(
+      "`eps`/`niter` are only honoured by the ARPACK solver; switching ",
+      "`algo` to \"arpack\". Pass `algo = \"arpack\"` explicitly to silence ",
+      "this message."
+    )
+    algo <- "arpack"
+  }
+  list(eps = eps, niter = niter, algo = algo)
+}
+
+#' Error unless `eps` is NULL or a single positive number.
+#' Sequential checks keep the short-circuit order and message identical.
+#' @keywords internal
+#' @noRd
+.assert_positive_number_or_null <- function(eps) {
+  if (is.null(eps)) {
+    return(invisible(NULL))
+  }
+  bad <- function() {
+    stop("`eps` must be a single positive number or NULL.", call. = FALSE)
+  }
+  if (!is.numeric(eps)) bad()
+  if (length(eps) != 1) bad()
+  if (is.na(eps)) bad()
+  if (eps <= 0) bad()
+  invisible(NULL)
+}
+
+#' Validate `niter` (NULL or a single positive integer) and coerce to integer.
+#' @return `NULL`, or `as.integer(niter)`.
+#' @keywords internal
+#' @noRd
+.coerce_niter_or_null <- function(niter) {
+  if (is.null(niter)) {
+    return(NULL)
+  }
+  bad <- function() {
+    stop("`niter` must be a single positive integer or NULL.", call. = FALSE)
+  }
+  if (!is.numeric(niter)) bad()
+  if (length(niter) != 1) bad()
+  if (is.na(niter)) bad()
+  if (niter < 1) bad()
+  as.integer(niter)
+}
+
+#' Validate `compute_pagerank()` arguments (delegates to smaller validators).
+#'
+#' Preserves every error message and short-circuit order (including the
+#' historical absence of an NA check on `damping`). Returns `invisible(NULL)`.
+#' @keywords internal
+#' @noRd
+.validate_compute_pagerank_args <- function(edge_list_df,
+                                            vertices_df,
+                                            damping,
+                                            reverse,
+                                            pr_node_col,
+                                            pr_value_col,
+                                            weight_col,
+                                            from_col,
+                                            to_col,
+                                            vertex_col_name) {
+  .validate_edge_df(edge_list_df, from_col, to_col)
+  .validate_vertices_df(vertices_df, vertex_col_name)
+  if (!is.numeric(damping) || length(damping) != 1 ||
+        damping < 0 || damping > 1) {
+    stop(
+      "`damping` must be a single numeric value between 0 and 1.",
+      call. = FALSE
+    )
+  }
+  .assert_flag(reverse, "reverse", allow_na = FALSE)
+  .assert_nonempty_string(pr_node_col, "pr_node_col")
+  .assert_nonempty_string(pr_value_col, "pr_value_col")
+  if (pr_node_col == pr_value_col) {
+    stop("`pr_node_col` and `pr_value_col` must be different.", call. = FALSE)
+  }
+  .validate_compute_weight_col(weight_col, edge_list_df)
+  invisible(NULL)
+}
+
+#' Error unless `edge_list_df` is a data frame with the from/to cols (if rows).
+#' @keywords internal
+#' @noRd
+.validate_edge_df <- function(edge_list_df, from_col, to_col) {
+  if (!is.data.frame(edge_list_df)) {
+    stop("`edge_list_df` must be a data frame.", call. = FALSE)
+  }
+  if (nrow(edge_list_df) > 0 &&
+        !all(c(from_col, to_col) %in% names(edge_list_df))) {
+    stop("`edge_list_df` must have '", from_col, "' and '", to_col,
+      "' columns if not empty.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' Error unless `vertices_df` is NULL or a data frame carrying the vertex col.
+#' @keywords internal
+#' @noRd
+.validate_vertices_df <- function(vertices_df, vertex_col_name) {
+  if (is.null(vertices_df)) {
+    return(invisible(NULL))
+  }
+  if (!is.data.frame(vertices_df)) {
+    stop("`vertices_df` must be a data frame or NULL.", call. = FALSE)
+  }
+  if (nrow(vertices_df) > 0 && !(vertex_col_name %in% names(vertices_df))) {
+    stop("`vertices_df` must have a column named '", vertex_col_name,
+      "' if not empty.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' Error unless `x` is a single non-empty character string.
+#' @keywords internal
+#' @noRd
+.assert_nonempty_string <- function(x, name) {
+  if (!is.character(x) || length(x) != 1 || nchar(x) == 0) {
+    stop("`", name, "` must be a non-empty character string.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Error unless `weight_col` is NULL or a numeric column present in the edges.
+#' @keywords internal
+#' @noRd
+.validate_compute_weight_col <- function(weight_col, edge_list_df) {
+  if (is.null(weight_col)) {
+    return(invisible(NULL))
+  }
+  if (!is.character(weight_col) || length(weight_col) != 1) {
+    stop(
+      "`weight_col` must be a single character string or NULL.",
+      call. = FALSE
+    )
+  }
+  if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
+    stop("`weight_col` '", weight_col, "' not found in `edge_list_df`.",
+      call. = FALSE
+    )
+  }
+  if (nrow(edge_list_df) > 0 && !is.numeric(edge_list_df[[weight_col]])) {
+    stop("`weight_col` '", weight_col, "' must be a numeric column.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' Resolve the defined vertex set from `vertices_df` (NULL when none / empty).
+#' @keywords internal
+#' @noRd
+.compute_defined_nodes <- function(vertices_df, vertex_col_name) {
+  if (!is.null(vertices_df) && nrow(vertices_df) > 0 &&
+        vertex_col_name %in% names(vertices_df)) {
+    defined_nodes <- unique(
+      stats::na.omit(as.character(vertices_df[[vertex_col_name]]))
+    )
+    # Treat empty after na.omit as NULL
+    if (length(defined_nodes) == 0) {
+      return(NULL)
+    }
+    return(defined_nodes)
+  }
+  NULL
+}
+
+#' Select edge columns, drop NA-endpoint rows, and extract the weight vector.
+#'
+#' When `weight_col` is supplied and any valid edges remain, weights are
+#' validated via [validate_edge_weights()] and returned aligned to the surviving
+#' rows; the returned `valid_edges_df` then carries only the from/to columns
+#' (weights travel via the separate vector, set as an edge attribute later).
+#' @return A list with `valid_edges_df` and `weight_vector` (`NULL` if
+#'   unweighted).
+#' @keywords internal
+#' @noRd
+.prepare_graph_edges <- function(edge_list_df,
+                                 from_col,
+                                 to_col,
+                                 weight_col,
+                                 weight_expected_total,
+                                 weight_tolerance,
+                                 weight_validation) {
+  weight_vector <- NULL
+  if (nrow(edge_list_df) > 0) {
+    # Select from/to (and weight if present) columns
+    cols_to_keep <- c(from_col, to_col)
+    if (!is.null(weight_col)) cols_to_keep <- c(cols_to_keep, weight_col)
+    edges_for_graph <- edge_list_df[, cols_to_keep, drop = FALSE]
+    edges_for_graph[[from_col]] <- as.character(edges_for_graph[[from_col]])
+    edges_for_graph[[to_col]] <- as.character(edges_for_graph[[to_col]])
+
+    # igraph cannot handle NAs in edge lists for graph_from_data_frame
+    na_in_edges <- is.na(edges_for_graph[[from_col]]) |
+      is.na(edges_for_graph[[to_col]])
+    valid_edges_df <- edges_for_graph[!na_in_edges, , drop = FALSE]
+
+    # Extract aligned weight vector after NA removal
+    if (!is.null(weight_col) && nrow(valid_edges_df) > 0) {
+      validate_edge_weights(
+        edge_list_df = valid_edges_df,
+        weight_col = weight_col,
+        from_col = from_col,
+        expected_total = weight_expected_total,
+        tolerance = weight_tolerance,
+        action = weight_validation
+      )
+      weight_vector <- valid_edges_df[[weight_col]]
+      # Pass only from/to to graph_from_data_frame (weights set via edge attr)
+      valid_edges_df <- valid_edges_df[, c(from_col, to_col), drop = FALSE]
+    }
+  } else {
+    # No rows in edge_list_df, so valid_edges_df remains an empty structure
+    valid_edges_df <- data.frame(
+      matrix(ncol = 2, nrow = 0, dimnames = list(NULL, c(from_col, to_col)))
+    )
+    valid_edges_df[[from_col]] <- character(0)
+    valid_edges_df[[to_col]] <- character(0)
+  }
+  list(valid_edges_df = valid_edges_df, weight_vector = weight_vector)
+}
+
+#' Build the igraph object to score (edges and/or defined isolate vertices).
+#'
+#' Under `reverse = TRUE` edge orientation is flipped by feeding
+#' `graph_from_data_frame` the columns in (to, from) order (it keys on column
+#' POSITION, not name). Weights, when present, are set as the `weight` edge
+#' attribute. Returns `NULL` in the (unreachable, guarded upstream) case of no
+#' edges and no defined nodes.
+#' @return An igraph graph, or `NULL`.
+#' @keywords internal
+#' @noRd
+.build_pagerank_graph <- function(valid_edges_df,
+                                  defined_nodes,
+                                  weight_vector,
+                                  reverse,
+                                  from_col,
+                                  to_col) {
+  if (nrow(valid_edges_df) > 0) {
+    edges_for_construction <- if (reverse) {
+      valid_edges_df[, c(to_col, from_col), drop = FALSE]
+    } else {
+      valid_edges_df
+    }
+    current_graph <- igraph::graph_from_data_frame(
+      d = edges_for_construction,
+      directed = TRUE,
+      vertices = defined_nodes
+    )
+    if (!is.null(weight_vector)) {
+      igraph::E(current_graph)$weight <- weight_vector
+    }
+    return(current_graph)
+  }
+  # No valid edges, but defined_nodes might exist -> a graph of isolates.
+  if (!is.null(defined_nodes) && length(defined_nodes) > 0) {
+    current_graph <- igraph::make_empty_graph(
+      n = length(defined_nodes), directed = TRUE
+    )
+    igraph::V(current_graph)$name <- defined_nodes
+    return(current_graph)
+  }
+  NULL
+}
+
+#' Run `igraph::page_rank()` with the chosen solver, returning NULL on error.
+#'
+#' Builds the ARPACK options only when that solver is in use (PRPACK ignores
+#' them). Extra `...` are forwarded to `igraph::page_rank()`.
+#' @keywords internal
+#' @noRd
+.run_page_rank <- function(graph,
+                           algo,
+                           damping,
+                           personalized_vec,
+                           eps,
+                           niter,
+                           ...) {
+  pr_options <- NULL
+  if (algo == "arpack") {
+    pr_options <- igraph::arpack_defaults()
+    if (!is.null(eps)) pr_options$tol <- eps
+    if (!is.null(niter)) pr_options$maxiter <- niter
+  }
+  tryCatch(
+    {
+      if (is.null(personalized_vec)) {
+        igraph::page_rank(
+          graph = graph, algo = algo, damping = damping,
+          options = pr_options, ...
+        )
+      } else {
+        igraph::page_rank(
+          graph = graph, algo = algo, damping = damping,
+          personalized = personalized_vec, options = pr_options, ...
+        )
+      }
+    },
+    error = function(e) {
+      warning("igraph::page_rank computation failed: ", e$message,
+        call. = FALSE
+      )
+      NULL # Return NULL on error to distinguish from valid empty results
+    }
+  )
+}
+
+#' Build the TIPR personalization vector aligned to the graph's vertex set.
+#'
+#' Returns `NULL` (uniform teleport) when no `prior_df` is supplied; otherwise
+#' delegates to [align_prior_to_vertices()].
+#' @keywords internal
+#' @noRd
+.compute_personalization <- function(graph,
+                                     prior_df,
+                                     prior_url_col,
+                                     prior_weight_col,
+                                     prior_transform,
+                                     prior_alpha,
+                                     prior_exclude_nodes,
+                                     prior_verbose) {
+  if (is.null(prior_df)) {
+    return(NULL)
+  }
+  align_prior_to_vertices(
+    vertex_names = igraph::V(graph)$name,
+    prior_df = prior_df,
+    prior_url_col = prior_url_col,
+    prior_weight_col = prior_weight_col,
+    transform = prior_transform,
+    alpha = prior_alpha,
+    exclude_nodes = prior_exclude_nodes,
+    verbose = prior_verbose
+  )
+}
+
+#' TRUE when a page_rank output cannot be formatted (NULL or empty vector).
+#' @keywords internal
+#' @noRd
+.is_empty_pagerank_output <- function(pr_igraph_output) {
+  is.null(pr_igraph_output) || is.null(pr_igraph_output$vector) ||
+    length(pr_igraph_output$vector) == 0
+}
+
+#' Format the igraph page_rank output into the two-column result data frame.
+#'
+#' Attaches the aligned teleport share as a `prior_weight` column when a
+#' personalization vector was used, so the input prior sits next to the score.
+#' @return A data frame with `pr_node_col` / `pr_value_col` (+ optional
+#'   `prior_weight`).
+#' @keywords internal
+#' @noRd
+.format_pagerank_output <- function(pr_igraph_output,
+                                    pr_node_col,
+                                    pr_value_col,
+                                    personalized_vec,
+                                    graph) {
+  pagerank_df <- data.frame(
+    node = names(pr_igraph_output$vector),
+    pagerank_val = pr_igraph_output$vector,
+    row.names = NULL
+  )
+  names(pagerank_df) <- c(pr_node_col, pr_value_col)
+
+  if (!is.null(personalized_vec)) {
+    pw <- stats::setNames(personalized_vec, igraph::V(graph)$name)
+    pagerank_df[["prior_weight"]] <- unname(pw[pagerank_df[[pr_node_col]]])
+  }
+  pagerank_df
+}
+
+#' Build the [pagerank_convergence] attribute for a computed result.
+#'
+#' The L1 residual is computed post hoc from the returned vector and is
+#' solver-independent (PRPACK exposes no iteration count, but its direct
+#' solution still has a measurable residual). ARPACK iterations / info are read
+#' from `arpack_options` when available.
+#' @return A `pagerank_convergence` object.
+#' @keywords internal
+#' @noRd
+.build_convergence_attr <- function(graph,
+                                    x,
+                                    algo,
+                                    damping,
+                                    personalized_vec,
+                                    eps,
+                                    niter,
+                                    arpack_options) {
+  residual <- .pagerank_l1_residual(
+    graph = graph,
+    x = x,
+    damping = damping,
+    teleport = personalized_vec
+  )
+  tol <- if (!is.null(eps)) eps else 1e-3
+  arpack_iters <- NA_integer_
+  arpack_info <- NA_integer_
+  if (algo == "arpack" && !is.null(arpack_options)) {
+    arpack_iters <- as.integer(arpack_options$iter)
+    arpack_info <- as.integer(arpack_options$info)
+  }
+  tol_met <- is.finite(residual) && residual <= tol &&
+    (algo != "arpack" || (!is.na(arpack_info) && arpack_info == 0L))
+  new_pagerank_convergence(
+    algo = algo,
+    iters = arpack_iters,
+    residual = residual,
+    tol = tol,
+    tol_met = tol_met,
+    info = arpack_info,
+    eps = if (!is.null(eps)) eps else NA_real_,
+    niter = if (!is.null(niter)) niter else NA_integer_
+  )
 }
