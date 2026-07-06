@@ -84,6 +84,50 @@ compute_hits <- function(edge_list_df,
   weight_validation <- match.arg(weight_validation)
 
   # --- Input validation (mirrors compute_pagerank) ---
+  .validate_compute_hits_frames(
+    edge_list_df, from_col, to_col, vertices_df, vertex_col_name
+  )
+  node_cols <- c(pr_node_col, hub_col, authority_col)
+  .validate_compute_hits_scalars(scale, node_cols)
+  .validate_compute_hits_weight(weight_col, edge_list_df)
+
+  # --- Empty result template ---
+  empty_result <- .empty_hits_result(node_cols)
+
+  defined_nodes <- .resolve_defined_nodes(vertices_df, vertex_col_name)
+
+  # --- Prepare edges (remove NAs, extract aligned weights) ---
+  prepared <- .prepare_hits_edges(
+    edge_list_df, from_col, to_col, weight_col, weight_validation
+  )
+  valid_edges_df <- prepared$edges
+  weight_vector <- prepared$weights
+
+  # --- Build graph ---
+  if (nrow(valid_edges_df) == 0 && is.null(defined_nodes)) {
+    return(empty_result)
+  }
+
+  current_graph <- .build_hits_graph(
+    valid_edges_df, defined_nodes, weight_vector
+  )
+
+  if (igraph::vcount(current_graph) == 0) {
+    return(empty_result)
+  }
+
+  # --- Compute HITS ---
+  .run_hits_scores(
+    current_graph, scale, weight_vector, node_cols, empty_result, ...
+  )
+}
+
+# --- Internal helpers for compute_hits() -------------------------------------
+
+#' Validate the data-frame inputs to compute_hits()
+#' @noRd
+.validate_compute_hits_frames <- function(edge_list_df, from_col, to_col,
+                                          vertices_df, vertex_col_name) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
@@ -105,10 +149,15 @@ compute_hits <- function(edge_list_df,
       )
     }
   }
+  invisible(NULL)
+}
+
+#' Validate the `scale` flag and the output column names for compute_hits()
+#' @noRd
+.validate_compute_hits_scalars <- function(scale, node_cols) {
   if (!is.logical(scale) || length(scale) != 1 || is.na(scale)) {
     stop("`scale` must be a single logical value.", call. = FALSE)
   }
-  node_cols <- c(pr_node_col, hub_col, authority_col)
   if (!all(vapply(node_cols, function(x) {
     is.character(x) && length(x) == 1 && nchar(x) > 0
   }, logical(1)))) {
@@ -124,33 +173,48 @@ compute_hits <- function(edge_list_df,
       call. = FALSE
     )
   }
-  if (!is.null(weight_col)) {
-    if (!is.character(weight_col) || length(weight_col) != 1) {
-      stop(
-        "`weight_col` must be a single character string or NULL.",
-        call. = FALSE
-      )
-    }
-    if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
-      stop("`weight_col` '", weight_col, "' not found in `edge_list_df`.",
-        call. = FALSE
-      )
-    }
-    if (nrow(edge_list_df) > 0 && !is.numeric(edge_list_df[[weight_col]])) {
-      stop("`weight_col` '", weight_col, "' must be a numeric column.",
-        call. = FALSE
-      )
-    }
-  }
+  invisible(NULL)
+}
 
-  # --- Empty result template ---
-  empty_result <- stats::setNames(
+#' Validate the optional `weight_col` for compute_hits()
+#' @noRd
+.validate_compute_hits_weight <- function(weight_col, edge_list_df) {
+  if (is.null(weight_col)) {
+    return(invisible(NULL))
+  }
+  if (!is.character(weight_col) || length(weight_col) != 1) {
+    stop(
+      "`weight_col` must be a single character string or NULL.",
+      call. = FALSE
+    )
+  }
+  if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
+    stop("`weight_col` '", weight_col, "' not found in `edge_list_df`.",
+      call. = FALSE
+    )
+  }
+  if (nrow(edge_list_df) > 0 && !is.numeric(edge_list_df[[weight_col]])) {
+    stop("`weight_col` '", weight_col, "' must be a numeric column.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' Build the empty (zero-row) HITS result template
+#' @noRd
+.empty_hits_result <- function(node_cols) {
+  stats::setNames(
     data.frame(
       character(0), numeric(0), numeric(0)
     ),
     node_cols
   )
+}
 
+#' Resolve the user-supplied vertex set (or NULL) for compute_hits()
+#' @noRd
+.resolve_defined_nodes <- function(vertices_df, vertex_col_name) {
   defined_nodes <- NULL
   if (!is.null(vertices_df) && nrow(vertices_df) > 0 &&
         vertex_col_name %in% names(vertices_df)) {
@@ -159,45 +223,50 @@ compute_hits <- function(edge_list_df,
     )
     if (length(defined_nodes) == 0) defined_nodes <- NULL
   }
+  defined_nodes
+}
 
-  # --- Prepare edges (remove NAs, extract aligned weights) ---
-  valid_edges_df <- NULL
-  weight_vector <- NULL
-  if (nrow(edge_list_df) > 0) {
-    cols_to_keep <- c(from_col, to_col)
-    if (!is.null(weight_col)) cols_to_keep <- c(cols_to_keep, weight_col)
-    edges_for_graph <- edge_list_df[, cols_to_keep, drop = FALSE]
-    edges_for_graph[[from_col]] <- as.character(edges_for_graph[[from_col]])
-    edges_for_graph[[to_col]] <- as.character(edges_for_graph[[to_col]])
-
-    na_in_edges <- is.na(edges_for_graph[[from_col]]) |
-      is.na(edges_for_graph[[to_col]])
-    valid_edges_df <- edges_for_graph[!na_in_edges, , drop = FALSE]
-
-    if (!is.null(weight_col) && nrow(valid_edges_df) > 0) {
-      validate_edge_weights(
-        edge_list_df = valid_edges_df,
-        weight_col = weight_col,
-        from_col = from_col,
-        action = weight_validation
-      )
-      weight_vector <- valid_edges_df[[weight_col]]
-      valid_edges_df <- valid_edges_df[, c(from_col, to_col), drop = FALSE]
-    }
-  } else {
+#' Prepare the edge data frame (drop NA endpoints, extract aligned weights)
+#' @noRd
+.prepare_hits_edges <- function(edge_list_df, from_col, to_col,
+                                weight_col, weight_validation) {
+  if (nrow(edge_list_df) == 0) {
     valid_edges_df <- data.frame(
       matrix(ncol = 2, nrow = 0, dimnames = list(NULL, c(from_col, to_col)))
     )
     valid_edges_df[[from_col]] <- character(0)
     valid_edges_df[[to_col]] <- character(0)
+    return(list(edges = valid_edges_df, weights = NULL))
   }
 
-  # --- Build graph ---
-  if (nrow(valid_edges_df) == 0 && is.null(defined_nodes)) {
-    return(empty_result)
+  cols_to_keep <- c(from_col, to_col)
+  if (!is.null(weight_col)) cols_to_keep <- c(cols_to_keep, weight_col)
+  edges_for_graph <- edge_list_df[, cols_to_keep, drop = FALSE]
+  edges_for_graph[[from_col]] <- as.character(edges_for_graph[[from_col]])
+  edges_for_graph[[to_col]] <- as.character(edges_for_graph[[to_col]])
+
+  na_in_edges <- is.na(edges_for_graph[[from_col]]) |
+    is.na(edges_for_graph[[to_col]])
+  valid_edges_df <- edges_for_graph[!na_in_edges, , drop = FALSE]
+
+  weight_vector <- NULL
+  if (!is.null(weight_col) && nrow(valid_edges_df) > 0) {
+    validate_edge_weights(
+      edge_list_df = valid_edges_df,
+      weight_col = weight_col,
+      from_col = from_col,
+      action = weight_validation
+    )
+    weight_vector <- valid_edges_df[[weight_col]]
+    valid_edges_df <- valid_edges_df[, c(from_col, to_col), drop = FALSE]
   }
 
-  current_graph <- NULL
+  list(edges = valid_edges_df, weights = weight_vector)
+}
+
+#' Build the directed igraph graph from prepared edges / vertices
+#' @noRd
+.build_hits_graph <- function(valid_edges_df, defined_nodes, weight_vector) {
   if (nrow(valid_edges_df) > 0) {
     current_graph <- igraph::graph_from_data_frame(
       d = valid_edges_df,
@@ -213,12 +282,13 @@ compute_hits <- function(edge_list_df,
     )
     igraph::V(current_graph)$name <- defined_nodes
   }
+  current_graph
+}
 
-  if (igraph::vcount(current_graph) == 0) {
-    return(empty_result)
-  }
-
-  # --- Compute HITS ---
+#' Run igraph::hits_scores() and assemble the output data frame
+#' @noRd
+.run_hits_scores <- function(current_graph, scale, weight_vector,
+                             node_cols, empty_result, ...) {
   # hits_scores() returns hub and authority in one pass; pass weights
   # explicitly (it does not auto-detect the edge weight attribute the way
   # page_rank() does).
@@ -384,55 +454,14 @@ hits <- function(edge_list_df,
   canonical_loop_handling <- match.arg(canonical_loop_handling)
   canonical_conflict_policy <- match.arg(canonical_conflict_policy)
 
-  if (!is.data.frame(edge_list_df)) {
-    stop("`edge_list_df` must be a data frame.", call. = FALSE)
-  }
-  if (!is.null(redirects_df) && !is.data.frame(redirects_df)) {
-    stop("`redirects_df` must be a data frame or NULL.", call. = FALSE)
-  }
-  if (!is.null(canonicals_df) && !is.data.frame(canonicals_df)) {
-    stop("`canonicals_df` must be a data frame or NULL.", call. = FALSE)
-  }
-  if (!is.logical(clean_canonical_urls) || length(clean_canonical_urls) != 1) {
-    stop(
-      "`clean_canonical_urls` must be a single logical value.",
-      call. = FALSE
-    )
-  }
-  canonical_cols <- c(canonical_from_col, canonical_to_col)
-  if (!is.null(canonicals_df) && nrow(canonicals_df) > 0 &&
-        !all(canonical_cols %in% names(canonicals_df))) {
-    stop("`canonicals_df` must have '", canonical_from_col, "' and '",
-      canonical_to_col, "' columns.",
-      call. = FALSE
-    )
-  }
-  if (!is.logical(clean_edge_urls) || length(clean_edge_urls) != 1) {
-    stop("`clean_edge_urls` must be a single logical value.", call. = FALSE)
-  }
-  if (!is.logical(clean_redirect_urls) || length(clean_redirect_urls) != 1) {
-    stop("`clean_redirect_urls` must be a single logical value.", call. = FALSE)
-  }
-  if (!is.list(rurl_params)) {
-    stop("`rurl_params` must be a list.", call. = FALSE)
-  }
-  if (!is.logical(drop_isolates_flag) || length(drop_isolates_flag) != 1) {
-    stop("`drop_isolates_flag` must be a single logical value.", call. = FALSE)
-  }
-  if (!is.null(weight_col)) {
-    if (!is.character(weight_col) || length(weight_col) != 1) {
-      stop(
-        "`weight_col` must be a single character string or NULL.",
-        call. = FALSE
-      )
-    }
-    if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
-      stop(
-        "`weight_col` '", weight_col, "' not found in `edge_list_df`.",
-        call. = FALSE
-      )
-    }
-  }
+  .validate_hits_frames(edge_list_df, redirects_df, canonicals_df)
+  .validate_hits_canonicals(
+    canonicals_df, clean_canonical_urls, canonical_from_col, canonical_to_col
+  )
+  .validate_hits_flags(
+    clean_edge_urls, clean_redirect_urls, rurl_params, drop_isolates_flag
+  )
+  .validate_hits_weight(weight_col, edge_list_df)
 
   # --- Working copies ---
   current_edge_list <- edge_list_df
@@ -440,107 +469,31 @@ hits <- function(edge_list_df,
   current_canonicals_list <- canonicals_df
 
   # --- 1. URL cleaning (shared resolved rurl profile) ---
-  edge_url_cols <- intersect(
-    c(edge_from_col, edge_to_col),
-    names(current_edge_list)
-  )
-  redirect_url_cols <- if (!is.null(current_redirects_list)) {
-    intersect(
-      c(redirect_from_col, redirect_to_col),
-      names(current_redirects_list)
-    )
-  } else {
-    character(0)
-  }
-  canonical_url_cols <- if (!is.null(current_canonicals_list)) {
-    intersect(
-      c(canonical_from_col, canonical_to_col),
-      names(current_canonicals_list)
-    )
-  } else {
-    character(0)
-  }
-
   effective_rurl_params <- .resolve_rurl_params(rurl_params)
-
-  if (clean_edge_urls && length(edge_url_cols) > 0) {
-    current_edge_list <- do.call(
-      clean_url_columns,
-      c(list(
-        data_frame = current_edge_list,
-        columns = edge_url_cols
-      ), effective_rurl_params)
-    )
-  }
-  if (clean_redirect_urls && !is.null(current_redirects_list) &&
-        nrow(current_redirects_list) > 0 && length(redirect_url_cols) > 0) {
-    current_redirects_list <- do.call(
-      clean_url_columns,
-      c(list(
-        data_frame = current_redirects_list,
-        columns = redirect_url_cols
-      ), effective_rurl_params)
-    )
-  }
-  if (clean_canonical_urls && !is.null(current_canonicals_list) &&
-        nrow(current_canonicals_list) > 0 && length(canonical_url_cols) > 0) {
-    current_canonicals_list <- do.call(
-      clean_url_columns,
-      c(list(
-        data_frame = current_canonicals_list,
-        columns = canonical_url_cols
-      ), effective_rurl_params)
-    )
-  }
+  cleaned <- .clean_hits_urls(
+    current_edge_list, current_redirects_list, current_canonicals_list,
+    effective_rurl_params, clean_edge_urls, clean_redirect_urls,
+    clean_canonical_urls, edge_from_col, edge_to_col, redirect_from_col,
+    redirect_to_col, canonical_from_col, canonical_to_col
+  )
+  current_edge_list <- cleaned$edges
+  current_redirects_list <- cleaned$redirects
+  current_canonicals_list <- cleaned$canonicals
 
   # --- 2. Redirect + canonical resolution (one composed fold map) ---
-  has_redirects <- !is.null(current_redirects_list) &&
-    nrow(current_redirects_list) > 0
-  has_canonicals <- !is.null(current_canonicals_list) &&
-    nrow(current_canonicals_list) > 0
-
-  fold_map <- character(0)
-  if (has_redirects || has_canonicals) {
-    fold <- .compose_fold_map(
-      redirects_df = if (has_redirects) current_redirects_list else NULL,
-      canonicals_df = if (has_canonicals) current_canonicals_list else NULL,
-      redirect_from_col = redirect_from_col,
-      redirect_to_col = redirect_to_col,
-      canonical_from_col = canonical_from_col,
-      canonical_to_col = canonical_to_col,
-      duplicate_from_policy = duplicate_from_policy,
-      loop_handling = loop_handling,
-      canonical_duplicate_from_policy = canonical_duplicate_from_policy,
-      canonical_loop_handling = canonical_loop_handling,
-      canonical_conflict_policy = canonical_conflict_policy
-    )
-    fold_map <- fold$map
-
-    if (length(fold_map) > 0) {
-      for (col_name in c(edge_from_col, edge_to_col)) {
-        if (col_name %in% names(current_edge_list)) {
-          current_edge_list[[col_name]] <- .apply_fold_map(
-            current_edge_list[[col_name]], fold_map
-          )
-        }
-      }
-    }
-  }
+  current_edge_list <- .apply_hits_fold_map(
+    current_edge_list, current_redirects_list, current_canonicals_list,
+    edge_from_col, edge_to_col, redirect_from_col, redirect_to_col,
+    canonical_from_col, canonical_to_col, duplicate_from_policy,
+    loop_handling, canonical_duplicate_from_policy, canonical_loop_handling,
+    canonical_conflict_policy
+  )
 
   # --- 2.7. Domain / host filtering ---
-  if (!is.null(keep_domains) || !is.null(exclude_domains) ||
-        !is.null(keep_hosts) || !is.null(exclude_hosts)) {
-    current_edge_list <- filter_links_by_domain(
-      edge_list_df = current_edge_list,
-      from_col = edge_from_col,
-      to_col = edge_to_col,
-      keep_domains = keep_domains,
-      ignore_domains = exclude_domains,
-      keep_hosts = keep_hosts,
-      ignore_hosts = exclude_hosts,
-      rurl_params = effective_rurl_params
-    )
-  }
+  current_edge_list <- .filter_hits_domains(
+    current_edge_list, edge_from_col, edge_to_col, keep_domains,
+    exclude_domains, keep_hosts, exclude_hosts, effective_rurl_params
+  )
 
   # --- 2.5. Full vertex universe (before NA rows are stripped) ---
   temp_node_col_name <- "node_name"
@@ -563,6 +516,227 @@ hits <- function(edge_list_df,
   }
 
   # --- 4. Handle isolates / assemble vertex set ---
+  vertices_for_hits_df <- .assemble_hits_vertices(
+    current_edge_list, edge_from_col, edge_to_col, drop_isolates_flag,
+    all_vertex_universe, temp_node_col_name
+  )
+
+  # --- 5. Compute HITS ---
+  compute_hits(
+    edge_list_df = current_edge_list,
+    vertices_df = vertices_for_hits_df,
+    from_col = edge_from_col,
+    to_col = edge_to_col,
+    vertex_col_name = temp_node_col_name,
+    weight_col = effective_weight_col,
+    scale = scale,
+    ...
+  )
+}
+
+# --- Internal helpers for hits() ---------------------------------------------
+
+#' Validate the top-level data-frame inputs to hits()
+#' @noRd
+.validate_hits_frames <- function(edge_list_df, redirects_df, canonicals_df) {
+  if (!is.data.frame(edge_list_df)) {
+    stop("`edge_list_df` must be a data frame.", call. = FALSE)
+  }
+  if (!is.null(redirects_df) && !is.data.frame(redirects_df)) {
+    stop("`redirects_df` must be a data frame or NULL.", call. = FALSE)
+  }
+  if (!is.null(canonicals_df) && !is.data.frame(canonicals_df)) {
+    stop("`canonicals_df` must be a data frame or NULL.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Validate the canonical-cleaning flag and canonical column presence for hits()
+#' @noRd
+.validate_hits_canonicals <- function(canonicals_df, clean_canonical_urls,
+                                      canonical_from_col, canonical_to_col) {
+  if (!is.logical(clean_canonical_urls) || length(clean_canonical_urls) != 1) {
+    stop(
+      "`clean_canonical_urls` must be a single logical value.",
+      call. = FALSE
+    )
+  }
+  canonical_cols <- c(canonical_from_col, canonical_to_col)
+  if (!is.null(canonicals_df) && nrow(canonicals_df) > 0 &&
+        !all(canonical_cols %in% names(canonicals_df))) {
+    stop("`canonicals_df` must have '", canonical_from_col, "' and '",
+      canonical_to_col, "' columns.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' Validate the scalar cleaning flags for hits()
+#' @noRd
+.validate_hits_flags <- function(clean_edge_urls, clean_redirect_urls,
+                                 rurl_params, drop_isolates_flag) {
+  if (!is.logical(clean_edge_urls) || length(clean_edge_urls) != 1) {
+    stop("`clean_edge_urls` must be a single logical value.", call. = FALSE)
+  }
+  if (!is.logical(clean_redirect_urls) || length(clean_redirect_urls) != 1) {
+    stop("`clean_redirect_urls` must be a single logical value.", call. = FALSE)
+  }
+  if (!is.list(rurl_params)) {
+    stop("`rurl_params` must be a list.", call. = FALSE)
+  }
+  if (!is.logical(drop_isolates_flag) || length(drop_isolates_flag) != 1) {
+    stop("`drop_isolates_flag` must be a single logical value.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Validate the optional `weight_col` for hits()
+#' @noRd
+.validate_hits_weight <- function(weight_col, edge_list_df) {
+  if (is.null(weight_col)) {
+    return(invisible(NULL))
+  }
+  if (!is.character(weight_col) || length(weight_col) != 1) {
+    stop(
+      "`weight_col` must be a single character string or NULL.",
+      call. = FALSE
+    )
+  }
+  if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
+    stop(
+      "`weight_col` '", weight_col, "' not found in `edge_list_df`.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' Clean one edge frame's URL columns (cleaned regardless of row count)
+#' @noRd
+.clean_edge_url_frame <- function(df, from_col, to_col, do_clean, params) {
+  cols <- intersect(c(from_col, to_col), names(df))
+  if (!do_clean || length(cols) == 0) {
+    return(df)
+  }
+  do.call(
+    clean_url_columns,
+    c(list(data_frame = df, columns = cols), params)
+  )
+}
+
+#' Clean one redirect/canonical frame's URL columns (only when non-empty)
+#' @noRd
+.clean_ref_url_frame <- function(df, from_col, to_col, do_clean, params) {
+  if (!do_clean || is.null(df) || nrow(df) == 0) {
+    return(df)
+  }
+  cols <- intersect(c(from_col, to_col), names(df))
+  if (length(cols) == 0) {
+    return(df)
+  }
+  do.call(
+    clean_url_columns,
+    c(list(data_frame = df, columns = cols), params)
+  )
+}
+
+#' Clean the edge / redirect / canonical URL columns under a shared rurl profile
+#' @noRd
+.clean_hits_urls <- function(current_edge_list, current_redirects_list,
+                             current_canonicals_list, effective_rurl_params,
+                             clean_edge_urls, clean_redirect_urls,
+                             clean_canonical_urls, edge_from_col, edge_to_col,
+                             redirect_from_col, redirect_to_col,
+                             canonical_from_col, canonical_to_col) {
+  edges <- .clean_edge_url_frame(
+    current_edge_list, edge_from_col, edge_to_col,
+    clean_edge_urls, effective_rurl_params
+  )
+  redirects <- .clean_ref_url_frame(
+    current_redirects_list, redirect_from_col, redirect_to_col,
+    clean_redirect_urls, effective_rurl_params
+  )
+  canonicals <- .clean_ref_url_frame(
+    current_canonicals_list, canonical_from_col, canonical_to_col,
+    clean_canonical_urls, effective_rurl_params
+  )
+  list(edges = edges, redirects = redirects, canonicals = canonicals)
+}
+
+#' Compose the redirect + canonical fold map and apply it to the edge columns
+#' @noRd
+.apply_hits_fold_map <- function(current_edge_list, current_redirects_list,
+                                 current_canonicals_list, edge_from_col,
+                                 edge_to_col, redirect_from_col,
+                                 redirect_to_col, canonical_from_col,
+                                 canonical_to_col, duplicate_from_policy,
+                                 loop_handling,
+                                 canonical_duplicate_from_policy,
+                                 canonical_loop_handling,
+                                 canonical_conflict_policy) {
+  has_redirects <- !is.null(current_redirects_list) &&
+    nrow(current_redirects_list) > 0
+  has_canonicals <- !is.null(current_canonicals_list) &&
+    nrow(current_canonicals_list) > 0
+
+  if (!has_redirects && !has_canonicals) {
+    return(current_edge_list)
+  }
+
+  fold <- .compose_fold_map(
+    redirects_df = if (has_redirects) current_redirects_list else NULL,
+    canonicals_df = if (has_canonicals) current_canonicals_list else NULL,
+    redirect_from_col = redirect_from_col,
+    redirect_to_col = redirect_to_col,
+    canonical_from_col = canonical_from_col,
+    canonical_to_col = canonical_to_col,
+    duplicate_from_policy = duplicate_from_policy,
+    loop_handling = loop_handling,
+    canonical_duplicate_from_policy = canonical_duplicate_from_policy,
+    canonical_loop_handling = canonical_loop_handling,
+    canonical_conflict_policy = canonical_conflict_policy
+  )
+  fold_map <- fold$map
+
+  if (length(fold_map) > 0) {
+    for (col_name in c(edge_from_col, edge_to_col)) {
+      if (col_name %in% names(current_edge_list)) {
+        current_edge_list[[col_name]] <- .apply_fold_map(
+          current_edge_list[[col_name]], fold_map
+        )
+      }
+    }
+  }
+  current_edge_list
+}
+
+#' Apply domain / host filtering to the edge list when any filter is supplied
+#' @noRd
+.filter_hits_domains <- function(current_edge_list, edge_from_col, edge_to_col,
+                                 keep_domains, exclude_domains, keep_hosts,
+                                 exclude_hosts, effective_rurl_params) {
+  if (is.null(keep_domains) && is.null(exclude_domains) &&
+        is.null(keep_hosts) && is.null(exclude_hosts)) {
+    return(current_edge_list)
+  }
+  filter_links_by_domain(
+    edge_list_df = current_edge_list,
+    from_col = edge_from_col,
+    to_col = edge_to_col,
+    keep_domains = keep_domains,
+    ignore_domains = exclude_domains,
+    keep_hosts = keep_hosts,
+    ignore_hosts = exclude_hosts,
+    rurl_params = effective_rurl_params
+  )
+}
+
+#' Assemble the vertex data frame, honouring the isolate-handling flag
+#' @noRd
+.assemble_hits_vertices <- function(current_edge_list, edge_from_col,
+                                    edge_to_col, drop_isolates_flag,
+                                    all_vertex_universe, temp_node_col_name) {
   current_edge_nodes <- unique(c(
     as.character(current_edge_list[[edge_from_col]]),
     as.character(current_edge_list[[edge_to_col]])
@@ -586,16 +760,5 @@ hits <- function(edge_list_df,
       )
     }
   }
-
-  # --- 5. Compute HITS ---
-  compute_hits(
-    edge_list_df = current_edge_list,
-    vertices_df = vertices_for_hits_df,
-    from_col = edge_from_col,
-    to_col = edge_to_col,
-    vertex_col_name = temp_node_col_name,
-    weight_col = effective_weight_col,
-    scale = scale,
-    ...
-  )
+  vertices_for_hits_df
 }
