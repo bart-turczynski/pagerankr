@@ -76,21 +76,13 @@ resolve_links <- function(edge_list_df,
   loop_handling <- match.arg(loop_handling)
 
   # --- Input Validation ---
-  if (!is.data.frame(edge_list_df)) {
-    stop("`edge_list_df` must be a data frame.", call. = FALSE)
-  }
-  if (!all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
-    stop("`edge_list_df` must have '", edge_from_col, "' and '",
-      edge_to_col, "' columns.",
-      call. = FALSE
-    )
-  }
-  if (!is.null(redirects_df) && !is.data.frame(redirects_df)) {
-    stop("`redirects_df` must be a data frame or NULL.", call. = FALSE)
-  }
-  if (!is.logical(clean_urls) || length(clean_urls) != 1) {
-    stop("`clean_urls` must be TRUE or FALSE.", call. = FALSE)
-  }
+  .validate_resolve_links_inputs(
+    edge_list_df = edge_list_df,
+    redirects_df = redirects_df,
+    clean_urls = clean_urls,
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col
+  )
 
   current_edges <- edge_list_df
   current_redirects <- redirects_df
@@ -137,4 +129,32 @@ resolve_links <- function(edge_list_df,
   )
 
   current_edges
+}
+
+#' Validate inputs for resolve_links
+#'
+#' Preserves the original validation order and error-message text.
+#'
+#' @noRd
+.validate_resolve_links_inputs <- function(edge_list_df,
+                                           redirects_df,
+                                           clean_urls,
+                                           edge_from_col,
+                                           edge_to_col) {
+  if (!is.data.frame(edge_list_df)) {
+    stop("`edge_list_df` must be a data frame.", call. = FALSE)
+  }
+  if (!all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
+    stop("`edge_list_df` must have '", edge_from_col, "' and '",
+      edge_to_col, "' columns.",
+      call. = FALSE
+    )
+  }
+  if (!is.null(redirects_df) && !is.data.frame(redirects_df)) {
+    stop("`redirects_df` must be a data frame or NULL.", call. = FALSE)
+  }
+  if (!is.logical(clean_urls) || length(clean_urls) != 1) {
+    stop("`clean_urls` must be TRUE or FALSE.", call. = FALSE)
+  }
+  invisible(NULL)
 }
