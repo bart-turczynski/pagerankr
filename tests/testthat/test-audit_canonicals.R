@@ -45,6 +45,22 @@ describe("audit_canonicals mirrors audit_redirects structure", {
   it("validates the data frame argument", {
     expect_error(audit_canonicals("not a df"), "canonicals_df")
   })
+
+  it("prints loops when canonical loops are present", {
+    loop_canonicals <- data.frame(
+      from = c("P", "Q", "R"),
+      to   = c("Q", "R", "P")
+    )
+    audit <- audit_canonicals(loop_canonicals)
+    expect_equal(audit$n_loops, 1)
+    expect_output(print(audit), "Loops")
+  })
+
+  it("prints the orphaned-canonicals count when present", {
+    edges <- data.frame(from = "Z", to = "A")
+    audit <- audit_canonicals(canonicals, edge_list_df = edges)
+    expect_output(print(audit), "Orphaned canonicals")
+  })
 })
 
 describe("audit_redirects still works after the refactor", {
@@ -87,5 +103,18 @@ describe("audit_fold combined cross-signal view", {
     af <- audit_fold(redirects_df = redirects)
     expect_s3_class(af$redirects, "redirect_audit")
     expect_null(af$canonicals)
+  })
+
+  it("prints zero ignored canonicals when fold composition fails", {
+    # A duplicate redirect source under the default "strict" policy makes
+    # `.build_terminal_map()` error inside `.compose_fold_map()`; audit_fold()
+    # catches this and leaves `conflicts`/`ignored_canonicals` at their
+    # initial NULL values instead of aborting.
+    dup_redirects <- data.frame(from = c("A", "A"), to = c("B", "C"))
+    af <- audit_fold(redirects_df = dup_redirects)
+    expect_null(af$ignored_canonicals)
+    expect_output(print(af), "Ignored canonicals (source also redirects): 0",
+      fixed = TRUE
+    )
   })
 })
