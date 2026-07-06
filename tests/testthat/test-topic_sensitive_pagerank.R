@@ -194,3 +194,95 @@ test_that("an empty topic seed set is rejected", {
     "no usable seed URLs"
   )
 })
+
+test_that("edge_list_df must be a data frame", {
+  expect_error(
+    topic_sensitive_pagerank(list(), topics = list(ai = "/ai")),
+    "must be a data frame"
+  )
+})
+
+test_that("a non-list topics argument is rejected", {
+  expect_error(
+    topic_sensitive_pagerank(make_site(), topics = "/ai"),
+    "non-empty named list"
+  )
+})
+
+test_that("a data-frame topics argument is rejected", {
+  expect_error(
+    topic_sensitive_pagerank(make_site(), topics = data.frame(x = 1)),
+    "non-empty named list"
+  )
+})
+
+test_that("NA and empty-string topic names are rejected", {
+  expect_error(
+    topic_sensitive_pagerank(
+      make_site(),
+      topics = stats::setNames(list("/ai", "/pricing"), c("ai", NA))
+    ),
+    "non-empty name"
+  )
+  expect_error(
+    topic_sensitive_pagerank(
+      make_site(),
+      topics = stats::setNames(list("/ai", "/pricing"), c("ai", ""))
+    ),
+    "non-empty name"
+  )
+})
+
+test_that("an internal pagerank() result missing expected columns errors", {
+  local_mocked_bindings(
+    pagerank = function(...) data.frame(node_name = "a"),
+    .package = "pagerankr"
+  )
+  expect_error(
+    topic_sensitive_pagerank(
+      make_site(), topics = list(ai = "/ai"), clean_edge_urls = FALSE
+    ),
+    "did not return expected columns"
+  )
+})
+
+test_that("a data-frame topic missing required columns errors", {
+  expect_error(
+    topic_sensitive_pagerank(
+      make_site(),
+      topics = list(ai = data.frame(x = 1)), clean_edge_urls = FALSE
+    ),
+    "must have"
+  )
+})
+
+test_that("a topic that is neither character nor data frame errors", {
+  expect_error(
+    topic_sensitive_pagerank(
+      make_site(), topics = list(ai = 123), clean_edge_urls = FALSE
+    ),
+    "must be a character vector of seed URLs or a"
+  )
+})
+
+test_that("non-numeric topic_weights are rejected", {
+  expect_error(
+    topic_sensitive_pagerank(
+      make_site(),
+      topics = list(ai = "/ai", pricing = "/pricing"),
+      topic_weights = "abc"
+    ),
+    "must be a numeric vector or NULL"
+  )
+})
+
+test_that("non-finite / missing topic_weights are rejected", {
+  expect_error(
+    topic_sensitive_pagerank(
+      make_site(),
+      topics = list(ai = "/ai", pricing = "/pricing"),
+      topic_weights = c(ai = NA, pricing = 1)
+    ),
+    "finite and non-missing"
+  )
+})

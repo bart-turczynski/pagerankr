@@ -45,6 +45,27 @@ describe("feeder_seed_prior", {
       "length 1 or match the number of seeds"
     )
   })
+
+  it("errors when seeds data frame lacks required columns", {
+    expect_error(
+      feeder_seed_prior(data.frame(x = 1)),
+      "must have"
+    )
+  })
+
+  it("errors when seed_weight is non-numeric", {
+    expect_error(
+      feeder_seed_prior(c("a", "b"), seed_weight = "bad"),
+      "must be numeric or NULL"
+    )
+  })
+
+  it("errors when seeds is neither a character vector nor a data frame", {
+    expect_error(
+      feeder_seed_prior(123),
+      "must be a character vector of URLs or a data frame"
+    )
+  })
 })
 
 describe("topic_feeder_pagerank", {
