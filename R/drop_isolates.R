@@ -83,27 +83,7 @@ drop_isolates <- function(edge_list_df,
                           to_col = "to",
                           node_col_name = "node_name") {
   # --- Input Validation ---
-  if (!is.data.frame(edge_list_df)) {
-    stop("`edge_list_df` must be a data frame.", call. = FALSE)
-  }
-  if (nrow(edge_list_df) > 0 &&
-        !all(c(from_col, to_col) %in% names(edge_list_df))) {
-    stop(
-      "`edge_list_df` must have specified 'from' and 'to' ",
-      "columns if not empty.",
-      call. = FALSE
-    )
-  }
-  if (!is.logical(drop) || length(drop) != 1) {
-    stop("`drop` must be a single logical value.", call. = FALSE)
-  }
-  if (!is.character(node_col_name) || length(node_col_name) != 1 ||
-        nchar(node_col_name) == 0) {
-    stop(
-      "`node_col_name` must be a non-empty single character string.",
-      call. = FALSE
-    )
-  }
+  .drop_isolates_validate(edge_list_df, drop, from_col, to_col, node_col_name)
 
   # --- Prepare Empty Result Frame ---
   # This structure is returned if no nodes are found or input is empty.
@@ -129,27 +109,95 @@ drop_isolates <- function(edge_list_df,
   }
 
   # --- Determine Nodes to Return ---
-  nodes_to_return <- character(0)
-
-  if (drop) {
-    # If drop = TRUE, return only nodes that participate in at least one
-    # complete edge (both from and to are non-NA in the same row).
-    complete_edge_mask <- !is.na(from_nodes) & !is.na(to_nodes)
-    nodes_to_return <- unique(c(
-      from_nodes[complete_edge_mask],
-      to_nodes[complete_edge_mask]
-    ))
-  } else {
-    # If drop = FALSE, return the full vertex universe: all unique non-NA
-    # nodes from both columns, including those from partial/incomplete rows.
-    nodes_to_return <- all_mentioned_nodes
-  }
+  nodes_to_return <- .drop_isolates_select_nodes(
+    drop, from_nodes, to_nodes, all_mentioned_nodes
+  )
 
   if (length(nodes_to_return) == 0) {
     return(empty_result_df)
   }
 
   # --- Format Output Data Frame ---
+  .drop_isolates_format_output(nodes_to_return, node_col_name)
+}
+
+#' Validate inputs to [drop_isolates()].
+#'
+#' Runs each guard as a sequential `if` so the original short-circuit order and
+#' verbatim error messages are preserved.
+#' @noRd
+.drop_isolates_validate <- function(edge_list_df,
+                                    drop,
+                                    from_col,
+                                    to_col,
+                                    node_col_name) {
+  if (!is.data.frame(edge_list_df)) {
+    stop("`edge_list_df` must be a data frame.", call. = FALSE)
+  }
+  if (nrow(edge_list_df) > 0) {
+    if (!all(c(from_col, to_col) %in% names(edge_list_df))) {
+      stop(
+        "`edge_list_df` must have specified 'from' and 'to' ",
+        "columns if not empty.",
+        call. = FALSE
+      )
+    }
+  }
+  if (!.drop_isolates_is_scalar_logical(drop)) {
+    stop("`drop` must be a single logical value.", call. = FALSE)
+  }
+  if (!.drop_isolates_is_nonempty_string(node_col_name)) {
+    stop(
+      "`node_col_name` must be a non-empty single character string.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' TRUE when `x` is a single logical value.
+#' @noRd
+.drop_isolates_is_scalar_logical <- function(x) {
+  if (!is.logical(x)) {
+    return(FALSE)
+  }
+  length(x) == 1
+}
+
+#' TRUE when `x` is a single, non-empty character string.
+#' @noRd
+.drop_isolates_is_nonempty_string <- function(x) {
+  if (!is.character(x)) {
+    return(FALSE)
+  }
+  if (length(x) != 1) {
+    return(FALSE)
+  }
+  nchar(x) != 0
+}
+
+#' Select the node set to return based on `drop`.
+#' @noRd
+.drop_isolates_select_nodes <- function(drop,
+                                        from_nodes,
+                                        to_nodes,
+                                        all_mentioned_nodes) {
+  if (!drop) {
+    # drop = FALSE: full vertex universe, including partial/incomplete rows.
+    return(all_mentioned_nodes)
+  }
+  # drop = TRUE: only nodes participating in at least one complete edge
+  # (both from and to are non-NA in the same row).
+  complete_edge_mask <- !is.na(from_nodes) & !is.na(to_nodes)
+  unique(c(
+    from_nodes[complete_edge_mask],
+    to_nodes[complete_edge_mask]
+  ))
+}
+
+#' Build the single-column, alphabetically ordered output data frame.
+#' @noRd
+.drop_isolates_format_output <- function(nodes_to_return, node_col_name) {
   result_df <- stats::setNames(
     data.frame(nodes_to_return),
     node_col_name
