@@ -306,63 +306,37 @@ describe("compute_pagerank error handling and edge cases", {
   })
 
   it("passes additional arguments to igraph::page_rank via ...", {
-    # Test with the weights argument of the page_rank function in igraph.
-    # igraph uses edge weights when the weight edge attribute is present.
-    # compute_pagerank itself does not create weights, but the
-    # graph-from-data-frame helper might when a weight column is in edges.
-    # We could test passing weights as NA (the igraph default is NULL;
-    # using NA makes it calculate unweighted).
-    # Or, pass a vector of weights when the graph structure allowed it
-    # (not directly via this function without edge attributes).
+    skip_if_not_installed("igraph")
+    local_edition(3)
     edges <- data.frame(
       from = c("A", "B"),
-      to = c("B", "A"),
-      weight = c(1, 10)
+      to = c("B", "A")
     )
-    # Need to ensure the graph-from-data-frame helper actually uses the
-    # weight column. By default, it does when such a column exists.
-
-    # For this test, more directly, pass an igraph option such as options
-    # (though this is an older way; setting igraph options globally is
-    # preferred but not a direct parameter).
-    # Better would be testing a parameter that page_rank itself accepts,
-    # such as directed (already on by default in the helper).
-    # The algorithm parameter could be tested if igraph had simple
-    # alternatives for page_rank, but it is typically prpack.
-    # Let us focus on damping, which is explicitly handled, and assume the
-    # passthrough works for others.
-
-    # A more robust passthrough test is checking whether an unknown
-    # parameter to our function but known to igraph gets passed. However,
-    # the page_rank function has few such parameters beyond damping,
-    # personalize, weights, and options.
-    # We could try a personalized vector (though a bit complex to set up a
-    # meaningful test here without deep igraph knowledge).
-
-    # Simple test: passing something that would cause igraph to error when
-    # not handled by it would fail.
-    # For example, page_rank has an algorithm parameter (defaulting to
-    # prpack). Assume we can pass it.
-    # This is not a great test of the passthrough when the default is the
-    # only valid one for the algorithm in some builds.
-
-    # Revisit: the simplest way is to ensure a valid page_rank parameter
-    # (not explicitly handled by our function) is passed. The page_rank
-    # function takes options.
-    # We could try the arpack defaults for options, but this is getting too
-    # igraph-specific.
-    # Given the thin wrapper nature, we assume the passthrough works as per
-    # the standard R behavior.
-    # A basic check: damping is already tested. When the passthrough was
-    # broken, the complex damping test might fail too.
-    # This is more of an integration point than a unit test for the
-    # passthrough itself.
-    # For now, we rely on the damping tests covering some passthrough.
-    skip(paste0(
-      "Specific test for '...' passthrough to igraph::page_rank is ",
-      "non-trivial to make robust without deep igraph param knowledge ",
-      "for alternative values."
-    ))
+    # `pagerankr_sentinel` is not an argument compute_pagerank() handles
+    # itself, so its only route to page_rank() is the `...` passthrough.
+    # Observing it inside the mock proves the forwarding works.
+    sentinel_seen <- FALSE
+    local_mocked_bindings(
+      page_rank = function(graph, ...) {
+        dots <- list(...)
+        sentinel_seen <<- "pagerankr_sentinel" %in% names(dots)
+        expect_true(sentinel_seen)
+        expect_identical(dots[["pagerankr_sentinel"]], "flows-through")
+        n <- igraph::gorder(graph)
+        list(
+          vector = stats::setNames(
+            rep(1 / n, n), igraph::V(graph)$name
+          ),
+          options = NULL
+        )
+      },
+      .package = "igraph"
+    )
+    result <- compute_pagerank(edges, pagerankr_sentinel = "flows-through")
+    expect_true(sentinel_seen)
+    expect_s3_class(result, "data.frame")
+    expect_setequal(result$node_name, c("A", "B"))
+    expect_equal(sum(result$pagerank), 1, tolerance = 1e-9)
   })
 })
 
