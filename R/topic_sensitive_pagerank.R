@@ -110,23 +110,35 @@ topic_sensitive_pagerank <- function(edge_list_df,
                                      topic_url_col = "url",
                                      topic_weight_col = "weight",
                                      ...) {
-  # --- Validate topics ---
+  topic_names <- .validate_topics(edge_list_df, topics)
+  w <- .resolve_topic_weights(topic_weights, topic_names)
+  dots <- .prepare_topic_dots(list(...))
+  runs <- .run_topic_pageranks(
+    edge_list_df, topics, topic_names,
+    topic_url_col, topic_weight_col, dots
+  )
+  .assemble_topic_result(runs$score_dfs, runs$audits, topic_names, w)
+}
+
+#' Validate `edge_list_df` and the `topics` list; return the topic names.
+#' @keywords internal
+#' @noRd
+.validate_topics <- function(edge_list_df, topics) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  if (!is.list(topics) || is.data.frame(topics) || length(topics) == 0) {
-    stop(
-      "`topics` must be a non-empty named list, one element per topic.",
-      call. = FALSE
-    )
-  }
+  msg_list <- "`topics` must be a non-empty named list, one element per topic."
+  if (!is.list(topics)) stop(msg_list, call. = FALSE)
+  if (is.data.frame(topics)) stop(msg_list, call. = FALSE)
+  if (length(topics) == 0) stop(msg_list, call. = FALSE)
+
   topic_names <- names(topics)
-  if (is.null(topic_names) || anyNA(topic_names) ||
-        !all(nzchar(topic_names))) {
-    stop("`topics` must be a list with a non-empty name for every element.",
-      call. = FALSE
-    )
-  }
+  msg_names <-
+    "`topics` must be a list with a non-empty name for every element."
+  if (is.null(topic_names)) stop(msg_names, call. = FALSE)
+  if (anyNA(topic_names)) stop(msg_names, call. = FALSE)
+  if (!all(nzchar(topic_names))) stop(msg_names, call. = FALSE)
+
   if (anyDuplicated(topic_names)) {
     stop("`topics` names must be unique (they become result columns).",
       call. = FALSE
@@ -139,12 +151,13 @@ topic_sensitive_pagerank <- function(edge_list_df,
       call. = FALSE
     )
   }
+  topic_names
+}
 
-  # --- Resolve and validate blend weights ---
-  w <- .resolve_topic_weights(topic_weights, topic_names)
-
-  # --- Guard against caller-supplied prior args (we own the prior) ---
-  dots <- list(...)
+#' Guard caller-supplied prior args and default `prior_verbose` to FALSE.
+#' @keywords internal
+#' @noRd
+.prepare_topic_dots <- function(dots) {
   owned <- intersect(
     c("prior_df", "prior_url_col", "prior_weight_col"),
     names(dots)
@@ -160,8 +173,14 @@ topic_sensitive_pagerank <- function(edge_list_df,
   if (!("prior_verbose" %in% names(dots))) {
     dots$prior_verbose <- FALSE
   }
+  dots
+}
 
-  # --- Run one personalized PageRank per topic ---
+#' Run one personalized PageRank per topic; return per-topic scores + audits.
+#' @keywords internal
+#' @noRd
+.run_topic_pageranks <- function(edge_list_df, topics, topic_names,
+                                 topic_url_col, topic_weight_col, dots) {
   score_dfs <- vector("list", length(topics))
   audits <- vector("list", length(topics))
   for (i in seq_along(topics)) {
@@ -185,7 +204,13 @@ topic_sensitive_pagerank <- function(edge_list_df,
     audits[[i]] <- attr(res, "transition_audit")
   }
   names(audits) <- topic_names
+  list(score_dfs = score_dfs, audits = audits)
+}
 
+#' Merge, blend, order and annotate the per-topic score frames.
+#' @keywords internal
+#' @noRd
+.assemble_topic_result <- function(score_dfs, audits, topic_names, w) {
   # --- Merge per-topic scores (full outer join; absent node -> 0) ---
   merged <- Reduce(
     function(a, b) merge(a, b, by = "node_name", all = TRUE),
