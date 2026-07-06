@@ -125,6 +125,33 @@ describe("compute_salsa", {
   it("errors on a non-data-frame edge list", {
     expect_error(compute_salsa(list(a = 1)), "must be a data frame")
   })
+
+  it("returns the empty result when the built graph has zero vertices", {
+    # Defensive branch: .compute_salsa_build_graph() cannot itself return a
+    # zero-vertex graph through the public API's validated inputs, so mock it
+    # directly to exercise compute_salsa()'s vcount == 0 guard.
+    edges <- data.frame(from = "A", to = "B")
+    local_mocked_bindings(
+      .compute_salsa_build_graph = function(...) {
+        igraph::make_empty_graph(n = 0, directed = TRUE)
+      }
+    )
+    res <- compute_salsa(edges)
+    expect_named(res, c("node_name", "hub", "authority"))
+    expect_equal(nrow(res), 0)
+  })
+
+  it("builds an empty-edge graph from defined_nodes (isolate-only universe)", {
+    # All edges drop to NA, but vertices_df still supplies a defined-node
+    # universe, so .compute_salsa_build_graph() takes the make_empty_graph()
+    # branch instead of graph_from_data_frame().
+    edges <- data.frame(from = NA_character_, to = NA_character_)
+    verts <- data.frame(node_name = c("X", "Y"))
+    res <- compute_salsa(edges, vertices_df = verts)
+    expect_setequal(res$node_name, c("X", "Y"))
+    expect_true(all(is.na(res$hub)))
+    expect_true(all(is.na(res$authority)))
+  })
 })
 
 describe("salsa wrapper", {
@@ -321,5 +348,54 @@ describe("salsa wrapper canonicals_df path", {
     )
     expect_true(is.data.frame(s))
     expect_true("A" %in% s$node_name || nrow(s) >= 0)
+  })
+})
+
+describe("salsa wrapper edge-case branch coverage", {
+  it("errors on a clean_canonical_urls of length != 1", {
+    edges <- data.frame(from = "A", to = "B")
+    expect_error(
+      salsa(edges, clean_canonical_urls = c(TRUE, FALSE)),
+      "single logical value"
+    )
+  })
+
+  it("ignores a zero-row canonicals_df even without required columns", {
+    edges <- data.frame(from = "A", to = "B")
+    s <- salsa(edges, canonicals_df = data.frame(bad_col = character(0)))
+    expect_setequal(s$node_name, c("A", "B"))
+  })
+
+  it("skips URL cleaning for a zero-row redirects_df", {
+    edges <- data.frame(from = "A", to = "B")
+    s <- salsa(
+      edges,
+      redirects_df = data.frame(from = character(0), to = character(0))
+    )
+    expect_setequal(s$node_name, c("A", "B"))
+  })
+
+  it("no-ops folding when redirects_df lacks the expected from/to columns", {
+    # Missing columns short-circuit URL cleaning, and the resulting terminal
+    # map from NULL from/to vectors is empty, so the edge list passes through
+    # both .salsa_clean_url_df() and .salsa_apply_folds() unchanged.
+    edges <- data.frame(from = "A", to = "B")
+    redirects <- data.frame(src = "X", dst = "Y")
+    s <- salsa(edges, redirects_df = redirects)
+    expect_setequal(s$node_name, c("A", "B"))
+  })
+
+  it("returns an empty result for an empty edge list (drop_isolates = TRUE)", {
+    edges <- data.frame(from = character(0), to = character(0))
+    s <- salsa(edges)
+    expect_named(s, c("node_name", "hub", "authority"))
+    expect_equal(nrow(s), 0)
+  })
+
+  it("returns an empty result for an empty edge list (drop_isolates = FALSE)", {
+    edges <- data.frame(from = character(0), to = character(0))
+    s <- salsa(edges, drop_isolates_flag = FALSE)
+    expect_named(s, c("node_name", "hub", "authority"))
+    expect_equal(nrow(s), 0)
   })
 })
