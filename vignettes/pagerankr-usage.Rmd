@@ -885,3 +885,15 @@ values that may contain query strings or fragments.
 | `aggregate_edges()` | Aggregate duplicate edges after URL folding with per-column semantics |
 | `export_graph()` | Export graph + PageRank in graphml / dot / edgelist / pajek formats |
 | `launch_pagerank_explorer()` | Launch the interactive Shiny PageRank explorer |
+
+## Acknowledgments
+
+`pagerankr` wraps [igraph](https://github.com/igraph/igraph)'s PageRank and
+HITS engines and implements a body of link-analysis research directly — PageRank
+(Brin & Page), HITS (Kleinberg), SALSA (Lempel & Moran), TrustRank (Gyöngyi,
+Garcia-Molina & Pedersen), and Topic-Sensitive PageRank (Haveliwala). URL
+handling is delegated to the sibling `rurl` package.
+
+The full list of credits — prior art, dependencies, the research this code
+implements, and the data sources it serves — is in
+[`ACKNOWLEDGMENTS.md`](https://github.com/bart-turczynski/pagerankr/blob/main/ACKNOWLEDGMENTS.md).
