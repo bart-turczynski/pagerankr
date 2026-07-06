@@ -81,6 +81,18 @@ describe("resolve_rurl_params (via clean_url_columns)", {
   })
 })
 
+describe("resolve_rurl_params validation", {
+  it("errors when rurl_params is not a list (via filter_links_by_domain)", {
+    edges <- data.frame(
+      from = "http://example.com/a", to = "http://example.com/b"
+    )
+    expect_error(
+      filter_links_by_domain(edges, rurl_params = "not-a-list"),
+      "must be a list"
+    )
+  })
+})
+
 describe("profile is behavior-preserving end to end", {
   it("clean_url_columns matches rurl defaults when no overrides are given", {
     urls <- c(
