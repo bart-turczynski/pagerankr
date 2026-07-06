@@ -86,7 +86,48 @@ compute_salsa <- function(edge_list_df,
                           pr_node_col = "node_name",
                           hub_col = "hub",
                           authority_col = "authority") {
-  # --- Input validation (mirrors compute_hits) ---
+  node_cols <- c(pr_node_col, hub_col, authority_col)
+  .compute_salsa_validate_inputs(
+    edge_list_df, vertices_df, from_col, to_col, vertex_col_name, node_cols
+  )
+
+  # --- Empty result template ---
+  empty_result <- stats::setNames(
+    data.frame(
+      character(0), numeric(0), numeric(0)
+    ),
+    node_cols
+  )
+
+  defined_nodes <- .compute_salsa_defined_nodes(vertices_df, vertex_col_name)
+  valid_edges_df <- .compute_salsa_prepare_edges(edge_list_df, from_col, to_col)
+
+  # --- Build graph ---
+  if (nrow(valid_edges_df) == 0 && is.null(defined_nodes)) {
+    return(empty_result)
+  }
+
+  current_graph <- .compute_salsa_build_graph(valid_edges_df, defined_nodes)
+
+  if (igraph::vcount(current_graph) == 0) {
+    return(empty_result)
+  }
+
+  .compute_salsa_closed_form(current_graph, node_cols)
+}
+
+#' Validate compute_salsa() inputs.
+#'
+#' Mirrors compute_hits validation. Preserves error-message text and the
+#' short-circuit order exactly.
+#' @keywords internal
+#' @noRd
+.compute_salsa_validate_inputs <- function(edge_list_df,
+                                           vertices_df,
+                                           from_col,
+                                           to_col,
+                                           vertex_col_name,
+                                           node_cols) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
@@ -108,10 +149,7 @@ compute_salsa <- function(edge_list_df,
       )
     }
   }
-  node_cols <- c(pr_node_col, hub_col, authority_col)
-  if (!all(vapply(node_cols, function(x) {
-    is.character(x) && length(x) == 1 && nchar(x) > 0
-  }, logical(1)))) {
+  if (!all(vapply(node_cols, .compute_salsa_is_valid_col, logical(1)))) {
     stop(
       "`pr_node_col`, `hub_col`, and `authority_col` must be ",
       "non-empty character strings.",
@@ -124,63 +162,79 @@ compute_salsa <- function(edge_list_df,
       call. = FALSE
     )
   }
+  invisible(NULL)
+}
 
-  # --- Empty result template ---
-  empty_result <- stats::setNames(
-    data.frame(
-      character(0), numeric(0), numeric(0)
-    ),
-    node_cols
-  )
+#' Is `x` a single non-empty character string?
+#' @keywords internal
+#' @noRd
+.compute_salsa_is_valid_col <- function(x) {
+  is.character(x) && length(x) == 1 && nchar(x) > 0
+}
 
-  defined_nodes <- NULL
-  if (!is.null(vertices_df) && nrow(vertices_df) > 0 &&
-        vertex_col_name %in% names(vertices_df)) {
-    defined_nodes <- unique(
-      stats::na.omit(as.character(vertices_df[[vertex_col_name]]))
-    )
-    if (length(defined_nodes) == 0) defined_nodes <- NULL
+#' Resolve the defined-node universe from a vertices data frame.
+#'
+#' Returns `NULL` when no usable vertices are supplied.
+#' @keywords internal
+#' @noRd
+.compute_salsa_defined_nodes <- function(vertices_df, vertex_col_name) {
+  if (is.null(vertices_df) || nrow(vertices_df) == 0 ||
+        !(vertex_col_name %in% names(vertices_df))) {
+    return(NULL)
   }
+  defined_nodes <- unique(
+    stats::na.omit(as.character(vertices_df[[vertex_col_name]]))
+  )
+  if (length(defined_nodes) == 0) {
+    return(NULL)
+  }
+  defined_nodes
+}
 
-  # --- Prepare edges (remove NAs) ---
-  if (nrow(edge_list_df) > 0) {
-    edges_for_graph <- edge_list_df[, c(from_col, to_col), drop = FALSE]
-    edges_for_graph[[from_col]] <- as.character(edges_for_graph[[from_col]])
-    edges_for_graph[[to_col]] <- as.character(edges_for_graph[[to_col]])
-    na_in_edges <- is.na(edges_for_graph[[from_col]]) |
-      is.na(edges_for_graph[[to_col]])
-    valid_edges_df <- edges_for_graph[!na_in_edges, , drop = FALSE]
-  } else {
+#' Prepare the edge frame for graph construction (drop NA endpoints).
+#' @keywords internal
+#' @noRd
+.compute_salsa_prepare_edges <- function(edge_list_df, from_col, to_col) {
+  if (nrow(edge_list_df) == 0) {
     valid_edges_df <- data.frame(
       matrix(ncol = 2, nrow = 0, dimnames = list(NULL, c(from_col, to_col)))
     )
     valid_edges_df[[from_col]] <- character(0)
     valid_edges_df[[to_col]] <- character(0)
+    return(valid_edges_df)
   }
+  edges_for_graph <- edge_list_df[, c(from_col, to_col), drop = FALSE]
+  edges_for_graph[[from_col]] <- as.character(edges_for_graph[[from_col]])
+  edges_for_graph[[to_col]] <- as.character(edges_for_graph[[to_col]])
+  na_in_edges <- is.na(edges_for_graph[[from_col]]) |
+    is.na(edges_for_graph[[to_col]])
+  edges_for_graph[!na_in_edges, , drop = FALSE]
+}
 
-  # --- Build graph ---
-  if (nrow(valid_edges_df) == 0 && is.null(defined_nodes)) {
-    return(empty_result)
-  }
-
+#' Build the directed igraph object from prepared edges / defined nodes.
+#' @keywords internal
+#' @noRd
+.compute_salsa_build_graph <- function(valid_edges_df, defined_nodes) {
   if (nrow(valid_edges_df) > 0) {
-    current_graph <- igraph::graph_from_data_frame(
+    return(igraph::graph_from_data_frame(
       d = valid_edges_df,
       directed = TRUE,
       vertices = defined_nodes
-    )
-  } else {
-    current_graph <- igraph::make_empty_graph(
-      n = length(defined_nodes), directed = TRUE
-    )
-    igraph::V(current_graph)$name <- defined_nodes
+    ))
   }
+  current_graph <- igraph::make_empty_graph(
+    n = length(defined_nodes), directed = TRUE
+  )
+  igraph::V(current_graph)$name <- defined_nodes
+  current_graph
+}
 
-  if (igraph::vcount(current_graph) == 0) {
-    return(empty_result)
-  }
-
-  # --- SALSA closed form (Lempel & Moran 2001, Proposition 6) ---
+#' SALSA closed form (Lempel & Moran 2001, Proposition 6).
+#'
+#' Computes component-reweighted hub/authority scores from graph degrees.
+#' @keywords internal
+#' @noRd
+.compute_salsa_closed_form <- function(current_graph, node_cols) {
   node_names <- igraph::V(current_graph)$name
   d_in <- igraph::degree(current_graph, mode = "in")
   d_out <- igraph::degree(current_graph, mode = "out")
@@ -359,29 +413,142 @@ salsa <- function(edge_list_df,
   canonical_loop_handling <- match.arg(canonical_loop_handling)
   canonical_conflict_policy <- match.arg(canonical_conflict_policy)
 
+  .salsa_validate_frames(
+    edge_list_df, redirects_df, canonicals_df, clean_canonical_urls,
+    canonical_from_col, canonical_to_col
+  )
+  .salsa_validate_flags(
+    clean_edge_urls, clean_redirect_urls, rurl_params, drop_isolates_flag
+  )
+
+  # --- Working copies ---
+  current_edge_list <- edge_list_df
+  current_redirects_list <- redirects_df
+  current_canonicals_list <- canonicals_df
+
+  # --- 1. URL cleaning (shared resolved rurl profile) ---
+  effective_rurl_params <- .resolve_rurl_params(rurl_params)
+
+  current_edge_list <- .salsa_clean_url_df(
+    current_edge_list, c(edge_from_col, edge_to_col),
+    clean_edge_urls, effective_rurl_params, require_rows = FALSE
+  )
+  current_redirects_list <- .salsa_clean_url_df(
+    current_redirects_list, c(redirect_from_col, redirect_to_col),
+    clean_redirect_urls, effective_rurl_params, require_rows = TRUE
+  )
+  current_canonicals_list <- .salsa_clean_url_df(
+    current_canonicals_list, c(canonical_from_col, canonical_to_col),
+    clean_canonical_urls, effective_rurl_params, require_rows = TRUE
+  )
+
+  # --- 2. Redirect + canonical resolution (one composed fold map) ---
+  current_edge_list <- .salsa_apply_folds(
+    current_edge_list, current_redirects_list, current_canonicals_list,
+    edge_from_col, edge_to_col,
+    redirect_from_col, redirect_to_col,
+    canonical_from_col, canonical_to_col,
+    duplicate_from_policy, loop_handling,
+    canonical_duplicate_from_policy, canonical_loop_handling,
+    canonical_conflict_policy
+  )
+
+  # --- 2.5 / 2.7 / 3 / 4. Domain filter, vertex universe, dedup, isolates ---
+  assembled <- .salsa_assemble_vertices(
+    current_edge_list, edge_from_col, edge_to_col,
+    keep_domains, exclude_domains, keep_hosts, exclude_hosts,
+    effective_rurl_params, duplicate_edge_policy, self_loops,
+    drop_isolates_flag
+  )
+
+  # --- 5. Compute SALSA ---
+  compute_salsa(
+    edge_list_df = assembled$edge_list,
+    vertices_df = assembled$vertices_df,
+    from_col = edge_from_col,
+    to_col = edge_to_col,
+    vertex_col_name = assembled$node_col,
+    ...
+  )
+}
+
+#' Validate salsa() data-frame arguments and the canonical cleaning flag.
+#'
+#' Runs the first block of salsa() validation in the original order (edge,
+#' redirects, canonicals data frames; `clean_canonical_urls`; canonical
+#' columns). Error-message text is preserved verbatim.
+#' @keywords internal
+#' @noRd
+.salsa_validate_frames <- function(edge_list_df,
+                                   redirects_df,
+                                   canonicals_df,
+                                   clean_canonical_urls,
+                                   canonical_from_col,
+                                   canonical_to_col) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
-  if (!is.null(redirects_df) && !is.data.frame(redirects_df)) {
-    stop("`redirects_df` must be a data frame or NULL.", call. = FALSE)
+  if (!is.null(redirects_df)) {
+    if (!is.data.frame(redirects_df)) {
+      stop("`redirects_df` must be a data frame or NULL.", call. = FALSE)
+    }
   }
-  if (!is.null(canonicals_df) && !is.data.frame(canonicals_df)) {
-    stop("`canonicals_df` must be a data frame or NULL.", call. = FALSE)
+  if (!is.null(canonicals_df)) {
+    if (!is.data.frame(canonicals_df)) {
+      stop("`canonicals_df` must be a data frame or NULL.", call. = FALSE)
+    }
   }
-  if (!is.logical(clean_canonical_urls) || length(clean_canonical_urls) != 1) {
+  if (!is.logical(clean_canonical_urls)) {
     stop(
       "`clean_canonical_urls` must be a single logical value.",
       call. = FALSE
     )
   }
+  if (length(clean_canonical_urls) != 1) {
+    stop(
+      "`clean_canonical_urls` must be a single logical value.",
+      call. = FALSE
+    )
+  }
+  .salsa_validate_canonical_cols(
+    canonicals_df, canonical_from_col, canonical_to_col
+  )
+  invisible(NULL)
+}
+
+#' Validate that `canonicals_df` carries the required from/to columns.
+#' @keywords internal
+#' @noRd
+.salsa_validate_canonical_cols <- function(canonicals_df,
+                                           canonical_from_col,
+                                           canonical_to_col) {
+  if (is.null(canonicals_df)) {
+    return(invisible(NULL))
+  }
+  if (nrow(canonicals_df) == 0) {
+    return(invisible(NULL))
+  }
   canonical_cols <- c(canonical_from_col, canonical_to_col)
-  if (!is.null(canonicals_df) && nrow(canonicals_df) > 0 &&
-        !all(canonical_cols %in% names(canonicals_df))) {
+  if (!all(canonical_cols %in% names(canonicals_df))) {
     stop("`canonicals_df` must have '", canonical_from_col, "' and '",
       canonical_to_col, "' columns.",
       call. = FALSE
     )
   }
+  invisible(NULL)
+}
+
+#' Validate salsa() scalar-flag / list arguments.
+#'
+#' Runs the second block of salsa() validation in the original order
+#' (`clean_edge_urls`, `clean_redirect_urls`, `rurl_params`,
+#' `drop_isolates_flag`). Error-message text is preserved verbatim.
+#' @keywords internal
+#' @noRd
+.salsa_validate_flags <- function(clean_edge_urls,
+                                  clean_redirect_urls,
+                                  rurl_params,
+                                  drop_isolates_flag) {
   if (!is.logical(clean_edge_urls) || length(clean_edge_urls) != 1) {
     stop("`clean_edge_urls` must be a single logical value.", call. = FALSE)
   }
@@ -394,100 +561,116 @@ salsa <- function(edge_list_df,
   if (!is.logical(drop_isolates_flag) || length(drop_isolates_flag) != 1) {
     stop("`drop_isolates_flag` must be a single logical value.", call. = FALSE)
   }
+  invisible(NULL)
+}
 
-  # --- Working copies ---
-  current_edge_list <- edge_list_df
-  current_redirects_list <- redirects_df
-  current_canonicals_list <- canonicals_df
-
-  # --- 1. URL cleaning (shared resolved rurl profile) ---
-  edge_url_cols <- intersect(
-    c(edge_from_col, edge_to_col),
-    names(current_edge_list)
+#' Clean the URL columns of one salsa() data frame.
+#'
+#' Applies the shared resolved rurl profile to the intersection of the wanted
+#' columns present in `df`. `require_rows = TRUE` skips empty frames (matching
+#' the original redirect/canonical guards); edges use `require_rows = FALSE`.
+#' @keywords internal
+#' @noRd
+.salsa_clean_url_df <- function(df,
+                                cols_wanted,
+                                do_clean,
+                                rurl_params,
+                                require_rows) {
+  if (!do_clean) {
+    return(df)
+  }
+  if (is.null(df)) {
+    return(df)
+  }
+  if (require_rows && nrow(df) == 0) {
+    return(df)
+  }
+  cols <- intersect(cols_wanted, names(df))
+  if (length(cols) == 0) {
+    return(df)
+  }
+  do.call(
+    clean_url_columns,
+    c(list(data_frame = df, columns = cols), rurl_params)
   )
-  redirect_url_cols <- if (!is.null(current_redirects_list)) {
-    intersect(
-      c(redirect_from_col, redirect_to_col),
-      names(current_redirects_list)
-    )
-  } else {
-    character(0)
-  }
-  canonical_url_cols <- if (!is.null(current_canonicals_list)) {
-    intersect(
-      c(canonical_from_col, canonical_to_col),
-      names(current_canonicals_list)
-    )
-  } else {
-    character(0)
-  }
+}
 
-  effective_rurl_params <- .resolve_rurl_params(rurl_params)
-
-  if (clean_edge_urls && length(edge_url_cols) > 0) {
-    current_edge_list <- do.call(
-      clean_url_columns,
-      c(list(
-        data_frame = current_edge_list,
-        columns = edge_url_cols
-      ), effective_rurl_params)
-    )
-  }
-  if (clean_redirect_urls && !is.null(current_redirects_list) &&
-        nrow(current_redirects_list) > 0 && length(redirect_url_cols) > 0) {
-    current_redirects_list <- do.call(
-      clean_url_columns,
-      c(list(
-        data_frame = current_redirects_list,
-        columns = redirect_url_cols
-      ), effective_rurl_params)
-    )
-  }
-  if (clean_canonical_urls && !is.null(current_canonicals_list) &&
-        nrow(current_canonicals_list) > 0 && length(canonical_url_cols) > 0) {
-    current_canonicals_list <- do.call(
-      clean_url_columns,
-      c(list(
-        data_frame = current_canonicals_list,
-        columns = canonical_url_cols
-      ), effective_rurl_params)
-    )
-  }
-
-  # --- 2. Redirect + canonical resolution (one composed fold map) ---
+#' Compose the redirect + canonical fold map and apply it to the edge list.
+#'
+#' Returns the (possibly relabeled) edge list. No-op when neither redirects nor
+#' canonicals are present, or when the composed map is empty.
+#' @keywords internal
+#' @noRd
+.salsa_apply_folds <- function(current_edge_list,
+                               current_redirects_list,
+                               current_canonicals_list,
+                               edge_from_col,
+                               edge_to_col,
+                               redirect_from_col,
+                               redirect_to_col,
+                               canonical_from_col,
+                               canonical_to_col,
+                               duplicate_from_policy,
+                               loop_handling,
+                               canonical_duplicate_from_policy,
+                               canonical_loop_handling,
+                               canonical_conflict_policy) {
   has_redirects <- !is.null(current_redirects_list) &&
     nrow(current_redirects_list) > 0
   has_canonicals <- !is.null(current_canonicals_list) &&
     nrow(current_canonicals_list) > 0
 
-  fold_map <- character(0)
-  if (has_redirects || has_canonicals) {
-    fold <- .compose_fold_map(
-      redirects_df = if (has_redirects) current_redirects_list else NULL,
-      canonicals_df = if (has_canonicals) current_canonicals_list else NULL,
-      redirect_from_col = redirect_from_col,
-      redirect_to_col = redirect_to_col,
-      canonical_from_col = canonical_from_col,
-      canonical_to_col = canonical_to_col,
-      duplicate_from_policy = duplicate_from_policy,
-      loop_handling = loop_handling,
-      canonical_duplicate_from_policy = canonical_duplicate_from_policy,
-      canonical_loop_handling = canonical_loop_handling,
-      canonical_conflict_policy = canonical_conflict_policy
-    )
-    fold_map <- fold$map
-
-    if (length(fold_map) > 0) {
-      for (col_name in c(edge_from_col, edge_to_col)) {
-        if (col_name %in% names(current_edge_list)) {
-          current_edge_list[[col_name]] <- .apply_fold_map(
-            current_edge_list[[col_name]], fold_map
-          )
-        }
-      }
-    }
+  if (!has_redirects && !has_canonicals) {
+    return(current_edge_list)
   }
 
+  fold <- .compose_fold_map(
+    redirects_df = if (has_redirects) current_redirects_list else NULL,
+    canonicals_df = if (has_canonicals) current_canonicals_list else NULL,
+    redirect_from_col = redirect_from_col,
+    redirect_to_col = redirect_to_col,
+    canonical_from_col = canonical_from_col,
+    canonical_to_col = canonical_to_col,
+    duplicate_from_policy = duplicate_from_policy,
+    loop_handling = loop_handling,
+    canonical_duplicate_from_policy = canonical_duplicate_from_policy,
+    canonical_loop_handling = canonical_loop_handling,
+    canonical_conflict_policy = canonical_conflict_policy
+  )
+  fold_map <- fold$map
+
+  if (length(fold_map) == 0) {
+    return(current_edge_list)
+  }
+
+  for (col_name in c(edge_from_col, edge_to_col)) {
+    if (col_name %in% names(current_edge_list)) {
+      current_edge_list[[col_name]] <- .apply_fold_map(
+        current_edge_list[[col_name]], fold_map
+      )
+    }
+  }
+  current_edge_list
+}
+
+#' Domain-filter, capture the vertex universe, deduplicate, and handle isolates.
+#'
+#' Returns a list with the deduplicated `edge_list`, the assembled
+#' `vertices_df` (or `NULL`), and the temporary `node_col` name. Preserves the
+#' original ordering: filter, capture universe (pre-dedup), dedup, isolates.
+#' @keywords internal
+#' @noRd
+.salsa_assemble_vertices <- function(current_edge_list,
+                                     edge_from_col,
+                                     edge_to_col,
+                                     keep_domains,
+                                     exclude_domains,
+                                     keep_hosts,
+                                     exclude_hosts,
+                                     effective_rurl_params,
+                                     duplicate_edge_policy,
+                                     self_loops,
+                                     drop_isolates_flag) {
   # --- 2.7. Domain / host filtering ---
   if (!is.null(keep_domains) || !is.null(exclude_domains) ||
         !is.null(keep_hosts) || !is.null(exclude_hosts)) {
@@ -529,32 +712,41 @@ salsa <- function(edge_list_df,
   ))
   current_edge_nodes <- current_edge_nodes[!is.na(current_edge_nodes)]
 
-  vertices_for_salsa_df <- NULL
-  if (drop_isolates_flag) {
-    if (length(current_edge_nodes) > 0) {
-      vertices_for_salsa_df <- stats::setNames(
-        data.frame(sort(current_edge_nodes)),
-        temp_node_col_name
-      )
-    }
-  } else {
-    full_universe <- unique(c(all_vertex_universe, current_edge_nodes))
-    if (length(full_universe) > 0) {
-      vertices_for_salsa_df <- stats::setNames(
-        data.frame(sort(full_universe)),
-        temp_node_col_name
-      )
-    }
-  }
+  vertices_for_salsa_df <- .salsa_build_vertices_df(
+    current_edge_nodes, all_vertex_universe, drop_isolates_flag,
+    temp_node_col_name
+  )
 
-  # --- 5. Compute SALSA ---
-  compute_salsa(
-    edge_list_df = current_edge_list,
+  list(
+    edge_list = current_edge_list,
     vertices_df = vertices_for_salsa_df,
-    from_col = edge_from_col,
-    to_col = edge_to_col,
-    vertex_col_name = temp_node_col_name,
-    ...
+    node_col = temp_node_col_name
+  )
+}
+
+#' Build the salsa() vertices data frame (or `NULL`) from node sets.
+#' @keywords internal
+#' @noRd
+.salsa_build_vertices_df <- function(current_edge_nodes,
+                                     all_vertex_universe,
+                                     drop_isolates_flag,
+                                     temp_node_col_name) {
+  if (drop_isolates_flag) {
+    if (length(current_edge_nodes) == 0) {
+      return(NULL)
+    }
+    return(stats::setNames(
+      data.frame(sort(current_edge_nodes)),
+      temp_node_col_name
+    ))
+  }
+  full_universe <- unique(c(all_vertex_universe, current_edge_nodes))
+  if (length(full_universe) == 0) {
+    return(NULL)
+  }
+  stats::setNames(
+    data.frame(sort(full_universe)),
+    temp_node_col_name
   )
 }
 
