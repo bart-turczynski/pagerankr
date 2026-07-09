@@ -15,6 +15,10 @@ knitr::opts_chunk$set(echo = TRUE)
 <!-- badges: start -->
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![Verify](https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml)
+[![Codecov coverage](https://codecov.io/gh/bart-turczynski/pagerankr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pagerankr)
+[![Full platform check](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml)
+[![NEWS/version check](https://github.com/bart-turczynski/pagerankr/actions/workflows/news-version.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/news-version.yaml)
+[![R-hub](https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml)
 <!-- badges: end -->
 
 `pagerankr` is an SEO-focused R toolkit for PageRank modeling on crawl data.

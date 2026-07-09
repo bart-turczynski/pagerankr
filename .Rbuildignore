@@ -10,6 +10,7 @@
 ^cran-comments\.md$
 ^CONTRIBUTING\.md$
 ^CODE_OF_CONDUCT\.md$
+^SECURITY\.md$
 ^LICENSE\.md$
 # Add any other files/directories specific to your development process
 # that should not be in the package tarball.
