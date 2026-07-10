@@ -1,0 +1,101 @@
+header:
+  schema-version: 2.2.0
+  last-updated: '2026-07-10'
+  last-reviewed: '2026-07-10'
+  url: https://github.com/bart-turczynski/pagerankr/raw/main/SECURITY-INSIGHTS.yml
+  comment: |
+    OpenSSF Security Insights self-report for pagerankr. This machine-readable
+    report accompanies SECURITY.md and .bestpractices.json.
+
+project:
+  name: pagerankr
+  homepage: https://bart-turczynski.github.io/pagerankr/
+  administrators:
+    - name: Bart Turczynski
+      email: bartek@turczynski.pl
+      social: https://orcid.org/0000-0002-8788-7980
+      primary: true
+  documentation:
+    quickstart-guide: https://bart-turczynski.github.io/pagerankr/
+    detailed-guide: https://bart-turczynski.github.io/pagerankr/reference/index.html
+    release-process: https://github.com/bart-turczynski/pagerankr/blob/main/CONTRIBUTING.md
+  repositories:
+    - name: pagerankr
+      url: https://github.com/bart-turczynski/pagerankr
+      comment: Sole repository for the pagerankr R package.
+  vulnerability-reporting:
+    reports-accepted: true
+    bug-bounty-available: false
+    contact:
+      name: Bart Turczynski
+      email: bartek@turczynski.pl
+      primary: true
+    policy: https://github.com/bart-turczynski/pagerankr/blob/main/SECURITY.md
+    in-scope:
+      - Unsafe handling of untrusted URL, redirect, link-graph, crawl, or analytics input.
+      - Resource exhaustion, unexpected code execution, or information disclosure caused by those inputs.
+    out-of-scope:
+      - Vulnerabilities in dependencies; report those to the relevant upstream project.
+    comment: |
+      Do not use public GitHub issues for security reports. Use GitHub private
+      vulnerability reporting (Security tab -> "Report a vulnerability") or
+      email the maintainer when that channel is unavailable. Reports are
+      targeted for acknowledgment within 7 days.
+
+repository:
+  url: https://github.com/bart-turczynski/pagerankr
+  status: active
+  bug-fixes-only: false
+  accepts-change-request: true
+  accepts-automated-change-request: false
+  no-third-party-packages: false
+  core-team:
+    - name: Bart Turczynski
+      email: bartek@turczynski.pl
+      social: https://orcid.org/0000-0002-8788-7980
+      primary: true
+  documentation:
+    contributing-guide: https://github.com/bart-turczynski/pagerankr/blob/main/CONTRIBUTING.md
+    security-policy: https://github.com/bart-turczynski/pagerankr/blob/main/SECURITY.md
+  license:
+    url: https://github.com/bart-turczynski/pagerankr/blob/main/LICENSE
+    expression: MIT
+  release:
+    changelog: https://github.com/bart-turczynski/pagerankr/blob/main/NEWS.md
+    automated-pipeline: false
+    distribution-points:
+      - uri: https://github.com/bart-turczynski/pagerankr/releases
+        comment: Tagged GitHub Releases when published; the package is currently experimental.
+      - uri: https://bart-turczynski.r-universe.dev
+        comment: Development builds through r-universe.
+  security:
+    assessments:
+      self:
+        evidence: https://github.com/bart-turczynski/pagerankr/blob/main/.bestpractices.json
+        date: '2026-07-10'
+        comment: OpenSSF Best Practices self-assessment, tracked in the repository.
+    champions:
+      - name: Bart Turczynski
+        email: bartek@turczynski.pl
+        primary: true
+    tools:
+      - name: lintr
+        type: SAST
+        rulesets:
+          - project configuration
+        integration:
+          adhoc: true
+          ci: true
+          release: false
+        results: {}
+        comment: Full-package linting runs in the Verify workflow on every push and pull request.
+      - name: R CMD check
+        type: other
+        rulesets:
+          - CRAN checks
+        integration:
+          adhoc: true
+          ci: true
+          release: true
+        results: {}
+        comment: Verify runs an Ubuntu check; full-check runs --as-cran across supported platforms before releases.

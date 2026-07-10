@@ -30,6 +30,7 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 [![Codecov coverage](https://codecov.io/gh/bart-turczynski/pagerankr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pagerankr)
 [![Full platform check](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml)
 [![R-hub](https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13553/badge)](https://www.bestpractices.dev/projects/13553)
 <!-- badges: end -->
 
 `pagerankr` is an SEO-focused R toolkit for PageRank modeling on crawl
@@ -270,6 +271,13 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 | `resolve_folded_urls()` | Resolve a URL vector through redirects plus canonicals |
 
 ## 1.5 Further Information
+
+The [package website](https://bart-turczynski.github.io/pagerankr/) contains
+the complete reference and rendered vignettes. To report a bug or request an
+enhancement, use [GitHub Issues](https://github.com/bart-turczynski/pagerankr/issues).
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change; it
+sets out the test, lint, and R CMD check requirements. For privately reported
+security vulnerabilities, follow [SECURITY.md](SECURITY.md).
 
 ``` r
 help(package = "pagerankr")
