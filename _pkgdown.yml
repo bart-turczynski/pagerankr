@@ -3,15 +3,122 @@ url: https://bart-turczynski.github.io/pagerankr/
 template:
   bootstrap: 5
 
+authors:
+  "Bart Turczynski":
+    href: https://turczynski.pl
+
+home:
+  title: "pagerankr — Link-Graph Analysis and PageRank"
+  description: >
+    A modular toolkit for PageRank and link-graph analysis, including HITS,
+    SALSA, TrustRank, topic-sensitive PageRank, crawl imports, and what-if
+    simulation.
+
 navbar:
   structure:
-    left: [reference, articles, news, acknowledgments]
+    left: [intro, reference, articles, news, acknowledgments]
     right: [search, github]
   components:
     acknowledgments:
       text: Acknowledgments
       href: https://github.com/bart-turczynski/pagerankr/blob/main/ACKNOWLEDGMENTS.md
     github:
-      icon: fab fa-github fa-lg
+      icon: fab fa-github
       href: https://github.com/bart-turczynski/pagerankr
       aria-label: GitHub
+
+footer:
+  structure:
+    left: developed_by
+    right: [built_with, related]
+  components:
+    related: >
+      Related:
+      <a href="https://bart-turczynski.github.io/rurl/">rurl</a> ·
+      <a href="https://igraph.org/r/">igraph</a>
+
+reference:
+  - title: "Core PageRank"
+    desc: "Calculate, compare, tune, and inspect PageRank scores."
+    contents:
+      - pagerank
+      - compute_pagerank
+      - pagerank_grid
+      - auto_grid
+      - compare_pagerank
+      - analyze_pagerank_grid
+      - damping_sensitivity
+      - pagerank_stability
+      - pagerank_convergence
+
+  - title: "Personalized and reverse PageRank"
+    desc: "Bias scores toward trusted or topical seed pages and feeder paths."
+    contents:
+      - trustrank
+      - topic_sensitive_pagerank
+      - topic_feeder_pagerank
+
+  - title: "Graph centrality"
+    desc: "Compute complementary hub and authority measures."
+    contents:
+      - hits
+      - compute_hits
+      - salsa
+      - compute_salsa
+
+  - title: "Graph preparation"
+    desc: "Clean, aggregate, validate, transform, and filter link data."
+    contents:
+      - clean_url_columns
+      - get_unique_edges
+      - aggregate_edges
+      - validate_edge_weights
+      - transform_edge_weights
+      - transform_weights
+      - drop_isolates
+      - filter_links_by_domain
+      - align_prior_to_vertices
+
+  - title: "URL folding and crawl data"
+    desc: "Resolve redirects and canonicals and import crawl exports."
+    contents:
+      - resolve_urls
+      - resolve_links
+      - resolve_redirects
+      - resolve_canonicals
+      - resolve_canonical_urls
+      - build_fold_map
+      - resolve_folded_urls
+      - audit_redirects
+      - audit_canonicals
+      - audit_fold
+      - canonical_profile
+      - screaming_frog_internal
+      - screaming_frog_links
+      - screaming_frog_bundle
+      - pagerank_screaming_frog
+
+  - title: "Behavioral data and simulation"
+    desc: "Blend GA4 transitions with structural links and model changes."
+    contents:
+      - ga4_page_transitions
+      - smooth_transitions
+      - ga4_entrance_teleport
+      - simulate_changes
+
+  - title: "Export and exploration"
+    desc: "Export graph data and explore results interactively."
+    contents:
+      - export_graph
+      - launch_pagerank_explorer
+
+  - title: "Metrics and diagnostics"
+    desc: "Summarize rank distributions and transition behavior."
+    contents:
+      - pagerank_metrics
+      - new_transition_audit
+      - transition_audit
+      - print.pagerank_convergence
+      - print.screaming_frog_bundle
+      - summary.screaming_frog_bundle
+      - print.transition_audit

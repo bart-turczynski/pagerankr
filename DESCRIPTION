@@ -19,6 +19,7 @@ Suggests:
     withr,
     knitr,
     rmarkdown,
+    pkgdown,
     covr,
     lintr,
     goodpractice,
@@ -27,6 +28,6 @@ Suggests:
     visNetwork
 Config/Needs/build: local
 VignetteBuilder: knitr
-URL: https://github.com/bart-turczynski/pagerankr
+URL: https://bart-turczynski.github.io/pagerankr/, https://github.com/bart-turczynski/pagerankr
 BugReports: https://github.com/bart-turczynski/pagerankr/issues
 Config/roxygen2/version: 8.0.0
