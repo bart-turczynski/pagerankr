@@ -11,6 +11,8 @@
 ^CONTRIBUTING\.md$
 ^CODE_OF_CONDUCT\.md$
 ^SECURITY\.md$
+^SECURITY-INSIGHTS\.yml$
+^\.bestpractices\.json$
 ^LICENSE\.md$
 # Add any other files/directories specific to your development process
 # that should not be in the package tarball.
