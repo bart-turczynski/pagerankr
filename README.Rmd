@@ -257,9 +257,10 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 The [package website](https://bart-turczynski.github.io/pagerankr/) contains
 the complete reference and rendered vignettes. To report a bug or request an
 enhancement, use [GitHub Issues](https://github.com/bart-turczynski/pagerankr/issues).
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change; it
-sets out the test, lint, and R CMD check requirements. For privately reported
-security vulnerabilities, follow [SECURITY.md](SECURITY.md).
+Please read [CONTRIBUTING.md](https://github.com/bart-turczynski/pagerankr/blob/main/CONTRIBUTING.md)
+before proposing a change; it sets out the test, lint, and R CMD check
+requirements. For privately reported security vulnerabilities, follow
+[SECURITY.md](https://github.com/bart-turczynski/pagerankr/blob/main/SECURITY.md).
 
 ```r
 help(package = "pagerankr")
