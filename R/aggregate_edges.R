@@ -99,9 +99,7 @@
 #' aggregate_edges(edges)
 #'
 #' # Require agreement on nofollow, erroring on a conflict.
-#' \dontrun{
-#' aggregate_edges(edges, nofollow_policy = "error")
-#' }
+#' try(aggregate_edges(edges, nofollow_policy = "error"))
 #'
 #' # Preserve placement features as a list-column for later modeling.
 #' edges_pos <- data.frame(
