@@ -5,6 +5,7 @@
 #'   universe (all unique non-NA URLs from both columns, including those from
 #'   partial/incomplete rows).
 #'
+#' @inheritParams compute_pagerank
 #' @param edge_list_df A data frame representing the edge list, typically with
 #'   columns "from" and "to" (or as specified by `from_col`, `to_col`).
 #'   Rows where both columns are non-NA represent edges. Rows where one column
@@ -15,9 +16,6 @@
 #'   and to are non-NA in the same row). If `FALSE` (default), returns a
 #'   single-column data frame of all unique non-NA node names present in either
 #'   column of `edge_list_df` (the full vertex universe, including isolates).
-#' @param from_col Name of the source node column in `edge_list_df`.
-#'   Default "from".
-#' @param to_col Name of the target node column in `edge_list_df`. Default "to".
 #' @param node_col_name Name for the output column containing node names.
 #'   Default "node_name". When used with [compute_pagerank()], this should match
 #'   its `vertex_col_name` parameter.
