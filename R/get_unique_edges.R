@@ -2,13 +2,11 @@
 #' @description Removes duplicate edge rows from an edge list data frame and
 #'   provides control over how self-loops (e.g., a -> a) are handled.
 #'
+#' @inheritParams compute_pagerank
 #' @param edge_list_df A data frame representing the edge list, typically with
 #'   columns "from" and "to" (or as specified by `from_col`, `to_col`).
 #' @param self_loops A character string specifying how to handle self-loops.
 #'   Must be one of "drop" (default) or "keep".
-#' @param from_col Name of the source node column in `edge_list_df`.
-#'   Default "from".
-#' @param to_col Name of the target node column in `edge_list_df`. Default "to".
 #'
 #' @return A data frame with unique edges, with self-loops handled according to
 #'   the `self_loops` argument. The from/to columns are coerced to character;

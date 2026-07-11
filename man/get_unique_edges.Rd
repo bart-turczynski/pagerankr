@@ -18,8 +18,8 @@ columns "from" and "to" (or as specified by `from_col`, `to_col`).}
 \item{self_loops}{A character string specifying how to handle self-loops.
 Must be one of "drop" (default) or "keep".}
 
-\item{from_col}{Name of the source node column in `edge_list_df`.
-Default "from".}
+\item{from_col}{Name of the source node column in `edge_list_df`. Default
+"from".}
 
 \item{to_col}{Name of the target node column in `edge_list_df`. Default "to".}
 }

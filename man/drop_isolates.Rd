@@ -25,8 +25,8 @@ and to are non-NA in the same row). If `FALSE` (default), returns a
 single-column data frame of all unique non-NA node names present in either
 column of `edge_list_df` (the full vertex universe, including isolates).}
 
-\item{from_col}{Name of the source node column in `edge_list_df`.
-Default "from".}
+\item{from_col}{Name of the source node column in `edge_list_df`. Default
+"from".}
 
 \item{to_col}{Name of the target node column in `edge_list_df`. Default "to".}
 
