@@ -28,7 +28,7 @@ Install optional dependencies with:
 \preformatted{install.packages(c("shiny", "DT", "visNetwork"))}
 }
 \examples{
-\dontrun{
-launch_pagerank_explorer()
+if (interactive()) {
+  launch_pagerank_explorer()
 }
 }

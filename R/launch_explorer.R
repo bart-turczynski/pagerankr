@@ -18,8 +18,8 @@
 #' @return Called for its side effect (launches the app). Returns invisibly.
 #' @export
 #' @examples
-#' \dontrun{
-#' launch_pagerank_explorer()
+#' if (interactive()) {
+#'   launch_pagerank_explorer()
 #' }
 launch_pagerank_explorer <- function(...) {
   if (!requireNamespace("shiny", quietly = TRUE)) {
