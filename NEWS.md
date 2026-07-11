@@ -1,4 +1,6 @@
-# pagerankr 0.0.0.9000
+# pagerankr 0.1.0
+
+_Released 2026-07-11._
 
 * Documented that `canonical_profile()` deliberately leaves `rurl`'s
   component-dropping knobs unpinned (`query_handling`, `port_handling`, and the
