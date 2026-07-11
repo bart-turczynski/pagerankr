@@ -13,8 +13,8 @@ describe("ga4_page_transitions: basic edge list", {
     )
     res <- ga4_page_transitions(events)
 
-    expect_true(is.data.frame(res))
-    expect_identical(names(res), c("from", "to", "n"))
+    expect_s3_class(res, "data.frame")
+    expect_named(res, c("from", "to", "n"))
     expect_type(res$from, "character")
     expect_type(res$to, "character")
     expect_type(res$n, "integer")
@@ -35,7 +35,7 @@ describe("ga4_page_transitions: basic edge list", {
     )
     res <- ga4_page_transitions(events)
     pr <- pagerank(res, weight_col = "n", clean_edge_urls = FALSE)
-    expect_true(is.data.frame(pr))
+    expect_s3_class(pr, "data.frame")
     expect_gte(nrow(pr), 3)
   })
 })
@@ -125,7 +125,7 @@ describe("ga4_page_transitions: session boundaries", {
     )
     res <- ga4_page_transitions(events)
     expect_equal(nrow(res), 0L)
-    expect_identical(names(res), c("from", "to", "n"))
+    expect_named(res, c("from", "to", "n"))
   })
 })
 
@@ -174,7 +174,7 @@ describe("ga4_page_transitions: custom column names", {
       to_col = "target",
       count_col = "weight"
     )
-    expect_identical(names(res), c("source", "target", "weight"))
+    expect_named(res, c("source", "target", "weight"))
     expect_equal(res$weight, 1L)
   })
 
@@ -200,7 +200,7 @@ describe("ga4_page_transitions: edge cases", {
     )
     res <- ga4_page_transitions(events)
     expect_equal(nrow(res), 0L)
-    expect_identical(names(res), c("from", "to", "n"))
+    expect_named(res, c("from", "to", "n"))
   })
 
   it("returns empty when every session has a single page view", {
@@ -235,7 +235,7 @@ describe("ga4_page_transitions: edge cases", {
     )
     res <- ga4_page_transitions(events)
     expect_equal(nrow(res), 0L)
-    expect_identical(names(res), c("from", "to", "n"))
+    expect_named(res, c("from", "to", "n"))
   })
 })
 

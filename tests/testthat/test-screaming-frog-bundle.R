@@ -68,8 +68,8 @@ describe("screaming_frog_bundle()", {
     )
 
     expect_s3_class(bundle, "screaming_frog_bundle")
-    expect_identical(
-      names(bundle),
+    expect_named(
+      bundle,
       c(
         "nodes", "observations", "edges", "redirects", "canonicals",
         "indexability", "diagnostics", "provenance"

@@ -155,7 +155,7 @@ describe("transition_audit fold section", {
     expect_equal(audit$fold$policy, "relabel")
     expect_equal(audit$fold$n_out_of_scope, 1L)
     expect_true(audit$fold$applied)
-    expect_true(is.data.frame(audit$fold$out_of_scope))
+    expect_s3_class(audit$fold$out_of_scope, "data.frame")
     expect_equal(audit$fold$out_of_scope$source, "http://a/")
     expect_equal(audit$fold$out_of_scope$target, "http://c/")
     expect_equal(audit$fold$out_of_scope$signal, "canonical")
@@ -316,7 +316,7 @@ describe("fold-target collision detection (PAGE-rjrduvmy)", {
       "target.com/X"
     )
     audit <- attr(pr, "transition_audit")
-    expect_true(is.data.frame(audit$fold$collisions))
+    expect_s3_class(audit$fold$collisions, "data.frame")
     expect_true("http://target.com/X/" %in% audit$fold$collisions$target)
     row <- audit$fold$collisions[
       audit$fold$collisions$target == "http://target.com/X/",

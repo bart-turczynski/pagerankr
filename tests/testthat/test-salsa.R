@@ -271,7 +271,7 @@ describe("compute_salsa input validation", {
       data.frame(from = "A", to = "B"),
       vertices_df = verts
     )
-    expect_true(is.data.frame(res))
+    expect_s3_class(res, "data.frame")
   })
 })
 
@@ -346,7 +346,7 @@ describe("salsa wrapper canonicals_df path", {
       edges,
       duplicate_edge_policy = "aggregate", clean_edge_urls = FALSE
     )
-    expect_true(is.data.frame(s))
+    expect_s3_class(s, "data.frame")
     expect_true("A" %in% s$node_name || nrow(s) >= 0)
   })
 })

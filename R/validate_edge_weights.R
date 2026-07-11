@@ -88,7 +88,7 @@ vew_validate_args <- function(edge_list_df, weight_col, from_col,
   if (length(missing_cols) > 0) {
     stop(
       "Column(s) not found in `edge_list_df`: ",
-      paste(missing_cols, collapse = ", "),
+      toString(missing_cols),
       call. = FALSE
     )
   }

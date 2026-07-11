@@ -15,7 +15,7 @@ describe("transform_edge_weights: structure", {
     out <- transform_edge_weights(edges, "position",
       method = "zipf", descending = FALSE
     )
-    expect_true(is.data.frame(out))
+    expect_s3_class(out, "data.frame")
     expect_equal(nrow(out), nrow(edges))
     expect_true(all(c("weight", "transition_probability") %in% names(out)))
     # Original columns preserved unchanged
@@ -265,7 +265,7 @@ describe("transform_edge_weights: integration with pagerank", {
       method = "zipf", descending = FALSE
     )
     pr <- pagerank(out, weight_col = "weight", clean_edge_urls = FALSE)
-    expect_true(is.data.frame(pr))
+    expect_s3_class(pr, "data.frame")
     expect_gt(nrow(pr), 0)
   })
 })

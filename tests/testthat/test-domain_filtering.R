@@ -101,7 +101,7 @@ describe("filter_links_by_domain report and edge cases", {
       keep_domains = "a.com",
       return_report = TRUE
     )
-    expect_true(is.list(result))
+    expect_type(result, "list")
     expect_true("filtered_df" %in% names(result))
     expect_true("report" %in% names(result))
     expect_equal(result$report$rows_before, 2)
@@ -300,7 +300,7 @@ describe("filter_links_by_domain report and edge cases", {
       keep_domains = "x.com",
       return_report = TRUE
     )
-    expect_true(is.list(result))
+    expect_type(result, "list")
     expect_equal(result$report$rows_before, 0)
   })
 

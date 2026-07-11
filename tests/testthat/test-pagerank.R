@@ -18,7 +18,7 @@ describe("pagerank main wrapper basic functionality", {
 
     pr_full <- pagerank(edges, redirects_df = redirects)
 
-    expect_true(is.data.frame(pr_full))
+    expect_s3_class(pr_full, "data.frame")
     expect_true(all(
       c("node_name", "pagerank") %in% names(pr_full)
     ))
@@ -590,7 +590,7 @@ describe("pagerank isolate handling with partial rows", {
     # Disable URL cleaning to keep URLs as-is for predictable results
     pr <- pagerank(edges, clean_edge_urls = FALSE, drop_isolates_flag = FALSE)
 
-    expect_true(is.data.frame(pr))
+    expect_s3_class(pr, "data.frame")
     expect_true(all(c("node_name", "pagerank") %in% names(pr)))
     # All 4 unique nodes should appear: A, B, Dead, Orphan
     expect_equal(nrow(pr), 4)
@@ -610,7 +610,7 @@ describe("pagerank isolate handling with partial rows", {
     )
     pr <- pagerank(edges, clean_edge_urls = FALSE, drop_isolates_flag = TRUE)
 
-    expect_true(is.data.frame(pr))
+    expect_s3_class(pr, "data.frame")
     # Only A, B should appear (connected via complete edges)
     expect_equal(nrow(pr), 2)
     expect_true(all(c("A", "B") %in% pr$node_name))

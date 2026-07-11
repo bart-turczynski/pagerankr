@@ -68,8 +68,8 @@ describe("screaming_frog_links()", {
     result <- screaming_frog_links(sf_links_fixture(), "all_outlinks")
 
     expect_s3_class(result, "screaming_frog_links")
-    expect_identical(
-      names(result),
+    expect_named(
+      result,
       c("observations", "edges", "diagnostics", "provenance")
     )
     expect_equal(nrow(result$observations), 9L)

@@ -125,7 +125,7 @@ describe("pagerank wrapper reverse = TRUE", {
         reverse = TRUE, clean_edge_urls = FALSE
       )
     )
-    expect_true(is.data.frame(pr))
+    expect_s3_class(pr, "data.frame")
   })
 
   it("errors on nofollow_action = 'evaporate' under reverse", {

@@ -12,7 +12,7 @@ describe("compare_pagerank basic functionality", {
     )
     result <- compare_pagerank(pr_a, pr_b)
 
-    expect_true(is.data.frame(result))
+    expect_s3_class(result, "data.frame")
     expect_equal(nrow(result), 4) # A, B, C, D
     expect_true(all(c(
       "node_name", "pagerank_a", "pagerank_b",
@@ -76,15 +76,15 @@ describe("compare_pagerank basic functionality", {
     result <- compare_pagerank(pr_a, pr_b)
     summary <- attr(result, "summary")
 
-    expect_true(is.list(summary))
+    expect_type(summary, "list")
     expect_true(all(c(
       "spearman_rho", "mean_abs_delta",
       "nodes_gained", "nodes_lost"
     ) %in% names(summary)))
     expect_equal(summary$nodes_gained, 1) # D
     expect_equal(summary$nodes_lost, 1) # C
-    expect_true(is.numeric(summary$spearman_rho))
-    expect_true(is.numeric(summary$mean_abs_delta))
+    expect_type(summary$spearman_rho, "double")
+    expect_type(summary$mean_abs_delta, "double")
     expect_gt(summary$mean_abs_delta, 0)
   })
 

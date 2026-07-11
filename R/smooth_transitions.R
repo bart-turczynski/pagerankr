@@ -321,7 +321,7 @@ smooth_transitions <- function(empirical_df,
   if (length(emp_missing) > 0) {
     stop(
       "`empirical_df` is missing required column(s): ",
-      paste(emp_missing, collapse = ", "), ".",
+      toString(emp_missing), ".",
       call. = FALSE
     )
   }
@@ -337,7 +337,7 @@ smooth_transitions <- function(empirical_df,
   if (length(struct_missing) > 0) {
     stop(
       "`structural_df` is missing required column(s): ",
-      paste(struct_missing, collapse = ", "), ".",
+      toString(struct_missing), ".",
       call. = FALSE
     )
   }

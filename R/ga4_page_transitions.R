@@ -222,7 +222,7 @@ ga4_page_transitions <- function(events_df,
   if (length(missing_required) > 0) {
     stop(
       "`events_df` is missing required column(s): ",
-      paste(missing_required, collapse = ", "), ".",
+      toString(missing_required), ".",
       call. = FALSE
     )
   }

@@ -76,7 +76,7 @@ clean_url_columns <- function(data_frame,
     ]
     if (length(missing_cols) > 0) {
       stop("Column(s) not found in `data_frame`: ",
-        paste(missing_cols, collapse = ", "),
+        toString(missing_cols),
         call. = FALSE
       )
     }

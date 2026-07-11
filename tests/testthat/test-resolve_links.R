@@ -13,7 +13,7 @@ describe("resolve_links basic functionality", {
     result <- resolve_links(edges, redirects, clean_urls = FALSE)
     # B -> B_final, C -> C_final in both from and to columns
     # Duplicate A -> B_final should be collapsed
-    expect_true(is.data.frame(result))
+    expect_s3_class(result, "data.frame")
     expect_gt(nrow(result), 0)
     # All references to B and C should be resolved
     expect_false("B" %in% c(result$from, result$to))
@@ -138,7 +138,7 @@ describe("resolve_links policy passthrough", {
       clean_urls = FALSE,
       loop_handling = "prune_loop"
     )
-    expect_true(is.data.frame(result))
+    expect_s3_class(result, "data.frame")
   })
 })
 
@@ -172,7 +172,7 @@ describe("resolve_links with URL cleaning", {
       to = c("http://example.com/b/", "http://example.com/c/")
     )
     result <- resolve_links(edges, clean_urls = TRUE)
-    expect_true(is.data.frame(result))
+    expect_s3_class(result, "data.frame")
     expect_gt(nrow(result), 0)
     # The function should return a valid edge list
     expect_true(all(c("from", "to") %in% names(result)))
@@ -188,7 +188,7 @@ describe("resolve_links with URL cleaning", {
       to = "http://example.com/c/"
     )
     result <- resolve_links(edges, redirects, clean_urls = TRUE)
-    expect_true(is.data.frame(result))
+    expect_s3_class(result, "data.frame")
     expect_gt(nrow(result), 0)
   })
 })

@@ -163,8 +163,8 @@ describe("get_unique_edges basic functionality", {
     expect_equal(nrow(unique_e), 0)
     expect_named(unique_e, c("from", "to"))
     # Check types of empty columns
-    expect_true(is.character(unique_e$from))
-    expect_true(is.character(unique_e$to))
+    expect_type(unique_e$from, "character")
+    expect_type(unique_e$to, "character")
   })
 
   it("input columns as factors", {
@@ -174,8 +174,8 @@ describe("get_unique_edges basic functionality", {
     )
     unique_e <- get_unique_edges(edges_factor)
     expect_equal(nrow(unique_e), 2)
-    expect_true(is.character(unique_e$from))
-    expect_true(is.character(unique_e$to))
+    expect_type(unique_e$from, "character")
+    expect_type(unique_e$to, "character")
     # Expected edges are A to B and B to C
     expect_equal(
       unique_e[order(unique_e$from, unique_e$to), ],

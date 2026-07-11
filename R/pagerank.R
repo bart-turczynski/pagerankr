@@ -1492,9 +1492,7 @@ pagerank <- function(edge_list_df,
       coll_targets <- c(coll_targets, tgt)
       coll_nrefs <- c(coll_nrefs, as.integer(n_indep))
       coll_sources <- c(
-        coll_sources, paste(unique(srcs[srcs %in% prefold_nodes]),
-          collapse = ", "
-        )
+        coll_sources, toString(unique(srcs[srcs %in% prefold_nodes]))
       )
     }
   }

@@ -132,8 +132,8 @@ describe("compute_pagerank graph structure handling", {
     pr <- compute_pagerank(edges_empty)
     expect_equal(nrow(pr), 0)
     expect_named(pr, c("node_name", "pagerank"))
-    expect_true(is.character(pr$node_name))
-    expect_true(is.numeric(pr$pagerank))
+    expect_type(pr$node_name, "character")
+    expect_type(pr$pagerank, "double")
   })
 
   it("handles graph defined only by empty vertices_df (no edges)", {

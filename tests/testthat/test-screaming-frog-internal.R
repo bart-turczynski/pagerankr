@@ -74,8 +74,8 @@ describe("screaming_frog_internal()", {
     result <- screaming_frog_internal(sf_internal_fixture())
 
     expect_s3_class(result, "screaming_frog_internal")
-    expect_identical(
-      names(result),
+    expect_named(
+      result,
       c(
         "nodes", "redirects", "canonicals", "indexability",
         "diagnostics", "provenance"

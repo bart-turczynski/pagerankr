@@ -34,8 +34,8 @@ describe("aggregate_edges backward compatibility (unweighted)", {
     )
     res <- aggregate_edges(edges, self_loops = "keep")
     expect_equal(nrow(res), 1)
-    expect_true(is.character(res$from))
-    expect_true(is.character(res$to))
+    expect_type(res$from, "character")
+    expect_type(res$to, "character")
   })
 
   it("handles empty data frames", {
@@ -245,7 +245,7 @@ describe("aggregate_edges preserve_cols placement features", {
       position = c(1, 7, 3)
     )
     res <- aggregate_edges(edges, preserve_cols = "position")
-    expect_true(is.list(res$position))
+    expect_type(res$position, "list")
     ab <- res$position[[which(res$from == "A" & res$to == "B")]]
     expect_equal(sort(ab), c(1, 7))
     bc <- res$position[[which(res$from == "B" & res$to == "C")]]
