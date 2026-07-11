@@ -242,7 +242,7 @@ aggregate_edges <- function(edge_list_df,
   if (length(unknown_agg) > 0) {
     stop(
       "`agg` names not found among aggregatable columns: ",
-      paste(unknown_agg, collapse = ", "),
+      toString(unknown_agg),
       call. = FALSE
     )
   }
@@ -250,7 +250,7 @@ aggregate_edges <- function(edge_list_df,
   if (length(unknown_preserve) > 0) {
     stop(
       "`preserve_cols` not found among aggregatable columns: ",
-      paste(unknown_preserve, collapse = ", "),
+      toString(unknown_preserve),
       call. = FALSE
     )
   }
@@ -258,7 +258,7 @@ aggregate_edges <- function(edge_list_df,
   if (length(both) > 0) {
     stop(
       "Columns cannot be in both `agg` and `preserve_cols`: ",
-      paste(both, collapse = ", "),
+      toString(both),
       call. = FALSE
     )
   }

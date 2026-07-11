@@ -13,7 +13,7 @@ describe("analyze_pagerank_grid", {
     grid <- pagerank_grid(edges, params, clean_edge_urls = FALSE)
     analysis <- analyze_pagerank_grid(grid)
 
-    expect_true(is.data.frame(analysis))
+    expect_s3_class(analysis, "data.frame")
     expect_equal(nrow(analysis), 2)
     expect_true(all(c(
       "model_id", "num_nodes", "pr_sum", "pr_max",

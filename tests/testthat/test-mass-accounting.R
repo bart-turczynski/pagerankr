@@ -32,10 +32,10 @@ describe("mass accounting", {
 
     mass <- audit$mass
     # All four components present and numeric.
-    expect_true(is.numeric(mass$reported))
-    expect_true(is.numeric(mass$sink))
-    expect_true(is.numeric(mass$hidden))
-    expect_true(is.numeric(mass$total))
+    expect_type(mass$reported, "double")
+    expect_type(mass$sink, "double")
+    expect_type(mass$hidden, "double")
+    expect_type(mass$total, "double")
 
     # Both deficit channels are exercised: real (positive) evaporated and
     # hidden mass, not just zeros.

@@ -15,7 +15,7 @@ run_tr <- function(...) suppressMessages(trustrank(...))
 
 test_that("trust_seed_prior() builds a uniform-weight prior_df from a vector", {
   prior <- trust_seed_prior(c("/", "/hub"))
-  expect_identical(names(prior), c("url", "weight"))
+  expect_named(prior, c("url", "weight"))
   expect_identical(prior$url, c("/", "/hub"))
   expect_equal(prior$weight, c(1, 1))
 })
@@ -40,7 +40,7 @@ test_that("trust_seed_prior() accepts a data frame with custom columns", {
     seeds,
     seed_url_col = "page", seed_weight_col = "trust"
   )
-  expect_identical(names(prior), c("url", "weight"))
+  expect_named(prior, c("url", "weight"))
   expect_equal(prior$weight, c(2, 1))
 })
 

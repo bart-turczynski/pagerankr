@@ -10,10 +10,12 @@ Brin
 BrowseRank
 CDN
 CIKM
+CMD
 Canonicalization
 Canonicalize
 Canonicals
 CheiRank
+Codecov
 DOM
 Deduplicate
 GEXF
@@ -39,6 +41,7 @@ Lifecycle
 Mashiach
 Nofollow
 Noindex
+OpenSSF
 Outlinks
 PRPACK
 PageRank
@@ -118,6 +121,7 @@ iters
 lossy
 mailto
 maxiter
+md
 minmax
 mis
 mnchen

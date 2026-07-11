@@ -9,7 +9,7 @@ describe("transition_audit structure", {
     res <- pagerank(edges, clean_edge_urls = FALSE)
 
     # Backward-compatible: result is still the same data frame.
-    expect_true(is.data.frame(res))
+    expect_s3_class(res, "data.frame")
     expect_true(all(c("node_name", "pagerank") %in% names(res)))
 
     audit <- attr(res, "transition_audit")

@@ -24,7 +24,7 @@ test_that("returns one column per topic plus a blended column, sorted", {
   )
 
   expect_s3_class(res, "data.frame")
-  expect_identical(names(res), c("node_name", "ai", "pricing", "blended"))
+  expect_named(res, c("node_name", "ai", "pricing", "blended"))
   # Sorted by blended descending.
   expect_equal(res$blended, sort(res$blended, decreasing = TRUE))
   # Attributes carry the normalized weights and per-topic audits.
@@ -100,7 +100,7 @@ test_that("weighted-seed data-frame topics are accepted", {
     pricing = "/pricing"
   )
   res <- run_tspr(make_site(), topics = topics, clean_edge_urls = FALSE)
-  expect_identical(names(res), c("node_name", "ai", "pricing", "blended"))
+  expect_named(res, c("node_name", "ai", "pricing", "blended"))
   expect_true(all(is.finite(res$ai)))
 })
 
@@ -115,7 +115,7 @@ test_that("custom topic url/weight column names are honored", {
     topics = topics, topic_url_col = "page", topic_weight_col = "w",
     clean_edge_urls = FALSE
   )
-  expect_identical(names(res), c("node_name", "ai", "blended"))
+  expect_named(res, c("node_name", "ai", "blended"))
 })
 
 # --- Validation / error paths ---

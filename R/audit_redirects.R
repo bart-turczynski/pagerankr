@@ -225,7 +225,7 @@ audit_redirects <- function(redirects_df,
     tgts <- unique(u_targets[u_sources == src])
     data.frame(
       source = src,
-      targets = paste(tgts, collapse = ", "),
+      targets = toString(tgts),
       n_targets = length(tgts)
     )
   })
