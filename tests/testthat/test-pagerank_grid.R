@@ -12,7 +12,7 @@ describe("pagerank_grid basic functionality", {
     )
     grid <- pagerank_grid(edges, params, clean_edge_urls = FALSE)
 
-    expect_true(is.data.frame(grid))
+    expect_s3_class(grid, "data.frame")
     expect_true("model_id" %in% names(grid))
     expect_equal(sort(unique(grid$model_id)), c("high_damp", "low_damp"))
     # Each model should produce 3 rows (A, B, C)
@@ -110,6 +110,6 @@ describe("pagerank_grid basic functionality", {
     grid <- pagerank_grid(edges, params)
     # A->NA is not a complete edge, so with drop_isolates=TRUE the result
     # may be empty or contain just A. Either way it should not error.
-    expect_true(is.data.frame(grid))
+    expect_s3_class(grid, "data.frame")
   })
 })

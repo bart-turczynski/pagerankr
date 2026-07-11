@@ -552,7 +552,7 @@ describe("duplicate_from_policy integration", {
       duplicate_from_policy = "first_wins",
       clean_edge_urls = FALSE, clean_redirect_urls = FALSE
     )
-    expect_true(is.data.frame(pr))
+    expect_s3_class(pr, "data.frame")
     expect_gt(nrow(pr), 0)
   })
 })
@@ -693,7 +693,7 @@ describe("loop_handling = 'break_arrow'", {
       loop_handling = "break_arrow"
     )
     # Should not error and should resolve to something
-    expect_true(is.character(resolved$to))
+    expect_type(resolved$to, "character")
     expect_false(is.na(resolved$to))
   })
 
@@ -810,7 +810,7 @@ describe("loop_handling passthrough via pagerank()", {
       loop_handling = "prune_loop",
       clean_edge_urls = FALSE, clean_redirect_urls = FALSE
     )
-    expect_true(is.data.frame(pr))
+    expect_s3_class(pr, "data.frame")
     expect_gt(nrow(pr), 0)
   })
 
@@ -826,7 +826,7 @@ describe("loop_handling passthrough via pagerank()", {
       loop_handling = "break_arrow",
       clean_edge_urls = FALSE, clean_redirect_urls = FALSE
     )
-    expect_true(is.data.frame(pr))
+    expect_s3_class(pr, "data.frame")
     expect_gt(nrow(pr), 0)
   })
 
@@ -858,7 +858,7 @@ describe("loop_handling with duplicate_from_policy interaction", {
       duplicate_from_policy = "first_wins",
       loop_handling = "prune_loop"
     )
-    expect_true(is.data.frame(resolved))
+    expect_s3_class(resolved, "data.frame")
     # A -> B -> A cycle pruned, so A stays as A
     expect_equal(resolved$to, "A")
   })
@@ -874,7 +874,7 @@ describe("loop_handling with duplicate_from_policy interaction", {
       duplicate_from_policy = "most_frequent",
       loop_handling = "break_arrow"
     )
-    expect_true(is.data.frame(resolved))
+    expect_s3_class(resolved, "data.frame")
     expect_false(is.na(resolved$to))
   })
 })

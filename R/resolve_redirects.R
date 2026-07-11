@@ -596,7 +596,7 @@ resolve_redirects <- function(edge_list_df,
     conflict_targets <- unique(targets[sources == first_conflict])
     stop("Ambiguous redirect: URL '", first_conflict,
       "' maps to multiple distinct targets: ",
-      paste(conflict_targets, collapse = ", "),
+      toString(conflict_targets),
       call. = FALSE
     )
   }
@@ -606,7 +606,7 @@ resolve_redirects <- function(edge_list_df,
     conflict_targets <- unique(targets[sources == first_conflict])
     stop("Ambiguous redirect: URL '", first_conflict,
       "' maps to multiple distinct targets: ",
-      paste(conflict_targets, collapse = ", "),
+      toString(conflict_targets),
       call. = FALSE
     )
   }

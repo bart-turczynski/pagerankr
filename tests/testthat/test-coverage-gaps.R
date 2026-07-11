@@ -373,7 +373,7 @@ describe("pagerank internal defensive helpers", {
       data.frame(from = "a", to = "b", n = 1L), "from", "to", "n", NULL
     )
     expect_equal(nrow(out), 0)
-    expect_equal(names(out), c("from", "to", "instance_count"))
+    expect_named(out, c("from", "to", "instance_count"))
   })
 
   it(".apply_indexability adds a supplied nofollow column that is absent", {

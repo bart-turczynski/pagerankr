@@ -112,8 +112,8 @@ describe("Screaming Frog import contract", {
       fixture_path("internal-all-bom.csv"),
       "internal_all"
     )
-    expect_identical(
-      names(internal),
+    expect_named(
+      internal,
       pagerankr::.sf_contract()$internal$order[
         pagerankr::.sf_contract()$internal$order %in% names(internal)
       ]
@@ -136,7 +136,7 @@ describe("Screaming Frog import contract", {
       "internal_all",
       fields = c("address", "status_code")
     )
-    expect_identical(names(selected), c("address", "status_code"))
+    expect_named(selected, c("address", "status_code"))
     expect_identical(selected$address, "https://example.com/")
     expect_true(
       "extra" %in% attr(selected, "sf_schema")$ignored_columns
@@ -150,8 +150,8 @@ describe("Screaming Frog import contract", {
       fields = c("source", "destination", "link_position")
     )
 
-    expect_identical(
-      names(links),
+    expect_named(
+      links,
       c("source", "destination", "link_position")
     )
     expect_false("anchor" %in% names(links))

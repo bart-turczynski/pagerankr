@@ -123,7 +123,7 @@ pagerank_screaming_frog <- function(bundle,
     stop(
       "`pagerank_screaming_frog()` maps bundle component columns itself; ",
       "do not pass reserved pagerank argument(s): ",
-      paste(reserved, collapse = ", "), ".",
+      toString(reserved), ".",
       call. = FALSE
     )
   }
@@ -289,7 +289,7 @@ pagerank_screaming_frog <- function(bundle,
   if (length(missing) > 0L) {
     stop(
       "`bundle` is missing required field(s): ",
-      paste(missing, collapse = ", "), ".",
+      toString(missing), ".",
       call. = FALSE
     )
   }
@@ -301,7 +301,7 @@ pagerank_screaming_frog <- function(bundle,
   if (length(missing_edge_cols) > 0L) {
     stop(
       "`bundle$edges` is missing required column(s): ",
-      paste(missing_edge_cols, collapse = ", "), ".",
+      toString(missing_edge_cols), ".",
       call. = FALSE
     )
   }
@@ -336,7 +336,7 @@ pagerank_screaming_frog <- function(bundle,
   if (!all(x %in% allowed)) {
     stop(
       "`accepted_placements` must contain only: ",
-      paste(allowed, collapse = ", "), ".",
+      toString(allowed), ".",
       call. = FALSE
     )
   }
@@ -355,7 +355,7 @@ pagerank_screaming_frog <- function(bundle,
   if (anyNA(x) || !all(x %in% allowed)) {
     stop(
       "`link_origins` must contain only: ",
-      paste(allowed, collapse = ", "), ".",
+      toString(allowed), ".",
       call. = FALSE
     )
   }
@@ -380,7 +380,7 @@ pagerank_screaming_frog <- function(bundle,
   if (!all(names(x) %in% allowed)) {
     stop(
       "`placement_weights` names must contain only: ",
-      paste(allowed, collapse = ", "), ".",
+      toString(allowed), ".",
       call. = FALSE
     )
   }

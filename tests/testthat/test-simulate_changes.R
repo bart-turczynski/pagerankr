@@ -11,7 +11,7 @@ describe("simulate_changes basic functionality", {
       clean_edge_urls = FALSE,
       clean_redirect_urls = FALSE
     )
-    expect_true(is.data.frame(result))
+    expect_s3_class(result, "data.frame")
     expect_false(is.null(attr(result, "summary")))
   })
 
@@ -139,7 +139,7 @@ describe("simulate_changes adding redirects", {
       clean_edge_urls = FALSE,
       clean_redirect_urls = FALSE
     )
-    expect_true(is.data.frame(result))
+    expect_s3_class(result, "data.frame")
   })
 })
 
@@ -161,7 +161,7 @@ describe("simulate_changes combined changes", {
       clean_edge_urls = FALSE,
       clean_redirect_urls = FALSE
     )
-    expect_true(is.data.frame(result))
+    expect_s3_class(result, "data.frame")
     expect_gt(nrow(result), 0)
   })
 })
@@ -177,7 +177,7 @@ describe("simulate_changes passthrough args", {
       clean_edge_urls = FALSE,
       damping = 0.5
     )
-    expect_true(is.data.frame(result))
+    expect_s3_class(result, "data.frame")
   })
 
   it("uses custom labels", {

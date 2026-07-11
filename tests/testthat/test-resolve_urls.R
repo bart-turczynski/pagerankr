@@ -81,7 +81,7 @@ describe("resolve_urls policy passthrough", {
       from = c("A", "B"), to = c("B", "A")
     )
     result <- resolve_urls("A", redirects, loop_handling = "prune_loop")
-    expect_true(is.data.frame(result))
+    expect_s3_class(result, "data.frame")
     # A stays as A since cycle is pruned
     expect_equal(result$resolved, "A")
   })

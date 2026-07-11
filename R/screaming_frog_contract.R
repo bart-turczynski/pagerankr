@@ -174,7 +174,7 @@ NULL
     stop(
       "Screaming Frog `", export_kind,
       "` input is missing required column(s): ",
-      paste(missing, collapse = ", "), ".",
+      toString(missing), ".",
       call. = FALSE
     )
   }

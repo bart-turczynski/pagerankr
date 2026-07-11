@@ -20,9 +20,9 @@ sparse_structural <- function() {
 describe("smooth_transitions: structure", {
   it("returns the documented schema with one row per surviving edge", {
     out <- smooth_transitions(sparse_empirical(), sparse_structural())
-    expect_true(is.data.frame(out))
-    expect_equal(
-      names(out),
+    expect_s3_class(out, "data.frame")
+    expect_named(
+      out,
       c(
         "from", "to", "transition_probability", "empirical_count",
         "empirical_share", "structural_prior", "support", "lambda", "origin"
@@ -343,8 +343,8 @@ describe("smooth_transitions: additional validation", {
   it("handles empirical input where all rows have NA endpoints", {
     emp_all_na <- data.frame(from = NA_character_, to = NA_character_, n = 1)
     out <- smooth_transitions(emp_all_na, sparse_structural())
-    expect_true(is.data.frame(out))
-    expect_true(nrow(out) > 0)
+    expect_s3_class(out, "data.frame")
+    expect_gt(nrow(out), 0)
   })
 })
 
@@ -402,7 +402,7 @@ describe("smooth_transitions: edge cases and validation", {
       out,
       weight_col = "transition_probability", clean_edge_urls = FALSE
     )
-    expect_true(is.data.frame(pr))
+    expect_s3_class(pr, "data.frame")
     expect_true(all(c("node_name", "pagerank") %in% names(pr)))
     expect_equal(sum(pr$pagerank), 1, tolerance = 1e-9)
   })

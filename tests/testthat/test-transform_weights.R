@@ -247,7 +247,7 @@ describe("transform_weights integration with pagerank", {
     )
     edges$weight <- transform_weights(edges$clicks, "zipf")
     pr <- pagerank(edges, weight_col = "weight", clean_edge_urls = FALSE)
-    expect_true(is.data.frame(pr))
+    expect_s3_class(pr, "data.frame")
     expect_gt(nrow(pr), 0)
   })
 })
