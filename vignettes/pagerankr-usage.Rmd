@@ -52,12 +52,12 @@ library(pagerankr)
 ```{r quick_start}
 edges <- data.frame(
   from = c(
-    "http://example.com/home", "http://example.com/about",
-    "http://example.com/blog", "http://example.com/blog"
+    "example.com/home", "example.com/about",
+    "example.com/blog", "example.com/blog"
   ),
   to = c(
-    "http://example.com/about", "http://example.com/home",
-    "http://example.com/home", "http://example.com/about"
+    "example.com/about", "example.com/home",
+    "example.com/home", "example.com/about"
   )
 )
 
@@ -330,12 +330,12 @@ separating internal vs. external links:
 ```{r domain_filter}
 edges <- data.frame(
   from = c(
-    "http://example.com/a", "http://example.com/b",
-    "http://other.com/c"
+    "example.com/a", "example.com/b",
+    "other.com/c"
   ),
   to = c(
-    "http://example.com/b", "http://other.com/d",
-    "http://example.com/a"
+    "example.com/b", "other.com/d",
+    "example.com/a"
   )
 )
 
