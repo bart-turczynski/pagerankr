@@ -1,7 +1,7 @@
 header:
   schema-version: 2.2.0
-  last-updated: '2026-07-10'
-  last-reviewed: '2026-07-10'
+  last-updated: '2026-07-18'
+  last-reviewed: '2026-07-18'
   url: https://github.com/bart-turczynski/pagerankr/raw/main/SECURITY-INSIGHTS.yml
   comment: |
     OpenSSF Security Insights self-report for pagerankr. This machine-readable
@@ -99,3 +99,28 @@ repository:
           release: true
         results: {}
         comment: Verify runs an Ubuntu check; full-check runs --as-cran across supported platforms before releases.
+      - name: rosv (OSV)
+        type: SCA
+        rulesets:
+          - default
+        integration:
+          adhoc: true
+          ci: true
+          release: false
+        results: {}
+        comment: |
+          Weekly and on-push audit of the runtime dependency closure against the
+          OSV database (osv.dev). No account or secrets required. See
+          .github/workflows/osv-audit.yml.
+      - name: oysteR (Sonatype OSS Index)
+        type: SCA
+        rulesets:
+          - default
+        integration:
+          adhoc: true
+          ci: true
+          release: false
+        results: {}
+        comment: |
+          Weekly and on-push audit of declared dependencies against the Sonatype
+          OSS Index. See .github/workflows/security-audit.yml.

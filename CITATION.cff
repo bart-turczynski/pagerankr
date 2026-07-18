@@ -1,0 +1,29 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "pagerankr: Modular Toolkit for PageRank Calculation"
+version: 0.1.0
+date-released: "2026-07-11"
+abstract: >-
+  A set of modular, pipeable functions to calculate PageRank scores from edge
+  lists and redirect reports, common in SEO analysis. Functions handle URL
+  cleaning, redirect resolution, edge deduplication, isolate handling, and
+  PageRank computation using base R for data manipulation and the igraph
+  package for core PageRank calculation.
+authors:
+  - family-names: Turczynski
+    given-names: Bart
+    orcid: "https://orcid.org/0000-0002-8788-7980"
+repository-code: "https://github.com/bart-turczynski/pagerankr"
+url: "https://bart-turczynski.github.io/pagerankr/"
+license: MIT
+keywords:
+  - PageRank
+  - link graph
+  - SEO
+  - redirect resolution
+  - URL cleaning
+  - igraph
+  - graph analysis
+  - R
+  - rstats
