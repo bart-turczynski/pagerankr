@@ -248,13 +248,11 @@ print.screaming_frog_bundle <- function(x, ...) {
         links$diagnostics$dropped_missing_destination,
       dropped_invalid_endpoints =
         links$diagnostics$dropped_invalid_endpoints,
-      # `%in% TRUE` is a deliberate NA-safe count: NA nofollow must read as
-      # not-nofollow, whereas `== TRUE` would yield NA and break the sum.
-      # nolint start: scalar_in_linter.
-      nofollow_edges = sum(edges$nofollow %in% TRUE),
+      # `nofollow`/`rel_nofollow` are logical, so sum(x, na.rm = TRUE) counts
+      # the TRUEs and drops NA — an NA-safe count (NA reads as not-nofollow).
+      nofollow_edges = sum(edges$nofollow, na.rm = TRUE),
       follow_unknown_observations = sum(is.na(observations$follow)),
-      rel_nofollow_observations = sum(observations$rel_nofollow %in% TRUE),
-      # nolint end
+      rel_nofollow_observations = sum(observations$rel_nofollow, na.rm = TRUE),
       follow_rel_disagreements =
         links$diagnostics$follow_rel_disagreements,
       placement_mapped_observations = sum(!is.na(observations$placement)),
