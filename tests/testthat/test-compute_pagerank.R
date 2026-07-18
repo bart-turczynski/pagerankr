@@ -319,7 +319,10 @@ describe("compute_pagerank error handling and edge cases", {
     local_mocked_bindings(
       page_rank = function(graph, ...) {
         dots <- list(...)
+        # `<<-` captures the mock observation into the enclosing test scope.
+        # nolint start: undesirable_operator_linter.
         sentinel_seen <<- "pagerankr_sentinel" %in% names(dots)
+        # nolint end
         expect_true(sentinel_seen)
         expect_identical(dots[["pagerankr_sentinel"]], "flows-through")
         n <- igraph::gorder(graph)

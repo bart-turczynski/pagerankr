@@ -180,8 +180,8 @@ describe("resolve_links with URL cleaning", {
 
   it("cleans redirect URLs when clean_urls = TRUE", {
     edges <- data.frame(
-      from = c("http://example.com/a/"),
-      to = c("http://example.com/b/")
+      from = "http://example.com/a/",
+      to = "http://example.com/b/"
     )
     redirects <- data.frame(
       from = "http://example.com/b/",

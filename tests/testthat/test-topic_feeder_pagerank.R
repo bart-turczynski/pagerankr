@@ -33,7 +33,7 @@ describe("feeder_seed_prior", {
 
   it("errors on negative weights and on empty seed sets", {
     expect_error(
-      feeder_seed_prior(c("a"), seed_weight = -1),
+      feeder_seed_prior("a", seed_weight = -1),
       "must be non-negative"
     )
     expect_error(feeder_seed_prior(c(NA, "")), "no usable cluster URLs")

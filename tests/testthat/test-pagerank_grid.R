@@ -103,7 +103,7 @@ describe("pagerank_grid basic functionality", {
 
   it("handles model that returns empty results", {
     # An edge list that, after cleaning, has no valid edges for a model
-    edges <- data.frame(from = c("A"), to = c(NA))
+    edges <- data.frame(from = "A", to = NA)
     params <- list(
       m1 = list(clean_edge_urls = FALSE, drop_isolates_flag = TRUE)
     )

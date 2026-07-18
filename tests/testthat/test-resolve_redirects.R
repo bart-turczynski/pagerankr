@@ -456,7 +456,7 @@ describe("duplicate_from_policy = 'prune_source'", {
 
   it("returns edge list unchanged when all sources conflict", {
     edges <- data.frame(
-      from = c("A"), to = c("B")
+      from = "A", to = "B"
     )
     redirects <- data.frame(
       from = c("B", "B", "A", "A"),
@@ -727,7 +727,7 @@ describe(".build_canonical_map cycle guard", {
     m <- .build_canonical_map(g)
     expect_length(m, 2)
     # No hang, no NA; both nodes resolve to a single terminal within the cycle.
-    expect_false(any(is.na(m)))
+    expect_false(anyNA(m))
     expect_true(all(m %in% c("A", "B")))
   })
 })
@@ -762,7 +762,7 @@ describe("graph-based resolution: complex topologies", {
       to = c("D", "E", "F")
     )
     redirects <- data.frame(
-      from = c("D"), to = c("D_final")
+      from = "D", to = "D_final"
     )
     resolved <- resolve_redirects(edges, redirects)
     expect_equal(resolved$to, c("D_final", "E", "F"))
@@ -775,7 +775,7 @@ describe("graph-based resolution: complex topologies", {
       to = c("Target", "Target")
     )
     redirects <- data.frame(
-      from = c("OldPage"), to = c("NewPage")
+      from = "OldPage", to = "NewPage"
     )
     resolved <- resolve_redirects(edges, redirects)
     expect_equal(resolved$from, c("NewPage", "Other"))
