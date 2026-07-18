@@ -34,3 +34,6 @@
 ^worklog$
 ^ACKNOWLEDGMENTS\.md$
 ^_pkgdown\.yml$
+^codemeta\.json$
+^CITATION\.cff$
+^\.zenodo\.json$
