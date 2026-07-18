@@ -89,8 +89,8 @@ describe("compare_pagerank basic functionality", {
   })
 
   it("handles custom column names and labels", {
-    pr_a <- data.frame(url = c("X"), pr = c(0.5))
-    pr_b <- data.frame(url = c("X"), pr = c(0.8))
+    pr_a <- data.frame(url = "X", pr = 0.5)
+    pr_b <- data.frame(url = "X", pr = 0.8)
     result <- compare_pagerank(pr_a, pr_b,
       node_col = "url", pr_col = "pr",
       label_a = "base", label_b = "new"

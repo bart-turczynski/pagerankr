@@ -180,14 +180,14 @@ describe("compute_pagerank internal defensive helpers", {
 describe("resolve_redirects internal graph helpers", {
   it(".resolve_via_graph errors on a bare self-loop when erroring", {
     expect_error(
-      .resolve_via_graph(c("A"), c("A"), loop_handling = "error"),
+      .resolve_via_graph("A", "A", loop_handling = "error"),
       "Redirect cycle detected",
       fixed = TRUE
     )
   })
 
   it(".resolve_via_graph strips a self-loop under prune_loop", {
-    m <- .resolve_via_graph(c("A"), c("A"), loop_handling = "prune_loop")
+    m <- .resolve_via_graph("A", "A", loop_handling = "prune_loop")
     expect_length(m, 1)
   })
 
@@ -224,7 +224,7 @@ describe("HITS validation and defensive branches", {
   it(".resolve_defined_nodes drops an all-NA vertex column", {
     res <- compute_hits(
       edges,
-      vertices_df = data.frame(node_name = c(NA_character_))
+      vertices_df = data.frame(node_name = NA_character_)
     )
     expect_true(all(c("A", "B", "C") %in% res$node_name))
   })
@@ -280,7 +280,7 @@ describe("trustrank / trust_seed_prior validation", {
 
   it("trustrank rejects a non-data-frame edge list", {
     expect_error(
-      trustrank("not a data frame", c("A")),
+      trustrank("not a data frame", "A"),
       "must be a data frame",
       fixed = TRUE
     )
@@ -415,7 +415,7 @@ describe("pagerank internal defensive helpers", {
       effective_rurl_params = list(),
       fold_map = character(0),
       used_leak_sink = TRUE,
-      leak_sources = c("A"),
+      leak_sources = "A",
       leak_sink_name = "__sink__"
     )
     expect_equal(out$url, "__sink__")
@@ -486,7 +486,7 @@ describe("export_graph validation and node-attr handling", {
   it("ignores non-list node_attrs", {
     tmp <- tempfile(fileext = ".graphml")
     on.exit(unlink(tmp), add = TRUE)
-    out <- export_graph(pr, edges, file = tmp, node_attrs = c("x"))
+    out <- export_graph(pr, edges, file = tmp, node_attrs = "x")
     expect_true(file.exists(out))
   })
 })

@@ -200,7 +200,8 @@ smooth_transitions <- function(empirical_df,
   # --- Per-source smoothing over the union of sources ---
   sources <- unique(c(emp$from, struct$from))
 
-  pieces <- lapply(sources, function(src) {
+  # Explicit lambda kept for readability over positional `...` forwarding.
+  pieces <- lapply(sources, function(src) { # nolint: unnecessary_lambda_linter.
     .smooth_one_source(src, emp, struct, min_support, lambda_fn, k)
   })
 

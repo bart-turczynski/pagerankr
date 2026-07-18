@@ -71,8 +71,8 @@ describe("pr_top_k_share", {
   })
 
   it("errors on invalid k", {
-    expect_error(pr_top_k_share(c(1), k = 0), "between 0")
-    expect_error(pr_top_k_share(c(1), k = 1.5), "between 0")
+    expect_error(pr_top_k_share(1, k = 0), "between 0")
+    expect_error(pr_top_k_share(1, k = 1.5), "between 0")
   })
 
   it("always returns at least 1 node even for small k", {
