@@ -193,7 +193,7 @@ describe("validate_edge_weights", {
     )
     report <- validate_edge_weights(edges)
 
-    expect_true(any(is.na(report$source)))
+    expect_true(anyNA(report$source))
     na_row <- report[is.na(report$source), ]
     expect_equal(na_row$n_edges, 2)
   })

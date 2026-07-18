@@ -54,8 +54,8 @@ describe("export_graph DOT format", {
 
   it("handles URLs with special characters", {
     edges <- data.frame(
-      from = c("http://example.com/a"),
-      to = c("http://example.com/b")
+      from = "http://example.com/a",
+      to = "http://example.com/b"
     )
     pr <- pagerank(edges, clean_edge_urls = FALSE)
     tmp <- tempfile(fileext = ".dot")

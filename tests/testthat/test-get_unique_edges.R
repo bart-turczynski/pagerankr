@@ -86,9 +86,9 @@ describe("get_unique_edges basic functionality", {
     expect_equal(
       unique_c[order(unique_c$source_node, unique_c$target_node), ],
       data.frame(
-        source_node = c("X"),
-        target_node = c("Y")
-      )[order(c("X"), c("Y")), ]
+        source_node = "X",
+        target_node = "Y"
+      )[order("X", "Y"), ]
     )
 
     unique_c_kept <- get_unique_edges(

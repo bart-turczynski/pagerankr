@@ -364,11 +364,12 @@ resolve_agg_fun <- function(rule, column, nofollow_policy, col_name) {
     all = function(x) bool_policy_all(x),
     majority = function(x) bool_policy_majority(x),
     error = function(x) bool_policy_error(x, col_name),
+    # switch() default branch: reached for any unmatched `rule`, not dead code.
     stop(
       "Unknown aggregation rule '", rule, "' for column '", col_name, "'.",
       call. = FALSE
     )
-  )
+  ) # nolint: unreachable_code_linter.
 }
 
 #' @keywords internal

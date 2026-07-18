@@ -335,7 +335,7 @@ describe("filter_links_by_domain report and edge cases", {
     "handles edge list where all URLs are NA/empty (build_url_maps empty path)",
     {
       links <- data.frame(
-        from = c(NA_character_), to = c(NA_character_)
+        from = NA_character_, to = NA_character_
       )
       # With keep_domains set, the function will try to map URLs. All NAs means
       # the map is empty. After filtering, no rows should remain.

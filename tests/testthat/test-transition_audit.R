@@ -282,7 +282,7 @@ describe("transition_audit print method branches", {
       weighted = TRUE, weight_col = "w", n_edges = 0L
     )
     out <- capture.output(print(audit))
-    expect_true(any(grepl("NA", out)))
+    expect_true(any(grepl("NA", out, fixed = TRUE)))
   })
 
   it("prints NA pagerank total for an empty audit", {
@@ -322,7 +322,7 @@ describe("transition_audit print helpers for degenerate structures", {
       )
     )
     out <- paste(capture.output(print(audit)), collapse = "\n")
-    expect_false(grepl("Fold-target collisions", out))
+    expect_false(grepl("Fold-target collisions", out, fixed = TRUE))
   })
 
   it("prints fold-target collision rows when present", {

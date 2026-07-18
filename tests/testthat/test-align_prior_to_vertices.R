@@ -192,7 +192,7 @@ test_that("degenerate case: all vertices excluded falls back to equal split", {
 })
 
 test_that("coverage diagnostics report dropped (unmatched) prior weight", {
-  v <- c("a")
+  v <- "a"
   prior <- data.frame(
     url = c("a", "gone"), weight = c(10, 40)
   )
