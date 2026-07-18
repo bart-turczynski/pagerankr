@@ -1,0 +1,40 @@
+{
+  "upload_type": "software",
+  "title": "pagerankr: Modular Toolkit for PageRank Calculation",
+  "version": "0.1.0",
+  "language": "eng",
+  "access_right": "open",
+  "license": "MIT",
+  "description": "<p>A set of modular, pipeable functions to calculate PageRank scores from edge lists and redirect reports in R, common in SEO analysis. Functions handle URL cleaning, redirect resolution, edge deduplication, isolate handling, and PageRank computation using base R for data manipulation and the <code>igraph</code> package for core PageRank calculation.</p>",
+  "creators": [
+    {
+      "name": "Turczynski, Bart",
+      "orcid": "0000-0002-8788-7980"
+    }
+  ],
+  "keywords": [
+    "PageRank",
+    "link graph",
+    "SEO",
+    "redirect resolution",
+    "URL cleaning",
+    "igraph",
+    "graph analysis",
+    "R",
+    "rstats"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/bart-turczynski/pagerankr",
+      "relation": "isSupplementTo",
+      "resource_type": "software",
+      "scheme": "url"
+    },
+    {
+      "identifier": "https://bart-turczynski.github.io/pagerankr/",
+      "relation": "isDocumentedBy",
+      "resource_type": "publication-softwaredocumentation",
+      "scheme": "url"
+    }
+  ]
+}
