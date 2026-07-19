@@ -89,7 +89,7 @@ compute_hits <- function(edge_list_df,
   )
   node_cols <- c(pr_node_col, hub_col, authority_col)
   .validate_compute_hits_scalars(scale, node_cols)
-  .validate_compute_hits_weight(weight_col, edge_list_df)
+  .validate_weight_col(weight_col, edge_list_df)
 
   # --- Empty result template ---
   empty_result <- .empty_hits_result(node_cols)
@@ -170,31 +170,6 @@ compute_hits <- function(edge_list_df,
   if (anyDuplicated(node_cols)) {
     stop(
       "`pr_node_col`, `hub_col`, and `authority_col` must be distinct.",
-      call. = FALSE
-    )
-  }
-  invisible(NULL)
-}
-
-#' Validate the optional `weight_col` for compute_hits()
-#' @noRd
-.validate_compute_hits_weight <- function(weight_col, edge_list_df) {
-  if (is.null(weight_col)) {
-    return(invisible(NULL))
-  }
-  if (!is.character(weight_col) || length(weight_col) != 1) {
-    stop(
-      "`weight_col` must be a single character string or NULL.",
-      call. = FALSE
-    )
-  }
-  if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
-    stop("`weight_col` '", weight_col, "' not found in `edge_list_df`.",
-      call. = FALSE
-    )
-  }
-  if (nrow(edge_list_df) > 0 && !is.numeric(edge_list_df[[weight_col]])) {
-    stop("`weight_col` '", weight_col, "' must be a numeric column.",
       call. = FALSE
     )
   }
@@ -458,7 +433,7 @@ hits <- function(edge_list_df,
   .validate_hits_canonicals(
     canonicals_df, clean_canonical_urls, canonical_from_col, canonical_to_col
   )
-  .validate_hits_flags(
+  .validate_cleaning_flags(
     clean_edge_urls, clean_redirect_urls, rurl_params, drop_isolates_flag
   )
   .validate_hits_weight(weight_col, edge_list_df)
@@ -568,25 +543,6 @@ hits <- function(edge_list_df,
       canonical_to_col, "' columns.",
       call. = FALSE
     )
-  }
-  invisible(NULL)
-}
-
-#' Validate the scalar cleaning flags for hits()
-#' @noRd
-.validate_hits_flags <- function(clean_edge_urls, clean_redirect_urls,
-                                 rurl_params, drop_isolates_flag) {
-  if (!is.logical(clean_edge_urls) || length(clean_edge_urls) != 1) {
-    stop("`clean_edge_urls` must be a single logical value.", call. = FALSE)
-  }
-  if (!is.logical(clean_redirect_urls) || length(clean_redirect_urls) != 1) {
-    stop("`clean_redirect_urls` must be a single logical value.", call. = FALSE)
-  }
-  if (!is.list(rurl_params)) {
-    stop("`rurl_params` must be a list.", call. = FALSE)
-  }
-  if (!is.logical(drop_isolates_flag) || length(drop_isolates_flag) != 1) {
-    stop("`drop_isolates_flag` must be a single logical value.", call. = FALSE)
   }
   invisible(NULL)
 }
