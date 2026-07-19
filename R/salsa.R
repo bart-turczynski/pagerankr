@@ -417,7 +417,7 @@ salsa <- function(edge_list_df,
     edge_list_df, redirects_df, canonicals_df, clean_canonical_urls,
     canonical_from_col, canonical_to_col
   )
-  .salsa_validate_flags(
+  .validate_cleaning_flags(
     clean_edge_urls, clean_redirect_urls, rurl_params, drop_isolates_flag
   )
 
@@ -534,32 +534,6 @@ salsa <- function(edge_list_df,
       canonical_to_col, "' columns.",
       call. = FALSE
     )
-  }
-  invisible(NULL)
-}
-
-#' Validate salsa() scalar-flag / list arguments.
-#'
-#' Runs the second block of salsa() validation in the original order
-#' (`clean_edge_urls`, `clean_redirect_urls`, `rurl_params`,
-#' `drop_isolates_flag`). Error-message text is preserved verbatim.
-#' @keywords internal
-#' @noRd
-.salsa_validate_flags <- function(clean_edge_urls,
-                                  clean_redirect_urls,
-                                  rurl_params,
-                                  drop_isolates_flag) {
-  if (!is.logical(clean_edge_urls) || length(clean_edge_urls) != 1) {
-    stop("`clean_edge_urls` must be a single logical value.", call. = FALSE)
-  }
-  if (!is.logical(clean_redirect_urls) || length(clean_redirect_urls) != 1) {
-    stop("`clean_redirect_urls` must be a single logical value.", call. = FALSE)
-  }
-  if (!is.list(rurl_params)) {
-    stop("`rurl_params` must be a list.", call. = FALSE)
-  }
-  if (!is.logical(drop_isolates_flag) || length(drop_isolates_flag) != 1) {
-    stop("`drop_isolates_flag` must be a single logical value.", call. = FALSE)
   }
   invisible(NULL)
 }

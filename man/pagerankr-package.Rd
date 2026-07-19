@@ -24,11 +24,11 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Bart Turczynski \email{bartek@turczynski.pl}
+\strong{Maintainer}: Bart Turczynski \email{bartek@turczynski.pl} (\href{https://orcid.org/0000-0002-8788-7980}{ORCID})
 
 Authors:
 \itemize{
-  \item Bart Turczynski \email{bartek@turczynski.pl}
+  \item Bart Turczynski \email{bartek@turczynski.pl} (\href{https://orcid.org/0000-0002-8788-7980}{ORCID})
 }
 
 }
