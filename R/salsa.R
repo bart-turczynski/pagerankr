@@ -421,33 +421,44 @@ salsa <- function(edge_list_df,
     clean_edge_urls, clean_redirect_urls, rurl_params, drop_isolates_flag
   )
 
-  # --- 1-2. URL cleaning + redirect/canonical resolution ---
-  prepared <- .salsa_prepare_edges(
-    edge_list_df, redirects_df, canonicals_df,
-    clean_edge_urls, clean_redirect_urls, clean_canonical_urls, rurl_params,
-    edge_from_col, edge_to_col,
-    redirect_from_col, redirect_to_col,
-    canonical_from_col, canonical_to_col,
-    duplicate_from_policy, loop_handling,
-    canonical_duplicate_from_policy, canonical_loop_handling,
-    canonical_conflict_policy
-  )
-
-  # --- 2.5 / 2.7 / 3 / 4. Domain filter, vertex universe, dedup, isolates ---
-  assembled <- .salsa_assemble_vertices(
-    prepared$edge_list, edge_from_col, edge_to_col,
-    keep_domains, exclude_domains, keep_hosts, exclude_hosts,
-    prepared$effective_rurl_params, duplicate_edge_policy, self_loops,
-    drop_isolates_flag
+  # --- 1-4. Shared link-graph prep: clean, fold, filter, dedup, vertices ---
+  # See .prepare_link_graph(); hits() drives the same spine. SALSA v1 is
+  # unweighted, so no weight column is passed and the returned one is ignored.
+  prep <- .prepare_link_graph(
+    edge_list_df = edge_list_df,
+    redirects_df = redirects_df,
+    canonicals_df = canonicals_df,
+    rurl_params = rurl_params,
+    clean_edge_urls = clean_edge_urls,
+    clean_redirect_urls = clean_redirect_urls,
+    clean_canonical_urls = clean_canonical_urls,
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col,
+    redirect_from_col = redirect_from_col,
+    redirect_to_col = redirect_to_col,
+    canonical_from_col = canonical_from_col,
+    canonical_to_col = canonical_to_col,
+    duplicate_from_policy = duplicate_from_policy,
+    loop_handling = loop_handling,
+    canonical_duplicate_from_policy = canonical_duplicate_from_policy,
+    canonical_loop_handling = canonical_loop_handling,
+    canonical_conflict_policy = canonical_conflict_policy,
+    keep_domains = keep_domains,
+    exclude_domains = exclude_domains,
+    keep_hosts = keep_hosts,
+    exclude_hosts = exclude_hosts,
+    duplicate_edge_policy = duplicate_edge_policy,
+    self_loops = self_loops,
+    drop_isolates_flag = drop_isolates_flag
   )
 
   # --- 5. Compute SALSA ---
   compute_salsa(
-    edge_list_df = assembled$edge_list,
-    vertices_df = assembled$vertices_df,
+    edge_list_df = prep$edge_list,
+    vertices_df = prep$vertices_df,
     from_col = edge_from_col,
     to_col = edge_to_col,
-    vertex_col_name = assembled$node_col,
+    vertex_col_name = prep$node_col,
     ...
   )
 }
@@ -518,304 +529,3 @@ salsa <- function(edge_list_df,
   invisible(NULL)
 }
 
-#' Clean the URL columns of one salsa() data frame.
-#'
-#' Applies the shared resolved rurl profile to the intersection of the wanted
-#' columns present in `df`. `require_rows = TRUE` skips empty frames (matching
-#' the original redirect/canonical guards); edges use `require_rows = FALSE`.
-#' @keywords internal
-#' @noRd
-.salsa_clean_url_df <- function(df,
-                                cols_wanted,
-                                do_clean,
-                                rurl_params,
-                                require_rows) {
-  if (!do_clean) {
-    return(df)
-  }
-  if (is.null(df)) {
-    return(df)
-  }
-  if (require_rows && nrow(df) == 0) {
-    return(df)
-  }
-  cols <- intersect(cols_wanted, names(df))
-  if (length(cols) == 0) {
-    return(df)
-  }
-  do.call(
-    clean_url_columns,
-    c(list(data_frame = df, columns = cols), rurl_params)
-  )
-}
-
-#' Compose the redirect + canonical fold map and apply it to the edge list.
-#'
-#' Returns the (possibly relabeled) edge list. No-op when neither redirects nor
-#' canonicals are present, or when the composed map is empty.
-#' @keywords internal
-#' @noRd
-.salsa_apply_folds <- function(current_edge_list,
-                               current_redirects_list,
-                               current_canonicals_list,
-                               edge_from_col,
-                               edge_to_col,
-                               redirect_from_col,
-                               redirect_to_col,
-                               canonical_from_col,
-                               canonical_to_col,
-                               duplicate_from_policy,
-                               loop_handling,
-                               canonical_duplicate_from_policy,
-                               canonical_loop_handling,
-                               canonical_conflict_policy) {
-  has_redirects <- !is.null(current_redirects_list) &&
-    nrow(current_redirects_list) > 0
-  has_canonicals <- !is.null(current_canonicals_list) &&
-    nrow(current_canonicals_list) > 0
-
-  if (!has_redirects && !has_canonicals) {
-    return(current_edge_list)
-  }
-
-  fold <- .compose_fold_map(
-    redirects_df = if (has_redirects) current_redirects_list else NULL,
-    canonicals_df = if (has_canonicals) current_canonicals_list else NULL,
-    redirect_from_col = redirect_from_col,
-    redirect_to_col = redirect_to_col,
-    canonical_from_col = canonical_from_col,
-    canonical_to_col = canonical_to_col,
-    duplicate_from_policy = duplicate_from_policy,
-    loop_handling = loop_handling,
-    canonical_duplicate_from_policy = canonical_duplicate_from_policy,
-    canonical_loop_handling = canonical_loop_handling,
-    canonical_conflict_policy = canonical_conflict_policy
-  )
-  fold_map <- fold$map
-
-  if (length(fold_map) == 0) {
-    return(current_edge_list)
-  }
-
-  for (col_name in c(edge_from_col, edge_to_col)) {
-    if (col_name %in% names(current_edge_list)) {
-      current_edge_list[[col_name]] <- .apply_fold_map(
-        current_edge_list[[col_name]], fold_map
-      )
-    }
-  }
-  current_edge_list
-}
-
-#' Build the salsa() working edge list: clean URLs, resolve redirects/canon.
-#'
-#' Returns a list with the prepared `edge_list` and the shared resolved
-#' `effective_rurl_params`. Preserves the original ordering: working copies,
-#' rurl-profile resolution, per-frame URL cleaning, then fold-map application.
-#' @keywords internal
-#' @noRd
-.salsa_prepare_edges <- function(edge_list_df,
-                                 redirects_df,
-                                 canonicals_df,
-                                 clean_edge_urls,
-                                 clean_redirect_urls,
-                                 clean_canonical_urls,
-                                 rurl_params,
-                                 edge_from_col,
-                                 edge_to_col,
-                                 redirect_from_col,
-                                 redirect_to_col,
-                                 canonical_from_col,
-                                 canonical_to_col,
-                                 duplicate_from_policy,
-                                 loop_handling,
-                                 canonical_duplicate_from_policy,
-                                 canonical_loop_handling,
-                                 canonical_conflict_policy) {
-  # --- Working copies ---
-  current_edge_list <- edge_list_df
-  current_redirects_list <- redirects_df
-  current_canonicals_list <- canonicals_df
-
-  # --- 1. URL cleaning (shared resolved rurl profile) ---
-  effective_rurl_params <- .resolve_rurl_params(rurl_params)
-
-  current_edge_list <- .salsa_clean_url_df(
-    current_edge_list, c(edge_from_col, edge_to_col),
-    clean_edge_urls, effective_rurl_params, require_rows = FALSE
-  )
-  current_redirects_list <- .salsa_clean_url_df(
-    current_redirects_list, c(redirect_from_col, redirect_to_col),
-    clean_redirect_urls, effective_rurl_params, require_rows = TRUE
-  )
-  current_canonicals_list <- .salsa_clean_url_df(
-    current_canonicals_list, c(canonical_from_col, canonical_to_col),
-    clean_canonical_urls, effective_rurl_params, require_rows = TRUE
-  )
-
-  # --- 2. Redirect + canonical resolution (one composed fold map) ---
-  current_edge_list <- .salsa_apply_folds(
-    current_edge_list, current_redirects_list, current_canonicals_list,
-    edge_from_col, edge_to_col,
-    redirect_from_col, redirect_to_col,
-    canonical_from_col, canonical_to_col,
-    duplicate_from_policy, loop_handling,
-    canonical_duplicate_from_policy, canonical_loop_handling,
-    canonical_conflict_policy
-  )
-
-  list(
-    edge_list = current_edge_list,
-    effective_rurl_params = effective_rurl_params
-  )
-}
-
-#' Apply salsa()'s optional domain/host filtering to the edge list.
-#'
-#' No-op when no keep/exclude domain or host filters are supplied.
-#' @keywords internal
-#' @noRd
-.salsa_filter_domains <- function(current_edge_list,
-                                  edge_from_col,
-                                  edge_to_col,
-                                  keep_domains,
-                                  exclude_domains,
-                                  keep_hosts,
-                                  exclude_hosts,
-                                  effective_rurl_params) {
-  if (!is.null(keep_domains) || !is.null(exclude_domains) ||
-        !is.null(keep_hosts) || !is.null(exclude_hosts)) {
-    current_edge_list <- filter_links_by_domain(
-      edge_list_df = current_edge_list,
-      from_col = edge_from_col,
-      to_col = edge_to_col,
-      keep_domains = keep_domains,
-      ignore_domains = exclude_domains,
-      keep_hosts = keep_hosts,
-      ignore_hosts = exclude_hosts,
-      rurl_params = effective_rurl_params
-    )
-  }
-  current_edge_list
-}
-
-#' Domain-filter, capture the vertex universe, deduplicate, and handle isolates.
-#'
-#' Returns a list with the deduplicated `edge_list`, the assembled
-#' `vertices_df` (or `NULL`), and the temporary `node_col` name. Preserves the
-#' original ordering: filter, capture universe (pre-dedup), dedup, isolates.
-#' @keywords internal
-#' @noRd
-.salsa_assemble_vertices <- function(current_edge_list,
-                                     edge_from_col,
-                                     edge_to_col,
-                                     keep_domains,
-                                     exclude_domains,
-                                     keep_hosts,
-                                     exclude_hosts,
-                                     effective_rurl_params,
-                                     duplicate_edge_policy,
-                                     self_loops,
-                                     drop_isolates_flag) {
-  # --- 2.7. Domain / host filtering ---
-  current_edge_list <- .salsa_filter_domains(
-    current_edge_list, edge_from_col, edge_to_col,
-    keep_domains, exclude_domains, keep_hosts, exclude_hosts,
-    effective_rurl_params
-  )
-
-  # --- 2.5. Full vertex universe (before NA rows are stripped) ---
-  temp_node_col_name <- "node_name"
-  all_vertex_universe <- unique(stats::na.omit(c(
-    as.character(current_edge_list[[edge_from_col]]),
-    as.character(current_edge_list[[edge_to_col]])
-  )))
-
-  # --- 3. Duplicate-edge policy (handles self-loops) ---
-  # SALSA v1 is unweighted, so every policy yields the same simple deduplicated
-  # graph; the policy is exposed only to keep the vertex set identical to
-  # pagerank()/hits() run with the same arguments.
-  current_edge_list <- .salsa_apply_duplicate_edge_policy(
-    edge_list_df = current_edge_list,
-    policy = duplicate_edge_policy,
-    self_loops = self_loops,
-    from_col = edge_from_col,
-    to_col = edge_to_col
-  )
-
-  # --- 4. Handle isolates / assemble vertex set ---
-  current_edge_nodes <- unique(c(
-    as.character(current_edge_list[[edge_from_col]]),
-    as.character(current_edge_list[[edge_to_col]])
-  ))
-  current_edge_nodes <- current_edge_nodes[!is.na(current_edge_nodes)]
-
-  vertices_for_salsa_df <- .salsa_build_vertices_df(
-    current_edge_nodes, all_vertex_universe, drop_isolates_flag,
-    temp_node_col_name
-  )
-
-  list(
-    edge_list = current_edge_list,
-    vertices_df = vertices_for_salsa_df,
-    node_col = temp_node_col_name
-  )
-}
-
-#' Build the salsa() vertices data frame (or `NULL`) from node sets.
-#' @keywords internal
-#' @noRd
-.salsa_build_vertices_df <- function(current_edge_nodes,
-                                     all_vertex_universe,
-                                     drop_isolates_flag,
-                                     temp_node_col_name) {
-  if (drop_isolates_flag) {
-    if (length(current_edge_nodes) == 0) {
-      return(NULL)
-    }
-    return(stats::setNames(
-      data.frame(sort(current_edge_nodes)),
-      temp_node_col_name
-    ))
-  }
-  full_universe <- unique(c(all_vertex_universe, current_edge_nodes))
-  if (length(full_universe) == 0) {
-    return(NULL)
-  }
-  stats::setNames(
-    data.frame(sort(full_universe)),
-    temp_node_col_name
-  )
-}
-
-#' Apply salsa() duplicate-edge policy.
-#'
-#' Mirrors the deduplication dispatch [pagerank()] / [hits()] use, so `salsa()`
-#' collapses repeated `from -> to` rows identically and therefore shares node
-#' identities. SALSA v1 is unweighted, so no per-instance count is stamped:
-#' `"collapse"` keeps the binary convention via [get_unique_edges()] and
-#' `"aggregate"` / `"count_instances"` route through [aggregate_edges()]; all
-#' three yield the same simple edge set for degree counting.
-#' @keywords internal
-#' @noRd
-.salsa_apply_duplicate_edge_policy <- function(edge_list_df,
-                                               policy,
-                                               self_loops,
-                                               from_col,
-                                               to_col) {
-  if (policy == "collapse") {
-    return(get_unique_edges(
-      edge_list_df = edge_list_df,
-      self_loops = self_loops,
-      from_col = from_col,
-      to_col = to_col
-    ))
-  }
-
-  aggregate_edges(
-    edge_list_df = edge_list_df,
-    self_loops = self_loops,
-    from_col = from_col,
-    to_col = to_col
-  )
-}
