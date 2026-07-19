@@ -89,7 +89,7 @@ screaming_frog_bundle <- function(internal,
 .sf_bundle_provenance <- function(internal_import, links_import) {
   list(
     export_kind = "screaming_frog_bundle",
-    contract_version = .sf_contract()$version,
+    contract_version = sf_contract()$version,
     sources = list(
       internal = internal_import$provenance$source,
       links = links_import$provenance$source

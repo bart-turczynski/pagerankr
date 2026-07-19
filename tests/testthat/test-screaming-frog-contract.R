@@ -4,7 +4,7 @@ fixture_path <- function(name) {
 
 describe("Screaming Frog import contract", {
   it("freezes stable bundle fields and accepted export kinds", {
-    contract <- pagerankr::.sf_contract()
+    contract <- pagerankr::sf_contract()
 
     expect_identical(
       contract$bundle_fields,
@@ -21,7 +21,7 @@ describe("Screaming Frog import contract", {
   })
 
   it("treats Internal: All as node-only and requires a link export for edges", {
-    internal <- pagerankr::.sf_read_input(
+    internal <- pagerankr::sf_read_input(
       fixture_path("internal-all-bom.csv"),
       "internal_all"
     )
@@ -29,15 +29,15 @@ describe("Screaming Frog import contract", {
     expect_true("address" %in% names(internal))
     expect_false(any(c("source", "destination") %in% names(internal)))
     expect_error(
-      pagerankr::.sf_read_input(internal, "all_inlinks"),
+      pagerankr::sf_read_input(internal, "all_inlinks"),
       "missing required column.*type, source, destination, follow"
     )
   })
 
   it("keeps Source -> Destination orientation for both link export kinds", {
     path <- fixture_path("all-inlinks-bom.csv")
-    inlinks <- pagerankr::.sf_read_input(path, "all_inlinks")
-    outlinks <- pagerankr::.sf_read_input(path, "all_outlinks")
+    inlinks <- pagerankr::sf_read_input(path, "all_inlinks")
+    outlinks <- pagerankr::sf_read_input(path, "all_outlinks")
 
     expect_identical(inlinks$source, outlinks$source)
     expect_identical(inlinks$destination, outlinks$destination)
@@ -54,11 +54,11 @@ describe("Screaming Frog import contract", {
   })
 
   it("preserves duplicate observations and filters graph types explicitly", {
-    links <- pagerankr::.sf_read_input(
+    links <- pagerankr::sf_read_input(
       fixture_path("all-inlinks-bom.csv"),
       "all_inlinks"
     )
-    eligible <- pagerankr::.sf_graph_eligible(links$type)
+    eligible <- pagerankr::sf_graph_eligible(links$type)
 
     expect_equal(sum(eligible), 3L)
     expect_equal(
@@ -73,33 +73,33 @@ describe("Screaming Frog import contract", {
   })
 
   it("parses Follow independently from Rel nofollow diagnostics", {
-    links <- pagerankr::.sf_read_input(
+    links <- pagerankr::sf_read_input(
       fixture_path("all-inlinks-bom.csv"),
       "all_inlinks"
     )
 
     expect_identical(
-      pagerankr::.sf_parse_follow(links$follow)[1:3],
+      pagerankr::sf_parse_follow(links$follow)[1:3],
       c(TRUE, FALSE, TRUE)
     )
     expect_identical(
-      pagerankr::.sf_rel_nofollow(links$rel)[1:3],
+      pagerankr::sf_rel_nofollow(links$rel)[1:3],
       c(NA, TRUE, NA)
     )
     expect_identical(
-      pagerankr::.sf_parse_follow(c("yes", "0", "unknown", "")),
+      pagerankr::sf_parse_follow(c("yes", "0", "unknown", "")),
       c(TRUE, FALSE, NA, NA)
     )
   })
 
   it("normalizes placement losslessly and preserves origin/path provenance", {
-    links <- pagerankr::.sf_read_input(
+    links <- pagerankr::sf_read_input(
       fixture_path("all-inlinks-bom.csv"),
       "all_inlinks"
     )
 
     expect_identical(
-      pagerankr::.sf_normalize_position(links$link_position),
+      pagerankr::sf_normalize_position(links$link_position),
       c("nav", "content", NA, NA, NA)
     )
     expect_identical(links$link_position[[3L]], "Head")
@@ -108,14 +108,14 @@ describe("Screaming Frog import contract", {
   })
 
   it("handles BOM, blanks, aliases, stable ordering, and ignored extras", {
-    internal <- pagerankr::.sf_read_input(
+    internal <- pagerankr::sf_read_input(
       fixture_path("internal-all-bom.csv"),
       "internal_all"
     )
     expect_named(
       internal,
-      pagerankr::.sf_contract()$internal$order[
-        pagerankr::.sf_contract()$internal$order %in% names(internal)
+      pagerankr::sf_contract()$internal$order[
+        pagerankr::sf_contract()$internal$order %in% names(internal)
       ]
     )
     expect_identical(internal$address[[1L]], "https://example.com/")
@@ -131,7 +131,7 @@ describe("Screaming Frog import contract", {
       extra = "ignored",
       check.names = FALSE
     )
-    selected <- pagerankr::.sf_read_input(
+    selected <- pagerankr::sf_read_input(
       aliased,
       "internal_all",
       fields = c("address", "status_code")
@@ -144,7 +144,7 @@ describe("Screaming Frog import contract", {
   })
 
   it("selectively reads requested fields with required validation fields", {
-    links <- pagerankr::.sf_read_input(
+    links <- pagerankr::sf_read_input(
       fixture_path("all-inlinks-bom.csv"),
       "all_inlinks",
       fields = c("source", "destination", "link_position")

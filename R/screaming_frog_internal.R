@@ -41,14 +41,14 @@
 #' imported$nodes
 #' imported$redirects
 screaming_frog_internal <- function(x) {
-  raw <- .sf_read_input(x, "internal_all")
+  raw <- sf_read_input(x, "internal_all")
   schema <- attr(raw, "sf_schema")
   input_rows <- nrow(raw)
   input_row <- seq_len(input_rows)
 
-  fields <- .sf_contract()$internal$order
+  fields <- sf_contract()$internal$order
   missing_optional <- setdiff(
-    setdiff(fields, .sf_contract()$internal$required),
+    setdiff(fields, sf_contract()$internal$required),
     names(raw)
   )
   raw <- .sf_add_missing_columns(raw, fields)

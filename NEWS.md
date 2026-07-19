@@ -1,5 +1,19 @@
 # pagerankr (development version)
 
+* **Breaking:** the six dot-prefixed Screaming Frog helpers are renamed without
+  their leading dot and are now documented public API: `.sf_contract()`,
+  `.sf_read_input()`, `.sf_parse_follow()`, `.sf_rel_nofollow()`,
+  `.sf_normalize_position()`, and `.sf_graph_eligible()` become
+  `sf_contract()`, `sf_read_input()`, `sf_parse_follow()`,
+  `sf_rel_nofollow()`, `sf_normalize_position()`, and `sf_graph_eligible()`.
+  A leading dot conventionally signals "internal", but these were already
+  exported -- and exported with `@noRd`, so they had no help pages at all.
+  They are intended for downstream Screaming Frog workflows, so they now carry
+  full documentation (parameters, return values, examples) and are grouped as
+  `@family Screaming Frog toolkit` with their own pkgdown reference section.
+  Behavior and signatures are unchanged. The many genuinely internal `.sf_*`
+  helpers keep their leading dot and remain unexported.
+
 * **Breaking:** `resolve_urls()` is renamed to `resolve_redirect_urls()`. The
   function originally resolved redirects *and* canonicals together; once that
   was split apart (mixing the two is lossy) the old name no longer described
