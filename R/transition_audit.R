@@ -206,35 +206,8 @@ new_transition_audit <- function(n_input_rows = 0L,
   n_input_rows <- as.integer(n_input_rows)
   n_edges <- as.integer(n_edges)
 
-  coverage_frac <- if (isTRUE(weighted) && n_edges > 0L) {
-    as.numeric(n_edges_weighted) / as.numeric(n_edges)
-  } else {
-    NA_real_
-  }
-
-  # Page-mass accounting. The internal stationary vector sums to 1; we split
-  # it into reported (visible) mass, evaporated (nofollow-sink) mass, leaked
-  # (leak-sink) mass, and hidden (robots-blocked vanish) mass, whose total
-  # reconciles to 1. When the stationary vector is undefined (empty graph ->
-  # reported is NA) we leave the reserved NULL stubs in place rather than
-  # fabricating a decomposition.
-  mass <- if (is.na(mass_reported)) {
-    list(
-      reported = NULL, sink = NULL, leaked = NULL, hidden = NULL, total = NULL
-    )
-  } else {
-    reported <- as.numeric(mass_reported)
-    sink <- if (is.na(mass_evaporated)) 0 else as.numeric(mass_evaporated)
-    leaked <- if (is.na(mass_leaked)) 0 else as.numeric(mass_leaked)
-    hidden <- if (is.na(mass_hidden)) 0 else as.numeric(mass_hidden)
-    list(
-      reported = reported,
-      sink = sink,
-      leaked = leaked,
-      hidden = hidden,
-      total = reported + sink + leaked + hidden
-    )
-  }
+  coverage_frac <- .ta_coverage_frac(weighted, n_edges_weighted, n_edges)
+  mass <- .ta_mass(mass_reported, mass_evaporated, mass_leaked, mass_hidden)
 
   audit <- list(
     counts = list(
@@ -251,17 +224,9 @@ new_transition_audit <- function(n_input_rows = 0L,
     normalization = list(
       pagerank_total = as.numeric(pagerank_total)
     ),
-    dropped = list(
-      n_rows_na = as.integer(n_rows_na),
-      n_rows_duplicate = as.integer(n_rows_duplicate),
-      n_self_loops = as.integer(n_self_loops),
-      n_rows_collapsed = n_input_rows - n_edges,
-      n_prior_unmatched = if (is.na(n_prior_unmatched)) {
-        NA_integer_
-      } else {
-        as.integer(n_prior_unmatched)
-      },
-      n_robots_blocked = as.integer(n_robots_blocked)
+    dropped = .ta_dropped(
+      n_rows_na, n_rows_duplicate, n_self_loops, n_input_rows, n_edges,
+      n_prior_unmatched, n_robots_blocked
     ),
     duplicates = list(
       policy = duplicate_edge_policy,
@@ -271,38 +236,102 @@ new_transition_audit <- function(n_input_rows = 0L,
       duplicate_edges = duplicate_edges
     ),
     config = config,
-    # --- Mass accounting (B2 / PAGE-mqsxrcdz; leaked: PAGE-xkmqsbqv). ---
-    # Decomposes the internal stationary vector (which always sums to 1) into
-    # its accounted-for components. `reported` is the visible page mass;
-    # `sink` is the EVAPORATED mass (authority sent to the nofollow sink);
-    # `leaked` is the LEAKED mass (authority sent to the leak sink under
-    # `out_of_scope_fold = "leak"`); `hidden` is the mass trapped on
-    # hidden/vanished robots-blocked nodes; `total` is their sum, which
-    # reconciles to 1 by construction. Left as the reserved NULL stubs when the
-    # stationary vector is undefined (empty graph).
+    # Mass accounting (B2 / PAGE-mqsxrcdz; leaked: PAGE-xkmqsbqv). See .ta_mass.
     mass = mass,
-    # --- Out-of-scope fold accounting (SF-scope / PAGE-ttlaxjkw). ---
-    # Records how composed fold-map entries whose TARGET is not a crawled node
-    # were handled. `policy` is the `out_of_scope_fold` argument;
-    # `n_out_of_scope` counts such entries; `applied` is TRUE when they were
-    # relabeled (folded through) and FALSE when they were skipped (kept as
-    # crawled); `out_of_scope` is a data frame of the offending
-    # source/target/signal rows, or NULL when there were none.
-    # `collisions` (SF-scope / PAGE-rjrduvmy) records fold-target collisions:
-    # uncrawled URLs a fold relabeled a crawled source onto while they were also
-    # independently linked, silently merging inbound equity. A data frame of
-    # target/n_independent_refs/source rows, or NULL when there were none.
-    fold = list(
-      policy = out_of_scope_fold,
-      n_out_of_scope = as.integer(n_out_of_scope_folds),
-      applied = isTRUE(out_of_scope_folds_applied),
-      out_of_scope = out_of_scope_fold_list,
-      collisions = fold_collisions
+    # Out-of-scope fold accounting (SF-scope / PAGE-ttlaxjkw,
+    # collisions PAGE-rjrduvmy). See .ta_fold.
+    fold = .ta_fold(
+      out_of_scope_fold, n_out_of_scope_folds, out_of_scope_folds_applied,
+      out_of_scope_fold_list, fold_collisions
     )
   )
 
   class(audit) <- "transition_audit"
   audit
+}
+
+#' Compute behavioral-weight coverage fraction for a transition_audit
+#' @keywords internal
+#' @noRd
+.ta_coverage_frac <- function(weighted, n_edges_weighted, n_edges) {
+  if (isTRUE(weighted) && n_edges > 0L) {
+    as.numeric(n_edges_weighted) / as.numeric(n_edges)
+  } else {
+    NA_real_
+  }
+}
+
+#' Decompose the stationary vector into reported/sink/leaked/hidden page mass
+#'
+#' The internal stationary vector sums to 1; we split it into reported
+#' (visible) mass, evaporated (nofollow-sink) mass, leaked (leak-sink) mass,
+#' and hidden (robots-blocked vanish) mass, whose total reconciles to 1. When
+#' the stationary vector is undefined (empty graph -> reported is NA) we leave
+#' the reserved NULL stubs in place rather than fabricating a decomposition.
+#' @keywords internal
+#' @noRd
+.ta_mass <- function(mass_reported, mass_evaporated, mass_leaked, mass_hidden) {
+  if (is.na(mass_reported)) {
+    return(list(
+      reported = NULL, sink = NULL, leaked = NULL, hidden = NULL, total = NULL
+    ))
+  }
+  reported <- as.numeric(mass_reported)
+  sink <- if (is.na(mass_evaporated)) 0 else as.numeric(mass_evaporated)
+  leaked <- if (is.na(mass_leaked)) 0 else as.numeric(mass_leaked)
+  hidden <- if (is.na(mass_hidden)) 0 else as.numeric(mass_hidden)
+  list(
+    reported = reported,
+    sink = sink,
+    leaked = leaked,
+    hidden = hidden,
+    total = reported + sink + leaked + hidden
+  )
+}
+
+#' Build the `dropped` accounting sub-list for a transition_audit
+#' @keywords internal
+#' @noRd
+.ta_dropped <- function(n_rows_na, n_rows_duplicate, n_self_loops,
+                        n_input_rows, n_edges, n_prior_unmatched,
+                        n_robots_blocked) {
+  list(
+    n_rows_na = as.integer(n_rows_na),
+    n_rows_duplicate = as.integer(n_rows_duplicate),
+    n_self_loops = as.integer(n_self_loops),
+    n_rows_collapsed = n_input_rows - n_edges,
+    n_prior_unmatched = if (is.na(n_prior_unmatched)) {
+      NA_integer_
+    } else {
+      as.integer(n_prior_unmatched)
+    },
+    n_robots_blocked = as.integer(n_robots_blocked)
+  )
+}
+
+#' Build the out-of-scope `fold` accounting sub-list for a transition_audit
+#'
+#' Records how composed fold-map entries whose TARGET is not a crawled node
+#' were handled. `policy` is the `out_of_scope_fold` argument; `n_out_of_scope`
+#' counts such entries; `applied` is TRUE when they were relabeled (folded
+#' through) and FALSE when they were skipped (kept as crawled); `out_of_scope`
+#' is a data frame of the offending source/target/signal rows, or NULL when
+#' there were none. `collisions` records fold-target collisions: uncrawled URLs
+#' a fold relabeled a crawled source onto while they were also independently
+#' linked, silently merging inbound equity. A data frame of
+#' target/n_independent_refs/source rows, or NULL when there were none.
+#' @keywords internal
+#' @noRd
+.ta_fold <- function(out_of_scope_fold, n_out_of_scope_folds,
+                     out_of_scope_folds_applied, out_of_scope_fold_list,
+                     fold_collisions) {
+  list(
+    policy = out_of_scope_fold,
+    n_out_of_scope = as.integer(n_out_of_scope_folds),
+    applied = isTRUE(out_of_scope_folds_applied),
+    out_of_scope = out_of_scope_fold_list,
+    collisions = fold_collisions
+  )
 }
 
 #' Print the counts section of a transition_audit

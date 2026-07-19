@@ -63,6 +63,31 @@
 clean_url_columns <- function(data_frame,
                               columns = c("from", "to"),
                               ...) {
+  .clean_url_columns_validate(data_frame, columns)
+
+  # Apply pagerankr's explicit canonicalization profile, letting any `...`
+  # arguments override individual knobs. Pinning every knob keeps node
+  # identities independent of rurl's own (version-dependent) defaults.
+  rurl_args <- .resolve_rurl_params(list(...))
+  cleaned_data_frame <- data_frame
+
+  for (col_name in columns) {
+    # It's already confirmed col_name is in names(data_frame)
+    cleaned_data_frame[[col_name]] <- .clean_one_url_column(
+      cleaned_data_frame[[col_name]], rurl_args
+    )
+  }
+
+  cleaned_data_frame
+}
+
+#' Validate the inputs to [clean_url_columns()]
+#'
+#' Preserves the original validation order and error-message text verbatim.
+#'
+#' @keywords internal
+#' @noRd
+.clean_url_columns_validate <- function(data_frame, columns) {
   if (!is.data.frame(data_frame)) {
     stop("`data_frame` must be a data frame.", call. = FALSE)
   }
@@ -87,55 +112,57 @@ clean_url_columns <- function(data_frame,
       call. = FALSE
     )
   }
+  invisible(NULL)
+}
 
-  # Apply pagerankr's explicit canonicalization profile, letting any `...`
-  # arguments override individual knobs. Pinning every knob keeps node
-  # identities independent of rurl's own (version-dependent) defaults.
-  rurl_args <- .resolve_rurl_params(list(...))
-  cleaned_data_frame <- data_frame
+#' Clean a single URL column vector under the resolved rurl profile
+#'
+#' Returns the column unchanged when it holds no parseable (non-NA) values, so
+#' an all-NA column keeps its original type. Otherwise cleans each unique URL
+#' once and maps the results back, preserving NAs.
+#'
+#' @keywords internal
+#' @noRd
+.clean_one_url_column <- function(column, rurl_args) {
+  original_column_as_char <- as.character(column)
+  unique_urls_to_clean <- unique(stats::na.omit(original_column_as_char))
 
-  for (col_name in columns) {
-    # It's already confirmed col_name is in names(data_frame)
-    original_column_as_char <- as.character(cleaned_data_frame[[col_name]])
-    unique_urls_to_clean <- unique(stats::na.omit(original_column_as_char))
-
-    if (length(unique_urls_to_clean) > 0) {
-      # Clean each unique URL once. rurl::get_clean_url is vectorized and
-      # memoizes parses internally (the cache is shared across columns and
-      # calls), so no local memoization is needed here.
-      cleaned_unique <- do.call(
-        rurl::get_clean_url,
-        c(list(unique_urls_to_clean), rurl_args)
-      )
-
-      # `rurl::get_clean_url()` returns NA for inputs it cannot parse as a URL
-      # (e.g. a dotless bare token such as "A"). `unique_urls_to_clean` is
-      # already NA-free (na.omit above), so any NA here is a parse failure, not
-      # a genuine NA input. Fall back to the raw token for those so unparseable
-      # node identities survive as opaque nodes instead of collapsing to NA and
-      # being silently dropped by get_unique_edges() -- mirroring
-      # `.apply_fold_map()`, which likewise leaves unmapped values untouched.
-      unparseable <- is.na(cleaned_unique)
-      cleaned_unique[unparseable] <- unique_urls_to_clean[unparseable]
-
-      cleaned_url_lookup <- stats::setNames(
-        cleaned_unique, unique_urls_to_clean
-      )
-
-      # Apply the map back to the original column structure, preserving NAs.
-      new_column_values <- character(length(original_column_as_char))
-      is_na_in_original <- is.na(original_column_as_char)
-      if (!all(is_na_in_original)) {
-        new_column_values[!is_na_in_original] <-
-          cleaned_url_lookup[original_column_as_char[!is_na_in_original]]
-      }
-      new_column_values[is_na_in_original] <- NA_character_
-
-      cleaned_data_frame[[col_name]] <- new_column_values
-    }
-    # If length(unique_urls_to_clean) == 0, the column was all NAs or empty,
-    # no cleaning needed.
+  # If length(unique_urls_to_clean) == 0, the column was all NAs or empty,
+  # no cleaning needed.
+  if (length(unique_urls_to_clean) == 0) {
+    return(column)
   }
 
-  cleaned_data_frame
+  # Clean each unique URL once. rurl::get_clean_url is vectorized and
+  # memoizes parses internally (the cache is shared across columns and
+  # calls), so no local memoization is needed here.
+  cleaned_unique <- do.call(
+    rurl::get_clean_url,
+    c(list(unique_urls_to_clean), rurl_args)
+  )
+
+  # `rurl::get_clean_url()` returns NA for inputs it cannot parse as a URL
+  # (e.g. a dotless bare token such as "A"). `unique_urls_to_clean` is
+  # already NA-free (na.omit above), so any NA here is a parse failure, not
+  # a genuine NA input. Fall back to the raw token for those so unparseable
+  # node identities survive as opaque nodes instead of collapsing to NA and
+  # being silently dropped by get_unique_edges() -- mirroring
+  # `.apply_fold_map()`, which likewise leaves unmapped values untouched.
+  unparseable <- is.na(cleaned_unique)
+  cleaned_unique[unparseable] <- unique_urls_to_clean[unparseable]
+
+  cleaned_url_lookup <- stats::setNames(
+    cleaned_unique, unique_urls_to_clean
+  )
+
+  # Apply the map back to the original column structure, preserving NAs.
+  new_column_values <- character(length(original_column_as_char))
+  is_na_in_original <- is.na(original_column_as_char)
+  if (!all(is_na_in_original)) {
+    new_column_values[!is_na_in_original] <-
+      cleaned_url_lookup[original_column_as_char[!is_na_in_original]]
+  }
+  new_column_values[is_na_in_original] <- NA_character_
+
+  new_column_values
 }

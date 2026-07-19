@@ -53,6 +53,37 @@ screaming_frog_internal <- function(x) {
   )
   raw <- .sf_add_missing_columns(raw, fields)
 
+  d <- .sf_internal_classify(raw)
+
+  nodes <- .sf_internal_nodes(raw, d)
+  redirects <- .sf_internal_redirects(raw, d)
+  canonicals <- .sf_internal_canonicals(raw, d)
+  indexability <- .sf_internal_indexability(raw, d)
+  issues <- .sf_internal_issues(raw, input_row, d)
+  diagnostics <- .sf_internal_diagnostics(
+    raw, d, nodes, redirects, canonicals,
+    input_rows, missing_optional, schema, issues
+  )
+  provenance <- .sf_internal_provenance(x, schema, input_rows, input_row, d)
+
+  structure(
+    list(
+      nodes = nodes,
+      redirects = redirects,
+      canonicals = canonicals,
+      indexability = indexability,
+      diagnostics = diagnostics,
+      provenance = provenance
+    ),
+    class = "screaming_frog_internal"
+  )
+}
+
+#' Derive per-row internal classifications and structural row selections
+#'
+#' @keywords internal
+#' @noRd
+.sf_internal_classify <- function(raw) {
   status_code <- .sf_parse_status_code(raw$status_code)
   valid_address <- !is.na(raw$address)
   valid_status <- !is.na(status_code)
@@ -60,13 +91,34 @@ screaming_frog_internal <- function(x) {
   canonical_destination <- !is.na(raw$canonical)
   is_redirect_status <- valid_status &
     status_code >= 300L & status_code <= 399L
+  redirect_rows <- valid_address & is_redirect_status & redirect_destination
+  canonical_rows <- valid_address & canonical_destination
+  invalid_status <- !is.na(raw$status_code) & !valid_status
 
-  node_rows <- input_row[valid_address]
-  nodes <- data.frame(
+  list(
+    status_code = status_code,
+    valid_address = valid_address,
+    valid_status = valid_status,
+    redirect_destination = redirect_destination,
+    canonical_destination = canonical_destination,
+    is_redirect_status = is_redirect_status,
+    redirect_rows = redirect_rows,
+    canonical_rows = canonical_rows,
+    invalid_status = invalid_status
+  )
+}
+
+#' Build the normalized node fact table
+#'
+#' @keywords internal
+#' @noRd
+.sf_internal_nodes <- function(raw, d) {
+  valid_address <- d$valid_address
+  data.frame(
     url = raw$address[valid_address],
     segments = .sf_parse_integer(raw$segments[valid_address]),
     content_type = raw$content_type[valid_address],
-    http_status = status_code[valid_address],
+    http_status = d$status_code[valid_address],
     status = raw$status[valid_address],
     indexability = raw$indexability[valid_address],
     indexability_status = raw$indexability_status[valid_address],
@@ -90,22 +142,41 @@ screaming_frog_internal <- function(x) {
       raw$response_time_seconds[valid_address]
     )
   )
+}
 
-  redirect_rows <- valid_address & is_redirect_status & redirect_destination
-  redirects <- data.frame(
+#' Build the raw redirect signal table
+#'
+#' @keywords internal
+#' @noRd
+.sf_internal_redirects <- function(raw, d) {
+  redirect_rows <- d$redirect_rows
+  data.frame(
     from = raw$address[redirect_rows],
     to = raw$redirect_to[redirect_rows],
-    status_code = status_code[redirect_rows],
+    status_code = d$status_code[redirect_rows],
     redirect_type = raw$redirect_type[redirect_rows]
   )
+}
 
-  canonical_rows <- valid_address & canonical_destination
-  canonicals <- data.frame(
+#' Build the raw canonical signal table
+#'
+#' @keywords internal
+#' @noRd
+.sf_internal_canonicals <- function(raw, d) {
+  canonical_rows <- d$canonical_rows
+  data.frame(
     from = raw$address[canonical_rows],
     to = raw$canonical[canonical_rows]
   )
+}
 
-  indexability <- data.frame(
+#' Build the URL-level indexability fact table
+#'
+#' @keywords internal
+#' @noRd
+.sf_internal_indexability <- function(raw, d) {
+  valid_address <- d$valid_address
+  data.frame(
     url = raw$address[valid_address],
     indexability = raw$indexability[valid_address],
     indexability_status = raw$indexability_status[valid_address],
@@ -116,13 +187,17 @@ screaming_frog_internal <- function(x) {
     meta_robots = raw$meta_robots[valid_address],
     x_robots_tag = raw$x_robots_tag[valid_address]
   )
+}
 
-  duplicate_address <- valid_address & (
-    duplicated(raw$address) | duplicated(raw$address, fromLast = TRUE)
-  )
-  invalid_status <- !is.na(raw$status_code) & !valid_status
+#' Assemble row-level internal issue records
+#'
+#' @keywords internal
+#' @noRd
+.sf_internal_issues <- function(raw, input_row, d) {
   invalid_crawl_allowed <- .sf_invalid_allowed(raw$crawl_allowed)
   invalid_indexing_allowed <- .sf_invalid_allowed(raw$indexing_allowed)
+  is_redirect_status <- d$is_redirect_status
+  redirect_destination <- d$redirect_destination
 
   issues <- data.frame(
     input_row = integer(0),
@@ -131,12 +206,12 @@ screaming_frog_internal <- function(x) {
     issue = character(0)
   )
   issues <- .sf_append_issues(
-    issues, input_row[!valid_address], "address",
-    raw$address[!valid_address], "missing_required_value"
+    issues, input_row[!d$valid_address], "address",
+    raw$address[!d$valid_address], "missing_required_value"
   )
   issues <- .sf_append_issues(
-    issues, input_row[invalid_status], "status_code",
-    raw$status_code[invalid_status], "invalid_status_code"
+    issues, input_row[d$invalid_status], "status_code",
+    raw$status_code[d$invalid_status], "invalid_status_code"
   )
   issues <- .sf_append_issues(
     issues, input_row[is_redirect_status & !redirect_destination],
@@ -156,51 +231,57 @@ screaming_frog_internal <- function(x) {
     issues, input_row[invalid_indexing_allowed], "indexing_allowed",
     raw$indexing_allowed[invalid_indexing_allowed], "invalid_allowed_value"
   )
+  issues
+}
 
-  diagnostics <- list(
+#' Build the internal import diagnostics list
+#'
+#' @keywords internal
+#' @noRd
+.sf_internal_diagnostics <- function(raw, d, nodes, redirects, canonicals,
+                                     input_rows, missing_optional, schema,
+                                     issues) {
+  duplicate_address <- d$valid_address & (
+    duplicated(raw$address) | duplicated(raw$address, fromLast = TRUE)
+  )
+  list(
     input_rows = input_rows,
     node_rows = nrow(nodes),
-    dropped_missing_address = sum(!valid_address),
-    invalid_status_codes = sum(invalid_status),
+    dropped_missing_address = sum(!d$valid_address),
+    invalid_status_codes = sum(d$invalid_status),
     duplicate_address_rows = sum(duplicate_address),
     duplicate_addresses = unique(raw$address[duplicate_address]),
     redirect_rows = nrow(redirects),
     missing_3xx_destinations = sum(
-      is_redirect_status & !redirect_destination
+      d$is_redirect_status & !d$redirect_destination
     ),
     ignored_non_3xx_destinations = sum(
-      !is_redirect_status & redirect_destination
+      !d$is_redirect_status & d$redirect_destination
     ),
     canonical_rows = nrow(canonicals),
     self_canonical_rows = sum(
-      canonical_rows & raw$address == raw$canonical,
+      d$canonical_rows & raw$address == raw$canonical,
       na.rm = TRUE
     ),
     missing_optional_columns = missing_optional,
     ignored_columns = schema$ignored_columns,
     issues = issues
   )
+}
 
-  provenance <- list(
+#' Build the internal import provenance list
+#'
+#' @keywords internal
+#' @noRd
+.sf_internal_provenance <- function(x, schema, input_rows, input_row, d) {
+  list(
     export_kind = "internal_all",
     source = if (is.data.frame(x)) "<data.frame>" else x,
     detected_columns = schema$columns,
     aliases = schema$aliases,
     ignored_columns = schema$ignored_columns,
     input_rows = input_rows,
-    retained_input_row_ids = node_rows
-  )
-
-  structure(
-    list(
-      nodes = nodes,
-      redirects = redirects,
-      canonicals = canonicals,
-      indexability = indexability,
-      diagnostics = diagnostics,
-      provenance = provenance
-    ),
-    class = "screaming_frog_internal"
+    retained_input_row_ids = input_row[d$valid_address]
   )
 }
 

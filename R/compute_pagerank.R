@@ -162,11 +162,9 @@ compute_pagerank <- function(edge_list_df,
   algo <- match.arg(algo)
 
   # --- Convergence-control validation and solver selection ---
-  # Modern igraph (2.x) dropped the old page_rank() `eps` / `niter` arguments.
-  # We re-expose them as friendly aliases for the ARPACK back-end's
-  # options$tol / options$maxiter. PRPACK (the default, direct solver) has no
-  # such knobs, so supplying either control transparently switches to ARPACK.
-  # See .validate_and_select_solver.
+  # `eps` / `niter` are friendly aliases for the ARPACK options$tol /
+  # options$maxiter; supplying either switches to ARPACK. See
+  # .validate_and_select_solver.
   .cc <- .validate_and_select_solver(eps, niter, algo)
   eps <- .cc$eps
   niter <- .cc$niter
@@ -174,19 +172,36 @@ compute_pagerank <- function(edge_list_df,
 
   # --- Input validation (see .validate_compute_pagerank_args) ---
   .validate_compute_pagerank_args(
-    edge_list_df = edge_list_df,
-    vertices_df = vertices_df,
-    damping = damping,
-    reverse = reverse,
-    pr_node_col = pr_node_col,
-    pr_value_col = pr_value_col,
-    weight_col = weight_col,
-    from_col = from_col,
-    to_col = to_col,
-    vertex_col_name = vertex_col_name
+    edge_list_df, vertices_df, damping, reverse, pr_node_col,
+    pr_value_col, weight_col, from_col, to_col, vertex_col_name
   )
 
-  # --- Prepare Empty Result & Graph Vertices ---
+  empty_pr_result <- .empty_pagerank_result(pr_node_col, pr_value_col)
+
+  # --- Build the graph to score (NULL => empty result) ---
+  current_graph <- .build_pagerank_input(
+    edge_list_df, vertices_df, vertex_col_name, from_col, to_col,
+    weight_col, weight_expected_total, weight_tolerance,
+    weight_validation, reverse
+  )
+  if (is.null(current_graph)) {
+    return(empty_pr_result)
+  }
+
+  # --- Personalization, PageRank, formatting, convergence attribute ---
+  .finalize_pagerank(
+    current_graph, algo, damping, eps, niter,
+    pr_node_col, pr_value_col, empty_pr_result,
+    prior_df, prior_url_col, prior_weight_col, prior_transform,
+    prior_alpha, prior_exclude_nodes, prior_verbose, ...
+  )
+}
+
+#' Build the empty (zero-row) PageRank result data frame.
+#'
+#' @keywords internal
+#' @noRd
+.empty_pagerank_result <- function(pr_node_col, pr_value_col) {
   empty_pr_result <- stats::setNames(
     data.frame(matrix(ncol = 2, nrow = 0)),
     c(pr_node_col, pr_value_col)
@@ -194,7 +209,19 @@ compute_pagerank <- function(edge_list_df,
   # Ensure columns of empty result are character and numeric respectively
   empty_pr_result[[pr_node_col]] <- character(0)
   empty_pr_result[[pr_value_col]] <- numeric(0)
+  empty_pr_result
+}
 
+#' Resolve vertices + edges and build the igraph object to score.
+#'
+#' Returns the graph, or `NULL` when the result should be the empty data frame
+#' (no valid edges and no defined nodes, or an empty / vertex-less graph).
+#' @keywords internal
+#' @noRd
+.build_pagerank_input <- function(edge_list_df, vertices_df, vertex_col_name,
+                                  from_col, to_col, weight_col,
+                                  weight_expected_total, weight_tolerance,
+                                  weight_validation, reverse) {
   defined_nodes <- .compute_defined_nodes(vertices_df, vertex_col_name)
 
   # --- Prepare edges (remove NAs, extract aligned weight vector) ---
@@ -210,10 +237,9 @@ compute_pagerank <- function(edge_list_df,
   valid_edges_df <- .pe$valid_edges_df
   weight_vector <- .pe$weight_vector
 
-  # --- Create graph ---
   # If no valid edges and no defined nodes, the result is an empty graph.
   if (nrow(valid_edges_df) == 0 && is.null(defined_nodes)) {
-    return(empty_pr_result)
+    return(NULL)
   }
   current_graph <- .build_pagerank_graph(
     valid_edges_df = valid_edges_df,
@@ -225,59 +251,45 @@ compute_pagerank <- function(edge_list_df,
   )
   # NULL (unreachable safeguard) or a vertex-less graph => empty result.
   if (is.null(current_graph) || igraph::vcount(current_graph) == 0) {
-    return(empty_pr_result)
+    return(NULL)
   }
+  current_graph
+}
 
-  # --- Build TIPR personalization vector (aligned to final vertex set) ---
+#' Run PageRank on a built graph and assemble the formatted result.
+#'
+#' Builds the teleport/personalization vector, runs the solver, and (unless the
+#' output is empty, in which case `empty_pr_result` is returned) formats the
+#' scores and attaches the `"convergence"` attribute.
+#' @keywords internal
+#' @noRd
+.finalize_pagerank <- function(graph, algo, damping, eps, niter,
+                               pr_node_col, pr_value_col, empty_pr_result,
+                               prior_df, prior_url_col, prior_weight_col,
+                               prior_transform, prior_alpha,
+                               prior_exclude_nodes, prior_verbose, ...) {
   personalized_vec <- .compute_personalization(
-    graph = current_graph,
-    prior_df = prior_df,
-    prior_url_col = prior_url_col,
-    prior_weight_col = prior_weight_col,
-    prior_transform = prior_transform,
-    prior_alpha = prior_alpha,
-    prior_exclude_nodes = prior_exclude_nodes,
-    prior_verbose = prior_verbose
+    graph, prior_df, prior_url_col, prior_weight_col,
+    prior_transform, prior_alpha, prior_exclude_nodes, prior_verbose
   )
 
-  # --- Compute PageRank (see .run_page_rank) ---
   pr_igraph_output <- .run_page_rank(
-    graph = current_graph,
-    algo = algo,
-    damping = damping,
-    personalized_vec = personalized_vec,
-    eps = eps,
-    niter = niter,
-    ...
+    graph, algo, damping, personalized_vec, eps, niter, ...
   )
 
   # A NULL output (page_rank errored) or an empty score vector cannot be
-  # formatted. Since the graph has >= 1 vertex here (guaranteed above), that
-  # only happens on failure, so return the empty result. Equivalent to the
-  # previous nested guard given vcount(current_graph) > 0.
+  # formatted; return the empty result.
   if (.is_empty_pagerank_output(pr_igraph_output)) {
     return(empty_pr_result)
   }
 
-  # --- Format results (scores + optional prior_weight column) ---
   pagerank_df <- .format_pagerank_output(
-    pr_igraph_output = pr_igraph_output,
-    pr_node_col = pr_node_col,
-    pr_value_col = pr_value_col,
-    personalized_vec = personalized_vec,
-    graph = current_graph
+    pr_igraph_output, pr_node_col, pr_value_col, personalized_vec, graph
   )
 
-  # --- Convergence diagnostic (see .build_convergence_attr) ---
   attr(pagerank_df, "convergence") <- .build_convergence_attr(
-    graph = current_graph,
-    x = pr_igraph_output$vector,
-    algo = algo,
-    damping = damping,
-    personalized_vec = personalized_vec,
-    eps = eps,
-    niter = niter,
-    arpack_options = pr_igraph_output$options
+    graph, pr_igraph_output$vector, algo, damping, personalized_vec,
+    eps, niter, pr_igraph_output$options
   )
 
   pagerank_df
