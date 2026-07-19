@@ -256,10 +256,10 @@ describe("HITS validation and defensive branches", {
     expect_true(all(c("A", "B") %in% res$node_name))
   })
 
-  it(".clean_ref_url_frame is a no-op when no from/to columns are present", {
+  it(".clean_cols_if is a no-op when no from/to columns are present", {
     df <- data.frame(a = 1, b = 2)
     expect_identical(
-      .clean_ref_url_frame(df, "from", "to", TRUE, list()),
+      .clean_cols_if(df, intersect(c("from", "to"), names(df)), TRUE, list()),
       df
     )
   })

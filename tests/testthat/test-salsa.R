@@ -378,7 +378,7 @@ describe("salsa wrapper edge-case branch coverage", {
   it("no-ops folding when redirects_df lacks the expected from/to columns", {
     # Missing columns short-circuit URL cleaning, and the resulting terminal
     # map from NULL from/to vectors is empty, so the edge list passes through
-    # both .salsa_clean_url_df() and .salsa_apply_folds() unchanged.
+    # the shared .prepare_link_graph() clean + fold steps unchanged.
     edges <- data.frame(from = "A", to = "B")
     redirects <- data.frame(src = "X", dst = "Y")
     s <- salsa(edges, redirects_df = redirects)
