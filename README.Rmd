@@ -231,10 +231,9 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 | `salsa()` | End-to-end SALSA hub + authority scores |
 | `compute_salsa()` | Low-level SALSA computational core |
 | `trustrank()` | TrustRank: seed-biased PageRank from a trusted seed set |
-| `trust_seed_prior()` | Build a teleport prior for trustrank() |
 | `topic_sensitive_pagerank()` | Per-topic personalized PageRank with blended scores |
 | `topic_feeder_pagerank()` | Reverse-graph seeded PR: find pages that feed a cluster |
-| `feeder_seed_prior()` | Build a teleport prior for topic_feeder_pagerank() |
+| `seed_prior()` | Build a teleport prior from a seed set (for trustrank / topic_feeder_pagerank) |
 | `align_prior_to_vertices()` | Align a prior/teleport data frame to the graph vertex set |
 | `damping_sensitivity()` | Sweep PageRank across a range of damping factors |
 | `pagerank_stability()` | Alpha-stability report: rank correlation across a damping grid |

@@ -27,10 +27,13 @@ pagerankr: SEO-Focused PageRank Modeling Toolkit
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![Verify](https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml)
-[![Codecov coverage](https://codecov.io/gh/bart-turczynski/pagerankr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pagerankr)
-[![Full platform check](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml)
+[![Codecov
+coverage](https://codecov.io/gh/bart-turczynski/pagerankr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pagerankr)
+[![Full platform
+check](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml)
 [![R-hub](https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml)
-[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13553/badge)](https://www.bestpractices.dev/projects/13553)
+[![OpenSSF Best
+Practices](https://www.bestpractices.dev/projects/13553/badge)](https://www.bestpractices.dev/projects/13553)
 <!-- badges: end -->
 
 `pagerankr` is an SEO-focused R toolkit for PageRank modeling on crawl
@@ -249,10 +252,9 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 | `salsa()` | End-to-end SALSA hub + authority scores |
 | `compute_salsa()` | Low-level SALSA computational core |
 | `trustrank()` | TrustRank: seed-biased PageRank from a trusted seed set |
-| `trust_seed_prior()` | Build a teleport prior for trustrank() |
 | `topic_sensitive_pagerank()` | Per-topic personalized PageRank with blended scores |
 | `topic_feeder_pagerank()` | Reverse-graph seeded PR: find pages that feed a cluster |
-| `feeder_seed_prior()` | Build a teleport prior for topic_feeder_pagerank() |
+| `seed_prior()` | Build a teleport prior from a seed set (for trustrank / topic_feeder_pagerank) |
 | `align_prior_to_vertices()` | Align a prior/teleport data frame to the graph vertex set |
 | `damping_sensitivity()` | Sweep PageRank across a range of damping factors |
 | `pagerank_stability()` | Alpha-stability report: rank correlation across a damping grid |
@@ -272,10 +274,11 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 
 ## 1.5 Further Information
 
-The [package website](https://bart-turczynski.github.io/pagerankr/) contains
-the complete reference and rendered vignettes. To report a bug or request an
-enhancement, use [GitHub Issues](https://github.com/bart-turczynski/pagerankr/issues).
-Please read
+The [package website](https://bart-turczynski.github.io/pagerankr/)
+contains the complete reference and rendered vignettes. To report a bug
+or request an enhancement, use [GitHub
+Issues](https://github.com/bart-turczynski/pagerankr/issues). Please
+read
 [CONTRIBUTING.md](https://github.com/bart-turczynski/pagerankr/blob/main/CONTRIBUTING.md)
 before proposing a change; it sets out the test, lint, and R CMD check
 requirements. For privately reported security vulnerabilities, follow

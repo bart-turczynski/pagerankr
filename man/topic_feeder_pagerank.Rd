@@ -2,16 +2,8 @@
 % Please edit documentation in R/topic_feeder_pagerank.R
 \name{topic_feeder_pagerank}
 \alias{topic_feeder_pagerank}
-\alias{feeder_seed_prior}
 \title{Topic Feeder PageRank (seeded reverse-graph PageRank)}
 \usage{
-feeder_seed_prior(
-  seeds,
-  seed_weight = NULL,
-  seed_url_col = "url",
-  seed_weight_col = "weight"
-)
-
 topic_feeder_pagerank(
   edge_list_df,
   seeds,
@@ -22,10 +14,13 @@ topic_feeder_pagerank(
 )
 }
 \arguments{
+\item{edge_list_df}{A data frame representing the edge list, typically with
+columns like "from" and "to".}
+
 \item{seeds}{The target cluster. Either a character vector of cluster URLs
 (each gets equal seed weight unless `seed_weight` is given), or a data
 frame with a URL column and a numeric weight column (see `seed_url_col` /
-`seed_weight_col`) for unequal cluster emphasis.}
+`seed_weight_col`) for unequal cluster emphasis. See [seed_prior()].}
 
 \item{seed_weight}{Optional numeric weight for a character-vector `seeds`:
 either one value per seed or a single value recycled to all seeds. Ignored
@@ -35,23 +30,16 @@ when `seeds` is a data frame. Default `NULL` (every cluster page weight
 \item{seed_url_col, seed_weight_col}{Column names used when `seeds` is a data
 frame. Defaults `"url"` / `"weight"`. Ignored for a character vector.}
 
-\item{edge_list_df}{A data frame representing the edge list, typically with
-columns like "from" and "to".}
-
 \item{...}{Additional arguments forwarded to [pagerank()] (e.g.
 `redirects_df`, `canonicals_df`, `rurl_params`, `weight_col`,
 `prior_transform`, `prior_alpha`, `damping`). Passing `prior_df`,
 `prior_url_col`, `prior_weight_col`, or `reverse` is an error.}
 }
 \value{
-[feeder_seed_prior()] returns a data frame with `url` and `weight`
-  columns, suitable as the `prior_df` argument to [pagerank()].
-
-  [topic_feeder_pagerank()] returns the [pagerank()] result data frame
-  (`node_name`, `pagerank`, and the `prior_weight` column the prior path
-  adds), sorted by `pagerank` descending, carrying the usual
-  `"transition_audit"` attribute. The audit's model configuration records
-  `reverse = TRUE`.
+The [pagerank()] result data frame (`node_name`, `pagerank`, and the
+  `prior_weight` column the prior path adds), sorted by `pagerank`
+  descending, carrying the usual `"transition_audit"` attribute. The audit's
+  model configuration records `reverse = TRUE`.
 }
 \description{
 The reverse-graph sibling of [topic_sensitive_pagerank()].
@@ -71,10 +59,11 @@ The reverse-graph sibling of [topic_sensitive_pagerank()].
   is exactly that attenuation.
 
   Like [trustrank()] and [topic_sensitive_pagerank()], this introduces **no
-  new solver**: it builds a `prior_df` from the seed set
-  ([feeder_seed_prior()]) and hands it to [pagerank()] with `reverse = TRUE`.
-  The caller supplies the
-  cluster; there is no topic inference.
+  new solver**: it builds a `prior_df` from the seed set ([seed_prior()]) and
+  hands it to [pagerank()] with `reverse = TRUE`. The caller supplies the
+  cluster; there is no topic inference. The prior builder is the *same*
+  [seed_prior()] that [trustrank()] uses — a seed prior is orientation-
+  agnostic; the reversed graph is what makes this a feeder query.
 }
 \details{
 ## Why this is not recoverable from forward PageRank
@@ -149,12 +138,12 @@ fr <- topic_feeder_pagerank(
 fr[fr$prior_weight == 0, c("node_name", "pagerank")]
 
 # Build the cluster prior explicitly and run it yourself, if you prefer:
-prior <- feeder_seed_prior(c("/ai", "/ai-demo"))
+prior <- seed_prior(c("/ai", "/ai-demo"))
 identical_run <- pagerank(
   edges, prior_df = prior, reverse = TRUE, clean_edge_urls = FALSE
 )
 }
 \seealso{
-[topic_sensitive_pagerank()], [trustrank()], [pagerank()],
-  [align_prior_to_vertices()], [hits()]
+[seed_prior()], [topic_sensitive_pagerank()], [trustrank()],
+  [pagerank()], [align_prior_to_vertices()], [hits()]
 }
