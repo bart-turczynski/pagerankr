@@ -99,6 +99,16 @@ reference:
       - screaming_frog_bundle
       - pagerank_screaming_frog
 
+  - title: "Screaming Frog toolkit"
+    desc: "Low-level helpers for reading and interpreting Screaming Frog exports directly, beneath the bundle importers."
+    contents:
+      - sf_contract
+      - sf_read_input
+      - sf_parse_follow
+      - sf_rel_nofollow
+      - sf_normalize_position
+      - sf_graph_eligible
+
   - title: "Behavioral data and simulation"
     desc: "Blend GA4 transitions with structural links and model changes."
     contents:

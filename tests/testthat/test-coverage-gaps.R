@@ -4,13 +4,13 @@ context("coverage gaps: error / validation / print / defensive branches")
 # screaming_frog_contract.R
 # ---------------------------------------------------------------------------
 
-describe(".sf_read_input field and input validation", {
+describe("sf_read_input field and input validation", {
   it("rejects `fields` containing NA", {
     df <- data.frame(
       Address = "https://x/", `Status Code` = "200", check.names = FALSE
     )
     expect_error(
-      pagerankr::.sf_read_input(df, "internal_all", fields = c("address", NA)),
+      pagerankr::sf_read_input(df, "internal_all", fields = c("address", NA)),
       "normalized fields",
       fixed = TRUE
     )
@@ -21,7 +21,7 @@ describe(".sf_read_input field and input validation", {
       Address = "https://x/", `Status Code` = "200", check.names = FALSE
     )
     expect_error(
-      pagerankr::.sf_read_input(df, "internal_all", fields = "not_a_field"),
+      pagerankr::sf_read_input(df, "internal_all", fields = "not_a_field"),
       "normalized fields",
       fixed = TRUE
     )
@@ -29,7 +29,7 @@ describe(".sf_read_input field and input validation", {
 
   it("errors when a file path does not exist", {
     expect_error(
-      pagerankr::.sf_read_input(
+      pagerankr::sf_read_input(
         "/no/such/screaming-frog-file.csv", "internal_all"
       ),
       "does not exist",
@@ -39,7 +39,7 @@ describe(".sf_read_input field and input validation", {
 
   it("errors when `x` is neither a data frame nor a single file path", {
     expect_error(
-      pagerankr::.sf_read_input(123, "internal_all"),
+      pagerankr::sf_read_input(123, "internal_all"),
       "must be a data frame or a single file path",
       fixed = TRUE
     )
@@ -51,7 +51,7 @@ describe(".sf_read_input field and input validation", {
       `Status Code` = factor(c("200", "404")),
       check.names = FALSE
     )
-    out <- pagerankr::.sf_read_input(
+    out <- pagerankr::sf_read_input(
       df, "internal_all", fields = c("address", "status_code")
     )
     expect_type(out$address, "character")

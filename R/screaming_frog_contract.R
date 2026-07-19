@@ -53,9 +53,39 @@
 #' @name screaming_frog_bundle
 NULL
 
-#' @noRd
+#' Screaming Frog import contract
+#'
+#' @description Returns the frozen contract that governs how Screaming Frog
+#'   exports are read and normalized: the accepted export kinds, the column
+#'   schemas (canonical field order, required fields, and header aliases) for
+#'   the Internal and Inlinks/Outlinks exports, and which link types count as
+#'   graph-eligible. Inspect it to see exactly which Screaming Frog column
+#'   headers are recognized before importing a crawl.
+#'
+#' @return A list with components:
+#'   \describe{
+#'     \item{version}{Integer contract version.}
+#'     \item{bundle_fields}{Character vector of the fields present on a
+#'       \code{\link{screaming_frog_bundle}()} object.}
+#'     \item{export_kinds}{Character vector of accepted export kinds, used by
+#'       \code{\link{sf_read_input}()}.}
+#'     \item{graph_eligible_types}{Link types treated as graph edges; see
+#'       \code{\link{sf_graph_eligible}()}.}
+#'     \item{internal, links}{Schemas for the Internal and Inlinks/Outlinks
+#'       exports, each a list of \code{order}, \code{required}, and
+#'       \code{aliases}.}
+#'   }
+#'
+#' @family Screaming Frog toolkit
 #' @export
-.sf_contract <- function() {
+#' @examples
+#' contract <- sf_contract()
+#' contract$export_kinds
+#' contract$graph_eligible_types
+#'
+#' # Which Screaming Frog headers map onto the `address` field?
+#' contract$internal$aliases$address
+sf_contract <- function() {
   list(
     version = 1L,
     bundle_fields = c(
@@ -155,11 +185,11 @@ NULL
 }
 
 .sf_schema <- function(export_kind) {
-  export_kind <- match.arg(export_kind, .sf_contract()$export_kinds)
+  export_kind <- match.arg(export_kind, sf_contract()$export_kinds)
   if (identical(export_kind, "internal_all")) {
-    .sf_contract()$internal
+    sf_contract()$internal
   } else {
-    .sf_contract()$links
+    sf_contract()$links
   }
 }
 
@@ -297,10 +327,41 @@ NULL
   out
 }
 
-#' @noRd
+#' Read a Screaming Frog export into a normalized data frame
+#'
+#' @description Reads a Screaming Frog export -- either an in-memory data frame
+#'   or a path to a CSV/Excel file -- and returns it with canonical snake_case
+#'   column names, validated against the schema for \code{export_kind}. Header
+#'   aliases are resolved (e.g. \code{"Address"}, \code{"URL"}, and
+#'   \code{"URI"} all map to \code{address}), empty strings become \code{NA},
+#'   and character columns are trimmed.
+#'
+#' @param x A data frame, or a path to a Screaming Frog CSV/Excel export.
+#' @param export_kind Character, which export is being read. One of
+#'   \code{sf_contract()$export_kinds}: \code{"internal_all"},
+#'   \code{"all_inlinks"}, or \code{"all_outlinks"}.
+#' @param fields Optional character vector of additional (non-required) fields
+#'   to retain beyond the schema's required set. Default \code{NULL} keeps the
+#'   schema's standard field order.
+#'
+#' @return A data frame with canonical snake_case columns. The resolved schema
+#'   is attached as the \code{"sf_schema"} attribute, a list of
+#'   \code{export_kind}, \code{columns}, \code{aliases}, and
+#'   \code{ignored_columns}.
+#'
+#' @family Screaming Frog toolkit
 #' @export
-.sf_read_input <- function(x, export_kind, fields = NULL) {
-  export_kind <- match.arg(export_kind, .sf_contract()$export_kinds)
+#' @examples
+#' crawl <- data.frame(
+#'   Address = c("https://example.com/", "https://example.com/a"),
+#'   `Status Code` = c(200, 200),
+#'   check.names = FALSE
+#' )
+#' out <- sf_read_input(crawl, "internal_all")
+#' names(out)
+#' attr(out, "sf_schema")$export_kind
+sf_read_input <- function(x, export_kind, fields = NULL) {
+  export_kind <- match.arg(export_kind, sf_contract()$export_kinds)
   schema <- .sf_schema(export_kind)
 
   fields <- .sf_validate_fields(fields, schema, export_kind)
@@ -310,9 +371,25 @@ NULL
   .sf_finalize_output(read$out, read$resolved, fields, export_kind)
 }
 
-#' @noRd
+#' Parse a Screaming Frog follow flag to logical
+#'
+#' @description Converts the values Screaming Frog writes in a "Follow" column
+#'   into a logical vector. Matching is case-insensitive and whitespace is
+#'   trimmed.
+#'
+#' @param x A vector (typically character) of follow flags. \code{"true"},
+#'   \code{"yes"}, \code{"1"}, and \code{"follow"} become \code{TRUE};
+#'   \code{"false"}, \code{"no"}, \code{"0"}, and \code{"nofollow"} become
+#'   \code{FALSE}.
+#'
+#' @return A logical vector the same length as \code{x}. Blank strings,
+#'   \code{NA}, and unrecognized values yield \code{NA}.
+#'
+#' @family Screaming Frog toolkit
 #' @export
-.sf_parse_follow <- function(x) {
+#' @examples
+#' sf_parse_follow(c("True", "nofollow", "yes", "", NA))
+sf_parse_follow <- function(x) {
   value <- tolower(trimws(as.character(x)))
   out <- rep(NA, length(value))
   out[value %in% c("true", "yes", "1", "follow")] <- TRUE
@@ -321,9 +398,24 @@ NULL
   out
 }
 
-#' @noRd
+#' Detect `nofollow` in a rel attribute
+#'
+#' @description Tests whether each value of a link's \code{rel} attribute
+#'   contains the \code{nofollow} token. Values are lowercased and split on
+#'   commas and whitespace, so \code{"ugc nofollow"} and \code{"nofollow,ugc"}
+#'   both count.
+#'
+#' @param x A vector (typically character) of \code{rel} attribute values.
+#'
+#' @return A logical vector the same length as \code{x}: \code{TRUE} when the
+#'   \code{nofollow} token is present, \code{FALSE} when it is not, and
+#'   \code{NA} for blank strings or \code{NA} input.
+#'
+#' @family Screaming Frog toolkit
 #' @export
-.sf_rel_nofollow <- function(x) {
+#' @examples
+#' sf_rel_nofollow(c("nofollow", "ugc nofollow", "sponsored", "", NA))
+sf_rel_nofollow <- function(x) {
   value <- tolower(trimws(as.character(x)))
   out <- vapply(strsplit(value, "[,[:space:]]+"), function(tokens) {
     "nofollow" %in% tokens
@@ -332,9 +424,26 @@ NULL
   out
 }
 
-#' @noRd
+#' Normalize a Screaming Frog link position
+#'
+#' @description Maps Screaming Frog's "Link Position" values onto the compact
+#'   vocabulary pagerankr uses for placement-aware weighting: \code{navigation}
+#'   becomes \code{"nav"} and \code{aside} becomes \code{"sidebar"}, while
+#'   \code{header}, \code{footer}, and \code{content} pass through unchanged.
+#'   Matching is case-insensitive and whitespace is trimmed.
+#'
+#' @param x A vector (typically character) of link positions.
+#'
+#' @return A character vector the same length as \code{x} containing
+#'   \code{"nav"}, \code{"header"}, \code{"footer"}, \code{"sidebar"}, or
+#'   \code{"content"}. Blank strings, \code{NA}, and unrecognized values yield
+#'   \code{NA}.
+#'
+#' @family Screaming Frog toolkit
 #' @export
-.sf_normalize_position <- function(x) {
+#' @examples
+#' sf_normalize_position(c("Navigation", "Aside", "Content", "", NA))
+sf_normalize_position <- function(x) {
   value <- tolower(trimws(as.character(x)))
   normalized <- c(
     navigation = "nav",
@@ -348,8 +457,23 @@ NULL
   out
 }
 
-#' @noRd
+#' Test whether a link type is graph-eligible
+#'
+#' @description Reports which Screaming Frog link types count as edges in the
+#'   link graph. Only true hyperlinks build the graph; resource references such
+#'   as images, stylesheets, and scripts are excluded. The eligible set is
+#'   \code{sf_contract()$graph_eligible_types}.
+#'
+#' @param type A vector (typically character) of Screaming Frog link types,
+#'   e.g. \code{"Hyperlink"} or \code{"Image"}. Whitespace is trimmed.
+#'
+#' @return A logical vector the same length as \code{type}, \code{TRUE} where
+#'   the type is graph-eligible.
+#'
+#' @family Screaming Frog toolkit
 #' @export
-.sf_graph_eligible <- function(type) {
-  trimws(as.character(type)) %in% .sf_contract()$graph_eligible_types
+#' @examples
+#' sf_graph_eligible(c("Hyperlink", "Image", "Stylesheet"))
+sf_graph_eligible <- function(type) {
+  trimws(as.character(type)) %in% sf_contract()$graph_eligible_types
 }
