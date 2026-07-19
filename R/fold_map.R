@@ -172,18 +172,81 @@ build_fold_map <- function(redirects_df = NULL,
                               canonical_duplicate_from_policy = "strict",
                               canonical_loop_handling = "error",
                               canonical_conflict_policy = "redirect_wins") {
-  empty_map <- stats::setNames(character(0), character(0))
-  empty_conflicts <- data.frame(
-    source = character(0), redirect_to = character(0),
-    canonical_to = character(0), disagrees = logical(0),
-    resolution = character(0)
-  )
-  empty_ignored <- data.frame(
-    source = character(0), canonical_to = character(0),
-    redirect_to = character(0)
-  )
+  templates <- .fold_empty_templates()
+  empty_map <- templates$map
+  empty_conflicts <- templates$conflicts
+  empty_ignored <- templates$ignored
 
   # --- Build each signal's standalone terminal map (separate, auditable) ---
+  terminals <- .build_signal_terminals(
+    redirects_df, canonicals_df,
+    redirect_from_col, redirect_to_col,
+    canonical_from_col, canonical_to_col,
+    duplicate_from_policy, loop_handling,
+    canonical_duplicate_from_policy, canonical_loop_handling, empty_map
+  )
+  r_term <- terminals$r_term
+  c_term <- terminals$c_term
+
+  # Effective sources: those whose URL actually changes under each signal.
+  redirect_sources <- names(r_term)[r_term != names(r_term)]
+  canonical_sources <- names(c_term)[c_term != names(c_term)]
+  conflict_sources <- intersect(redirect_sources, canonical_sources)
+
+  # --- Cross-signal conflict audit (same-source disagreements) ---
+  audit <- .audit_cross_signal_conflicts(
+    conflict_sources, r_term, c_term, canonical_conflict_policy,
+    empty_conflicts, empty_ignored
+  )
+  conflicts <- audit$conflicts
+  ignored_canonicals <- audit$ignored_canonicals
+
+  # --- Build the combined one-hop graph with per-source precedence ---
+  edges <- .select_combined_edges(
+    redirect_sources, canonical_sources, conflict_sources,
+    r_term, c_term, canonical_conflict_policy
+  )
+
+  .finalize_fold_map(
+    edges$combined_from, edges$combined_to, edges$signal_by_source,
+    loop_handling, r_term, c_term, conflicts, ignored_canonicals, empty_map
+  )
+}
+
+
+#' Zero-row templates for the fold map, conflict, and ignored-canonical tables
+#'
+#' @keywords internal
+#' @noRd
+.fold_empty_templates <- function() {
+  list(
+    map = stats::setNames(character(0), character(0)),
+    conflicts = data.frame(
+      source = character(0), redirect_to = character(0),
+      canonical_to = character(0), disagrees = logical(0),
+      resolution = character(0)
+    ),
+    ignored = data.frame(
+      source = character(0), canonical_to = character(0),
+      redirect_to = character(0)
+    )
+  )
+}
+
+
+#' Build each signal's standalone terminal map (redirect + canonical)
+#'
+#' Resolves the redirect and canonical rules independently under their own
+#' duplicate/loop policies, returning empty maps for absent inputs.
+#'
+#' @keywords internal
+#' @noRd
+.build_signal_terminals <- function(redirects_df, canonicals_df,
+                                     redirect_from_col, redirect_to_col,
+                                     canonical_from_col, canonical_to_col,
+                                     duplicate_from_policy, loop_handling,
+                                     canonical_duplicate_from_policy,
+                                     canonical_loop_handling, empty_map) {
   r_term <- if (!is.null(redirects_df) && nrow(redirects_df) > 0) {
     .build_terminal_map(
       redirects_df[[redirect_from_col]], redirects_df[[redirect_to_col]],
@@ -204,24 +267,23 @@ build_fold_map <- function(redirects_df = NULL,
     empty_map
   }
 
-  # Effective sources: those whose URL actually changes under each signal.
-  redirect_sources <- names(r_term)[r_term != names(r_term)]
-  canonical_sources <- names(c_term)[c_term != names(c_term)]
-  conflict_sources <- intersect(redirect_sources, canonical_sources)
+  list(r_term = r_term, c_term = c_term)
+}
 
-  # --- Cross-signal conflict audit (same-source disagreements) ---
-  audit <- .audit_cross_signal_conflicts(
-    conflict_sources, r_term, c_term, canonical_conflict_policy,
-    empty_conflicts, empty_ignored
-  )
-  conflicts <- audit$conflicts
-  ignored_canonicals <- audit$ignored_canonicals
 
-  # --- Build the combined one-hop graph with per-source precedence ---
-  # redirect edges: every effective redirect source, unless canonical_wins
-  #   hands a conflicting source to the canonical signal.
-  # canonical edges: every effective canonical source, unless redirect_wins
-  #   (default) drops the canonical on a conflicting (redirecting) source.
+#' Select the combined one-hop edges with per-source precedence
+#'
+#' redirect edges: every effective redirect source, unless canonical_wins hands
+#' a conflicting source to the canonical signal. canonical edges: every
+#' effective canonical source, unless redirect_wins (default) drops the
+#' canonical on a conflicting (redirecting) source. Returns the combined
+#' from/to vectors and the per-source signal labels.
+#'
+#' @keywords internal
+#' @noRd
+.select_combined_edges <- function(redirect_sources, canonical_sources,
+                                    conflict_sources, r_term, c_term,
+                                    canonical_conflict_policy) {
   redirect_use <- redirect_sources
   canonical_use <- canonical_sources
   if (length(conflict_sources) > 0) {
@@ -246,6 +308,25 @@ build_fold_map <- function(redirects_df = NULL,
     combined_from
   )
 
+  list(
+    combined_from = combined_from,
+    combined_to = combined_to,
+    signal_by_source = signal_by_source
+  )
+}
+
+
+#' Resolve the combined graph to idempotent terminals and assemble the result
+#'
+#' Handles the empty-graph early return, resolves cross-signal chains under
+#' `loop_handling`, keeps only sources that actually change, and returns the
+#' `.compose_fold_map()` result list.
+#'
+#' @keywords internal
+#' @noRd
+.finalize_fold_map <- function(combined_from, combined_to, signal_by_source,
+                               loop_handling, r_term, c_term,
+                               conflicts, ignored_canonicals, empty_map) {
   if (length(combined_from) == 0) {
     return(list(
       map = empty_map, signal = stats::setNames(character(0), character(0)),

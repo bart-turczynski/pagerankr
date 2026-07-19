@@ -64,76 +64,92 @@ NULL
     ),
     export_kinds = c("internal_all", "all_inlinks", "all_outlinks"),
     graph_eligible_types = "Hyperlink",
-    internal = list(
-      order = c(
-        "address", "segments", "content_type", "status_code", "status",
-        "indexability", "indexability_status", "canonical", "redirect_to",
-        "redirect_type", "crawl_allowed", "indexing_allowed",
-        "meta_robots", "x_robots_tag", "language", "crawl_timestamp",
-        "last_modified", "size_bytes", "word_count", "inlinks",
-        "unique_inlinks", "outlinks", "unique_outlinks",
-        "response_time_seconds"
-      ),
-      required = c("address", "status_code"),
-      aliases = list(
-        address = c("Address", "URL", "URI"),
-        segments = "Segments",
-        content_type = c("Content Type", "Content-Type"),
-        status_code = c("Status Code", "HTTP Status Code"),
-        status = "Status",
-        indexability = "Indexability",
-        indexability_status = "Indexability Status",
-        canonical = c(
-          "Canonical Link Element 1", "Canonical Link Element", "Canonical"
-        ),
-        redirect_to = c("Redirect URL", "Redirect URI", "Location"),
-        redirect_type = "Redirect Type",
-        crawl_allowed = "Crawl Allowed",
-        indexing_allowed = "Indexing Allowed",
-        meta_robots = c("Meta Robots 1", "Meta Robots"),
-        x_robots_tag = c("X-Robots-Tag 1", "X-Robots-Tag"),
-        language = "Language",
-        crawl_timestamp = c("Crawl Timestamp", "Crawled At"),
-        last_modified = "Last Modified",
-        size_bytes = c("Size (Bytes)", "Size (bytes)", "Size Bytes"),
-        word_count = "Word Count",
-        inlinks = "Inlinks",
-        unique_inlinks = "Unique Inlinks",
-        outlinks = "Outlinks",
-        unique_outlinks = "Unique Outlinks",
-        response_time_seconds = c(
-          "Response Time", "Response Time (Seconds)", "Response Time Seconds"
-        )
-      )
+    internal = .sf_contract_internal(),
+    links = .sf_contract_links()
+  )
+}
+
+#' Internal: All contract schema (field order, required, aliases)
+#'
+#' @keywords internal
+#' @noRd
+.sf_contract_internal <- function() {
+  list(
+    order = c(
+      "address", "segments", "content_type", "status_code", "status",
+      "indexability", "indexability_status", "canonical", "redirect_to",
+      "redirect_type", "crawl_allowed", "indexing_allowed",
+      "meta_robots", "x_robots_tag", "language", "crawl_timestamp",
+      "last_modified", "size_bytes", "word_count", "inlinks",
+      "unique_inlinks", "outlinks", "unique_outlinks",
+      "response_time_seconds"
     ),
-    links = list(
-      order = c(
-        "type", "source", "source_segments", "destination",
-        "destination_segments", "size_bytes", "alt_text", "anchor",
-        "status_code", "status", "crawlability", "follow", "target", "rel",
-        "path_type", "link_path", "link_position", "link_origin"
+    required = c("address", "status_code"),
+    aliases = list(
+      address = c("Address", "URL", "URI"),
+      segments = "Segments",
+      content_type = c("Content Type", "Content-Type"),
+      status_code = c("Status Code", "HTTP Status Code"),
+      status = "Status",
+      indexability = "Indexability",
+      indexability_status = "Indexability Status",
+      canonical = c(
+        "Canonical Link Element 1", "Canonical Link Element", "Canonical"
       ),
-      required = c("type", "source", "destination", "follow"),
-      aliases = list(
-        type = c("Type", "Link Type"),
-        source = c("Source", "Source URL", "From"),
-        source_segments = "Source Segments",
-        destination = c("Destination", "Destination URL", "To"),
-        destination_segments = "Destination Segments",
-        size_bytes = c("Size (Bytes)", "Size (bytes)", "Size Bytes"),
-        alt_text = "Alt Text",
-        anchor = c("Anchor", "Anchor Text"),
-        status_code = c("Status Code", "HTTP Status Code"),
-        status = "Status",
-        crawlability = "Crawlability",
-        follow = "Follow",
-        target = "Target",
-        rel = "Rel",
-        path_type = "Path Type",
-        link_path = "Link Path",
-        link_position = "Link Position",
-        link_origin = "Link Origin"
+      redirect_to = c("Redirect URL", "Redirect URI", "Location"),
+      redirect_type = "Redirect Type",
+      crawl_allowed = "Crawl Allowed",
+      indexing_allowed = "Indexing Allowed",
+      meta_robots = c("Meta Robots 1", "Meta Robots"),
+      x_robots_tag = c("X-Robots-Tag 1", "X-Robots-Tag"),
+      language = "Language",
+      crawl_timestamp = c("Crawl Timestamp", "Crawled At"),
+      last_modified = "Last Modified",
+      size_bytes = c("Size (Bytes)", "Size (bytes)", "Size Bytes"),
+      word_count = "Word Count",
+      inlinks = "Inlinks",
+      unique_inlinks = "Unique Inlinks",
+      outlinks = "Outlinks",
+      unique_outlinks = "Unique Outlinks",
+      response_time_seconds = c(
+        "Response Time", "Response Time (Seconds)", "Response Time Seconds"
       )
+    )
+  )
+}
+
+#' Link export contract schema (field order, required, aliases)
+#'
+#' @keywords internal
+#' @noRd
+.sf_contract_links <- function() {
+  list(
+    order = c(
+      "type", "source", "source_segments", "destination",
+      "destination_segments", "size_bytes", "alt_text", "anchor",
+      "status_code", "status", "crawlability", "follow", "target", "rel",
+      "path_type", "link_path", "link_position", "link_origin"
+    ),
+    required = c("type", "source", "destination", "follow"),
+    aliases = list(
+      type = c("Type", "Link Type"),
+      source = c("Source", "Source URL", "From"),
+      source_segments = "Source Segments",
+      destination = c("Destination", "Destination URL", "To"),
+      destination_segments = "Destination Segments",
+      size_bytes = c("Size (Bytes)", "Size (bytes)", "Size Bytes"),
+      alt_text = "Alt Text",
+      anchor = c("Anchor", "Anchor Text"),
+      status_code = c("Status Code", "HTTP Status Code"),
+      status = "Status",
+      crawlability = "Crawlability",
+      follow = "Follow",
+      target = "Target",
+      rel = "Rel",
+      path_type = "Path Type",
+      link_path = "Link Path",
+      link_position = "Link Position",
+      link_origin = "Link Origin"
     )
   )
 }

@@ -429,6 +429,47 @@ hits <- function(edge_list_df,
   canonical_loop_handling <- match.arg(canonical_loop_handling)
   canonical_conflict_policy <- match.arg(canonical_conflict_policy)
 
+  .validate_hits_inputs(
+    edge_list_df, redirects_df, canonicals_df,
+    clean_canonical_urls, canonical_from_col, canonical_to_col,
+    clean_edge_urls, clean_redirect_urls, rurl_params,
+    drop_isolates_flag, weight_col
+  )
+
+  # --- 1-2.7. URL cleaning, redirect/canonical fold, domain filtering ---
+  effective_rurl_params <- .resolve_rurl_params(rurl_params)
+  current_edge_list <- .hits_resolve_edges(
+    edge_list_df, redirects_df, canonicals_df, effective_rurl_params,
+    clean_edge_urls, clean_redirect_urls, clean_canonical_urls,
+    edge_from_col, edge_to_col, redirect_from_col, redirect_to_col,
+    canonical_from_col, canonical_to_col, duplicate_from_policy,
+    loop_handling, canonical_duplicate_from_policy, canonical_loop_handling,
+    canonical_conflict_policy, keep_domains, exclude_domains,
+    keep_hosts, exclude_hosts
+  )
+
+  # --- 3-4. Duplicate-edge policy + isolate / vertex-set assembly ---
+  prep <- .hits_finalize_vertices(
+    current_edge_list, edge_from_col, edge_to_col, weight_col,
+    duplicate_edge_policy, self_loops, drop_isolates_flag
+  )
+
+  # --- 5. Compute HITS ---
+  compute_hits(
+    edge_list_df = prep$edge_list, vertices_df = prep$vertices,
+    from_col = edge_from_col, to_col = edge_to_col,
+    vertex_col_name = "node_name", weight_col = prep$weight_col,
+    scale = scale, ...
+  )
+}
+
+#' Run all top-level hits() input validation
+#' @noRd
+.validate_hits_inputs <- function(edge_list_df, redirects_df, canonicals_df,
+                                  clean_canonical_urls, canonical_from_col,
+                                  canonical_to_col, clean_edge_urls,
+                                  clean_redirect_urls, rurl_params,
+                                  drop_isolates_flag, weight_col) {
   .validate_hits_frames(edge_list_df, redirects_df, canonicals_df)
   .validate_hits_canonicals(
     canonicals_df, clean_canonical_urls, canonical_from_col, canonical_to_col
@@ -437,14 +478,25 @@ hits <- function(edge_list_df,
     clean_edge_urls, clean_redirect_urls, rurl_params, drop_isolates_flag
   )
   .validate_hits_weight(weight_col, edge_list_df)
+  invisible(NULL)
+}
 
-  # --- Working copies ---
-  current_edge_list <- edge_list_df
-  current_redirects_list <- redirects_df
-  current_canonicals_list <- canonicals_df
-
+#' Clean, redirect/canonical-fold, and domain-filter the hits() edge list
+#'
+#' Encapsulates pipeline steps 1 through 2.7, returning the resolved edge list.
+#' @noRd
+.hits_resolve_edges <- function(current_edge_list, current_redirects_list,
+                                current_canonicals_list, effective_rurl_params,
+                                clean_edge_urls, clean_redirect_urls,
+                                clean_canonical_urls, edge_from_col,
+                                edge_to_col, redirect_from_col, redirect_to_col,
+                                canonical_from_col, canonical_to_col,
+                                duplicate_from_policy, loop_handling,
+                                canonical_duplicate_from_policy,
+                                canonical_loop_handling,
+                                canonical_conflict_policy, keep_domains,
+                                exclude_domains, keep_hosts, exclude_hosts) {
   # --- 1. URL cleaning (shared resolved rurl profile) ---
-  effective_rurl_params <- .resolve_rurl_params(rurl_params)
   cleaned <- .clean_hits_urls(
     current_edge_list, current_redirects_list, current_canonicals_list,
     effective_rurl_params, clean_edge_urls, clean_redirect_urls,
@@ -465,13 +517,23 @@ hits <- function(edge_list_df,
   )
 
   # --- 2.7. Domain / host filtering ---
-  current_edge_list <- .filter_hits_domains(
+  .filter_hits_domains(
     current_edge_list, edge_from_col, edge_to_col, keep_domains,
     exclude_domains, keep_hosts, exclude_hosts, effective_rurl_params
   )
+}
 
-  # --- 2.5. Full vertex universe (before NA rows are stripped) ---
+#' Apply the duplicate-edge policy and assemble the hits() vertex set
+#'
+#' Encapsulates pipeline steps 2.5 through 4. Returns a list of the resolved
+#' `edge_list`, the `vertices` data frame, and the effective `weight_col`.
+#' @noRd
+.hits_finalize_vertices <- function(current_edge_list, edge_from_col,
+                                    edge_to_col, weight_col,
+                                    duplicate_edge_policy, self_loops,
+                                    drop_isolates_flag) {
   temp_node_col_name <- "node_name"
+  # --- 2.5. Full vertex universe (before NA rows are stripped) ---
   all_vertex_universe <- unique(stats::na.omit(c(
     as.character(current_edge_list[[edge_from_col]]),
     as.character(current_edge_list[[edge_to_col]])
@@ -495,17 +557,10 @@ hits <- function(edge_list_df,
     current_edge_list, edge_from_col, edge_to_col, drop_isolates_flag,
     all_vertex_universe, temp_node_col_name
   )
-
-  # --- 5. Compute HITS ---
-  compute_hits(
-    edge_list_df = current_edge_list,
-    vertices_df = vertices_for_hits_df,
-    from_col = edge_from_col,
-    to_col = edge_to_col,
-    vertex_col_name = temp_node_col_name,
-    weight_col = effective_weight_col,
-    scale = scale,
-    ...
+  list(
+    edge_list = current_edge_list,
+    vertices = vertices_for_hits_df,
+    weight_col = effective_weight_col
   )
 }
 

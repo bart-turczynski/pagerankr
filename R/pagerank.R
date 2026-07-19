@@ -571,29 +571,15 @@ pagerank <- function(edge_list_df,
 
   # Dots for igraph params are handled by compute_pagerank directly.
 
-  # --- Initialize working copies of data frames ---
-  current_edge_list <- edge_list_df
-  current_redirects_list <- redirects_df
-  current_canonicals_list <- canonicals_df
-
-  # --- Transition audit / provenance: capture the raw input size up front. ---
-  # Counts accumulated along the aggregation / validation / cleaning path are
-  # assembled into a `transition_audit` object at the end and attached to the
-  # result (see R/transition_audit.R).
-  audit_n_input_rows <- nrow(edge_list_df)
-
-  # --- 1. URL cleaning + canonicalization profile ---
-  # Resolve the full canonicalization profile once (every rurl knob pinned
-  # explicitly via .resolve_rurl_params, user `rurl_params` overriding per key)
-  # and clean the edge / redirect / canonical URL columns through it. This one
-  # resolved profile also drives fold-collision detection, domain filtering, and
-  # prior prep below, so node identities never drift apart. See
-  # .clean_pipeline_urls, which also emits the uncleaned-query-param warning.
-  effective_rurl_params <- .resolve_rurl_params(rurl_params)
-  .cleaned <- .clean_pipeline_urls(
-    edge_list_df = current_edge_list,
-    redirects_df = current_redirects_list,
-    canonicals_df = current_canonicals_list,
+  # --- 1. Working copies, input-row count, URL cleaning + fold-scope snap ---
+  # See .pagerank_clean_inputs: resolves the canonicalization profile once,
+  # cleans the edge / redirect / canonical URL columns through it, and captures
+  # the raw input-row count and the pre-fold crawled node snapshot used by the
+  # domain filter (step 2.7).
+  .prep <- .pagerank_clean_inputs(
+    edge_list_df = edge_list_df,
+    redirects_df = redirects_df,
+    canonicals_df = canonicals_df,
     edge_from_col = edge_from_col,
     edge_to_col = edge_to_col,
     redirect_from_col = redirect_from_col,
@@ -603,23 +589,14 @@ pagerank <- function(edge_list_df,
     clean_edge_urls = clean_edge_urls,
     clean_redirect_urls = clean_redirect_urls,
     clean_canonical_urls = clean_canonical_urls,
-    effective_rurl_params = effective_rurl_params
+    rurl_params = rurl_params
   )
-  current_edge_list <- .cleaned$edge_list_df
-  current_redirects_list <- .cleaned$redirects_df
-  current_canonicals_list <- .cleaned$canonicals_df
-
-  # Snapshot of the crawled node namespace as it stands BEFORE any redirect /
-  # canonical fold is applied (cleaned edge endpoints only; indexability URLs
-  # are not part of scope). Captured here so the domain filter (step 2.7) can
-  # tell whether a keep/exclude value that matches zero surviving nodes did so
-  # because an out-of-scope fold rewrote the crawled domain/host away. Kept
-  # local and independent of the fold block's own `prefold_nodes` (which is
-  # scoped to that block and only computed when the map is non-empty).
-  sf_prefold_nodes <- unique(stats::na.omit(c(
-    as.character(current_edge_list[[edge_from_col]]),
-    as.character(current_edge_list[[edge_to_col]])
-  )))
+  current_edge_list <- .prep$edge_list_df
+  current_redirects_list <- .prep$redirects_df
+  current_canonicals_list <- .prep$canonicals_df
+  effective_rurl_params <- .prep$effective_rurl_params
+  sf_prefold_nodes <- .prep$sf_prefold_nodes
+  audit_n_input_rows <- .prep$n_input_rows
 
   # --- 2. Redirect + canonical resolution (one composed fold map) ---
   # Build and apply the single composed fold map (redirects + canonicals),
@@ -665,75 +642,36 @@ pagerank <- function(edge_list_df,
   leak_sources <- .fold$leak_sources
   used_leak_sink <- .fold$used_leak_sink
 
-  # --- 2.7. Domain / host filtering ---
-  # Runs AFTER the fold, so it scopes the post-fold (canonical) namespace. See
-  # .apply_domain_host_filter, which also warns when an out-of-scope fold
-  # rewrote a crawled filter value away (matching zero post-fold nodes). No-op
-  # when no keep/exclude domain or host values are supplied.
-  current_edge_list <- .apply_domain_host_filter(
+  # --- 2.5-2.8. Scope the post-fold namespace + prepare the prior ---
+  # See .pagerank_scope_and_prior: applies domain/host filtering (AFTER the
+  # fold), snapshots the full vertex universe BEFORE NA rows are stripped (so
+  # drop_isolates_flag = FALSE can keep partial-row nodes as isolates), routes
+  # out-of-scope-folded sources to the leak sink, and folds the TIPR prior into
+  # the same namespace. The leak-sink self-loop is added later (after dedup) so
+  # self_loops = "drop" cannot strip it.
+  temp_node_col_name <- "node_name"
+  .scoped <- .pagerank_scope_and_prior(
     edge_list_df = current_edge_list,
-    prefold_nodes = sf_prefold_nodes,
+    sf_prefold_nodes = sf_prefold_nodes,
     keep_domains = keep_domains,
     exclude_domains = exclude_domains,
     keep_hosts = keep_hosts,
     exclude_hosts = exclude_hosts,
     edge_from_col = edge_from_col,
     edge_to_col = edge_to_col,
-    effective_rurl_params = effective_rurl_params
-  )
-
-  # --- 2.5. Extract full vertex universe (before NA rows are stripped) ---
-  # This must happen before get_unique_edges() which drops rows with NAs.
-  # When drop_isolates_flag = FALSE, nodes from partial rows (one NA column)
-  # represent known URLs that should be included in the graph as isolates.
-  # Standardized name for intermediate vertex data
-  temp_node_col_name <- "node_name"
-  all_vertex_universe <- unique(stats::na.omit(c(
-    as.character(current_edge_list[[edge_from_col]]),
-    as.character(current_edge_list[[edge_to_col]])
-  )))
-
-  # --- 2.75. Leak out-of-scope-folded sources to the leak sink ---
-  # Under out_of_scope_fold = "leak", a crawled page whose canonical / redirect
-  # folds OUT of scope is treated like an external redirect: its RECEIVED equity
-  # should leave the measured graph. Inbound edges (... -> source) are
-  # retargeted onto the dedicated leak sink so that equity reaches the sink (a
-  # pure trap via its self-loop) and evaporates; the source's OUTBOUND edges are
-  # dropped, since an external-redirect target contributes no links to the
-  # measured graph and the leaked equity must not flow back to any surviving
-  # page. Done AFTER domain filtering (so the synthetic sink node is never
-  # subject to host/domain rules).
-  # The leaked source is removed from the vertex universe (it must not linger as
-  # an isolate), but its out-targets stay in scope. The sink self-loop is added
-  # later, after deduplication, so `self_loops = "drop"` cannot strip it.
-  .leaked <- .route_leak_sources(
-    edge_list_df = current_edge_list,
-    all_vertex_universe = all_vertex_universe,
+    effective_rurl_params = effective_rurl_params,
     used_leak_sink = used_leak_sink,
     leak_sources = leak_sources,
     leak_sink_name = leak_sink_name,
-    edge_from_col = edge_from_col,
-    edge_to_col = edge_to_col
-  )
-  current_edge_list <- .leaked$edge_list_df
-  all_vertex_universe <- .leaked$all_vertex_universe
-
-  # --- 2.8. Prior preparation (TIPR) ---
-  # Canonicalize the prior URLs with the SAME rurl settings as the edges and
-  # fold them through the SAME redirect map, summing happens later in
-  # align_prior_to_vertices(). This puts the prior into the final vertex
-  # namespace before the graph is built.
-  folded_prior_df <- .prepare_prior(
     prior_df = prior_df,
     prior_url_col = prior_url_col,
     prior_weight_col = prior_weight_col,
     clean_edge_urls = clean_edge_urls,
-    effective_rurl_params = effective_rurl_params,
-    fold_map = fold_map,
-    used_leak_sink = used_leak_sink,
-    leak_sources = leak_sources,
-    leak_sink_name = leak_sink_name
+    fold_map = fold_map
   )
+  current_edge_list <- .scoped$edge_list_df
+  all_vertex_universe <- .scoped$all_vertex_universe
+  folded_prior_df <- .scoped$folded_prior_df
 
   # --- Transition audit: account for rows dropped (dedup / NA / self-loops) ---
   # Measured against the post-fold/post-filter edge list, mirroring exactly what
@@ -749,78 +687,39 @@ pagerank <- function(edge_list_df,
   audit_n_self_loops <- .dropped$n_self_loops
   audit_n_rows_duplicate <- .dropped$n_rows_duplicate
 
-  # --- 3. Apply duplicate-edge policy (handles self-loops) + audit ---
-  # See .apply_duplicate_policy_audited: dedups per policy and, under
-  # "count_instances", records the instance-count column, effective weight
-  # column, and per-edge duplicate audit rows.
-  .dup <- .apply_duplicate_policy_audited(
+  # --- 3. Edge policies: dedup, indexability, nofollow, leak-sink self-loop ---
+  # See .pagerank_apply_edge_policies: dedups per duplicate_edge_policy (fixing
+  # n_edges before any synthetic rows are added), applies noindex/robots
+  # indexability handling, routes nofollowed edges per nofollow_action, and adds
+  # the leak-sink self-loop -- all after dedup so self_loops = "drop" cannot
+  # strip the synthetic self-loops.
+  nofollow_sink_name <- "__pr_nofollow_sink__"
+  .edges <- .pagerank_apply_edge_policies(
     edge_list_df = current_edge_list,
     duplicate_edge_policy = duplicate_edge_policy,
     self_loops = self_loops,
     weight_col = weight_col,
-    from_col = edge_from_col,
-    to_col = edge_to_col
-  )
-  current_edge_list <- .dup$edge_list_df
-  audit_instance_count_col <- .dup$instance_count_col
-  effective_weight_col <- .dup$effective_weight_col
-  audit_duplicate_edges <- .dup$duplicate_edges
-  audit_n_duplicate_instances <- .dup$n_duplicate_instances
-
-  # Edges actually scored (after folding, dedup and self-loop handling).
-  # Synthetic rows added later (nofollow sink, robots-blocked self-loops) are
-  # graph-construction devices, not input edges, so n_edges is fixed here.
-  audit_n_edges <- nrow(current_edge_list)
-
-  # --- 3.5. Indexability handling ---
-  # Must come after dedup (step 3) but before nofollow (step 3.6) so that
-  # noindex-derived nofollow edges are picked up by the nofollow mechanism.
-  # Returns the (possibly mutated) edge list, the nofollow column name (a
-  # synthetic "__pr_nofollow__" may be created for noindex outlinks), and the
-  # robots-blocked URLs. See .apply_indexability below.
-  .idx <- .apply_indexability(
-    edge_list_df = current_edge_list,
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col,
     indexability_df = indexability_df,
     indexability_url_col = indexability_url_col,
     indexability_status_col = indexability_status_col,
     nofollow_col = nofollow_col,
     all_vertex_universe = all_vertex_universe,
-    from_col = edge_from_col,
-    to_col = edge_to_col
-  )
-  current_edge_list <- .idx$edge_list_df
-  nofollow_col <- .idx$nofollow_col
-  robots_blocked_urls <- .idx$robots_blocked_urls
-
-  # --- 3.6. Nofollow handling ---
-  # See .apply_nofollow below; returns the (possibly mutated) edge list and
-  # whether the evaporation sink was used. No-op when there is no usable
-  # nofollow column.
-  nofollow_sink_name <- "__pr_nofollow_sink__"
-  .nf <- .apply_nofollow(
-    edge_list_df = current_edge_list,
-    nofollow_col = nofollow_col,
     nofollow_action = nofollow_action,
     nofollow_sink_name = nofollow_sink_name,
-    from_col = edge_from_col,
-    to_col = edge_to_col
-  )
-  current_edge_list <- .nf$edge_list_df
-  used_nofollow_sink <- .nf$used_nofollow_sink
-
-  # --- 3.7. Leak sink self-loop ---
-  # When `out_of_scope_fold = "leak"` routed at least one source onto the leak
-  # sink (in step 2.75), add a self-loop so the sink is not a dangling node and
-  # the equity that reached it stays trapped (and evaporates when the sink is
-  # removed from the results). Added here, after deduplication, so
-  # `self_loops = "drop"` cannot strip it -- mirroring the nofollow sink.
-  current_edge_list <- .add_leak_sink_selfloop(
-    edge_list_df = current_edge_list,
     used_leak_sink = used_leak_sink,
-    leak_sink_name = leak_sink_name,
-    edge_from_col = edge_from_col,
-    edge_to_col = edge_to_col
+    leak_sink_name = leak_sink_name
   )
+  current_edge_list <- .edges$edge_list_df
+  audit_instance_count_col <- .edges$instance_count_col
+  effective_weight_col <- .edges$effective_weight_col
+  audit_duplicate_edges <- .edges$duplicate_edges
+  audit_n_duplicate_instances <- .edges$n_duplicate_instances
+  audit_n_edges <- .edges$n_edges
+  nofollow_col <- .edges$nofollow_col
+  robots_blocked_urls <- .edges$robots_blocked_urls
+  used_nofollow_sink <- .edges$used_nofollow_sink
 
   # --- 4. Handle isolates + inject unmatched prior URLs (opt-in) ---
   # See .build_vertex_set below: with drop_isolates_flag = TRUE only nodes on a
@@ -957,6 +856,205 @@ pagerank <- function(edge_list_df,
   attr(pagerank_results, "convergence") <- convergence
 
   pagerank_results
+}
+
+#' Clean pagerank() inputs and snapshot the pre-fold namespace.
+#'
+#' Resolves the canonicalization profile once (via .resolve_rurl_params, user
+#' `rurl_params` overriding per key) and cleans the edge / redirect / canonical
+#' URL columns through it -- one resolved profile that also drives fold
+#' collision
+#' detection, domain filtering, and prior prep so node identities never drift.
+#' Also captures the raw input-row count and the crawled node snapshot taken
+#' BEFORE any fold (cleaned edge endpoints only; indexability URLs are not part
+#' of scope) that the domain filter uses to detect folded-away filter values.
+#' @keywords internal
+#' @noRd
+.pagerank_clean_inputs <- function(edge_list_df,
+                                   redirects_df,
+                                   canonicals_df,
+                                   edge_from_col,
+                                   edge_to_col,
+                                   redirect_from_col,
+                                   redirect_to_col,
+                                   canonical_from_col,
+                                   canonical_to_col,
+                                   clean_edge_urls,
+                                   clean_redirect_urls,
+                                   clean_canonical_urls,
+                                   rurl_params) {
+  n_input_rows <- nrow(edge_list_df)
+  effective_rurl_params <- .resolve_rurl_params(rurl_params)
+  cleaned <- .clean_pipeline_urls(
+    edge_list_df = edge_list_df,
+    redirects_df = redirects_df,
+    canonicals_df = canonicals_df,
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col,
+    redirect_from_col = redirect_from_col,
+    redirect_to_col = redirect_to_col,
+    canonical_from_col = canonical_from_col,
+    canonical_to_col = canonical_to_col,
+    clean_edge_urls = clean_edge_urls,
+    clean_redirect_urls = clean_redirect_urls,
+    clean_canonical_urls = clean_canonical_urls,
+    effective_rurl_params = effective_rurl_params
+  )
+  edge_list_df <- cleaned$edge_list_df
+  sf_prefold_nodes <- unique(stats::na.omit(c(
+    as.character(edge_list_df[[edge_from_col]]),
+    as.character(edge_list_df[[edge_to_col]])
+  )))
+  list(
+    edge_list_df = edge_list_df,
+    redirects_df = cleaned$redirects_df,
+    canonicals_df = cleaned$canonicals_df,
+    effective_rurl_params = effective_rurl_params,
+    sf_prefold_nodes = sf_prefold_nodes,
+    n_input_rows = n_input_rows
+  )
+}
+
+#' Scope the post-fold namespace and fold the TIPR prior into it.
+#'
+#' Applies domain/host filtering (which runs AFTER the fold, and warns when an
+#' out-of-scope fold rewrote a crawled filter value away), snapshots the full
+#' vertex universe before NA rows are stripped, routes out-of-scope-folded
+#' sources onto the leak sink (retargeting their inbound equity and dropping
+#' their outbound edges), and canonicalizes + folds the prior into the same
+#' namespace. Returns the scoped edge list, vertex universe, and folded prior.
+#' @keywords internal
+#' @noRd
+.pagerank_scope_and_prior <- function(edge_list_df,
+                                      sf_prefold_nodes,
+                                      keep_domains,
+                                      exclude_domains,
+                                      keep_hosts,
+                                      exclude_hosts,
+                                      edge_from_col,
+                                      edge_to_col,
+                                      effective_rurl_params,
+                                      used_leak_sink,
+                                      leak_sources,
+                                      leak_sink_name,
+                                      prior_df,
+                                      prior_url_col,
+                                      prior_weight_col,
+                                      clean_edge_urls,
+                                      fold_map) {
+  edge_list_df <- .apply_domain_host_filter(
+    edge_list_df = edge_list_df,
+    prefold_nodes = sf_prefold_nodes,
+    keep_domains = keep_domains,
+    exclude_domains = exclude_domains,
+    keep_hosts = keep_hosts,
+    exclude_hosts = exclude_hosts,
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col,
+    effective_rurl_params = effective_rurl_params
+  )
+  all_vertex_universe <- unique(stats::na.omit(c(
+    as.character(edge_list_df[[edge_from_col]]),
+    as.character(edge_list_df[[edge_to_col]])
+  )))
+  leaked <- .route_leak_sources(
+    edge_list_df = edge_list_df,
+    all_vertex_universe = all_vertex_universe,
+    used_leak_sink = used_leak_sink,
+    leak_sources = leak_sources,
+    leak_sink_name = leak_sink_name,
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col
+  )
+  folded_prior_df <- .prepare_prior(
+    prior_df = prior_df,
+    prior_url_col = prior_url_col,
+    prior_weight_col = prior_weight_col,
+    clean_edge_urls = clean_edge_urls,
+    effective_rurl_params = effective_rurl_params,
+    fold_map = fold_map,
+    used_leak_sink = used_leak_sink,
+    leak_sources = leak_sources,
+    leak_sink_name = leak_sink_name
+  )
+  list(
+    edge_list_df = leaked$edge_list_df,
+    all_vertex_universe = leaked$all_vertex_universe,
+    folded_prior_df = folded_prior_df
+  )
+}
+
+#' Apply pagerank() edge policies to the scoped edge list.
+#'
+#' Dedups per `duplicate_edge_policy` (fixing the scored-edge count before any
+#' synthetic rows are added), applies noindex / robots.txt indexability
+#' handling, routes nofollowed edges per `nofollow_action`, and adds the
+#' leak-sink self-loop. All mutations happen after dedup so `self_loops =
+#' "drop"` cannot strip the synthetic self-loops. Returns the mutated edge list
+#' plus the dedup / nofollow / robots audit and column metadata.
+#' @keywords internal
+#' @noRd
+.pagerank_apply_edge_policies <- function(edge_list_df,
+                                          duplicate_edge_policy,
+                                          self_loops,
+                                          weight_col,
+                                          edge_from_col,
+                                          edge_to_col,
+                                          indexability_df,
+                                          indexability_url_col,
+                                          indexability_status_col,
+                                          nofollow_col,
+                                          all_vertex_universe,
+                                          nofollow_action,
+                                          nofollow_sink_name,
+                                          used_leak_sink,
+                                          leak_sink_name) {
+  dup <- .apply_duplicate_policy_audited(
+    edge_list_df = edge_list_df,
+    duplicate_edge_policy = duplicate_edge_policy,
+    self_loops = self_loops,
+    weight_col = weight_col,
+    from_col = edge_from_col,
+    to_col = edge_to_col
+  )
+  edge_list_df <- dup$edge_list_df
+  n_edges <- nrow(edge_list_df)
+  idx <- .apply_indexability(
+    edge_list_df = edge_list_df,
+    indexability_df = indexability_df,
+    indexability_url_col = indexability_url_col,
+    indexability_status_col = indexability_status_col,
+    nofollow_col = nofollow_col,
+    all_vertex_universe = all_vertex_universe,
+    from_col = edge_from_col,
+    to_col = edge_to_col
+  )
+  nf <- .apply_nofollow(
+    edge_list_df = idx$edge_list_df,
+    nofollow_col = idx$nofollow_col,
+    nofollow_action = nofollow_action,
+    nofollow_sink_name = nofollow_sink_name,
+    from_col = edge_from_col,
+    to_col = edge_to_col
+  )
+  edge_list_df <- .add_leak_sink_selfloop(
+    edge_list_df = nf$edge_list_df,
+    used_leak_sink = used_leak_sink,
+    leak_sink_name = leak_sink_name,
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col
+  )
+  list(
+    edge_list_df = edge_list_df,
+    instance_count_col = dup$instance_count_col,
+    effective_weight_col = dup$effective_weight_col,
+    duplicate_edges = dup$duplicate_edges,
+    n_duplicate_instances = dup$n_duplicate_instances,
+    n_edges = n_edges,
+    nofollow_col = idx$nofollow_col,
+    robots_blocked_urls = idx$robots_blocked_urls,
+    used_nofollow_sink = nf$used_nofollow_sink
+  )
 }
 
 #' Detect keep/exclude filter values folded out of scope.
@@ -1451,8 +1549,57 @@ pagerank <- function(edge_list_df,
   }
 
   # Known crawled URLs, canonicalized into the SAME namespace as the edges /
-  # fold targets (indexability URLs are not cleaned elsewhere, so clean them
-  # here through the same resolved profile when edge cleaning is on).
+  # fold targets (see .detect_crawl_urls).
+  crawl_urls <- .detect_crawl_urls(
+    indexability_df = indexability_df,
+    indexability_url_col = indexability_url_col,
+    clean_edge_urls = clean_edge_urls,
+    effective_rurl_params = effective_rurl_params
+  )
+
+  prefold_from <- as.character(edge_list_df[[from_col]])
+  prefold_to <- as.character(edge_list_df[[to_col]])
+
+  # Scan fold targets for silent merges (see .collect_fold_collisions).
+  coll <- .collect_fold_collisions(
+    fold_map = fold_map,
+    prefold_from = prefold_from,
+    prefold_to = prefold_to,
+    prefold_nodes = prefold_nodes,
+    crawl_urls = crawl_urls
+  )
+
+  if (length(coll$targets) == 0) {
+    return(NULL)
+  }
+
+  warning(
+    "Fold-target collision: canonical/redirect folding relabeled ",
+    "crawled page(s) onto uncrawled URL(s) that are ALSO ",
+    "independently linked, silently merging their inbound link equity ",
+    "and inflating PageRank: ",
+    paste0("`", coll$targets, "`", collapse = ", "),
+    ". Inspect `attr(result, \"transition_audit\")$fold$collisions`.",
+    call. = FALSE
+  )
+  data.frame(
+    target = coll$targets,
+    n_independent_refs = coll$nrefs,
+    source = coll$sources,
+    stringsAsFactors = FALSE
+  )
+}
+
+#' Canonicalize known crawled URLs into the edge namespace.
+#'
+#' Indexability URLs are not cleaned elsewhere, so clean them here through the
+#' same resolved rurl profile when edge cleaning is on, then drop NA/duplicates.
+#' @keywords internal
+#' @noRd
+.detect_crawl_urls <- function(indexability_df,
+                               indexability_url_col,
+                               clean_edge_urls,
+                               effective_rurl_params) {
   crawl_urls <- as.character(indexability_df[[indexability_url_col]])
   if (clean_edge_urls) {
     idx_tmp <- data.frame(u = crawl_urls, stringsAsFactors = FALSE)
@@ -1462,16 +1609,28 @@ pagerank <- function(edge_list_df,
     )
     crawl_urls <- as.character(idx_tmp$u)
   }
-  crawl_urls <- unique(stats::na.omit(crawl_urls))
+  unique(stats::na.omit(crawl_urls))
+}
 
-  prefold_from <- as.character(edge_list_df[[from_col]])
-  prefold_to <- as.character(edge_list_df[[to_col]])
+#' Scan fold targets for silent inbound-equity merges.
+#'
+#' A collision is an out-of-crawl fold target (never a `from`, not a crawled
+#' URL) that at least one real crawled source folds onto AND that is also
+#' independently linked from a page outside that source set. Returns parallel
+#' `targets` / `nrefs` / `sources` vectors (empty when there are none).
+#' @keywords internal
+#' @noRd
+.collect_fold_collisions <- function(fold_map,
+                                     prefold_from,
+                                     prefold_to,
+                                     prefold_nodes,
+                                     crawl_urls) {
   fold_sources <- names(fold_map)
   fold_targets <- unname(fold_map)
 
-  coll_targets <- character(0)
-  coll_nrefs <- integer(0)
-  coll_sources <- character(0)
+  targets <- character(0)
+  nrefs <- integer(0)
+  sources <- character(0)
 
   # Candidate targets: pure link-targets (never a `from`) that are ALSO not
   # known crawled URLs.
@@ -1489,33 +1648,15 @@ pagerank <- function(edge_list_df,
     indep <- prefold_to == tgt & !(prefold_from %in% srcs)
     n_indep <- sum(indep, na.rm = TRUE)
     if (n_indep > 0L) {
-      coll_targets <- c(coll_targets, tgt)
-      coll_nrefs <- c(coll_nrefs, as.integer(n_indep))
-      coll_sources <- c(
-        coll_sources, toString(unique(srcs[srcs %in% prefold_nodes]))
+      targets <- c(targets, tgt)
+      nrefs <- c(nrefs, as.integer(n_indep))
+      sources <- c(
+        sources, toString(unique(srcs[srcs %in% prefold_nodes]))
       )
     }
   }
 
-  if (length(coll_targets) == 0) {
-    return(NULL)
-  }
-
-  warning(
-    "Fold-target collision: canonical/redirect folding relabeled ",
-    "crawled page(s) onto uncrawled URL(s) that are ALSO ",
-    "independently linked, silently merging their inbound link equity ",
-    "and inflating PageRank: ",
-    paste0("`", coll_targets, "`", collapse = ", "),
-    ". Inspect `attr(result, \"transition_audit\")$fold$collisions`.",
-    call. = FALSE
-  )
-  data.frame(
-    target = coll_targets,
-    n_independent_refs = coll_nrefs,
-    source = coll_sources,
-    stringsAsFactors = FALSE
-  )
+  list(targets = targets, nrefs = nrefs, sources = sources)
 }
 
 #' Apply indexability handling (noindex + robots.txt) to the edge list.
@@ -1538,7 +1679,6 @@ pagerank <- function(edge_list_df,
                                 all_vertex_universe,
                                 from_col,
                                 to_col) {
-  # No-op when there is no indexability data or no edges to act on.
   if (is.null(indexability_df) || nrow(indexability_df) == 0 ||
         nrow(edge_list_df) == 0) {
     return(list(
@@ -1550,7 +1690,7 @@ pagerank <- function(edge_list_df,
   statuses <- as.character(indexability_df[[indexability_status_col]])
   urls <- as.character(indexability_df[[indexability_url_col]])
 
-  # Parse statuses: robots.txt takes priority over noindex
+  # Statuses parsed with robots.txt taking priority over noindex.
   is_robots_blocked <- grepl("Blocked by robots.txt", statuses, fixed = TRUE)
   is_noindex <- grepl("noindex", statuses, ignore.case = TRUE) &
     !is_robots_blocked
@@ -1560,39 +1700,25 @@ pagerank <- function(edge_list_df,
 
   # --- noindex pages: mark all outgoing edges as nofollow ---
   if (length(noindex_urls) > 0) {
-    from_is_noindex <- edge_list_df[[from_col]] %in% noindex_urls
-    if (any(from_is_noindex)) {
-      # Create nofollow column if it doesn't exist
-      if (is.null(nofollow_col)) {
-        nofollow_col <- "__pr_nofollow__"
-        edge_list_df[[nofollow_col]] <- FALSE
-      } else if (!(nofollow_col %in% names(edge_list_df))) {
-        edge_list_df[[nofollow_col]] <- FALSE
-      }
-      edge_list_df[[nofollow_col]][from_is_noindex] <- TRUE
-    }
+    .ni <- .mark_noindex_nofollow(
+      edge_list_df = edge_list_df,
+      noindex_urls = noindex_urls,
+      nofollow_col = nofollow_col,
+      from_col = from_col
+    )
+    edge_list_df <- .ni$edge_list_df
+    nofollow_col <- .ni$nofollow_col
   }
 
   # --- robots-blocked pages: remove outgoing edges, add self-loop ---
   if (length(robots_blocked_urls) > 0) {
-    from_is_blocked <- edge_list_df[[from_col]] %in% robots_blocked_urls
-    if (any(from_is_blocked)) {
-      # Remove all outgoing edges from blocked pages
-      edge_list_df <- edge_list_df[!from_is_blocked, , drop = FALSE]
-
-      # Add self-loops for each blocked URL that exists as a source
-      blocked_with_edges <- unique(robots_blocked_urls[
-        robots_blocked_urls %in% edge_list_df[[from_col]] |
-          robots_blocked_urls %in% edge_list_df[[to_col]] |
-          robots_blocked_urls %in% all_vertex_universe
-      ])
-      if (length(blocked_with_edges) > 0) {
-        self_loop_df <- .make_sink_rows(
-          edge_list_df, from_col, to_col, blocked_with_edges
-        )
-        edge_list_df <- rbind(edge_list_df, self_loop_df)
-      }
-    }
+    edge_list_df <- .apply_robots_blocked(
+      edge_list_df = edge_list_df,
+      robots_blocked_urls = robots_blocked_urls,
+      all_vertex_universe = all_vertex_universe,
+      from_col = from_col,
+      to_col = to_col
+    )
   }
 
   list(
@@ -1600,6 +1726,64 @@ pagerank <- function(edge_list_df,
     nofollow_col = nofollow_col,
     robots_blocked_urls = robots_blocked_urls
   )
+}
+
+#' Mark noindex pages' outgoing edges as nofollow.
+#'
+#' Creates a synthetic `"__pr_nofollow__"` column when the caller supplied none
+#' (or none present in the edge list). Returns the (possibly mutated) edge list
+#' and the effective nofollow column name.
+#' @keywords internal
+#' @noRd
+.mark_noindex_nofollow <- function(edge_list_df,
+                                   noindex_urls,
+                                   nofollow_col,
+                                   from_col) {
+  from_is_noindex <- edge_list_df[[from_col]] %in% noindex_urls
+  if (any(from_is_noindex)) {
+    # Create nofollow column if it doesn't exist
+    if (is.null(nofollow_col)) {
+      nofollow_col <- "__pr_nofollow__"
+      edge_list_df[[nofollow_col]] <- FALSE
+    } else if (!(nofollow_col %in% names(edge_list_df))) {
+      edge_list_df[[nofollow_col]] <- FALSE
+    }
+    edge_list_df[[nofollow_col]][from_is_noindex] <- TRUE
+  }
+  list(edge_list_df = edge_list_df, nofollow_col = nofollow_col)
+}
+
+#' Remove robots-blocked pages' outgoing edges and add trapping self-loops.
+#'
+#' Blocked sources lose their outgoing edges; each blocked URL still present as
+#' a node (edge endpoint or in the vertex universe) gains a self-loop so its
+#' trapped equity does not dangle. Returns the mutated edge list.
+#' @keywords internal
+#' @noRd
+.apply_robots_blocked <- function(edge_list_df,
+                                  robots_blocked_urls,
+                                  all_vertex_universe,
+                                  from_col,
+                                  to_col) {
+  from_is_blocked <- edge_list_df[[from_col]] %in% robots_blocked_urls
+  if (any(from_is_blocked)) {
+    # Remove all outgoing edges from blocked pages
+    edge_list_df <- edge_list_df[!from_is_blocked, , drop = FALSE]
+
+    # Add self-loops for each blocked URL that exists as a source
+    blocked_with_edges <- unique(robots_blocked_urls[
+      robots_blocked_urls %in% edge_list_df[[from_col]] |
+        robots_blocked_urls %in% edge_list_df[[to_col]] |
+        robots_blocked_urls %in% all_vertex_universe
+    ])
+    if (length(blocked_with_edges) > 0) {
+      self_loop_df <- .make_sink_rows(
+        edge_list_df, from_col, to_col, blocked_with_edges
+      )
+      edge_list_df <- rbind(edge_list_df, self_loop_df)
+    }
+  }
+  edge_list_df
 }
 
 #' Apply nofollow handling to the edge list.
@@ -1801,18 +1985,7 @@ pagerank <- function(edge_list_df,
   has_redirects <- .df_has_rows(redirects_df)
   has_canonicals <- .df_has_rows(canonicals_df)
 
-  out <- list(
-    edge_list_df = edge_list_df,
-    fold_map = character(0),
-    audit_has_redirects = FALSE,
-    audit_has_canonicals = FALSE,
-    audit_oos_sources = character(0),
-    audit_oos_targets = character(0),
-    audit_oos_signals = character(0),
-    audit_collisions_df = NULL,
-    leak_sources = character(0),
-    used_leak_sink = FALSE
-  )
+  out <- .fold_result_skeleton(edge_list_df)
   if (!has_redirects && !has_canonicals) {
     return(out)
   }
@@ -1831,36 +2004,96 @@ pagerank <- function(edge_list_df,
     canonical_conflict_policy = canonical_conflict_policy
   )
   fold_map <- fold$map
+  out$fold_map <- fold_map
 
   if (length(fold$signal) > 0) {
     out$audit_has_redirects <- any(fold$signal == "redirect")
     out$audit_has_canonicals <- any(fold$signal == "canonical")
   }
 
+  # Classify out-of-scope folds, detect collisions, and apply the composed map
+  # to the edges (see .apply_composed_fold; skipped when the map is empty).
   if (length(fold_map) > 0) {
-    # Pre-fold crawled node set: unique, non-NA edge endpoints captured
-    # IMMEDIATELY BEFORE the fold is applied. Indexability URLs are NOT part of
-    # scope -- the crawled set is edge endpoints only.
-    prefold_nodes <- unique(stats::na.omit(c(
-      as.character(edge_list_df[[edge_from_col]]),
-      as.character(edge_list_df[[edge_to_col]])
-    )))
-
-    # Classify out-of-scope entries (fold targets that are not crawled nodes)
-    # and apply the out_of_scope_fold policy. See .classify_oos_folds.
-    .oos <- .classify_oos_folds(
+    out <- .apply_composed_fold(
+      out = out,
       fold_map = fold_map,
       fold_signal = fold$signal,
-      prefold_nodes = prefold_nodes,
-      out_of_scope_fold = out_of_scope_fold
+      edge_list_df = edge_list_df,
+      out_of_scope_fold = out_of_scope_fold,
+      indexability_df = indexability_df,
+      indexability_url_col = indexability_url_col,
+      clean_edge_urls = clean_edge_urls,
+      effective_rurl_params = effective_rurl_params,
+      edge_from_col = edge_from_col,
+      edge_to_col = edge_to_col
     )
-    fold_map <- .oos$fold_map
-    out$audit_oos_sources <- .oos$oos_sources
-    out$audit_oos_targets <- .oos$oos_targets
-    out$audit_oos_signals <- .oos$oos_signals
-    out$leak_sources <- .oos$leak_sources
-    out$used_leak_sink <- .oos$used_leak_sink
   }
+  out
+}
+
+#' Empty fold-resolution result skeleton.
+#'
+#' The default result returned when no redirects/canonicals apply, and the base
+#' object that .resolve_fold_and_apply mutates. `edge_list_df` starts as the
+#' unmodified input.
+#' @keywords internal
+#' @noRd
+.fold_result_skeleton <- function(edge_list_df) {
+  list(
+    edge_list_df = edge_list_df,
+    fold_map = character(0),
+    audit_has_redirects = FALSE,
+    audit_has_canonicals = FALSE,
+    audit_oos_sources = character(0),
+    audit_oos_targets = character(0),
+    audit_oos_signals = character(0),
+    audit_collisions_df = NULL,
+    leak_sources = character(0),
+    used_leak_sink = FALSE
+  )
+}
+
+#' Classify out-of-scope folds, detect collisions, and apply the fold map.
+#'
+#' Runs on a non-empty composed fold map: captures the pre-fold crawled node
+#' set, applies the out_of_scope_fold policy (via .classify_oos_folds), and --
+#' when a non-empty map survives -- records fold-target collisions and relabels
+#' the edge endpoints through the map. Mutates and returns `out`.
+#' @keywords internal
+#' @noRd
+.apply_composed_fold <- function(out,
+                                 fold_map,
+                                 fold_signal,
+                                 edge_list_df,
+                                 out_of_scope_fold,
+                                 indexability_df,
+                                 indexability_url_col,
+                                 clean_edge_urls,
+                                 effective_rurl_params,
+                                 edge_from_col,
+                                 edge_to_col) {
+  # Pre-fold crawled node set: unique, non-NA edge endpoints captured
+  # IMMEDIATELY BEFORE the fold is applied. Indexability URLs are NOT part of
+  # scope -- the crawled set is edge endpoints only.
+  prefold_nodes <- unique(stats::na.omit(c(
+    as.character(edge_list_df[[edge_from_col]]),
+    as.character(edge_list_df[[edge_to_col]])
+  )))
+
+  # Classify out-of-scope entries (fold targets that are not crawled nodes)
+  # and apply the out_of_scope_fold policy. See .classify_oos_folds.
+  .oos <- .classify_oos_folds(
+    fold_map = fold_map,
+    fold_signal = fold_signal,
+    prefold_nodes = prefold_nodes,
+    out_of_scope_fold = out_of_scope_fold
+  )
+  fold_map <- .oos$fold_map
+  out$audit_oos_sources <- .oos$oos_sources
+  out$audit_oos_targets <- .oos$oos_targets
+  out$audit_oos_signals <- .oos$oos_signals
+  out$leak_sources <- .oos$leak_sources
+  out$used_leak_sink <- .oos$used_leak_sink
 
   if (length(fold_map) > 0) {
     out$audit_collisions_df <- .detect_fold_collisions(
@@ -2301,11 +2534,78 @@ pagerank <- function(edge_list_df,
                                     has_redirects,
                                     has_canonicals,
                                     indexability_df) {
+  # Derived scalars, config snapshot, and construction live in helpers below.
+  metrics <- .transition_audit_metrics(
+    pagerank_results = pagerank_results,
+    current_edge_list = current_edge_list,
+    folded_prior_df = folded_prior_df,
+    vertices_for_pagerank_df = vertices_for_pagerank_df,
+    node_col_name = node_col_name,
+    prior_url_col = prior_url_col,
+    effective_weight_col = effective_weight_col,
+    oos_sources = oos_sources,
+    oos_targets = oos_targets,
+    oos_signals = oos_signals,
+    robots_blocked_urls = robots_blocked_urls
+  )
+  .assemble_transition_audit(
+    metrics = metrics,
+    n_input_rows = n_input_rows,
+    n_edges = n_edges,
+    duplicate_edge_policy = duplicate_edge_policy,
+    instance_count_col = instance_count_col,
+    n_duplicate_instances = n_duplicate_instances,
+    duplicate_edges = duplicate_edges,
+    n_rows_na = n_rows_na,
+    n_rows_duplicate = n_rows_duplicate,
+    n_self_loops = n_self_loops,
+    mass_evaporated = mass_evaporated,
+    mass_leaked = mass_leaked,
+    mass_hidden = mass_hidden,
+    out_of_scope_fold = out_of_scope_fold,
+    oos_applied = oos_applied,
+    collisions_df = collisions_df,
+    self_loops = self_loops,
+    drop_isolates_flag = drop_isolates_flag,
+    reverse = reverse,
+    weight_col = weight_col,
+    effective_weight_col = effective_weight_col,
+    nofollow_col = nofollow_col,
+    nofollow_action = nofollow_action,
+    robots_blocked_action = robots_blocked_action,
+    prior_alpha = prior_alpha,
+    prior_transform = prior_transform,
+    prior_inject_unmatched = prior_inject_unmatched,
+    has_redirects = has_redirects,
+    has_canonicals = has_canonicals,
+    indexability_df = indexability_df,
+    folded_prior_df = folded_prior_df
+  )
+}
+
+#' Derive the scalar metrics carried by a transition_audit.
+#'
+#' Computes behavioral-weight coverage, the unmatched authority-prior count, the
+#' reported PageRank total, the out-of-scope fold list, and the vertex / robots
+#' / oos counts. Returns a named list consumed by [.assemble_transition_audit].
+#' @keywords internal
+#' @noRd
+.transition_audit_metrics <- function(pagerank_results,
+                                      current_edge_list,
+                                      folded_prior_df,
+                                      vertices_for_pagerank_df,
+                                      node_col_name,
+                                      prior_url_col,
+                                      effective_weight_col,
+                                      oos_sources,
+                                      oos_targets,
+                                      oos_signals,
+                                      robots_blocked_urls) {
   # Behavioral-weight coverage: how many scored edges carry a usable weight.
-  audit_weighted <- !is.null(effective_weight_col) &&
+  weighted <- !is.null(effective_weight_col) &&
     effective_weight_col %in% names(current_edge_list)
   n_edges_weighted <- 0L
-  if (audit_weighted && nrow(current_edge_list) > 0) {
+  if (weighted && nrow(current_edge_list) > 0) {
     w <- suppressWarnings(as.numeric(current_edge_list[[effective_weight_col]]))
     n_edges_weighted <- sum(!is.na(w) & is.finite(w) & w > 0)
   }
@@ -2337,19 +2637,109 @@ pagerank <- function(edge_list_df,
     NULL
   }
 
+  list(
+    weighted = weighted,
+    weight_col = if (weighted) effective_weight_col else NULL,
+    n_edges_weighted = n_edges_weighted,
+    n_prior_unmatched = n_prior_unmatched,
+    pagerank_total = pagerank_total,
+    oos_fold_df = oos_fold_df,
+    n_vertices = nrow(pagerank_results),
+    n_robots_blocked = length(robots_blocked_urls),
+    n_out_of_scope_folds = length(oos_sources)
+  )
+}
+
+#' Snapshot the pagerank() configuration into the transition_audit config list.
+#' @keywords internal
+#' @noRd
+.transition_audit_config <- function(self_loops,
+                                     drop_isolates_flag,
+                                     reverse,
+                                     weight_col,
+                                     effective_weight_col,
+                                     duplicate_edge_policy,
+                                     nofollow_col,
+                                     nofollow_action,
+                                     robots_blocked_action,
+                                     prior_alpha,
+                                     prior_transform,
+                                     prior_inject_unmatched,
+                                     has_redirects,
+                                     has_canonicals,
+                                     indexability_df,
+                                     folded_prior_df) {
   config_nofollow_col <- if (identical(nofollow_col, "__pr_nofollow__")) {
     NULL
   } else {
     nofollow_col
   }
+  list(
+    self_loops = self_loops,
+    drop_isolates_flag = drop_isolates_flag,
+    reverse = reverse,
+    weight_col = weight_col,
+    effective_weight_col = effective_weight_col,
+    duplicate_edge_policy = duplicate_edge_policy,
+    nofollow_col = config_nofollow_col,
+    nofollow_action = nofollow_action,
+    robots_blocked_action = robots_blocked_action,
+    prior_alpha = prior_alpha,
+    prior_transform = prior_transform,
+    prior_inject_unmatched = prior_inject_unmatched,
+    has_redirects = isTRUE(has_redirects),
+    has_canonicals = isTRUE(has_canonicals),
+    has_indexability = !is.null(indexability_df) &&
+      nrow(indexability_df) > 0,
+    has_prior = !is.null(folded_prior_df)
+  )
+}
 
+#' Construct the transition_audit object from precomputed metrics + raw counts.
+#'
+#' Packages the config snapshot (via [.transition_audit_config]) and forwards
+#' every field to [new_transition_audit()]. Split out so the derived-metric and
+#' config concerns live in their own helpers; behavior is unchanged.
+#' @keywords internal
+#' @noRd
+.assemble_transition_audit <- function(metrics,
+                                       n_input_rows,
+                                       n_edges,
+                                       duplicate_edge_policy,
+                                       instance_count_col,
+                                       n_duplicate_instances,
+                                       duplicate_edges,
+                                       n_rows_na,
+                                       n_rows_duplicate,
+                                       n_self_loops,
+                                       mass_evaporated,
+                                       mass_leaked,
+                                       mass_hidden,
+                                       out_of_scope_fold,
+                                       oos_applied,
+                                       collisions_df,
+                                       self_loops,
+                                       drop_isolates_flag,
+                                       reverse,
+                                       weight_col,
+                                       effective_weight_col,
+                                       nofollow_col,
+                                       nofollow_action,
+                                       robots_blocked_action,
+                                       prior_alpha,
+                                       prior_transform,
+                                       prior_inject_unmatched,
+                                       has_redirects,
+                                       has_canonicals,
+                                       indexability_df,
+                                       folded_prior_df) {
   new_transition_audit(
     n_input_rows = n_input_rows,
     n_edges = n_edges,
-    n_vertices = nrow(pagerank_results),
-    weighted = audit_weighted,
-    weight_col = if (audit_weighted) effective_weight_col else NULL,
-    n_edges_weighted = n_edges_weighted,
+    n_vertices = metrics$n_vertices,
+    weighted = metrics$weighted,
+    weight_col = metrics$weight_col,
+    n_edges_weighted = metrics$n_edges_weighted,
     duplicate_edge_policy = duplicate_edge_policy,
     instance_count_col = instance_count_col,
     n_duplicate_instances = n_duplicate_instances,
@@ -2357,36 +2747,35 @@ pagerank <- function(edge_list_df,
     n_rows_na = n_rows_na,
     n_rows_duplicate = n_rows_duplicate,
     n_self_loops = n_self_loops,
-    n_prior_unmatched = n_prior_unmatched,
-    n_robots_blocked = length(robots_blocked_urls),
-    pagerank_total = pagerank_total,
-    mass_reported = pagerank_total,
+    n_prior_unmatched = metrics$n_prior_unmatched,
+    n_robots_blocked = metrics$n_robots_blocked,
+    pagerank_total = metrics$pagerank_total,
+    mass_reported = metrics$pagerank_total,
     mass_evaporated = mass_evaporated,
     mass_leaked = mass_leaked,
     mass_hidden = mass_hidden,
     out_of_scope_fold = out_of_scope_fold,
-    n_out_of_scope_folds = length(oos_sources),
+    n_out_of_scope_folds = metrics$n_out_of_scope_folds,
     out_of_scope_folds_applied = oos_applied,
-    out_of_scope_fold_list = oos_fold_df,
+    out_of_scope_fold_list = metrics$oos_fold_df,
     fold_collisions = collisions_df,
-    config = list(
+    config = .transition_audit_config(
       self_loops = self_loops,
       drop_isolates_flag = drop_isolates_flag,
       reverse = reverse,
       weight_col = weight_col,
       effective_weight_col = effective_weight_col,
       duplicate_edge_policy = duplicate_edge_policy,
-      nofollow_col = config_nofollow_col,
+      nofollow_col = nofollow_col,
       nofollow_action = nofollow_action,
       robots_blocked_action = robots_blocked_action,
       prior_alpha = prior_alpha,
       prior_transform = prior_transform,
       prior_inject_unmatched = prior_inject_unmatched,
-      has_redirects = isTRUE(has_redirects),
-      has_canonicals = isTRUE(has_canonicals),
-      has_indexability = !is.null(indexability_df) &&
-        nrow(indexability_df) > 0,
-      has_prior = !is.null(folded_prior_df)
+      has_redirects = has_redirects,
+      has_canonicals = has_canonicals,
+      indexability_df = indexability_df,
+      folded_prior_df = folded_prior_df
     )
   )
 }

@@ -54,20 +54,7 @@ compare_pagerank <- function(pr_a, pr_b,
                              label_a = "a",
                              label_b = "b") {
   # --- Validation ---
-  if (!is.data.frame(pr_a)) stop("`pr_a` must be a data frame.", call. = FALSE)
-  if (!is.data.frame(pr_b)) stop("`pr_b` must be a data frame.", call. = FALSE)
-  if (!(node_col %in% names(pr_a))) {
-    stop("Column '", node_col, "' not found in `pr_a`.", call. = FALSE)
-  }
-  if (!(node_col %in% names(pr_b))) {
-    stop("Column '", node_col, "' not found in `pr_b`.", call. = FALSE)
-  }
-  if (!(pr_col %in% names(pr_a))) {
-    stop("Column '", pr_col, "' not found in `pr_a`.", call. = FALSE)
-  }
-  if (!(pr_col %in% names(pr_b))) {
-    stop("Column '", pr_col, "' not found in `pr_b`.", call. = FALSE)
-  }
+  .validate_compare_pagerank_frames(pr_a, pr_b, node_col, pr_col)
 
   # --- Extract and Rank ---
   a <- data.frame(
@@ -96,7 +83,43 @@ compare_pagerank <- function(pr_a, pr_b,
   # rank_delta: positive = improved in b (lower rank number in b)
   merged$rank_delta <- merged$rank_a - merged$rank_b
 
-  # --- Rename Columns ---
+  # --- Rename Columns + sort by absolute delta descending ---
+  result <- .compare_pagerank_finalize(
+    merged, node_col, pr_col, label_a, label_b
+  )
+
+  # --- Summary Statistics ---
+  attr(result, "summary") <- .compare_pagerank_summary(merged)
+
+  result
+}
+
+#' Validate the two input data frames and required columns for compare_pagerank
+#' @keywords internal
+#' @noRd
+.validate_compare_pagerank_frames <- function(pr_a, pr_b, node_col, pr_col) {
+  if (!is.data.frame(pr_a)) stop("`pr_a` must be a data frame.", call. = FALSE)
+  if (!is.data.frame(pr_b)) stop("`pr_b` must be a data frame.", call. = FALSE)
+  if (!(node_col %in% names(pr_a))) {
+    stop("Column '", node_col, "' not found in `pr_a`.", call. = FALSE)
+  }
+  if (!(node_col %in% names(pr_b))) {
+    stop("Column '", node_col, "' not found in `pr_b`.", call. = FALSE)
+  }
+  if (!(pr_col %in% names(pr_a))) {
+    stop("Column '", pr_col, "' not found in `pr_a`.", call. = FALSE)
+  }
+  if (!(pr_col %in% names(pr_b))) {
+    stop("Column '", pr_col, "' not found in `pr_b`.", call. = FALSE)
+  }
+  invisible(NULL)
+}
+
+#' Rename the merged comparison columns and sort by absolute delta descending
+#' @keywords internal
+#' @noRd
+.compare_pagerank_finalize <- function(merged, node_col, pr_col,
+                                       label_a, label_b) {
   pr_col_a <- paste0(pr_col, "_", label_a)
   pr_col_b <- paste0(pr_col, "_", label_b)
   rank_col_a <- paste0("rank_", label_a)
@@ -117,13 +140,17 @@ compare_pagerank <- function(pr_a, pr_b,
     rank_col_a, rank_col_b, "rank_delta"
   )
 
-  # --- Sort by absolute delta descending ---
   abs_delta <- abs(result$delta)
   abs_delta[is.na(abs_delta)] <- -Inf
   result <- result[order(abs_delta, decreasing = TRUE), , drop = FALSE]
   row.names(result) <- NULL
+  result
+}
 
-  # --- Summary Statistics ---
+#' Compute the comparison summary statistics on the common (matched) nodes
+#' @keywords internal
+#' @noRd
+.compare_pagerank_summary <- function(merged) {
   common_mask <- !is.na(merged$pr_a) & !is.na(merged$pr_b)
   common_a_ranks <- merged$rank_a[common_mask]
   common_b_ranks <- merged$rank_b[common_mask]
@@ -146,12 +173,10 @@ compare_pagerank <- function(pr_a, pr_b,
   nodes_gained <- sum(is.na(merged$pr_a) & !is.na(merged$pr_b))
   nodes_lost <- sum(!is.na(merged$pr_a) & is.na(merged$pr_b))
 
-  attr(result, "summary") <- list(
+  list(
     spearman_rho = spearman_rho,
     mean_abs_delta = mean_abs_delta,
     nodes_gained = nodes_gained,
     nodes_lost = nodes_lost
   )
-
-  result
 }

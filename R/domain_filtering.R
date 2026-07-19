@@ -107,6 +107,32 @@ filter_links_by_domain <- function(edge_list_df,
   }
 
   # --- Build filter lists ---
+  fl <- .resolve_filter_lists(
+    keep_domains, keep_hosts, ignore_domains, ignore_hosts,
+    psl_section, rurl_profile
+  )
+
+  # No filters active -- return as-is
+  if (!fl$has_keep_list && !fl$has_ignore_list) {
+    return(.empty_filter_result(
+      edge_list_df, return_report, nrow(edge_list_df)
+    ))
+  }
+
+  .apply_domain_filter(
+    edge_list_df, from_col, to_col, fl,
+    psl_section, rurl_profile, drop_third_party, return_report
+  )
+}
+
+
+#' Resolve keep/ignore domain + host lists and the has-list flags
+#'
+#' @keywords internal
+#' @noRd
+.resolve_filter_lists <- function(keep_domains, keep_hosts,
+                                  ignore_domains, ignore_hosts,
+                                  psl_section, rurl_profile) {
   keep_domains_resolved <- .resolve_domains(
     keep_domains, psl_section, rurl_profile
   )
@@ -116,18 +142,26 @@ filter_links_by_domain <- function(edge_list_df,
   )
   ignore_hosts_resolved <- .resolve_hosts(ignore_hosts, rurl_profile)
 
-  has_keep_list <- length(keep_domains_resolved) > 0 ||
-    length(keep_hosts_resolved) > 0
-  has_ignore_list <- length(ignore_domains_resolved) > 0 ||
-    length(ignore_hosts_resolved) > 0
+  list(
+    keep_domains = keep_domains_resolved,
+    keep_hosts = keep_hosts_resolved,
+    ignore_domains = ignore_domains_resolved,
+    ignore_hosts = ignore_hosts_resolved,
+    has_keep_list = length(keep_domains_resolved) > 0 ||
+      length(keep_hosts_resolved) > 0,
+    has_ignore_list = length(ignore_domains_resolved) > 0 ||
+      length(ignore_hosts_resolved) > 0
+  )
+}
 
-  # No filters active -- return as-is
-  if (!has_keep_list && !has_ignore_list) {
-    return(.empty_filter_result(
-      edge_list_df, return_report, nrow(edge_list_df)
-    ))
-  }
 
+#' Extract, classify, and filter both endpoints, returning df or report
+#'
+#' @keywords internal
+#' @noRd
+.apply_domain_filter <- function(edge_list_df, from_col, to_col, fl,
+                                 psl_section, rurl_profile, drop_third_party,
+                                 return_report) {
   # --- Extract host/domain for all unique URLs ---
   from_urls <- as.character(edge_list_df[[from_col]])
   to_urls <- as.character(edge_list_df[[to_col]])
@@ -136,15 +170,15 @@ filter_links_by_domain <- function(edge_list_df,
   # --- Classify each endpoint ---
   keep_from <- .classify_url_vector(
     from_urls, url_maps,
-    keep_domains_resolved, keep_hosts_resolved,
-    ignore_domains_resolved, ignore_hosts_resolved,
-    has_keep_list, drop_third_party
+    fl$keep_domains, fl$keep_hosts,
+    fl$ignore_domains, fl$ignore_hosts,
+    fl$has_keep_list, drop_third_party
   )
   keep_to <- .classify_url_vector(
     to_urls, url_maps,
-    keep_domains_resolved, keep_hosts_resolved,
-    ignore_domains_resolved, ignore_hosts_resolved,
-    has_keep_list, drop_third_party
+    fl$keep_domains, fl$keep_hosts,
+    fl$ignore_domains, fl$ignore_hosts,
+    fl$has_keep_list, drop_third_party
   )
 
   # Both endpoints must pass
@@ -155,8 +189,8 @@ filter_links_by_domain <- function(edge_list_df,
   if (return_report) {
     return(.build_filter_report(
       edge_list_df, filtered_df,
-      keep_domains_resolved, keep_hosts_resolved,
-      ignore_domains_resolved, ignore_hosts_resolved
+      fl$keep_domains, fl$keep_hosts,
+      fl$ignore_domains, fl$ignore_hosts
     ))
   }
   filtered_df

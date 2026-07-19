@@ -133,18 +133,36 @@ ga4_page_transitions <- function(events_df,
   )
 
   # --- Empty input: return an empty edge list with the right shape. ---
-  empty_result <- function() {
-    out <- data.frame(
-      a = character(0), b = character(0), c = integer(0)
-    )
-    names(out) <- c(from_col, to_col, count_col)
-    out
-  }
-
   if (nrow(events_df) == 0) {
-    return(empty_result())
+    return(.ga4_empty_transitions(from_col, to_col, count_col))
   }
 
+  # --- Build within-session consecutive transitions ---
+  .ga4_compute_transitions(
+    events_df, user_id_col, session_id_col, page_col, timestamp_col,
+    tie_break_cols, drop_self_transitions, from_col, to_col, count_col
+  )
+}
+
+#' Empty transition edge list with the documented column shape.
+#' @noRd
+.ga4_empty_transitions <- function(from_col, to_col, count_col) {
+  out <- data.frame(
+    a = character(0), b = character(0), c = integer(0)
+  )
+  names(out) <- c(from_col, to_col, count_col)
+  out
+}
+
+#' Order events, build consecutive transitions, and aggregate to counts.
+#'
+#' Assumes `events_df` is non-empty. Returns the empty-shaped edge list when
+#' fewer than two ordered events exist or no transitions survive.
+#' @noRd
+.ga4_compute_transitions <- function(events_df, user_id_col, session_id_col,
+                                     page_col, timestamp_col, tie_break_cols,
+                                     drop_self_transitions, from_col, to_col,
+                                     count_col) {
   # --- Deterministic ordering contract ---
   ordered <- .ga4_order_events(
     events_df, user_id_col, session_id_col, page_col, timestamp_col,
@@ -153,7 +171,7 @@ ga4_page_transitions <- function(events_df,
 
   # --- Build within-session consecutive transitions ---
   if (length(ordered$page) < 2L) {
-    return(empty_result())
+    return(.ga4_empty_transitions(from_col, to_col, count_col))
   }
 
   trans <- .ga4_build_transitions(
@@ -161,7 +179,7 @@ ga4_page_transitions <- function(events_df,
   )
 
   if (length(trans$from) == 0) {
-    return(empty_result())
+    return(.ga4_empty_transitions(from_col, to_col, count_col))
   }
 
   # --- Aggregate to transition counts ---

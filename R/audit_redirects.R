@@ -115,6 +115,18 @@ audit_redirects <- function(redirects_df,
     return(.audit_empty_result())
   }
 
+  .audit_signal_analysis(
+    result, sources, targets, edge_list_df, edge_from_col, edge_to_col
+  )
+}
+
+#' Compute the self-ref / conflict / loop / orphan audit fields.
+#'
+#' Extends `result` (which already carries `n_rules`) with the remaining audit
+#' fields in the original order and returns it. Assumes at least one rule.
+#' @noRd
+.audit_signal_analysis <- function(result, sources, targets, edge_list_df,
+                                   edge_from_col, edge_to_col) {
   # --- Self-referencing redirects ---
   self_ref_mask <- sources == targets
   result$n_self_refs <- sum(self_ref_mask)
@@ -236,21 +248,29 @@ audit_redirects <- function(redirects_df,
 }
 
 
+#' Empty chain-analysis result for `.audit_loops_and_chains()`
+#' @return list(n_loops, loops, chains, max_chain_length)
+#' @noRd
+.audit_empty_chains <- function() {
+  list(
+    n_loops = 0L,
+    loops = list(),
+    chains = data.frame(
+      from = character(0), to_final = character(0),
+      chain_length = integer(0),
+      in_loop = logical(0)
+    ),
+    max_chain_length = 0L
+  )
+}
+
+
 #' Loop detection and chain analysis for `.audit_signal()`
 #' @return list(n_loops, loops, chains, max_chain_length)
 #' @noRd
 .audit_loops_and_chains <- function(clean_sources, clean_targets) {
   if (length(clean_sources) == 0) {
-    return(list(
-      n_loops = 0L,
-      loops = list(),
-      chains = data.frame(
-        from = character(0), to_final = character(0),
-        chain_length = integer(0),
-        in_loop = logical(0)
-      ),
-      max_chain_length = 0L
-    ))
+    return(.audit_empty_chains())
   }
 
   # Deduplicate for graph building (take first occurrence per source)

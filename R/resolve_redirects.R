@@ -591,6 +591,21 @@ resolve_redirects <- function(edge_list_df,
   }
 
   # --- Apply policy ---
+  .apply_redirect_conflict_policy(
+    redirects_df, from_col, to_col, policy,
+    sources, targets, conflicting_sources
+  )
+}
+
+#' Resolve conflicting redirect sources according to the chosen policy
+#'
+#' Invoked by [.preprocess_redirects()] only when at least one source has
+#' multiple distinct targets. Error-message text and per-policy behaviour are
+#' preserved verbatim.
+#' @noRd
+.apply_redirect_conflict_policy <- function(redirects_df, from_col, to_col,
+                                            policy, sources, targets,
+                                            conflicting_sources) {
   if (policy == "strict") {
     first_conflict <- conflicting_sources[1]
     conflict_targets <- unique(targets[sources == first_conflict])

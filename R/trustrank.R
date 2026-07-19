@@ -95,23 +95,7 @@ trust_seed_prior <- function(trusted_seeds,
     wts <- suppressWarnings(as.numeric(trusted_seeds[[seed_weight_col]]))
   } else if (is.character(trusted_seeds) || is.factor(trusted_seeds)) {
     urls <- as.character(trusted_seeds)
-    if (is.null(seed_weight)) {
-      wts <- rep(1, length(urls))
-    } else {
-      if (!is.numeric(seed_weight)) {
-        stop("`seed_weight` must be numeric or NULL.", call. = FALSE)
-      }
-      if (length(seed_weight) == 1L) {
-        wts <- rep(seed_weight, length(urls))
-      } else if (length(seed_weight) == length(urls)) {
-        wts <- seed_weight
-      } else {
-        stop("`seed_weight` must be length 1 or match the number of seeds (",
-          length(urls), ").",
-          call. = FALSE
-        )
-      }
-    }
+    wts <- .trust_resolve_seed_weights(seed_weight, urls)
   } else {
     stop("`trusted_seeds` must be a character vector of URLs or a data frame ",
       "with URL and weight columns.",
@@ -130,6 +114,33 @@ trust_seed_prior <- function(trusted_seeds,
   }
 
   data.frame(url = urls, weight = wts)
+}
+
+#' Resolve per-seed weights for a character vector of trusted seeds.
+#'
+#' Mirrors the character-vector `seed_weight` handling of [trust_seed_prior()];
+#' error-message text is preserved verbatim.
+#' @keywords internal
+#' @noRd
+.trust_resolve_seed_weights <- function(seed_weight, urls) {
+  if (is.null(seed_weight)) {
+    wts <- rep(1, length(urls))
+  } else {
+    if (!is.numeric(seed_weight)) {
+      stop("`seed_weight` must be numeric or NULL.", call. = FALSE)
+    }
+    if (length(seed_weight) == 1L) {
+      wts <- rep(seed_weight, length(urls))
+    } else if (length(seed_weight) == length(urls)) {
+      wts <- seed_weight
+    } else {
+      stop("`seed_weight` must be length 1 or match the number of seeds (",
+        length(urls), ").",
+        call. = FALSE
+      )
+    }
+  }
+  wts
 }
 
 #' @rdname trustrank

@@ -198,6 +198,19 @@ smooth_transitions <- function(empirical_df,
   }
 
   # --- Per-source smoothing over the union of sources ---
+  .smooth_assemble_result(
+    emp, struct, min_support, lambda_fn, k, from_col, to_col, prob_col
+  )
+}
+
+#' Smooth every source and assemble the final transition-probability frame.
+#'
+#' Smooths over the union of empirical/structural sources, drops zero-mass
+#' edges, applies the stable output order, and sets the documented column names.
+#' @keywords internal
+#' @noRd
+.smooth_assemble_result <- function(emp, struct, min_support, lambda_fn, k,
+                                    from_col, to_col, prob_col) {
   sources <- unique(c(emp$from, struct$from))
 
   pieces <- lapply(

@@ -139,26 +139,7 @@ ga4_entrance_teleport <- function(entrances_df,
   }
 
   # --- Normalize to the additive-count prior contract (sum per URL) ---
-  prior_url <- character(0)
-  prior_weight <- numeric(0)
-  if (nrow(entrances_df) > 0) {
-    urls <- as.character(entrances_df[[url_col]])
-    ent <- suppressWarnings(as.numeric(entrances_df[[entrances_col]]))
-    # Entrances are non-negative additive counts: drop missing / negative rows.
-    keep <- !is.na(urls) & !is.na(ent) & ent >= 0
-    urls <- urls[keep]
-    ent <- ent[keep]
-    if (length(urls) > 0) {
-      agg <- tapply(ent, urls, sum)
-      prior_url <- names(agg)
-      prior_weight <- as.numeric(agg)
-    }
-  }
-
-  prior_df <- data.frame(
-    url = prior_url,
-    weight = prior_weight
-  )
+  prior_df <- .ga4_entrance_prior_df(entrances_df, url_col, entrances_col)
 
   # --- Without a vertex set: return the prior_df for pagerank() to fold ---
   if (is.null(vertex_names)) {
@@ -175,5 +156,33 @@ ga4_entrance_teleport <- function(entrances_df,
     alpha = alpha,
     exclude_nodes = exclude_nodes,
     verbose = verbose
+  )
+}
+
+#' Normalize GA4 entrances to the additive-count prior contract (sum per URL).
+#'
+#' Drops rows with missing or negative counts, then sums counts per URL.
+#' Returns a `data.frame(url, weight)` (empty when no rows survive).
+#' @noRd
+.ga4_entrance_prior_df <- function(entrances_df, url_col, entrances_col) {
+  prior_url <- character(0)
+  prior_weight <- numeric(0)
+  if (nrow(entrances_df) > 0) {
+    urls <- as.character(entrances_df[[url_col]])
+    ent <- suppressWarnings(as.numeric(entrances_df[[entrances_col]]))
+    # Entrances are non-negative additive counts: drop missing / negative rows.
+    keep <- !is.na(urls) & !is.na(ent) & ent >= 0
+    urls <- urls[keep]
+    ent <- ent[keep]
+    if (length(urls) > 0) {
+      agg <- tapply(ent, urls, sum)
+      prior_url <- names(agg)
+      prior_weight <- as.numeric(agg)
+    }
+  }
+
+  data.frame(
+    url = prior_url,
+    weight = prior_weight
   )
 }

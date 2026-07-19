@@ -84,27 +84,14 @@ resolve_links <- function(edge_list_df,
     edge_to_col = edge_to_col
   )
 
-  current_edges <- edge_list_df
-  current_redirects <- redirects_df
-
   # --- 1. Optional URL Cleaning ---
-  if (clean_urls) {
-    edge_url_cols <- c(edge_from_col, edge_to_col)
-    current_edges <- do.call(
-      clean_url_columns,
-      c(list(data_frame = current_edges, columns = edge_url_cols), rurl_params)
-    )
-    if (!is.null(current_redirects) && nrow(current_redirects) > 0) {
-      redirect_url_cols <- c(redirect_from_col, redirect_to_col)
-      current_redirects <- do.call(
-        clean_url_columns,
-        c(
-          list(data_frame = current_redirects, columns = redirect_url_cols),
-          rurl_params
-        )
-      )
-    }
-  }
+  cleaned <- .clean_resolve_links_urls(
+    edge_list_df, redirects_df, clean_urls,
+    edge_from_col, edge_to_col, redirect_from_col, redirect_to_col,
+    rurl_params
+  )
+  current_edges <- cleaned$edges
+  current_redirects <- cleaned$redirects
 
   # --- 2. Redirect Resolution ---
   if (!is.null(current_redirects) && nrow(current_redirects) > 0) {
@@ -129,6 +116,40 @@ resolve_links <- function(edge_list_df,
   )
 
   current_edges
+}
+
+#' Optionally clean the edge and redirect URL columns for resolve_links
+#'
+#' Returns a list with `edges` and `redirects`. When `clean_urls` is FALSE the
+#' frames are returned unchanged; redirect cleaning is skipped for empty frames.
+#'
+#' @noRd
+.clean_resolve_links_urls <- function(edge_list_df, redirects_df, clean_urls,
+                                      edge_from_col, edge_to_col,
+                                      redirect_from_col, redirect_to_col,
+                                      rurl_params) {
+  current_edges <- edge_list_df
+  current_redirects <- redirects_df
+
+  if (clean_urls) {
+    edge_url_cols <- c(edge_from_col, edge_to_col)
+    current_edges <- do.call(
+      clean_url_columns,
+      c(list(data_frame = current_edges, columns = edge_url_cols), rurl_params)
+    )
+    if (!is.null(current_redirects) && nrow(current_redirects) > 0) {
+      redirect_url_cols <- c(redirect_from_col, redirect_to_col)
+      current_redirects <- do.call(
+        clean_url_columns,
+        c(
+          list(data_frame = current_redirects, columns = redirect_url_cols),
+          rurl_params
+        )
+      )
+    }
+  }
+
+  list(edges = current_edges, redirects = current_redirects)
 }
 
 #' Validate inputs for resolve_links

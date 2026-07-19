@@ -172,8 +172,47 @@ audit_fold <- function(redirects_df = NULL,
     conflict_policy = canonical_conflict_policy
   )
 
+  signals <- .audit_fold_per_signal(
+    redirects_df, canonicals_df, edge_list_df,
+    redirect_from_col, redirect_to_col,
+    canonical_from_col, canonical_to_col,
+    edge_from_col, edge_to_col
+  )
+  result$redirects <- signals$redirects
+  result$canonicals <- signals$canonicals
+
+  fold <- .audit_fold_cross_signal(
+    redirects_df, canonicals_df,
+    redirect_from_col, redirect_to_col,
+    canonical_from_col, canonical_to_col,
+    duplicate_from_policy, loop_handling,
+    canonical_duplicate_from_policy, canonical_loop_handling,
+    canonical_conflict_policy
+  )
+  if (!is.null(fold)) {
+    result$conflicts <- fold$conflicts
+    result$ignored_canonicals <- fold$ignored_canonicals
+  }
+
+  class(result) <- "fold_audit"
+  result
+}
+
+
+#' Run the per-signal audits ([audit_redirects()] / [audit_canonicals()])
+#'
+#' Returns each audit (or `NULL` when its input is absent/empty).
+#'
+#' @keywords internal
+#' @noRd
+.audit_fold_per_signal <- function(redirects_df, canonicals_df, edge_list_df,
+                                   redirect_from_col, redirect_to_col,
+                                   canonical_from_col, canonical_to_col,
+                                   edge_from_col, edge_to_col) {
+  redirects <- NULL
+  canonicals <- NULL
   if (!is.null(redirects_df) && nrow(redirects_df) > 0) {
-    result$redirects <- audit_redirects(
+    redirects <- audit_redirects(
       redirects_df,
       edge_list_df = edge_list_df,
       redirect_from_col = redirect_from_col,
@@ -183,7 +222,7 @@ audit_fold <- function(redirects_df = NULL,
     )
   }
   if (!is.null(canonicals_df) && nrow(canonicals_df) > 0) {
-    result$canonicals <- audit_canonicals(
+    canonicals <- audit_canonicals(
       canonicals_df,
       edge_list_df = edge_list_df,
       canonical_from_col = canonical_from_col,
@@ -192,11 +231,29 @@ audit_fold <- function(redirects_df = NULL,
       edge_to_col = edge_to_col
     )
   }
+  list(redirects = redirects, canonicals = canonicals)
+}
 
+
+#' Compute the cross-signal fold tables via the composition engine
+#'
+#' Reports conflicts without aborting -- even under `"error"` it composes with
+#' `"redirect_wins"` so the disagreement is flagged (via `disagrees`) rather
+#' than thrown. Returns `NULL` on any composition error.
+#'
+#' @keywords internal
+#' @noRd
+.audit_fold_cross_signal <- function(redirects_df, canonicals_df,
+                                     redirect_from_col, redirect_to_col,
+                                     canonical_from_col, canonical_to_col,
+                                     duplicate_from_policy, loop_handling,
+                                     canonical_duplicate_from_policy,
+                                     canonical_loop_handling,
+                                     canonical_conflict_policy) {
   # Cross-signal tables come from the same composition engine pagerank() uses.
   # Under "error", a genuine disagreement throws; surface it as the audit's job
   # is to make conflicts visible, so we report rather than abort here.
-  fold <- tryCatch(
+  tryCatch(
     .compose_fold_map(
       redirects_df = redirects_df,
       canonicals_df = canonicals_df,
@@ -218,13 +275,6 @@ audit_fold <- function(redirects_df = NULL,
     ),
     error = function(e) NULL
   )
-  if (!is.null(fold)) {
-    result$conflicts <- fold$conflicts
-    result$ignored_canonicals <- fold$ignored_canonicals
-  }
-
-  class(result) <- "fold_audit"
-  result
 }
 
 

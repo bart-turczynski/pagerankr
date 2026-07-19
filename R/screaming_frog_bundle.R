@@ -65,7 +65,29 @@ screaming_frog_bundle <- function(internal,
   }
 
   diagnostics <- .sf_bundle_diagnostics(internal_import, links_import)
-  provenance <- list(
+  provenance <- .sf_bundle_provenance(internal_import, links_import)
+
+  structure(
+    list(
+      nodes = internal_import$nodes,
+      observations = links_import$observations,
+      edges = links_import$edges,
+      redirects = internal_import$redirects,
+      canonicals = internal_import$canonicals,
+      indexability = internal_import$indexability,
+      diagnostics = diagnostics,
+      provenance = provenance
+    ),
+    class = "screaming_frog_bundle"
+  )
+}
+
+#' Build the bundle provenance list
+#'
+#' @keywords internal
+#' @noRd
+.sf_bundle_provenance <- function(internal_import, links_import) {
+  list(
     export_kind = "screaming_frog_bundle",
     contract_version = .sf_contract()$version,
     sources = list(
@@ -102,20 +124,6 @@ screaming_frog_bundle <- function(internal,
       internal = internal_import$provenance$retained_input_row_ids,
       links = links_import$provenance$retained_input_row_ids
     )
-  )
-
-  structure(
-    list(
-      nodes = internal_import$nodes,
-      observations = links_import$observations,
-      edges = links_import$edges,
-      redirects = internal_import$redirects,
-      canonicals = internal_import$canonicals,
-      indexability = internal_import$indexability,
-      diagnostics = diagnostics,
-      provenance = provenance
-    ),
-    class = "screaming_frog_bundle"
   )
 }
 
@@ -237,71 +245,116 @@ print.screaming_frog_bundle <- function(x, ...) {
       graph_edges_by_follow = .sf_count_df(edges, "follow"),
       graph_edges_by_placement = .sf_count_df(edges, "placement")
     ),
-    links = list(
-      graph_eligible_rows = links$diagnostics$graph_type_rows,
-      edge_rows = links$diagnostics$edge_rows,
-      excluded_type_rows = links$diagnostics$excluded_type_rows,
-      excluded_types = links$diagnostics$excluded_types,
-      excluded_origin_rows = links$diagnostics$excluded_origin_rows,
-      dropped_missing_source = links$diagnostics$dropped_missing_source,
-      dropped_missing_destination =
-        links$diagnostics$dropped_missing_destination,
-      dropped_invalid_endpoints =
-        links$diagnostics$dropped_invalid_endpoints,
-      # `nofollow`/`rel_nofollow` are logical, so sum(x, na.rm = TRUE) counts
-      # the TRUEs and drops NA — an NA-safe count (NA reads as not-nofollow).
-      nofollow_edges = sum(edges$nofollow, na.rm = TRUE),
-      follow_unknown_observations = sum(is.na(observations$follow)),
-      rel_nofollow_observations = sum(observations$rel_nofollow, na.rm = TRUE),
-      follow_rel_disagreements =
-        links$diagnostics$follow_rel_disagreements,
-      placement_mapped_observations = sum(!is.na(observations$placement)),
-      placement_unmapped_observations =
-        links$diagnostics$unmapped_position_rows,
-      duplicate_observation_rows =
-        links$diagnostics$duplicate_observation_rows,
-      invalid_follow_values = links$diagnostics$invalid_follow_values,
-      invalid_status_codes = links$diagnostics$invalid_status_codes,
-      issues = links$diagnostics$issues
+    links = .sf_bundle_diag_links(links, observations, edges),
+    internal = .sf_bundle_diag_internal(internal),
+    cross_table = .sf_bundle_diag_cross(
+      internal, edges, nodes, internal_urls, internal_hosts,
+      graph_urls, canonical_targets_absent
     ),
-    internal = list(
-      dropped_missing_address = internal$diagnostics$dropped_missing_address,
-      duplicate_address_rows = internal$diagnostics$duplicate_address_rows,
-      invalid_status_codes = internal$diagnostics$invalid_status_codes,
-      missing_3xx_destinations =
-        internal$diagnostics$missing_3xx_destinations,
-      ignored_non_3xx_destinations =
-        internal$diagnostics$ignored_non_3xx_destinations,
-      self_canonical_rows = internal$diagnostics$self_canonical_rows,
-      issues = internal$diagnostics$issues
+    distributions = .sf_bundle_diag_distributions(nodes),
+    schema = .sf_bundle_diag_schema(internal, links)
+  )
+}
+
+#' Build the link-side bundle diagnostics sub-list
+#'
+#' @keywords internal
+#' @noRd
+.sf_bundle_diag_links <- function(links, observations, edges) {
+  list(
+    graph_eligible_rows = links$diagnostics$graph_type_rows,
+    edge_rows = links$diagnostics$edge_rows,
+    excluded_type_rows = links$diagnostics$excluded_type_rows,
+    excluded_types = links$diagnostics$excluded_types,
+    excluded_origin_rows = links$diagnostics$excluded_origin_rows,
+    dropped_missing_source = links$diagnostics$dropped_missing_source,
+    dropped_missing_destination =
+      links$diagnostics$dropped_missing_destination,
+    dropped_invalid_endpoints =
+      links$diagnostics$dropped_invalid_endpoints,
+    # `nofollow`/`rel_nofollow` are logical, so sum(x, na.rm = TRUE) counts
+    # the TRUEs and drops NA — an NA-safe count (NA reads as not-nofollow).
+    nofollow_edges = sum(edges$nofollow, na.rm = TRUE),
+    follow_unknown_observations = sum(is.na(observations$follow)),
+    rel_nofollow_observations = sum(observations$rel_nofollow, na.rm = TRUE),
+    follow_rel_disagreements =
+      links$diagnostics$follow_rel_disagreements,
+    placement_mapped_observations = sum(!is.na(observations$placement)),
+    placement_unmapped_observations =
+      links$diagnostics$unmapped_position_rows,
+    duplicate_observation_rows =
+      links$diagnostics$duplicate_observation_rows,
+    invalid_follow_values = links$diagnostics$invalid_follow_values,
+    invalid_status_codes = links$diagnostics$invalid_status_codes,
+    issues = links$diagnostics$issues
+  )
+}
+
+#' Build the node-side bundle diagnostics sub-list
+#'
+#' @keywords internal
+#' @noRd
+.sf_bundle_diag_internal <- function(internal) {
+  list(
+    dropped_missing_address = internal$diagnostics$dropped_missing_address,
+    duplicate_address_rows = internal$diagnostics$duplicate_address_rows,
+    invalid_status_codes = internal$diagnostics$invalid_status_codes,
+    missing_3xx_destinations =
+      internal$diagnostics$missing_3xx_destinations,
+    ignored_non_3xx_destinations =
+      internal$diagnostics$ignored_non_3xx_destinations,
+    self_canonical_rows = internal$diagnostics$self_canonical_rows,
+    issues = internal$diagnostics$issues
+  )
+}
+
+#' Build the cross-table reconciliation bundle diagnostics sub-list
+#'
+#' @keywords internal
+#' @noRd
+.sf_bundle_diag_cross <- function(internal, edges, nodes, internal_urls,
+                                  internal_hosts, graph_urls,
+                                  canonical_targets_absent) {
+  list(
+    edge_endpoints_absent = .sf_absent_edge_endpoints(
+      edges, internal_urls, internal_hosts
     ),
-    cross_table = list(
-      edge_endpoints_absent = .sf_absent_edge_endpoints(
-        edges, internal_urls, internal_hosts
-      ),
-      nodes_absent_from_graph = .sf_nodes_absent_from_graph(
-        nodes, graph_urls
-      ),
-      redirect_targets_absent = .sf_absent_signal_targets(
-        internal$redirects, internal_urls, internal_hosts
-      ),
-      canonical_targets_absent = canonical_targets_absent
+    nodes_absent_from_graph = .sf_nodes_absent_from_graph(
+      nodes, graph_urls
     ),
-    distributions = list(
-      hosts = .sf_count_vector(.sf_url_host(nodes$url), "host"),
-      status = .sf_count_df(nodes, "http_status"),
-      indexability = .sf_count_df(nodes, "indexability"),
-      indexability_status = .sf_count_df(nodes, "indexability_status")
+    redirect_targets_absent = .sf_absent_signal_targets(
+      internal$redirects, internal_urls, internal_hosts
     ),
-    schema = list(
-      missing_optional_columns = list(
-        internal = internal$diagnostics$missing_optional_columns,
-        links = links$diagnostics$missing_optional_columns
-      ),
-      ignored_columns = list(
-        internal = internal$diagnostics$ignored_columns,
-        links = links$diagnostics$ignored_columns
-      )
+    canonical_targets_absent = canonical_targets_absent
+  )
+}
+
+#' Build the node distribution bundle diagnostics sub-list
+#'
+#' @keywords internal
+#' @noRd
+.sf_bundle_diag_distributions <- function(nodes) {
+  list(
+    hosts = .sf_count_vector(.sf_url_host(nodes$url), "host"),
+    status = .sf_count_df(nodes, "http_status"),
+    indexability = .sf_count_df(nodes, "indexability"),
+    indexability_status = .sf_count_df(nodes, "indexability_status")
+  )
+}
+
+#' Build the schema-manifest bundle diagnostics sub-list
+#'
+#' @keywords internal
+#' @noRd
+.sf_bundle_diag_schema <- function(internal, links) {
+  list(
+    missing_optional_columns = list(
+      internal = internal$diagnostics$missing_optional_columns,
+      links = links$diagnostics$missing_optional_columns
+    ),
+    ignored_columns = list(
+      internal = internal$diagnostics$ignored_columns,
+      links = links$diagnostics$ignored_columns
     )
   )
 }

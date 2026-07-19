@@ -139,6 +139,20 @@ aggregate_edges <- function(edge_list_df,
     return(empty_result_df)
   }
 
+  .aggregate_prepared_edges(
+    edge_list_df, agg, nofollow_policy, preserve_cols, from_col, to_col
+  )
+}
+
+#' Aggregate a prepared (NA-free, self-loop-handled, non-empty) edge list.
+#'
+#' Validates the requested columns, groups rows by from/to in first-appearance
+#' order, aggregates collapsible columns, attaches preserved list-columns, and
+#' restores the original column order.
+#' @keywords internal
+#' @noRd
+.aggregate_prepared_edges <- function(edge_list_df, agg, nofollow_policy,
+                                      preserve_cols, from_col, to_col) {
   key_cols <- c(from_col, to_col)
   value_cols <- setdiff(names(edge_list_df), key_cols)
 
