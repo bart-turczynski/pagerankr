@@ -48,3 +48,9 @@ edges <- data.frame(from = "A", to = "B")
 canonicals <- data.frame(from = "B", to = "C")
 resolve_canonicals(edges, canonicals)
 }
+\seealso{
+Other edge-list resolvers:
+\code{\link[=resolve_links]{resolve_links()}},
+\code{\link[=resolve_redirects]{resolve_redirects()}}
+}
+\concept{edge-list resolvers}

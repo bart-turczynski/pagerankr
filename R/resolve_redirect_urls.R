@@ -24,6 +24,7 @@
 #'     \item{changed}{Logical, whether the URL was modified by a redirect.}
 #'   }
 #'
+#' @family URL-vector resolvers
 #' @export
 #' @examples
 #' redirects <- data.frame(
@@ -32,26 +33,28 @@
 #' )
 #'
 #' # Resolve specific URLs
-#' resolve_urls(c("A", "B", "X"), redirects)
+#' resolve_redirect_urls(c("A", "B", "X"), redirects)
 #'
 #' # X is not in the redirect map, so it stays as-is
-resolve_urls <- function(urls,
-                         redirects_df,
-                         redirect_from_col = "from",
-                         redirect_to_col = "to",
-                         duplicate_from_policy = c(
-                           "strict",
-                           "first_wins",
-                           "last_wins",
-                           "most_frequent",
-                           "prune_source",
-                           "resolve_if_consistent"
-                         ),
-                         loop_handling = c(
-                           "error",
-                           "prune_loop",
-                           "break_arrow"
-                         )) {
+resolve_redirect_urls <- function(
+  urls,
+  redirects_df,
+  redirect_from_col = "from",
+  redirect_to_col = "to",
+  duplicate_from_policy = c(
+    "strict",
+    "first_wins",
+    "last_wins",
+    "most_frequent",
+    "prune_source",
+    "resolve_if_consistent"
+  ),
+  loop_handling = c(
+    "error",
+    "prune_loop",
+    "break_arrow"
+  )
+) {
   duplicate_from_policy <- match.arg(duplicate_from_policy)
   loop_handling <- match.arg(loop_handling)
 
@@ -62,10 +65,16 @@ resolve_urls <- function(urls,
   if (!is.data.frame(redirects_df)) {
     stop("`redirects_df` must be a data frame.", call. = FALSE)
   }
-  if (nrow(redirects_df) > 0 &&
-        !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))) {
-    stop("`redirects_df` must have '", redirect_from_col, "' and '",
-      redirect_to_col, "' columns.",
+  if (
+    nrow(redirects_df) > 0 &&
+      !all(c(redirect_from_col, redirect_to_col) %in% names(redirects_df))
+  ) {
+    stop(
+      "`redirects_df` must have '",
+      redirect_from_col,
+      "' and '",
+      redirect_to_col,
+      "' columns.",
       call. = FALSE
     )
   }

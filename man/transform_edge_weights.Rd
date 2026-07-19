@@ -8,7 +8,7 @@ transform_edge_weights(
   edge_list_df,
   value_col,
   by = "from",
-  method = c("zipf", "none", "rank_linear", "log", "minmax", "percentile"),
+  method = "zipf",
   weight_col = "weight",
   prob_col = "transition_probability",
   ...
@@ -26,9 +26,9 @@ set. Default \code{"from"} (the source page). May name multiple columns to
 group by their combination.}
 
 \item{method}{Character, the transformation strategy, passed through to
-\code{\link{transform_weights}}. One of \code{"none"},
-\code{"rank_linear"}, \code{"zipf"}, \code{"log"}, \code{"minmax"},
-\code{"percentile"}. Default \code{"zipf"}.}
+\code{\link{transform_weights}}. One of \code{"none"}, \code{"log"},
+\code{"percentile"}, \code{"minmax"}, \code{"zipf"},
+\code{"rank_linear"}. Default \code{"zipf"}.}
 
 \item{weight_col}{Character, the name of the output column to hold the
 transformed weight. Default \code{"weight"}.}

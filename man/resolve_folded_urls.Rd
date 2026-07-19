@@ -80,3 +80,9 @@ redirects <- data.frame(from = "B", to = "C")
 canonicals <- data.frame(from = "A", to = "B")
 resolve_folded_urls(c("A", "B", "X"), redirects, canonicals)
 }
+\seealso{
+Other URL-vector resolvers:
+\code{\link[=resolve_canonical_urls]{resolve_canonical_urls()}},
+\code{\link[=resolve_redirect_urls]{resolve_redirect_urls()}}
+}
+\concept{URL-vector resolvers}

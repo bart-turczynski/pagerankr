@@ -44,3 +44,9 @@ canonicals <- data.frame(
 )
 resolve_canonical_urls(c("A", "B", "X"), canonicals)
 }
+\seealso{
+Other URL-vector resolvers:
+\code{\link[=resolve_folded_urls]{resolve_folded_urls()}},
+\code{\link[=resolve_redirect_urls]{resolve_redirect_urls()}}
+}
+\concept{URL-vector resolvers}
