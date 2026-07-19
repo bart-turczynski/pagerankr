@@ -55,13 +55,13 @@ screaming_frog_links <- function(x,
   origin_policy <- match.arg(origin_policy)
   endpoint_action <- match.arg(endpoint_action)
 
-  raw <- .sf_read_input(x, export_kind)
+  raw <- sf_read_input(x, export_kind)
   schema <- attr(raw, "sf_schema")
   input_rows <- nrow(raw)
   input_row <- seq_len(input_rows)
-  fields <- .sf_contract()$links$order
+  fields <- sf_contract()$links$order
   missing_optional <- setdiff(
-    setdiff(fields, .sf_contract()$links$required),
+    setdiff(fields, sf_contract()$links$required),
     names(raw)
   )
   raw <- .sf_add_missing_columns(raw, fields)
@@ -103,11 +103,11 @@ screaming_frog_links <- function(x,
 #' @keywords internal
 #' @noRd
 .sf_links_classify <- function(raw, origin_policy) {
-  follow <- .sf_parse_follow(raw$follow)
-  rel_nofollow <- .sf_rel_nofollow(raw$rel)
-  placement <- .sf_normalize_position(raw$link_position)
+  follow <- sf_parse_follow(raw$follow)
+  rel_nofollow <- sf_rel_nofollow(raw$rel)
+  placement <- sf_normalize_position(raw$link_position)
   status_code <- .sf_parse_status_code(raw$status_code)
-  graph_type <- .sf_graph_eligible(raw$type)
+  graph_type <- sf_graph_eligible(raw$type)
   valid_source <- !is.na(raw$source)
   valid_destination <- !is.na(raw$destination)
   valid_endpoints <- valid_source & valid_destination
