@@ -1,18 +1,18 @@
 context("topic_feeder_pagerank (seeded reverse-graph PageRank)")
 
-describe("feeder_seed_prior", {
+describe("seed_prior", {
   it("builds an equal-weight prior from a character vector", {
-    p <- feeder_seed_prior(c("/ai", "/ai-demo"))
+    p <- seed_prior(c("/ai", "/ai-demo"))
     expect_equal(p$url, c("/ai", "/ai-demo"))
     expect_equal(p$weight, c(1, 1))
   })
 
   it("recycles a scalar seed_weight and accepts per-seed weights", {
     expect_equal(
-      feeder_seed_prior(c("a", "b"), seed_weight = 3)$weight, c(3, 3)
+      seed_prior(c("a", "b"), seed_weight = 3)$weight, c(3, 3)
     )
     expect_equal(
-      feeder_seed_prior(c("a", "b"), seed_weight = c(2, 5))$weight, c(2, 5)
+      seed_prior(c("a", "b"), seed_weight = c(2, 5))$weight, c(2, 5)
     )
   })
 
@@ -20,49 +20,49 @@ describe("feeder_seed_prior", {
     df <- data.frame(
       url = c("a", "b"), weight = c(4, 1)
     )
-    expect_equal(feeder_seed_prior(df)$weight, c(4, 1))
+    expect_equal(seed_prior(df)$weight, c(4, 1))
   })
 
   it("rejects seed_weight alongside a data frame", {
     df <- data.frame(url = "a", weight = 1)
     expect_error(
-      feeder_seed_prior(df, seed_weight = 2),
+      seed_prior(df, seed_weight = 2),
       "applies only when `seeds` is a character vector"
     )
   })
 
   it("errors on negative weights and on empty seed sets", {
     expect_error(
-      feeder_seed_prior("a", seed_weight = -1),
+      seed_prior("a", seed_weight = -1),
       "must be non-negative"
     )
-    expect_error(feeder_seed_prior(c(NA, "")), "no usable cluster URLs")
+    expect_error(seed_prior(c(NA, "")), "no usable seed URLs")
   })
 
   it("errors on a mismatched seed_weight length", {
     expect_error(
-      feeder_seed_prior(c("a", "b", "c"), seed_weight = c(1, 2)),
+      seed_prior(c("a", "b", "c"), seed_weight = c(1, 2)),
       "length 1 or match the number of seeds"
     )
   })
 
   it("errors when seeds data frame lacks required columns", {
     expect_error(
-      feeder_seed_prior(data.frame(x = 1)),
+      seed_prior(data.frame(x = 1)),
       "must have"
     )
   })
 
   it("errors when seed_weight is non-numeric", {
     expect_error(
-      feeder_seed_prior(c("a", "b"), seed_weight = "bad"),
+      seed_prior(c("a", "b"), seed_weight = "bad"),
       "must be numeric or NULL"
     )
   })
 
   it("errors when seeds is neither a character vector nor a data frame", {
     expect_error(
-      feeder_seed_prior(123),
+      seed_prior(123),
       "must be a character vector of URLs or a data frame"
     )
   })
@@ -107,7 +107,7 @@ describe("topic_feeder_pagerank", {
       edges, seeds = c("X1", "X2"),
       clean_edge_urls = FALSE, prior_verbose = FALSE
     )
-    prior <- feeder_seed_prior(c("X1", "X2"))
+    prior <- seed_prior(c("X1", "X2"))
     manual <- pagerank(
       edges, prior_df = prior, reverse = TRUE,
       clean_edge_urls = FALSE, prior_verbose = FALSE

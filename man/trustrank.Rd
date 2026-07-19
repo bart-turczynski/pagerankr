@@ -2,19 +2,11 @@
 % Please edit documentation in R/trustrank.R
 \name{trustrank}
 \alias{trustrank}
-\alias{trust_seed_prior}
-\title{TrustRank Seed Prior and Seed-Biased PageRank}
+\title{TrustRank Seed-Biased PageRank}
 \usage{
-trust_seed_prior(
-  trusted_seeds,
-  seed_weight = NULL,
-  seed_url_col = "url",
-  seed_weight_col = "weight"
-)
-
 trustrank(
   edge_list_df,
-  trusted_seeds,
+  seeds,
   seed_weight = NULL,
   seed_url_col = "url",
   seed_weight_col = "weight",
@@ -22,23 +14,22 @@ trustrank(
 )
 }
 \arguments{
-\item{trusted_seeds}{The trusted seed set. Either a character vector of
-trusted URLs (each gets equal seed weight unless `seed_weight` is given),
-or a data frame with a URL column and a numeric weight column (see
-`seed_url_col` / `seed_weight_col`) for unequal trust.}
-
-\item{seed_weight}{Optional numeric trust weight for a character-vector
-`trusted_seeds`: either one value per seed or a single value recycled to
-all seeds. Ignored when `trusted_seeds` is a data frame. Default `NULL`
-(every seed weight `1`, i.e. a uniform distribution over the trusted set,
-as in the original TrustRank).}
-
-\item{seed_url_col, seed_weight_col}{Column names used when `trusted_seeds` is
-a data frame. Defaults `"url"` / `"weight"`. Ignored for a character
-vector.}
-
 \item{edge_list_df}{A data frame representing the edge list, typically with
 columns like "from" and "to".}
+
+\item{seeds}{The trusted seed set. Either a character vector of trusted URLs
+(each gets equal seed weight unless `seed_weight` is given), or a data
+frame with a URL column and a numeric weight column (see `seed_url_col` /
+`seed_weight_col`) for unequal trust. See [seed_prior()].}
+
+\item{seed_weight}{Optional numeric trust weight for a character-vector
+`seeds`: either one value per seed or a single value recycled to all seeds.
+Ignored when `seeds` is a data frame. Default `NULL` (every seed weight
+`1`, i.e. a uniform distribution over the trusted set, as in the original
+TrustRank).}
+
+\item{seed_url_col, seed_weight_col}{Column names used when `seeds` is a data
+frame. Defaults `"url"` / `"weight"`. Ignored for a character vector.}
 
 \item{...}{Additional arguments forwarded to [pagerank()] (e.g.
 `redirects_df`, `rurl_params`, `prior_transform`, `prior_alpha`,
@@ -46,12 +37,9 @@ columns like "from" and "to".}
 an error.}
 }
 \value{
-[trust_seed_prior()] returns a data frame with `url` and `weight`
-  columns, suitable as the `prior_df` argument to [pagerank()].
-
-  [trustrank()] returns the [pagerank()] result data frame (`node_name`,
-  `pagerank`, and the `prior_weight` column the prior path adds), carrying
-  the usual `"transition_audit"` attribute.
+The [pagerank()] result data frame (`node_name`, `pagerank`, and the
+  `prior_weight` column the prior path adds), carrying the usual
+  `"transition_audit"` attribute.
 }
 \description{
 TrustRank (Gyöngyi, Garcia-Molina & Pedersen, 2004) is
@@ -62,10 +50,10 @@ TrustRank (Gyöngyi, Garcia-Molina & Pedersen, 2004) is
   core score high and pages far from it score low.
 
   `pagerankr` implements this with **no new solver**: a trusted-seed prior is
-  exactly a `prior_df` for the existing TIPR personalization path.
-  [trust_seed_prior()] builds that prior from a seed set, and [trustrank()]
-  is the worked convenience wrapper that builds the seed prior and runs
-  [pagerank()] with it.
+  exactly a `prior_df` for the existing TIPR personalization path. Build that
+  prior from a seed set with [seed_prior()], and `trustrank()` is the worked
+  convenience wrapper that builds the seed prior and runs [pagerank()] with
+  it on the forward graph.
 
   This is **seed-biased PageRank**, not a full spam-detection system: it
   reproduces the biased-propagation core of TrustRank, leaving seed selection
@@ -76,9 +64,11 @@ The seed weights are an **additive trust budget**: when two seed URLs fold
 onto the same vertex (redirect/canonical variants) their weights sum, exactly
 as the [pagerank()] / [align_prior_to_vertices()] prior contract specifies.
 Equal weights reproduce TrustRank's uniform seed distribution; unequal
-weights express graded trust.
+weights express graded trust. See [seed_prior()] for the prior-builder
+contract; the same builder serves [topic_feeder_pagerank()], which runs it on
+the reversed graph.
 
-[trustrank()] forwards `...` to [pagerank()], so the full graph-preparation
+`trustrank()` forwards `...` to [pagerank()], so the full graph-preparation
 surface (redirects, canonicals, URL cleaning, domain/host filtering, edge
 weights, duplicate-edge policy) and the prior-shaping knobs
 (`prior_transform`, `prior_alpha`) are all available. In particular
@@ -86,7 +76,7 @@ weights, duplicate-edge policy) and the prior-shaping knobs
 (the default) is pure trust teleport (untrusted, unreachable pages get no
 teleport mass), while a small positive value gives every page a floor.
 Because this owns the prior, passing `prior_df`, `prior_url_col`, or
-`prior_weight_col` to [trustrank()] is an error — supply `trusted_seeds`.
+`prior_weight_col` to `trustrank()` is an error — supply `seeds`.
 }
 \examples{
 edges <- data.frame(
@@ -95,7 +85,7 @@ edges <- data.frame(
 )
 
 # Build a trusted-seed prior, then run it through pagerank() manually.
-prior <- trust_seed_prior(c("/", "/hub"))
+prior <- seed_prior(c("/", "/hub"))
 pr <- pagerank(edges, prior_df = prior, clean_edge_urls = FALSE)
 
 # ...or in one call with the convenience wrapper.
@@ -103,6 +93,6 @@ tr <- trustrank(edges, c("/", "/hub"), clean_edge_urls = FALSE)
 print(tr)
 }
 \seealso{
-[pagerank()], [align_prior_to_vertices()],
-  [topic_sensitive_pagerank()]
+[seed_prior()], [pagerank()], [align_prior_to_vertices()],
+  [topic_sensitive_pagerank()], [topic_feeder_pagerank()]
 }

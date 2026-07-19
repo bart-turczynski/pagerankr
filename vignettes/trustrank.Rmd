@@ -44,7 +44,8 @@ already builds personalized PageRank from a per-URL prior via
 `pagerank(prior_df = ...)` (the TIPR path). TrustRank is therefore two small
 helpers over that engine:
 
-- `trust_seed_prior()` turns a seed set into a `prior_df`.
+- `seed_prior()` turns a seed set into a `prior_df` (the same builder feeds
+  `topic_feeder_pagerank()`; the seed prior is orientation-agnostic).
 - `trustrank()` is the one-call convenience wrapper.
 
 ## A worked example
@@ -63,7 +64,7 @@ feeds an off-topic `/sink`.
 ### Build the seed prior explicitly
 
 ```{r}
-prior <- trust_seed_prior(c("/", "/hub"))
+prior <- seed_prior(c("/", "/hub"))
 prior
 ```
 
