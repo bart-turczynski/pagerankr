@@ -418,7 +418,7 @@ compute_pagerank <- function(edge_list_df,
   if (pr_node_col == pr_value_col) {
     stop("`pr_node_col` and `pr_value_col` must be different.", call. = FALSE)
   }
-  .validate_compute_weight_col(weight_col, edge_list_df)
+  .validate_weight_col(weight_col, edge_list_df)
   invisible(NULL)
 }
 
@@ -464,32 +464,6 @@ compute_pagerank <- function(edge_list_df,
 .assert_nonempty_string <- function(x, name) {
   if (!is.character(x) || length(x) != 1 || nchar(x) == 0) {
     stop("`", name, "` must be a non-empty character string.", call. = FALSE)
-  }
-  invisible(NULL)
-}
-
-#' Error unless `weight_col` is NULL or a numeric column present in the edges.
-#' @keywords internal
-#' @noRd
-.validate_compute_weight_col <- function(weight_col, edge_list_df) {
-  if (is.null(weight_col)) {
-    return(invisible(NULL))
-  }
-  if (!is.character(weight_col) || length(weight_col) != 1) {
-    stop(
-      "`weight_col` must be a single character string or NULL.",
-      call. = FALSE
-    )
-  }
-  if (nrow(edge_list_df) > 0 && !(weight_col %in% names(edge_list_df))) {
-    stop("`weight_col` '", weight_col, "' not found in `edge_list_df`.",
-      call. = FALSE
-    )
-  }
-  if (nrow(edge_list_df) > 0 && !is.numeric(edge_list_df[[weight_col]])) {
-    stop("`weight_col` '", weight_col, "' must be a numeric column.",
-      call. = FALSE
-    )
   }
   invisible(NULL)
 }
