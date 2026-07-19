@@ -28,6 +28,7 @@
 #'   URLs replaced by their final redirect destinations, duplicate edges
 #'   removed, and self-loops handled according to `self_loops`.
 #'
+#' @family edge-list resolvers
 #' @export
 #' @examples
 #' edges <- data.frame(

@@ -129,3 +129,9 @@ resolve_redirects(edges_custom, redirects_custom,
   redirect_to_col = "final"
 )
 }
+\seealso{
+Other edge-list resolvers:
+\code{\link[=resolve_canonicals]{resolve_canonicals()}},
+\code{\link[=resolve_links]{resolve_links()}}
+}
+\concept{edge-list resolvers}

@@ -1,3 +1,30 @@
+# pagerankr (development version)
+
+* **Breaking:** `resolve_urls()` is renamed to `resolve_redirect_urls()`. The
+  function originally resolved redirects *and* canonicals together; once that
+  was split apart (mixing the two is lossy) the old name no longer described
+  what it does. The new name states the operation and restores symmetry with
+  the rest of the `resolve_*` family, which pairs an edge-list form with a
+  URL-vector form: `resolve_redirects()` / `resolve_redirect_urls()` alongside
+  the existing `resolve_canonicals()` / `resolve_canonical_urls()`. Behavior,
+  arguments, and return value are unchanged.
+
+* The `resolve_*` naming convention is now documented and enforced by grouping:
+  functions taking a character vector of URLs are tagged
+  `@family URL-vector resolvers` (`resolve_redirect_urls()`,
+  `resolve_canonical_urls()`, `resolve_folded_urls()`) and functions taking an
+  `edge_list_df` are tagged `@family edge-list resolvers`
+  (`resolve_redirects()`, `resolve_canonicals()`, `resolve_links()`), so each
+  help page cross-links its input-type peers.
+
+* The weight/teleport transform vocabulary now uses one canonical option order
+  (`"none"`, `"log"`, `"percentile"`, `"minmax"`, `"zipf"`, `"rank_linear"`) at
+  every call site -- `transform_weights()`, `transform_edge_weights()`,
+  `pagerank(prior_transform=)`, `align_prior_to_vertices()`, and
+  `ga4_entrance_teleport()`. No defaults change: `transform_edge_weights()`
+  still defaults to `"zipf"` (now declared explicitly rather than by option
+  order) and every other site still defaults to `"none"`.
+
 # pagerankr 0.1.0
 
 _Released 2026-07-11._

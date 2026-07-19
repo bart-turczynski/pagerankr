@@ -9,23 +9,23 @@
 #' @param method Character, the transformation strategy. One of:
 #'   \describe{
 #'     \item{\code{"none"}}{Return \code{x} unchanged.}
-#'     \item{\code{"rank_linear"}}{Convert to rank order (1 = highest value),
-#'       then assign linearly decreasing weights:
-#'       \code{weight = (n - rank + 1) / n}. Position 1 gets 1.0, position
-#'       \emph{n} gets \code{1/n}.}
-#'     \item{\code{"zipf"}}{Convert to rank order, then apply Zipf's law:
-#'       \code{weight = 1 / rank^alpha}. Position 1 gets 1.0, position 2
-#'       gets \code{1/2^alpha}, etc. Controlled by the \code{alpha} parameter
-#'       (default 1).}
 #'     \item{\code{"log"}}{Apply \code{log(x + offset)} to compress large
 #'       ranges (e.g., GA4 click counts spanning 1 to 100,000). The
 #'       \code{offset} parameter (default 1) avoids \code{log(0)}.}
+#'     \item{\code{"percentile"}}{Map values to their empirical percentile
+#'       (0--1). Robust to extreme outliers.}
 #'     \item{\code{"minmax"}}{Scale to the \code{[0, 1]} range using
 #'       min-max normalisation. A small floor (\code{floor_value}, default
 #'       0.01) is added so that the lowest-weighted edge still carries some
 #'       weight rather than zero.}
-#'     \item{\code{"percentile"}}{Map values to their empirical percentile
-#'       (0--1). Robust to extreme outliers.}
+#'     \item{\code{"zipf"}}{Convert to rank order, then apply Zipf's law:
+#'       \code{weight = 1 / rank^alpha}. Position 1 gets 1.0, position 2
+#'       gets \code{1/2^alpha}, etc. Controlled by the \code{alpha} parameter
+#'       (default 1).}
+#'     \item{\code{"rank_linear"}}{Convert to rank order (1 = highest value),
+#'       then assign linearly decreasing weights:
+#'       \code{weight = (n - rank + 1) / n}. Position 1 gets 1.0, position
+#'       \emph{n} gets \code{1/n}.}
 #'   }
 #' @param alpha Numeric, exponent for the \code{"zipf"} method.
 #'   Default \code{1.0}. Higher values make the drop-off steeper
@@ -71,8 +71,8 @@
 #' # pagerank(edges, weight_col = "weight", clean_edge_urls = FALSE)
 transform_weights <- function(x,
                               method = c(
-                                "none", "rank_linear", "zipf",
-                                "log", "minmax", "percentile"
+                                "none", "log", "percentile",
+                                "minmax", "zipf", "rank_linear"
                               ),
                               alpha = 1.0,
                               offset = 1,
