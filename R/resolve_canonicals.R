@@ -18,6 +18,7 @@
 #' @return The edge list with `edge_from_col` and `edge_to_col` folded through
 #'   canonical declarations. The applied fold map is attached as attribute
 #'   `"fold_map"`.
+#' @family edge-list resolvers
 #' @export
 #' @examples
 #' edges <- data.frame(from = "A", to = "B")
@@ -83,6 +84,7 @@ resolve_canonicals <- function(edge_list_df,
 #'
 #' @return A data frame with `original`, `resolved`, `changed`, and `signal`
 #'   columns. The applied fold map is attached as attribute `"fold_map"`.
+#' @family URL-vector resolvers
 #' @export
 #' @examples
 #' canonicals <- data.frame(
@@ -147,6 +149,7 @@ resolve_canonical_urls <- function(urls,
 #'   columns. The exported fold map is attached as attribute `"fold_map"` and
 #'   cross-signal audit tables are attached as `"conflicts"` and
 #'   `"ignored_canonicals"`.
+#' @family URL-vector resolvers
 #' @export
 #' @examples
 #' redirects <- data.frame(from = "B", to = "C")

@@ -876,7 +876,7 @@ values that may contain query strings or fragments.
 | `resolve_canonical_urls()` | Resolve a URL vector through rel=canonical folds |
 | `resolve_canonicals()` | Apply rel=canonical folds to an edge list |
 | `resolve_folded_urls()` | Resolve a URL vector through redirects plus canonicals |
-| `resolve_urls()` | Resolve a URL vector through a redirect map |
+| `resolve_redirect_urls()` | Resolve a URL vector through a redirect map |
 | `build_fold_map()` | Build a URL fold map from redirects and/or canonicals |
 | `audit_canonicals()` | Diagnose rel=canonical fold coverage and conflicts |
 | `audit_fold()` | Diagnose the redirect+canonical URL fold map |

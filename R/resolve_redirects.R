@@ -41,6 +41,7 @@
 #'
 #' @return An updated `edge_list_df` with URLs in `edge_from_col` and
 #'   `edge_to_col` replaced by their final resolved destinations.
+#' @family edge-list resolvers
 #' @export
 #' @examples
 #' edges <- data.frame(

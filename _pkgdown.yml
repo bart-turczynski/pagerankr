@@ -83,7 +83,7 @@ reference:
   - title: "URL folding and crawl data"
     desc: "Resolve redirects and canonicals and import crawl exports."
     contents:
-      - resolve_urls
+      - resolve_redirect_urls
       - resolve_links
       - resolve_redirects
       - resolve_canonicals

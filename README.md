@@ -100,8 +100,8 @@ print(pr)
   self-refs, and optional orphaned rules vs. an edge list
 - `resolve_redirects()` applies redirect maps to an edge list with
   conflict and loop policies
-- `resolve_urls()` resolves a character vector of URLs without requiring
-  an edge list
+- `resolve_redirect_urls()` resolves a character vector of URLs without
+  requiring an edge list
 - `resolve_links()` returns the resolved/deduplicated graph without
   computing PR
 - `get_unique_edges()` and `drop_isolates()` provide explicit graph
@@ -111,7 +111,7 @@ print(pr)
 audit <- audit_redirects(redirects, edge_list_df = edges)
 print(audit)
 
-resolve_urls(
+resolve_redirect_urls(
   c("http://example.com/old-blog", "http://example.com/home"),
   redirects
 )
@@ -226,7 +226,7 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 | `compute_pagerank()` | Low-level wrapper around `igraph::page_rank()` |
 | `resolve_links()` | Resolve redirects and deduplicate graph without PR |
 | `resolve_redirects()` | Apply redirect rules to an edge list |
-| `resolve_urls()` | Resolve standalone URL vectors through redirects |
+| `resolve_redirect_urls()` | Resolve standalone URL vectors through redirects |
 | `resolve_canonicals()` | Apply rel=canonical folds to edge endpoints |
 | `resolve_folded_urls()` | Resolve URL vectors through redirects plus canonicals |
 | `audit_redirects()` | Diagnose redirect chains, loops, and conflicts |

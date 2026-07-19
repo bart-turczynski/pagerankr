@@ -80,3 +80,9 @@ new_redirects <- data.frame(
 )
 after <- resolve_links(edges, new_redirects, clean_urls = FALSE)
 }
+\seealso{
+Other edge-list resolvers:
+\code{\link[=resolve_canonicals]{resolve_canonicals()}},
+\code{\link[=resolve_redirects]{resolve_redirects()}}
+}
+\concept{edge-list resolvers}
