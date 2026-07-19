@@ -1,4 +1,4 @@
-# Tests for TrustRank seed-biased PageRank: trust_seed_prior() + trustrank().
+# Tests for TrustRank seed-biased PageRank: seed_prior() + trustrank().
 
 # A site with a trusted core (/, /hub) and an untrusted region (/spam, /sink)
 # that is only reachable far from the seeds.
@@ -11,32 +11,32 @@ make_trust_site <- function() {
 
 run_tr <- function(...) suppressMessages(trustrank(...))
 
-# --- trust_seed_prior() helper ---
+# --- seed_prior() helper ---
 
-test_that("trust_seed_prior() builds a uniform-weight prior_df from a vector", {
-  prior <- trust_seed_prior(c("/", "/hub"))
+test_that("seed_prior() builds a uniform-weight prior_df from a vector", {
+  prior <- seed_prior(c("/", "/hub"))
   expect_named(prior, c("url", "weight"))
   expect_identical(prior$url, c("/", "/hub"))
   expect_equal(prior$weight, c(1, 1))
 })
 
-test_that("trust_seed_prior() honors scalar and per-seed weights", {
-  expect_equal(trust_seed_prior(c("a", "b"), seed_weight = 5)$weight, c(5, 5))
+test_that("seed_prior() honors scalar and per-seed weights", {
+  expect_equal(seed_prior(c("a", "b"), seed_weight = 5)$weight, c(5, 5))
   expect_equal(
-    trust_seed_prior(c("a", "b"), seed_weight = c(3, 1))$weight,
+    seed_prior(c("a", "b"), seed_weight = c(3, 1))$weight,
     c(3, 1)
   )
   expect_error(
-    trust_seed_prior(c("a", "b"), seed_weight = c(1, 2, 3)),
+    seed_prior(c("a", "b"), seed_weight = c(1, 2, 3)),
     "length 1 or match"
   )
 })
 
-test_that("trust_seed_prior() accepts a data frame with custom columns", {
+test_that("seed_prior() accepts a data frame with custom columns", {
   seeds <- data.frame(
     page = c("/", "/hub"), trust = c(2, 1)
   )
-  prior <- trust_seed_prior(
+  prior <- seed_prior(
     seeds,
     seed_url_col = "page", seed_weight_col = "trust"
   )
@@ -44,21 +44,21 @@ test_that("trust_seed_prior() accepts a data frame with custom columns", {
   expect_equal(prior$weight, c(2, 1))
 })
 
-test_that("trust_seed_prior() validates input", {
-  expect_error(trust_seed_prior(character(0)), "no usable seed URLs")
-  expect_error(trust_seed_prior(c("a", "b"), seed_weight = c(-1, 2)),
+test_that("seed_prior() validates input", {
+  expect_error(seed_prior(character(0)), "no usable seed URLs")
+  expect_error(seed_prior(c("a", "b"), seed_weight = c(-1, 2)),
     "non-negative"
   )
   expect_error(
-    trust_seed_prior(data.frame(x = 1)),
+    seed_prior(data.frame(x = 1)),
     "must have 'url' and 'weight'"
   )
   expect_error(
-    trust_seed_prior(data.frame(url = "a", weight = 1), seed_weight = 1),
+    seed_prior(data.frame(url = "a", weight = 1), seed_weight = 1),
     "applies only when"
   )
   expect_error(
-    trust_seed_prior(42L),
+    seed_prior(42L),
     "character vector of URLs or a data frame"
   )
 })
@@ -102,7 +102,7 @@ test_that("seed bias lifts the trusted core above uniform PageRank", {
 
 test_that("trustrank() equals pagerank() with the equivalent seed prior", {
   edges <- make_trust_site()
-  prior <- trust_seed_prior(c("/", "/hub"))
+  prior <- seed_prior(c("/", "/hub"))
   direct <- suppressMessages(
     pagerank(edges, prior_df = prior, clean_edge_urls = FALSE)
   )
@@ -127,7 +127,7 @@ test_that("trusted seeds on redirect sources fold onto their targets", {
 
 test_that("trustrank() rejects caller-supplied prior args", {
   edges <- make_trust_site()
-  prior <- trust_seed_prior("/")
+  prior <- seed_prior("/")
   expect_error(
     trustrank(edges, "/", prior_df = prior),
     "Do not pass"

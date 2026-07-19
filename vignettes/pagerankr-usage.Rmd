@@ -861,8 +861,7 @@ values that may contain query strings or fragments.
 | `topic_sensitive_pagerank()` | Per-topic personalized PageRank with blended scores |
 | `topic_feeder_pagerank()` | Reverse-graph seeded PageRank: find pages that feed a target cluster |
 | `trustrank()` | TrustRank: seed-biased PageRank from a trusted seed set |
-| `trust_seed_prior()` | Build a teleport prior concentrated on trusted seed URLs (for trustrank) |
-| `feeder_seed_prior()` | Build a teleport prior concentrated on cluster seed URLs (for topic_feeder_pagerank) |
+| `seed_prior()` | Build a teleport prior concentrated on seed URLs (shared by trustrank and topic_feeder_pagerank) |
 | `align_prior_to_vertices()` | Align a prior/teleport weight data frame to the graph vertex set |
 | `ga4_entrance_teleport()` | Entrance/landing-page counts as a teleport (reset) vector |
 | `ga4_page_transitions()` | Consecutive-page-view transition counts from a GA4 BigQuery export |

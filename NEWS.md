@@ -109,7 +109,7 @@ _Released 2026-07-11._
   `||Gx - x||_1` of the returned vector — a genuine quality check comparable
   across both back-ends. Docs cover the damping/iteration-count rule of thumb
   `log10(eps) / log10(damping)`.
-* New `topic_feeder_pagerank()` and `feeder_seed_prior()` answer the inverse of
+* New `topic_feeder_pagerank()` answers the inverse of
   `topic_sensitive_pagerank()`: not "which page is most authoritative *for* this
   cluster" but "which pages *feed / power* this cluster" — the internal hubs
   whose outlinks point into the target pages. It seeds the teleport prior on the
@@ -137,14 +137,16 @@ _Released 2026-07-11._
   pure sinks, `authority` is `NA` for pure sources). v1 is unweighted; a
   weighted extension is deferred. Documented as a site-graph adaptation of the
   original focused-subgraph algorithm.
-* New `trustrank()` and `trust_seed_prior()` add TrustRank-style seed-biased
-  PageRank (Gyöngyi, Garcia-Molina & Pedersen, 2004): personalized PageRank
-  whose teleport vector is concentrated on a set of trusted seed pages, so
-  trust flows outward from the seeds and attenuates with distance (the damping
-  factor *is* the attenuation). `trust_seed_prior()` builds a `prior_df` from a
-  seed set (character vector or weighted `data.frame`; equal weights reproduce
-  the original uniform seed distribution), and `trustrank()` is the one-call
-  wrapper that builds the seed prior and runs `pagerank()` with it. Pure
+* New `trustrank()` and the shared `seed_prior()` builder add TrustRank-style
+  seed-biased PageRank (Gyöngyi, Garcia-Molina & Pedersen, 2004): personalized
+  PageRank whose teleport vector is concentrated on a set of trusted seed pages,
+  so trust flows outward from the seeds and attenuates with distance (the
+  damping factor *is* the attenuation). `seed_prior()` builds a `prior_df` from
+  a seed set (character vector or weighted `data.frame`; equal weights reproduce
+  the original uniform seed distribution) and is orientation-agnostic — the same
+  builder feeds `topic_feeder_pagerank()` on the reversed graph. `trustrank()`
+  is the one-call wrapper that builds the seed prior and runs `pagerank()` with
+  it. Pure
   orchestration over the existing TIPR personalization path — no new solver;
   seed selection is the caller's (it is seed-biased PageRank, not a spam
   classifier). New `trustrank` vignette walks through a worked example.

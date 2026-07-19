@@ -158,17 +158,12 @@ topic_sensitive_pagerank <- function(edge_list_df,
 #' @keywords internal
 #' @noRd
 .prepare_topic_dots <- function(dots) {
-  owned <- intersect(
+  .reject_owned_args(
+    dots,
     c("prior_df", "prior_url_col", "prior_weight_col"),
-    names(dots)
+    "topic_sensitive_pagerank",
+    "the teleport prior is built from `topics`."
   )
-  if (length(owned) > 0) {
-    stop("Do not pass ", paste0("`", owned, "`", collapse = ", "),
-      " to topic_sensitive_pagerank(); the teleport prior is built from ",
-      "`topics`.",
-      call. = FALSE
-    )
-  }
   # Silence per-topic TIPR alignment messages unless the caller opts in.
   if (!("prior_verbose" %in% names(dots))) {
     dots$prior_verbose <- FALSE

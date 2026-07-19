@@ -269,10 +269,10 @@ describe("HITS validation and defensive branches", {
 # trustrank.R
 # ---------------------------------------------------------------------------
 
-describe("trustrank / trust_seed_prior validation", {
-  it("trust_seed_prior rejects a non-numeric `seed_weight`", {
+describe("trustrank / seed_prior validation", {
+  it("seed_prior rejects a non-numeric `seed_weight`", {
     expect_error(
-      trust_seed_prior(c("A", "B"), seed_weight = "x"),
+      seed_prior(c("A", "B"), seed_weight = "x"),
       "must be numeric or NULL",
       fixed = TRUE
     )

@@ -54,6 +54,7 @@ reference:
   - title: "Personalized and reverse PageRank"
     desc: "Bias scores toward trusted or topical seed pages and feeder paths."
     contents:
+      - seed_prior
       - trustrank
       - topic_sensitive_pagerank
       - topic_feeder_pagerank

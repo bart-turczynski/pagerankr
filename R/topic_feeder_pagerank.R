@@ -16,10 +16,11 @@
 #'   is exactly that attenuation.
 #'
 #'   Like [trustrank()] and [topic_sensitive_pagerank()], this introduces **no
-#'   new solver**: it builds a `prior_df` from the seed set
-#'   ([feeder_seed_prior()]) and hands it to [pagerank()] with `reverse = TRUE`.
-#'   The caller supplies the
-#'   cluster; there is no topic inference.
+#'   new solver**: it builds a `prior_df` from the seed set ([seed_prior()]) and
+#'   hands it to [pagerank()] with `reverse = TRUE`. The caller supplies the
+#'   cluster; there is no topic inference. The prior builder is the *same*
+#'   [seed_prior()] that [trustrank()] uses — a seed prior is orientation-
+#'   agnostic; the reversed graph is what makes this a feeder query.
 #'
 #' @details
 #' ## Why this is not recoverable from forward PageRank
@@ -81,7 +82,7 @@
 #' @param seeds The target cluster. Either a character vector of cluster URLs
 #'   (each gets equal seed weight unless `seed_weight` is given), or a data
 #'   frame with a URL column and a numeric weight column (see `seed_url_col` /
-#'   `seed_weight_col`) for unequal cluster emphasis.
+#'   `seed_weight_col`) for unequal cluster emphasis. See [seed_prior()].
 #' @param seed_weight Optional numeric weight for a character-vector `seeds`:
 #'   either one value per seed or a single value recycled to all seeds. Ignored
 #'   when `seeds` is a data frame. Default `NULL` (every cluster page weight
@@ -93,18 +94,13 @@
 #'   `prior_transform`, `prior_alpha`, `damping`). Passing `prior_df`,
 #'   `prior_url_col`, `prior_weight_col`, or `reverse` is an error.
 #'
-#' @return [feeder_seed_prior()] returns a data frame with `url` and `weight`
-#'   columns, suitable as the `prior_df` argument to [pagerank()].
+#' @return The [pagerank()] result data frame (`node_name`, `pagerank`, and the
+#'   `prior_weight` column the prior path adds), sorted by `pagerank`
+#'   descending, carrying the usual `"transition_audit"` attribute. The audit's
+#'   model configuration records `reverse = TRUE`.
 #'
-#'   [topic_feeder_pagerank()] returns the [pagerank()] result data frame
-#'   (`node_name`, `pagerank`, and the `prior_weight` column the prior path
-#'   adds), sorted by `pagerank` descending, carrying the usual
-#'   `"transition_audit"` attribute. The audit's model configuration records
-#'   `reverse = TRUE`.
-#'
-#' @seealso [topic_sensitive_pagerank()], [trustrank()], [pagerank()],
-#'   [align_prior_to_vertices()], [hits()]
-#' @name topic_feeder_pagerank
+#' @seealso [seed_prior()], [topic_sensitive_pagerank()], [trustrank()],
+#'   [pagerank()], [align_prior_to_vertices()], [hits()]
 #' @examples
 #' edges <- data.frame(
 #'   from = c("/hub", "/hub", "/feeder", "/blog", "/ai", "/news"),
@@ -122,84 +118,10 @@
 #' fr[fr$prior_weight == 0, c("node_name", "pagerank")]
 #'
 #' # Build the cluster prior explicitly and run it yourself, if you prefer:
-#' prior <- feeder_seed_prior(c("/ai", "/ai-demo"))
+#' prior <- seed_prior(c("/ai", "/ai-demo"))
 #' identical_run <- pagerank(
 #'   edges, prior_df = prior, reverse = TRUE, clean_edge_urls = FALSE
 #' )
-NULL
-
-#' @rdname topic_feeder_pagerank
-#' @export
-feeder_seed_prior <- function(seeds,
-                              seed_weight = NULL,
-                              seed_url_col = "url",
-                              seed_weight_col = "weight") {
-  if (is.data.frame(seeds)) {
-    if (!all(c(seed_url_col, seed_weight_col) %in% names(seeds))) {
-      stop("`seeds` (a data frame) must have '", seed_url_col,
-        "' and '", seed_weight_col, "' columns.",
-        call. = FALSE
-      )
-    }
-    if (!is.null(seed_weight)) {
-      stop("`seed_weight` applies only when `seeds` is a character vector; ",
-        "put per-seed weights in the '", seed_weight_col, "' column instead.",
-        call. = FALSE
-      )
-    }
-    urls <- as.character(seeds[[seed_url_col]])
-    wts <- suppressWarnings(as.numeric(seeds[[seed_weight_col]]))
-  } else if (is.character(seeds) || is.factor(seeds)) {
-    urls <- as.character(seeds)
-    wts <- .feeder_resolve_seed_weights(seed_weight, urls)
-  } else {
-    stop("`seeds` must be a character vector of URLs or a data frame with URL ",
-      "and weight columns.",
-      call. = FALSE
-    )
-  }
-
-  keep <- !is.na(urls) & nzchar(urls)
-  urls <- urls[keep]
-  wts <- wts[keep]
-  if (length(urls) == 0) {
-    stop("`seeds` has no usable cluster URLs.", call. = FALSE)
-  }
-  if (any(!is.na(wts) & wts < 0)) {
-    stop("Cluster seed weights must be non-negative.", call. = FALSE)
-  }
-
-  data.frame(url = urls, weight = wts)
-}
-
-#' Resolve per-seed weights for a character vector of cluster seeds.
-#'
-#' Mirrors the character-vector `seed_weight` handling of [feeder_seed_prior()];
-#' error-message text is preserved verbatim.
-#' @keywords internal
-#' @noRd
-.feeder_resolve_seed_weights <- function(seed_weight, urls) {
-  if (is.null(seed_weight)) {
-    wts <- rep(1, length(urls))
-  } else {
-    if (!is.numeric(seed_weight)) {
-      stop("`seed_weight` must be numeric or NULL.", call. = FALSE)
-    }
-    if (length(seed_weight) == 1L) {
-      wts <- rep(seed_weight, length(urls))
-    } else if (length(seed_weight) == length(urls)) {
-      wts <- seed_weight
-    } else {
-      stop("`seed_weight` must be length 1 or match the number of seeds (",
-        length(urls), ").",
-        call. = FALSE
-      )
-    }
-  }
-  wts
-}
-
-#' @rdname topic_feeder_pagerank
 #' @export
 topic_feeder_pagerank <- function(edge_list_df,
                                   seeds,
@@ -211,19 +133,17 @@ topic_feeder_pagerank <- function(edge_list_df,
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
   dots <- list(...)
-  owned <- intersect(
+  .reject_owned_args(
+    dots,
     c("prior_df", "prior_url_col", "prior_weight_col", "reverse"),
-    names(dots)
-  )
-  if (length(owned) > 0) {
-    stop("Do not pass ", paste0("`", owned, "`", collapse = ", "),
-      " to topic_feeder_pagerank(); the teleport prior is built from `seeds` ",
-      "and the graph is always reversed (reverse = TRUE).",
-      call. = FALSE
+    "topic_feeder_pagerank",
+    paste(
+      "the teleport prior is built from `seeds` and the graph is always",
+      "reversed (reverse = TRUE)."
     )
-  }
+  )
 
-  prior <- feeder_seed_prior(
+  prior <- seed_prior(
     seeds,
     seed_weight = seed_weight,
     seed_url_col = seed_url_col,
