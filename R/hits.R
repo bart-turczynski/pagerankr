@@ -436,29 +436,42 @@ hits <- function(edge_list_df,
     drop_isolates_flag, weight_col
   )
 
-  # --- 1-2.7. URL cleaning, redirect/canonical fold, domain filtering ---
-  effective_rurl_params <- .resolve_rurl_params(rurl_params)
-  current_edge_list <- .hits_resolve_edges(
-    edge_list_df, redirects_df, canonicals_df, effective_rurl_params,
-    clean_edge_urls, clean_redirect_urls, clean_canonical_urls,
-    edge_from_col, edge_to_col, redirect_from_col, redirect_to_col,
-    canonical_from_col, canonical_to_col, duplicate_from_policy,
-    loop_handling, canonical_duplicate_from_policy, canonical_loop_handling,
-    canonical_conflict_policy, keep_domains, exclude_domains,
-    keep_hosts, exclude_hosts
-  )
-
-  # --- 3-4. Duplicate-edge policy + isolate / vertex-set assembly ---
-  prep <- .hits_finalize_vertices(
-    current_edge_list, edge_from_col, edge_to_col, weight_col,
-    duplicate_edge_policy, self_loops, drop_isolates_flag
+  # --- 1-4. Shared link-graph prep: clean, fold, filter, dedup, vertices ---
+  # See .prepare_link_graph(); salsa() drives the same spine.
+  prep <- .prepare_link_graph(
+    edge_list_df = edge_list_df,
+    redirects_df = redirects_df,
+    canonicals_df = canonicals_df,
+    rurl_params = rurl_params,
+    clean_edge_urls = clean_edge_urls,
+    clean_redirect_urls = clean_redirect_urls,
+    clean_canonical_urls = clean_canonical_urls,
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col,
+    redirect_from_col = redirect_from_col,
+    redirect_to_col = redirect_to_col,
+    canonical_from_col = canonical_from_col,
+    canonical_to_col = canonical_to_col,
+    duplicate_from_policy = duplicate_from_policy,
+    loop_handling = loop_handling,
+    canonical_duplicate_from_policy = canonical_duplicate_from_policy,
+    canonical_loop_handling = canonical_loop_handling,
+    canonical_conflict_policy = canonical_conflict_policy,
+    keep_domains = keep_domains,
+    exclude_domains = exclude_domains,
+    keep_hosts = keep_hosts,
+    exclude_hosts = exclude_hosts,
+    duplicate_edge_policy = duplicate_edge_policy,
+    self_loops = self_loops,
+    drop_isolates_flag = drop_isolates_flag,
+    weight_col = weight_col
   )
 
   # --- 5. Compute HITS ---
   compute_hits(
-    edge_list_df = prep$edge_list, vertices_df = prep$vertices,
+    edge_list_df = prep$edge_list, vertices_df = prep$vertices_df,
     from_col = edge_from_col, to_col = edge_to_col,
-    vertex_col_name = "node_name", weight_col = prep$weight_col,
+    vertex_col_name = prep$node_col, weight_col = prep$weight_col,
     scale = scale, ...
   )
 }
@@ -479,89 +492,6 @@ hits <- function(edge_list_df,
   )
   .validate_hits_weight(weight_col, edge_list_df)
   invisible(NULL)
-}
-
-#' Clean, redirect/canonical-fold, and domain-filter the hits() edge list
-#'
-#' Encapsulates pipeline steps 1 through 2.7, returning the resolved edge list.
-#' @noRd
-.hits_resolve_edges <- function(current_edge_list, current_redirects_list,
-                                current_canonicals_list, effective_rurl_params,
-                                clean_edge_urls, clean_redirect_urls,
-                                clean_canonical_urls, edge_from_col,
-                                edge_to_col, redirect_from_col, redirect_to_col,
-                                canonical_from_col, canonical_to_col,
-                                duplicate_from_policy, loop_handling,
-                                canonical_duplicate_from_policy,
-                                canonical_loop_handling,
-                                canonical_conflict_policy, keep_domains,
-                                exclude_domains, keep_hosts, exclude_hosts) {
-  # --- 1. URL cleaning (shared resolved rurl profile) ---
-  cleaned <- .clean_hits_urls(
-    current_edge_list, current_redirects_list, current_canonicals_list,
-    effective_rurl_params, clean_edge_urls, clean_redirect_urls,
-    clean_canonical_urls, edge_from_col, edge_to_col, redirect_from_col,
-    redirect_to_col, canonical_from_col, canonical_to_col
-  )
-  current_edge_list <- cleaned$edges
-  current_redirects_list <- cleaned$redirects
-  current_canonicals_list <- cleaned$canonicals
-
-  # --- 2. Redirect + canonical resolution (one composed fold map) ---
-  current_edge_list <- .apply_hits_fold_map(
-    current_edge_list, current_redirects_list, current_canonicals_list,
-    edge_from_col, edge_to_col, redirect_from_col, redirect_to_col,
-    canonical_from_col, canonical_to_col, duplicate_from_policy,
-    loop_handling, canonical_duplicate_from_policy, canonical_loop_handling,
-    canonical_conflict_policy
-  )
-
-  # --- 2.7. Domain / host filtering ---
-  .filter_hits_domains(
-    current_edge_list, edge_from_col, edge_to_col, keep_domains,
-    exclude_domains, keep_hosts, exclude_hosts, effective_rurl_params
-  )
-}
-
-#' Apply the duplicate-edge policy and assemble the hits() vertex set
-#'
-#' Encapsulates pipeline steps 2.5 through 4. Returns a list of the resolved
-#' `edge_list`, the `vertices` data frame, and the effective `weight_col`.
-#' @noRd
-.hits_finalize_vertices <- function(current_edge_list, edge_from_col,
-                                    edge_to_col, weight_col,
-                                    duplicate_edge_policy, self_loops,
-                                    drop_isolates_flag) {
-  temp_node_col_name <- "node_name"
-  # --- 2.5. Full vertex universe (before NA rows are stripped) ---
-  all_vertex_universe <- unique(stats::na.omit(c(
-    as.character(current_edge_list[[edge_from_col]]),
-    as.character(current_edge_list[[edge_to_col]])
-  )))
-
-  # --- 3. Duplicate-edge policy (handles self-loops) ---
-  effective_weight_col <- weight_col
-  current_edge_list <- .apply_duplicate_edge_policy(
-    edge_list_df = current_edge_list,
-    policy = duplicate_edge_policy,
-    self_loops = self_loops,
-    from_col = edge_from_col,
-    to_col = edge_to_col
-  )
-  if (duplicate_edge_policy == "count_instances" && is.null(weight_col)) {
-    effective_weight_col <- "__pr_instance_count__"
-  }
-
-  # --- 4. Handle isolates / assemble vertex set ---
-  vertices_for_hits_df <- .assemble_hits_vertices(
-    current_edge_list, edge_from_col, edge_to_col, drop_isolates_flag,
-    all_vertex_universe, temp_node_col_name
-  )
-  list(
-    edge_list = current_edge_list,
-    vertices = vertices_for_hits_df,
-    weight_col = effective_weight_col
-  )
 }
 
 # --- Internal helpers for hits() ---------------------------------------------
@@ -623,153 +553,3 @@ hits <- function(edge_list_df,
   invisible(NULL)
 }
 
-#' Clean one edge frame's URL columns (cleaned regardless of row count)
-#' @noRd
-.clean_edge_url_frame <- function(df, from_col, to_col, do_clean, params) {
-  cols <- intersect(c(from_col, to_col), names(df))
-  if (!do_clean || length(cols) == 0) {
-    return(df)
-  }
-  do.call(
-    clean_url_columns,
-    c(list(data_frame = df, columns = cols), params)
-  )
-}
-
-#' Clean one redirect/canonical frame's URL columns (only when non-empty)
-#' @noRd
-.clean_ref_url_frame <- function(df, from_col, to_col, do_clean, params) {
-  if (!do_clean || is.null(df) || nrow(df) == 0) {
-    return(df)
-  }
-  cols <- intersect(c(from_col, to_col), names(df))
-  if (length(cols) == 0) {
-    return(df)
-  }
-  do.call(
-    clean_url_columns,
-    c(list(data_frame = df, columns = cols), params)
-  )
-}
-
-#' Clean the edge / redirect / canonical URL columns under a shared rurl profile
-#' @noRd
-.clean_hits_urls <- function(current_edge_list, current_redirects_list,
-                             current_canonicals_list, effective_rurl_params,
-                             clean_edge_urls, clean_redirect_urls,
-                             clean_canonical_urls, edge_from_col, edge_to_col,
-                             redirect_from_col, redirect_to_col,
-                             canonical_from_col, canonical_to_col) {
-  edges <- .clean_edge_url_frame(
-    current_edge_list, edge_from_col, edge_to_col,
-    clean_edge_urls, effective_rurl_params
-  )
-  redirects <- .clean_ref_url_frame(
-    current_redirects_list, redirect_from_col, redirect_to_col,
-    clean_redirect_urls, effective_rurl_params
-  )
-  canonicals <- .clean_ref_url_frame(
-    current_canonicals_list, canonical_from_col, canonical_to_col,
-    clean_canonical_urls, effective_rurl_params
-  )
-  list(edges = edges, redirects = redirects, canonicals = canonicals)
-}
-
-#' Compose the redirect + canonical fold map and apply it to the edge columns
-#' @noRd
-.apply_hits_fold_map <- function(current_edge_list, current_redirects_list,
-                                 current_canonicals_list, edge_from_col,
-                                 edge_to_col, redirect_from_col,
-                                 redirect_to_col, canonical_from_col,
-                                 canonical_to_col, duplicate_from_policy,
-                                 loop_handling,
-                                 canonical_duplicate_from_policy,
-                                 canonical_loop_handling,
-                                 canonical_conflict_policy) {
-  has_redirects <- !is.null(current_redirects_list) &&
-    nrow(current_redirects_list) > 0
-  has_canonicals <- !is.null(current_canonicals_list) &&
-    nrow(current_canonicals_list) > 0
-
-  if (!has_redirects && !has_canonicals) {
-    return(current_edge_list)
-  }
-
-  fold <- .compose_fold_map(
-    redirects_df = if (has_redirects) current_redirects_list else NULL,
-    canonicals_df = if (has_canonicals) current_canonicals_list else NULL,
-    redirect_from_col = redirect_from_col,
-    redirect_to_col = redirect_to_col,
-    canonical_from_col = canonical_from_col,
-    canonical_to_col = canonical_to_col,
-    duplicate_from_policy = duplicate_from_policy,
-    loop_handling = loop_handling,
-    canonical_duplicate_from_policy = canonical_duplicate_from_policy,
-    canonical_loop_handling = canonical_loop_handling,
-    canonical_conflict_policy = canonical_conflict_policy
-  )
-  fold_map <- fold$map
-
-  if (length(fold_map) > 0) {
-    for (col_name in c(edge_from_col, edge_to_col)) {
-      if (col_name %in% names(current_edge_list)) {
-        current_edge_list[[col_name]] <- .apply_fold_map(
-          current_edge_list[[col_name]], fold_map
-        )
-      }
-    }
-  }
-  current_edge_list
-}
-
-#' Apply domain / host filtering to the edge list when any filter is supplied
-#' @noRd
-.filter_hits_domains <- function(current_edge_list, edge_from_col, edge_to_col,
-                                 keep_domains, exclude_domains, keep_hosts,
-                                 exclude_hosts, effective_rurl_params) {
-  if (is.null(keep_domains) && is.null(exclude_domains) &&
-        is.null(keep_hosts) && is.null(exclude_hosts)) {
-    return(current_edge_list)
-  }
-  filter_links_by_domain(
-    edge_list_df = current_edge_list,
-    from_col = edge_from_col,
-    to_col = edge_to_col,
-    keep_domains = keep_domains,
-    ignore_domains = exclude_domains,
-    keep_hosts = keep_hosts,
-    ignore_hosts = exclude_hosts,
-    rurl_params = effective_rurl_params
-  )
-}
-
-#' Assemble the vertex data frame, honouring the isolate-handling flag
-#' @noRd
-.assemble_hits_vertices <- function(current_edge_list, edge_from_col,
-                                    edge_to_col, drop_isolates_flag,
-                                    all_vertex_universe, temp_node_col_name) {
-  current_edge_nodes <- unique(c(
-    as.character(current_edge_list[[edge_from_col]]),
-    as.character(current_edge_list[[edge_to_col]])
-  ))
-  current_edge_nodes <- current_edge_nodes[!is.na(current_edge_nodes)]
-
-  vertices_for_hits_df <- NULL
-  if (drop_isolates_flag) {
-    if (length(current_edge_nodes) > 0) {
-      vertices_for_hits_df <- stats::setNames(
-        data.frame(sort(current_edge_nodes)),
-        temp_node_col_name
-      )
-    }
-  } else {
-    full_universe <- unique(c(all_vertex_universe, current_edge_nodes))
-    if (length(full_universe) > 0) {
-      vertices_for_hits_df <- stats::setNames(
-        data.frame(sort(full_universe)),
-        temp_node_col_name
-      )
-    }
-  }
-  vertices_for_hits_df
-}

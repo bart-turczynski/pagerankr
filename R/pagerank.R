@@ -1843,7 +1843,9 @@ pagerank <- function(edge_list_df,
 #' canonicalized once per unique string without any local memoizer. Canonicals
 #' are cleaned through the SAME resolved profile so the composed fold map
 #' operates in one node namespace. When edge cleaning is disabled and edge URLs
-#' still contain query parameters, emits the same advisory warning as before.
+#' still contain query parameters, emits the same advisory warning as before --
+#' but only when `warn_uncleaned_edges` is `TRUE` (pagerank()); hits()/salsa()
+#' share this spine and suppress the advisory to preserve their behavior.
 #'
 #' @return A list with the (possibly cleaned) `edge_list_df`, `redirects_df`,
 #'   and `canonicals_df`.
@@ -1861,7 +1863,8 @@ pagerank <- function(edge_list_df,
                                  clean_edge_urls,
                                  clean_redirect_urls,
                                  clean_canonical_urls,
-                                 effective_rurl_params) {
+                                 effective_rurl_params,
+                                 warn_uncleaned_edges = TRUE) {
   # Determine edge, redirect, and canonical URL columns for cleaning
   edge_url_cols <- intersect(c(edge_from_col, edge_to_col), names(edge_list_df))
   redirect_url_cols <- .url_cols_of(
@@ -1886,7 +1889,12 @@ pagerank <- function(edge_list_df,
     clean_canonical_urls && .df_has_rows(canonicals_df), effective_rurl_params
   )
 
-  .warn_uncleaned_query_params(edge_list_df, edge_url_cols, clean_edge_urls)
+  # The uncleaned-edge advisory is a pagerank() diagnostic; hits()/salsa() share
+  # the cleaning spine but have never emitted it, so they pass FALSE to preserve
+  # their behavior.
+  if (warn_uncleaned_edges) {
+    .warn_uncleaned_query_params(edge_list_df, edge_url_cols, clean_edge_urls)
+  }
 
   list(
     edge_list_df = edge_list_df,
