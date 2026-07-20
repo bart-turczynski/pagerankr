@@ -17,6 +17,10 @@ pagerank(
   placement_col = NULL,
   accepted_placements = NULL,
   placement_weights = NULL,
+  container_col = NULL,
+  boilerplate_threshold = 0.5,
+  min_container_pages = 10,
+  boilerplate_weight = 0.5,
   duplicate_edge_policy = c("collapse", "aggregate", "count_instances"),
   nofollow_col = NULL,
   nofollow_action = c("evaporate", "drop", "keep"),
@@ -117,6 +121,40 @@ rather than filtering is deliberate: dropping a region changes the graph's
 *shape* (pages reachable only through nav become teleport-only, pages
 linking out only through nav become dangling), whereas a small weight
 leaves the topology intact and merely stops the region dominating.}
+
+\item{container_col}{Optional name of a column in `edge_list_df` identifying
+the **source-side component** each link sits in -- the template element the
+link belongs to, stable across the pages that element appears on. Supplying
+it switches on the boilerplate detector; `NULL` (default) leaves it off.
+Like `placement_col` this is crawler-neutral data: a per-crawler adapter
+derives component identity from whatever the crawler reports (a DOM path,
+a CSS selector, a template ID) and `pagerank()` only consumes the result,
+so any crawler that can identify a link's component can drive the
+detector. Cannot be combined with
+`weight_col`, which it supersedes by building a weight column of its own.}
+
+\item{boilerplate_threshold}{The container-conditioned recurrence ratio at
+or above which an edge is **classified** boilerplate, in `(0, 1]`. The
+ratio is the share of pages carrying the container on which that container
+points at this same target, so `1` means "every time this component
+appeared, it linked here" and values near `0` mean the component chooses a
+different target on each page. Default `0.5`. Only consulted when
+`container_col` is supplied.}
+
+\item{min_container_pages}{Minimum number of pages a container must appear
+on before any of its edges may be classified. Default `10`. Small
+containers are excluded because their ratios are quantized -- a container
+on three pages can only score `0.33`, `0.67` or `1` -- so a high ratio
+there is thin evidence rather than a strong signal. A judgement call, not
+a measured cut.}
+
+\item{boilerplate_weight}{The multiplier applied to an edge **classified**
+boilerplate, in `(0, 1]`. Default `0.5`. Note this is a different quantity
+from `boilerplate_threshold` despite sharing a default value: the
+threshold is a fraction of pages that decides *whether* an edge is
+boilerplate, this is the discount applied *once it is*. Composes
+multiplicatively with `placement_weights`; both factors are recorded
+separately in the transition audit.}
 
 \item{duplicate_edge_policy}{How repeated `from -> to` rows are represented
 after URL cleaning, redirect/canonical folding, and domain filtering. One

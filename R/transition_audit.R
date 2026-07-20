@@ -60,8 +60,14 @@
 #'     `accepted_placements`, `placement_weights`, and `n_rows_dropped`, the
 #'     number of edge rows the placement filter removed), or `NULL` when it was
 #'     not — so a downweighted edge can be explained by the region it sits in
-#'     rather than only by the opaque weight column it produced. The other
-#'     fields are the
+#'     rather than only by the opaque weight column it produced. `boilerplate`
+#'     records the recurrence detector the same way when it was used
+#'     (`container_col`, `boilerplate_threshold`, `min_container_pages`,
+#'     `boilerplate_weight`, and the counts `n_containers`, `n_edges_scored`,
+#'     `n_edges_judged` and `n_edges_discounted`), or `NULL` when it was not.
+#'     The two weighting axes compose multiplicatively, so both are recorded
+#'     **separately**: the product alone cannot explain why an edge weighs
+#'     `0.05`. The other fields are the
 #'     resolved configuration itself: `self_loops`, `drop_isolates_flag`,
 #'     `reverse`,
 #'     `weight_col`, `nofollow_col`, `nofollow_action`, `robots_blocked_action`,

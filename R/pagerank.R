@@ -65,6 +65,36 @@
 #'   *shape* (pages reachable only through nav become teleport-only, pages
 #'   linking out only through nav become dangling), whereas a small weight
 #'   leaves the topology intact and merely stops the region dominating.
+#' @param container_col Optional name of a column in `edge_list_df` identifying
+#'   the **source-side component** each link sits in -- the template element the
+#'   link belongs to, stable across the pages that element appears on. Supplying
+#'   it switches on the boilerplate detector; `NULL` (default) leaves it off.
+#'   Like `placement_col` this is crawler-neutral data: a per-crawler adapter
+#'   derives component identity from whatever the crawler reports (a DOM path,
+#'   a CSS selector, a template ID) and `pagerank()` only consumes the result,
+#'   so any crawler that can identify a link's component can drive the
+#'   detector. Cannot be combined with
+#'   `weight_col`, which it supersedes by building a weight column of its own.
+#' @param boilerplate_threshold The container-conditioned recurrence ratio at
+#'   or above which an edge is **classified** boilerplate, in `(0, 1]`. The
+#'   ratio is the share of pages carrying the container on which that container
+#'   points at this same target, so `1` means "every time this component
+#'   appeared, it linked here" and values near `0` mean the component chooses a
+#'   different target on each page. Default `0.5`. Only consulted when
+#'   `container_col` is supplied.
+#' @param min_container_pages Minimum number of pages a container must appear
+#'   on before any of its edges may be classified. Default `10`. Small
+#'   containers are excluded because their ratios are quantized -- a container
+#'   on three pages can only score `0.33`, `0.67` or `1` -- so a high ratio
+#'   there is thin evidence rather than a strong signal. A judgement call, not
+#'   a measured cut.
+#' @param boilerplate_weight The multiplier applied to an edge **classified**
+#'   boilerplate, in `(0, 1]`. Default `0.5`. Note this is a different quantity
+#'   from `boilerplate_threshold` despite sharing a default value: the
+#'   threshold is a fraction of pages that decides *whether* an edge is
+#'   boilerplate, this is the discount applied *once it is*. Composes
+#'   multiplicatively with `placement_weights`; both factors are recorded
+#'   separately in the transition audit.
 #' @param duplicate_edge_policy How repeated `from -> to` rows are represented
 #'   after URL cleaning, redirect/canonical folding, and domain filtering. One
 #'   of:
@@ -494,6 +524,10 @@ pagerank <- function(
   placement_col = NULL,
   accepted_placements = NULL,
   placement_weights = NULL,
+  container_col = NULL,
+  boilerplate_threshold = 0.5,
+  min_container_pages = 10,
+  boilerplate_weight = 0.5,
   duplicate_edge_policy = c(
     "collapse",
     "aggregate",
@@ -593,6 +627,7 @@ pagerank <- function(
   # weight column of its own, so pairing it with `weight_col` is a contradiction
   # worth reporting before `weight_col` is checked against the edge list.
   .pr_check_weight_col_exclusivity(weight_col, placement_weights)
+  .pr_check_container_weight_exclusivity(weight_col, container_col)
 
   # Validate all arguments up front (see .validate_pagerank_args below). Kept in
   # a dedicated helper so this orchestrator stays readable; error messages and
@@ -662,6 +697,27 @@ pagerank <- function(
     rurl_params = rurl_params
   )
   current_edge_list <- .prep$edge_list_df
+
+  # --- 1.5. Boilerplate: container-conditioned recurrence discount ----------
+  # Runs *after* URL cleaning, unlike placement: placement reads a categorical
+  # column and does not care what the URLs look like, whereas this detector
+  # counts distinct source pages and distinct targets, so it needs identities
+  # already normalized or the same page counts twice under two spellings. It
+  # runs *before* the fold (step 2) so a container is judged on what it links
+  # to as crawled. See .pr_apply_boilerplate() in R/boilerplate.R.
+  .boilerplate <- .pr_apply_boilerplate(
+    edge_list_df = current_edge_list,
+    container_col = container_col,
+    from_col = edge_from_col,
+    to_col = edge_to_col,
+    boilerplate_threshold = boilerplate_threshold,
+    min_container_pages = min_container_pages,
+    boilerplate_weight = boilerplate_weight,
+    weight_col = weight_col
+  )
+  current_edge_list <- .boilerplate$edge_list_df
+  weight_col <- .boilerplate$weight_col
+
   current_redirects_list <- .prep$redirects_df
   current_canonicals_list <- .prep$canonicals_df
   effective_rurl_params <- .prep$effective_rurl_params
@@ -921,7 +977,8 @@ pagerank <- function(
     has_canonicals = audit_has_canonicals,
     indexability_df = indexability_df,
     preset = preset,
-    placement = .placement$provenance
+    placement = .placement$provenance,
+    boilerplate = .boilerplate$provenance
   )
 
   attr(pagerank_results, "transition_audit") <- transition_audit
@@ -2778,7 +2835,8 @@ pagerank <- function(
   has_canonicals,
   indexability_df,
   preset = NULL,
-  placement = NULL
+  placement = NULL,
+  boilerplate = NULL
 ) {
   # Derived scalars, config snapshot, and construction live in helpers below.
   metrics <- .transition_audit_metrics(
@@ -2827,7 +2885,8 @@ pagerank <- function(
     indexability_df = indexability_df,
     folded_prior_df = folded_prior_df,
     preset = preset,
-    placement = placement
+    placement = placement,
+    boilerplate = boilerplate
   )
 }
 
@@ -2923,7 +2982,8 @@ pagerank <- function(
   indexability_df,
   folded_prior_df,
   preset = NULL,
-  placement = NULL
+  placement = NULL,
+  boilerplate = NULL
 ) {
   config_nofollow_col <- if (identical(nofollow_col, "__pr_nofollow__")) {
     NULL
@@ -2933,6 +2993,7 @@ pagerank <- function(
   list(
     preset = .pr_preset_label(preset),
     placement = placement,
+    boilerplate = boilerplate,
     self_loops = self_loops,
     drop_isolates_flag = drop_isolates_flag,
     reverse = reverse,
@@ -2993,7 +3054,8 @@ pagerank <- function(
   indexability_df,
   folded_prior_df,
   preset = NULL,
-  placement = NULL
+  placement = NULL,
+  boilerplate = NULL
 ) {
   new_transition_audit(
     n_input_rows = n_input_rows,
@@ -3039,7 +3101,8 @@ pagerank <- function(
       indexability_df = indexability_df,
       folded_prior_df = folded_prior_df,
       preset = preset,
-      placement = placement
+      placement = placement,
+      boilerplate = boilerplate
     )
   )
 }

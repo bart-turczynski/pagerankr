@@ -1,5 +1,31 @@
 # pagerankr (development version)
 
+* **Boilerplate detection: `pagerank()` can now discount repetitive template
+  links that sit in the main content.** Point the new `container_col` at a
+  column identifying each link's source-side component and every edge is scored
+  by *container-conditioned recurrence*: of the pages that component appears on,
+  the share on which it points at this same target. A recycled call-to-action
+  that always links the same place scores near `1` and is discounted; a
+  related-posts module that links somewhere different on every page scores near
+  `0` and keeps full weight — even though both recur identically. This catches
+  what placement never can, because bylines, compliance links and recycled CTAs
+  are structurally content. Tuned by `boilerplate_threshold` (default `0.5`, the
+  ratio at which an edge is *classified*), `min_container_pages` (default `10`,
+  an evidence floor) and `boilerplate_weight` (default `0.5`, the discount
+  applied *once classified*). The last two constants are unrelated quantities
+  that happen to share a value. Off unless `container_col` is supplied, and
+  crawler-neutral: any crawler that can identify a link's component can drive it.
+* The boilerplate and placement axes **compose multiplicatively** — a nav link
+  that is also template-recurring weighs `0.1 x 0.5 = 0.05` — and the transition
+  audit records both factor sets separately in `config$placement` and
+  `config$boilerplate`, since the product alone cannot explain a weight.
+* **Expect author pages to lose rank** where bylines are template-generated.
+  This is intended: that rank was manufactured by the template rather than
+  earned by any editorial decision.
+* The internal synthetic weight column is renamed `.__pr_placement_weight__` to
+  **`.__pr_edge_weight__`**, since both weighting axes now write it. It surfaces
+  in `attr(result, "transition_audit")$config$weight_col`.
+
 * **Two new presets complete the set: `"reversed"` and `"content"`.**
   `pr_preset()` now registers `raw` · `declared` · `reversed` · `content`.
   `"reversed"` is the feeder view (`reverse = TRUE`); it is a no-op rather than
