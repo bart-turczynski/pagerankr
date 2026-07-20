@@ -42,6 +42,7 @@ reference:
     desc: "Calculate, compare, tune, and inspect PageRank scores."
     contents:
       - pagerank
+      - pr_preset
       - compute_pagerank
       - pagerank_grid
       - auto_grid

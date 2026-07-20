@@ -49,7 +49,8 @@ pagerank(
   prior_inject_unmatched = FALSE,
   prior_verbose = TRUE,
   damping = 0.85,
-  ...
+  ...,
+  preset = NULL
 )
 }
 \arguments{
@@ -309,6 +310,13 @@ count (raise `niter` accordingly when using the ARPACK solver). See the
 subsequently to `igraph::page_rank()`. Besides `damping`, the recognized
 convergence controls `algo` (`"prpack"` / `"arpack"`), `eps`, and `niter`
 are forwarded here; see the "Convergence controls" section below.}
+
+\item{preset}{Optional named argument bundle describing a common view of
+the graph: a preset name (e.g. `"raw"`, `"declared"`), a [pr_preset()]
+result, or `NULL` (default, no preset). Preset values are applied only to
+arguments you did not name yourself, so precedence is **explicit argument
+> preset > base default**. Must be named in full (it sits after `...`).
+See [pr_preset()] for the exact expansion of each preset.}
 }
 \value{
 A data frame with node names and their PageRank scores. When
