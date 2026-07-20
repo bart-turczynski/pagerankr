@@ -4,7 +4,8 @@ Design notes from the 2026-07-20 session. Companion to
 `notes/pagerank-behavior-field-notes.md` — the field notes record *what a real crawl did*,
 this file records *the model we think explains it* and the decisions that follow.
 
-Status: design agreed, nothing implemented. Tickets: see "Where this lives" at the end.
+Status: design agreed and validated against two real crawls (§10); nothing implemented.
+Tickets: see "Where this lives" at the end.
 
 ---
 
@@ -153,6 +154,42 @@ crawler emits them as positions.
 sites are div soup. What a fixed vocabulary buys is that the fuzziness lives in a per-crawler
 normalizer, where it is inspectable and swappable, instead of leaking into the weighting math.
 
+### Derive the region from the DOM path, not from `Link Position`
+
+**SF's `Link Position` discards the enclosing region when a `<nav>` is nested inside it.**
+Measured on tidioreviews, cross-tabbing DOM path against `Link Position`:
+
+| path region | SF: Navigation | SF: Header | SF: Footer |
+|---|---:|---:|---:|
+| `//body/footer/…` | **248** | 0 | **0** |
+| `//body/header/…` | 2,666 | 62 | 0 |
+
+The site's markup is `footer > nav > a`:
+
+```html
+<footer class="site-footer"><div class="footer-inner">
+  <nav aria-label="Footer" class="footer-links"> … </nav>
+</div></footer>
+```
+
+Every one of those 248 footer links reports as `Navigation`, and **the site has no `Footer`
+bucket at all**. The same happens to the header: 2,666 of 2,728 header links report as
+`Navigation`. The `<footer>` is simply not recoverable from that column — but the DOM path has
+it unambiguously.
+
+**Rule: derive the region from `link_path`; use `Link Position` only as a fallback when no path
+is available.** Nesting needs an explicit precedence:
+
+> The region is the **outermost** layout container — `header`, `footer`, `aside`, else `content`.
+> `nav` applies only when the link sits in a `<nav>` that is *not* inside one of those.
+
+So footer-nav → `footer`, header-nav → `header`, standalone nav → `nav`. This does not change the
+default recipe (all three are 0.1), but it makes `footer` *reachable*, which today it is not — a
+user wanting footer at 0.05 and nav at 0.2 currently has no way to express that.
+
+It also makes the vocabulary genuinely crawler-neutral: derived from DOM structure we compute
+ourselves rather than inherited from whichever taxonomy a vendor happened to pick.
+
 ### Out of scope (deliberately)
 
 User-supplied override columns marking URLs or regions manually. Noted as a plausible future
@@ -161,6 +198,20 @@ expansion, not part of this work.
 ---
 
 ## 5. Boilerplate detection
+
+> ### Direction of the metric
+>
+> **`ratio` is a boilerplate score in [0, 1]. Higher = more boilerplate = lower
+> final edge weight.**
+>
+> - `ratio = 1.0` — every time this component appeared, it pointed here. Template
+>   link. Gets discounted.
+> - `ratio → 0` — this component points somewhere different on each page. Genuine
+>   editorial choice. Keeps full weight.
+>
+> Stated explicitly because the polarity is easy to invert when reading, and an
+> inverted reading makes "a sitewide denominator would bring the score down" sound
+> like an improvement when it is in fact a miss (see below).
 
 ### What does not work
 
@@ -200,16 +251,40 @@ This correctly separates two cases that look identical structurally:
 That is the right outcome: the harm described in field-notes §4 is uniform in-degree inflation
 on a single target, not component reuse as such.
 
-### Implementation gotcha: XPath positional indices
+### Why the denominator is the container and not the site
 
-SF's format is XPath (`/html/body/a[1]`; real paths look like `/html/body/main/article/div[7]/a`).
-The same recycled CTA lands at `div[7]` on a post with six preceding blocks and `div[4]` on a
-shorter one. **Exact-string grouping therefore under-detects in-content components while working
-fine on nav** — backwards from what we need, since nav is already covered by placement.
+Validated on natu.care (§10). Third-party consent-banner links appear on 983 of 9,655 pages:
 
-The detector needs a **path skeleton**: strip the `[n]` indices and group on structural shape.
-Nav items then collapse to one skeleton, which is harmless because we condition on target anyway.
-Small normalizer, but load-bearing — without it the detector would look simply broken.
+| denominator | ratio | verdict | outcome |
+|---|---:|---|---|
+| sitewide | 983 / 9,655 = **0.10** | "not boilerplate" | keeps weight 1.0 — **missed** |
+| container | 983 / 983 = **1.00** | boilerplate | discounted — **caught** |
+
+Consent links are boilerplate if anything is, and the sitewide denominator lets them through at
+full weight. Note *why* they are on only 10% of pages: not because the site is inconsistent, but
+because that is where the renderer happened to catch the banner. Container-conditioning is robust
+to that, since it only asks "when this component appeared, did it always point here?" — no
+special-casing for consent widgets required.
+
+### Path skeleton: strip positions, keep class predicates
+
+SF's `Link Path` is **not** pure positional XPath. It is a hybrid that uses attribute predicates
+where classes exist and positional indices elsewhere:
+
+```
+//body/div/main/article/div[@class='page-context']/nav/ol/li[1]/a
+//body/div/main/article/p[5]/a[1]
+```
+
+That is better than first assumed. Positional indices are unstable — the same recycled CTA lands
+at `p[5]` on a post with four preceding paragraphs and `p[3]` on a shorter one — but
+`[@class='…']` is exactly the stable component identifier the detector wants.
+
+**Skeleton rule: strip numeric `[n]`, keep `[@class='…']`.**
+
+Measured compression (§10): 256 → 29 skeletons on tidioreviews (88.7%), 22,022 → 1,630 on
+natu.care (92.6%). Load-bearing — without it the detector under-detects in-content components
+while working fine on nav, which is backwards, since nav is already covered by placement.
 
 ### Scope philosophy
 
@@ -286,6 +361,19 @@ marked up as `<nav>` — partly to make the site easier to work with using this 
 So we cannot tell how much of "in-content boilerplate is a second nav" is a general property of
 websites versus an artifact of markup that had not been fixed yet.
 
+**Direct evidence for the confound, from the pre/post crawl pair (§10).** Content-position links
+scoring ratio ≥ 0.9:
+
+| crawl | high-ratio content edges | targets caught |
+|---|---:|---|
+| pre-intervention (`old/`) | **130** | `/about/methodology/`, `/about/affiliate-disclosure/` |
+| current | **0** | — |
+
+The detector fires on exactly the two pages §4 names as holding 54% of editorial authority, at
+ratio 1.0 across 45/45 and 20/20 pages in two distinct components — and the signal is *completely
+absent* from the current crawl. §4 was real, and it was fixed. The clean-looking current crawl is
+the fix, not the baseline.
+
 **Consequences:**
 
 - §4 remains a good *illustration of the failure mode*. It is not evidence about the failure
@@ -305,10 +393,16 @@ finding and a paper angle.
 
 ## 9. Open questions
 
-1. **Recurrence threshold**: is it user-facing (`boilerplate_threshold = 0.9`) or fixed? A magic
-   constant in an SEO tool will get argued with. Faithful-default says opt-in either way.
-2. **Natural cut**: is there a natural break in the container/target ratio distribution, or is any
-   threshold arbitrary? Needs real data.
+1. ~~**Recurrence threshold**: user-facing or fixed?~~ **Answered (§10): user-facing.** Not
+   because the data shows a clean cut — it does not — but because the ambiguous band is sparse
+   (~0.5% of pairs on natu.care), so threshold choice has *low leverage* rather than *no*
+   leverage. Ship a documented default, let it be overridden, and do not claim empirical
+   separation.
+2. ~~**Natural cut**: is there a natural break in the ratio distribution?~~ **Answered (§10): no,
+   and the earlier "yes" was wrong.** tidioreviews showed a strikingly clean bimodal gap
+   (literally zero pairs in 0.5–0.95). That is a **small-site artifact**: on a 62-page site a
+   component either appears on essentially every page or on a handful. natu.care (9,655 pages)
+   populates the band. Do not re-derive this from tidioreviews and reach the old conclusion.
 3. **Graceful degradation**: `link_path` may be absent from a non-SF crawl. Does boilerplate
    detection hard-require it, or fall back to something clearly labeled weaker? Same "column may
    or may not exist" shape as placement.
@@ -324,16 +418,84 @@ finding and a paper angle.
 
 ---
 
-## 10. Validation plan
+## 10. Validation results (2026-07-20)
 
-Run against a real All Inlinks export (the only current fixtures are 6-row synthetic files):
+Run against real All Inlinks exports. **Never read these files into an agent context** — process
+them in a script with `data.table::fread(select = …)` and return only aggregates. The natu.care
+export is 1.3 GB / 3.86M rows.
 
-1. Does skeleton normalization group the way we assume?
-2. What does the container/target ratio distribution look like — is there a natural cut?
-3. Is the breadcrumb intervention visible in the data?
-4. What patterns does the detector actually catch, and what does it miss?
+| crawl | pages | hyperlinks | note |
+|---|---:|---:|---|
+| `~/Projects/tidioreviews/old/` | 67 | 3,820 | pre-intervention |
+| `~/Projects/tidioreviews/` | 62 | 3,599 | post-intervention |
+| `_scratch/crawls/natu.care/` | 9,655 | 2,344,199 | large, uncleaned, multilingual |
 
-Feeds `PAGE-kddhyhpw`.
+### 1. Skeleton normalization — confirmed
+
+| crawl | raw paths | skeletons | compression |
+|---|---:|---:|---:|
+| tidioreviews | 256 | 29 | 88.7% |
+| natu.care | 22,022 | 1,630 | 92.6% |
+
+Strip numeric `[n]`, keep `[@class='…']`. Groups as designed at both scales.
+
+### 2. Ratio distribution — the "natural cut" was a small-site artifact
+
+tidioreviews (62 pages) is strikingly bimodal — **zero** pairs between 0.5 and 0.95 on the
+pre-intervention crawl. That does **not** generalize. natu.care, on 104,738 pairs:
+
+| band | pairs |
+|---|---:|
+| 0.5–0.6 | 210 |
+| 0.6–0.7 | 122 |
+| 0.7–0.8 | 62 |
+| 0.8–0.9 | 105 |
+| ≥ 0.95 | 485 |
+
+No void. What survives is the weaker claim that the ambiguous band is ~0.5% of pairs, so the
+threshold has low leverage. See §9 Q1–Q2.
+
+### 3. The intervention is visible — and the detector catches the §4 culprits
+
+Content-position, ratio ≥ 0.9: **130 edges pre-intervention → 0 after.** The pre-crawl hits are
+`/about/methodology/` and `/about/affiliate-disclosure/` at ratio 1.0 (45/45 and 20/20 pages,
+two distinct components) — precisely the pages §4 names. See §8.
+
+### 4. At scale, axis 2 finds what placement cannot
+
+natu.care, content-position with ratio ≥ 0.9: **398 pairs, 244 distinct targets, 71,224 edges**
+— 3.5% of content edges. Targeted, not a blunt instrument.
+
+Split by scope, since roughly half would be excluded by internal-only scoping anyway:
+
+| | distinct targets |
+|---|---:|
+| internal | 132 |
+| external | 112 |
+
+Internal catches are the §4 pattern at scale: `/cart`, `/collections/all`, `/pl/regulamin`
+(terms), `/pl/o-nas` (about), promo-terms pages, `/policies/privacy-policy` — each on 634–986
+pages. External catches are consent-banner and third-party privacy links.
+
+**Both results are consistent.** Axis 2 found nothing on the cleaned tidioreviews site and 132
+internal targets on an uncleaned one. It matters exactly when a site has not already been fixed
+by hand, which is the normal case.
+
+### 5. Incidental findings
+
+- **`Link Position` hides nested regions** — see §4. This is what motivated deriving the region
+  from the DOM path.
+- **`Head` is not a gap.** SF emits a `Head` position (254 rows on tidioreviews) that
+  `sf_normalize_position()` does not map. It is the HTML `<head>` — paths are `//head/link[…]`,
+  types are CSS / HTML Canonical / HTML Hreflang. None are graph-eligible, so `sf_graph_eligible()`
+  filters them before placement is consulted. Investigated and dismissed; not a bug.
+- **Non-HTML is ~35% of natu.care rows** (Image 472,239; Misc 397,390; JavaScript 299,640;
+  Font 154,252). Feeds `PAGE-ztmtdzzu`.
+
+### Still open
+
+Whether the ~500 pairs in natu.care's 0.5–0.9 band are genuinely ambiguous or noise. That decides
+whether the documented default sits at 0.9 or lower. Feeds `PAGE-kddhyhpw`.
 
 ---
 
