@@ -55,7 +55,13 @@ fields are **stable**; callers may rely on them being present.
     into transition weights), and `duplicate_edges` (a compact data frame of
     counted edges with more than one link instance, or `NULL`).}
   \item{config}{A list of the [pagerank()] arguments that materially shape
-    the transition graph: `self_loops`, `drop_isolates_flag`, `reverse`,
+    the transition graph. `preset` records the *provenance* of the rest:
+    the name of the [pr_preset()] bundle the caller asked for (e.g.
+    `"declared"`), `"custom"` for a hand-rolled bundle, or `NULL` when no
+    preset was used — so a run made as a named view stays distinguishable
+    from the same arguments typed out by hand. The remaining fields are the
+    resolved configuration itself: `self_loops`, `drop_isolates_flag`,
+    `reverse`,
     `weight_col`, `nofollow_col`, `nofollow_action`, `robots_blocked_action`,
     `prior_alpha`, `prior_transform`, `prior_inject_unmatched`, and the
     logical flags `has_redirects` / `has_canonicals` (whether that signal
