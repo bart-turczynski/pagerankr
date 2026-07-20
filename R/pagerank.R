@@ -223,6 +223,12 @@
 #'   subsequently to `igraph::page_rank()`. Besides `damping`, the recognized
 #'   convergence controls `algo` (`"prpack"` / `"arpack"`), `eps`, and `niter`
 #'   are forwarded here; see the "Convergence controls" section below.
+#' @param preset Optional named argument bundle describing a common view of
+#'   the graph: a preset name (e.g. `"raw"`, `"declared"`), a [pr_preset()]
+#'   result, or `NULL` (default, no preset). Preset values are applied only to
+#'   arguments you did not name yourself, so precedence is **explicit argument
+#'   > preset > base default**. Must be named in full (it sits after `...`).
+#'   See [pr_preset()] for the exact expansion of each preset.
 #'
 #' @details
 #' ## Damping factor
@@ -453,80 +459,96 @@
 #' # a page that funnels authority outward scores high.
 #' pr_reverse <- pagerank(edges, redirects_df = redirects, reverse = TRUE)
 #' print(pr_reverse)
-pagerank <- function(edge_list_df,
-                     redirects_df = NULL,
-                     clean_edge_urls = TRUE,
-                     clean_redirect_urls = TRUE,
-                     rurl_params = list(),
-                     self_loops = c("drop", "keep"),
-                     drop_isolates_flag = TRUE,
-                     reverse = FALSE,
-                     weight_col = NULL,
-                     duplicate_edge_policy = c(
-                       "collapse", "aggregate", "count_instances"
-                     ),
-                     nofollow_col = NULL,
-                     nofollow_action = c("evaporate", "drop", "keep"),
-                     indexability_df = NULL,
-                     indexability_url_col = "url",
-                     indexability_status_col = "indexability_status",
-                     robots_blocked_action = c("trap", "vanish"),
-                     edge_from_col = "from",
-                     edge_to_col = "to",
-                     redirect_from_col = "from",
-                     redirect_to_col = "to",
-                     duplicate_from_policy = c(
-                       "strict",
-                       "first_wins",
-                       "last_wins",
-                       "most_frequent",
-                       "prune_source",
-                       "resolve_if_consistent"
-                     ),
-                     loop_handling = c(
-                       "error",
-                       "prune_loop",
-                       "break_arrow"
-                     ),
-                     canonicals_df = NULL,
-                     canonical_from_col = "from",
-                     canonical_to_col = "to",
-                     clean_canonical_urls = TRUE,
-                     canonical_duplicate_from_policy = c(
-                       "strict",
-                       "first_wins",
-                       "last_wins",
-                       "most_frequent",
-                       "prune_source",
-                       "resolve_if_consistent"
-                     ),
-                     canonical_loop_handling = c(
-                       "error",
-                       "prune_loop",
-                       "break_arrow"
-                     ),
-                     canonical_conflict_policy = c(
-                       "redirect_wins",
-                       "error",
-                       "canonical_wins"
-                     ),
-                     out_of_scope_fold = c("relabel", "keep", "leak"),
-                     keep_domains = NULL,
-                     exclude_domains = NULL,
-                     keep_hosts = NULL,
-                     exclude_hosts = NULL,
-                     prior_df = NULL,
-                     prior_url_col = "url",
-                     prior_weight_col = "weight",
-                     prior_transform = c(
-                       "none", "log", "percentile",
-                       "minmax", "zipf", "rank_linear"
-                     ),
-                     prior_alpha = 0,
-                     prior_inject_unmatched = FALSE,
-                     prior_verbose = TRUE,
-                     damping = 0.85,
-                     ...) {
+pagerank <- function(
+  edge_list_df,
+  redirects_df = NULL,
+  clean_edge_urls = TRUE,
+  clean_redirect_urls = TRUE,
+  rurl_params = list(),
+  self_loops = c("drop", "keep"),
+  drop_isolates_flag = TRUE,
+  reverse = FALSE,
+  weight_col = NULL,
+  duplicate_edge_policy = c(
+    "collapse",
+    "aggregate",
+    "count_instances"
+  ),
+  nofollow_col = NULL,
+  nofollow_action = c("evaporate", "drop", "keep"),
+  indexability_df = NULL,
+  indexability_url_col = "url",
+  indexability_status_col = "indexability_status",
+  robots_blocked_action = c("trap", "vanish"),
+  edge_from_col = "from",
+  edge_to_col = "to",
+  redirect_from_col = "from",
+  redirect_to_col = "to",
+  duplicate_from_policy = c(
+    "strict",
+    "first_wins",
+    "last_wins",
+    "most_frequent",
+    "prune_source",
+    "resolve_if_consistent"
+  ),
+  loop_handling = c(
+    "error",
+    "prune_loop",
+    "break_arrow"
+  ),
+  canonicals_df = NULL,
+  canonical_from_col = "from",
+  canonical_to_col = "to",
+  clean_canonical_urls = TRUE,
+  canonical_duplicate_from_policy = c(
+    "strict",
+    "first_wins",
+    "last_wins",
+    "most_frequent",
+    "prune_source",
+    "resolve_if_consistent"
+  ),
+  canonical_loop_handling = c(
+    "error",
+    "prune_loop",
+    "break_arrow"
+  ),
+  canonical_conflict_policy = c(
+    "redirect_wins",
+    "error",
+    "canonical_wins"
+  ),
+  out_of_scope_fold = c("relabel", "keep", "leak"),
+  keep_domains = NULL,
+  exclude_domains = NULL,
+  keep_hosts = NULL,
+  exclude_hosts = NULL,
+  prior_df = NULL,
+  prior_url_col = "url",
+  prior_weight_col = "weight",
+  prior_transform = c(
+    "none",
+    "log",
+    "percentile",
+    "minmax",
+    "zipf",
+    "rank_linear"
+  ),
+  prior_alpha = 0,
+  prior_inject_unmatched = FALSE,
+  prior_verbose = TRUE,
+  damping = 0.85,
+  ...,
+  preset = NULL
+) {
+  # --- Preset expansion (before anything reads an argument) ---
+  # Writes preset values into this frame for arguments the caller did not
+  # name, so precedence stays explicit arg > preset > base default. See
+  # .pr_apply_preset() in R/presets.R.
+  .pr_matched_call <- match.call()
+  .pr_apply_preset(preset, .pr_matched_call, environment())
+
   # --- Argument Matching and Basic Validation ---
   self_loops <- match.arg(self_loops)
   nofollow_action <- match.arg(nofollow_action)
@@ -870,19 +892,21 @@ pagerank <- function(edge_list_df,
 #' of scope) that the domain filter uses to detect folded-away filter values.
 #' @keywords internal
 #' @noRd
-.pagerank_clean_inputs <- function(edge_list_df,
-                                   redirects_df,
-                                   canonicals_df,
-                                   edge_from_col,
-                                   edge_to_col,
-                                   redirect_from_col,
-                                   redirect_to_col,
-                                   canonical_from_col,
-                                   canonical_to_col,
-                                   clean_edge_urls,
-                                   clean_redirect_urls,
-                                   clean_canonical_urls,
-                                   rurl_params) {
+.pagerank_clean_inputs <- function(
+  edge_list_df,
+  redirects_df,
+  canonicals_df,
+  edge_from_col,
+  edge_to_col,
+  redirect_from_col,
+  redirect_to_col,
+  canonical_from_col,
+  canonical_to_col,
+  clean_edge_urls,
+  clean_redirect_urls,
+  clean_canonical_urls,
+  rurl_params
+) {
   n_input_rows <- nrow(edge_list_df)
   effective_rurl_params <- .resolve_rurl_params(rurl_params)
   cleaned <- .clean_pipeline_urls(
@@ -925,23 +949,25 @@ pagerank <- function(edge_list_df,
 #' namespace. Returns the scoped edge list, vertex universe, and folded prior.
 #' @keywords internal
 #' @noRd
-.pagerank_scope_and_prior <- function(edge_list_df,
-                                      sf_prefold_nodes,
-                                      keep_domains,
-                                      exclude_domains,
-                                      keep_hosts,
-                                      exclude_hosts,
-                                      edge_from_col,
-                                      edge_to_col,
-                                      effective_rurl_params,
-                                      used_leak_sink,
-                                      leak_sources,
-                                      leak_sink_name,
-                                      prior_df,
-                                      prior_url_col,
-                                      prior_weight_col,
-                                      clean_edge_urls,
-                                      fold_map) {
+.pagerank_scope_and_prior <- function(
+  edge_list_df,
+  sf_prefold_nodes,
+  keep_domains,
+  exclude_domains,
+  keep_hosts,
+  exclude_hosts,
+  edge_from_col,
+  edge_to_col,
+  effective_rurl_params,
+  used_leak_sink,
+  leak_sources,
+  leak_sink_name,
+  prior_df,
+  prior_url_col,
+  prior_weight_col,
+  clean_edge_urls,
+  fold_map
+) {
   edge_list_df <- .apply_domain_host_filter(
     edge_list_df = edge_list_df,
     prefold_nodes = sf_prefold_nodes,
@@ -994,21 +1020,23 @@ pagerank <- function(edge_list_df,
 #' plus the dedup / nofollow / robots audit and column metadata.
 #' @keywords internal
 #' @noRd
-.pagerank_apply_edge_policies <- function(edge_list_df,
-                                          duplicate_edge_policy,
-                                          self_loops,
-                                          weight_col,
-                                          edge_from_col,
-                                          edge_to_col,
-                                          indexability_df,
-                                          indexability_url_col,
-                                          indexability_status_col,
-                                          nofollow_col,
-                                          all_vertex_universe,
-                                          nofollow_action,
-                                          nofollow_sink_name,
-                                          used_leak_sink,
-                                          leak_sink_name) {
+.pagerank_apply_edge_policies <- function(
+  edge_list_df,
+  duplicate_edge_policy,
+  self_loops,
+  weight_col,
+  edge_from_col,
+  edge_to_col,
+  indexability_df,
+  indexability_url_col,
+  indexability_status_col,
+  nofollow_col,
+  all_vertex_universe,
+  nofollow_action,
+  nofollow_sink_name,
+  used_leak_sink,
+  leak_sink_name
+) {
   dup <- .apply_duplicate_policy_audited(
     edge_list_df = edge_list_df,
     duplicate_edge_policy = duplicate_edge_policy,
@@ -1070,20 +1098,30 @@ pagerank <- function(edge_list_df,
 #' PSL) rather than re-parsing hosts here.
 #' @keywords internal
 #' @noRd
-.sf_folded_away_filter_values <- function(prefold_nodes,
-                                          postfold_nodes,
-                                          domain_values,
-                                          host_values,
-                                          rurl_params) {
+.sf_folded_away_filter_values <- function(
+  prefold_nodes,
+  postfold_nodes,
+  domain_values,
+  host_values,
+  rurl_params
+) {
   domain_values <- .sf_faf_keep_present(domain_values)
   host_values <- .sf_faf_keep_present(host_values)
 
   folded_away <- c(
     .sf_faf_collect(
-      domain_values, prefold_nodes, postfold_nodes, "domain", rurl_params
+      domain_values,
+      prefold_nodes,
+      postfold_nodes,
+      "domain",
+      rurl_params
     ),
     .sf_faf_collect(
-      host_values, prefold_nodes, postfold_nodes, "host", rurl_params
+      host_values,
+      prefold_nodes,
+      postfold_nodes,
+      "host",
+      rurl_params
     )
   )
   unique(folded_away)
@@ -1109,7 +1147,9 @@ pagerank <- function(edge_list_df,
     return(FALSE)
   }
   probe_df <- data.frame(
-    from = nodes, to = nodes, stringsAsFactors = FALSE
+    from = nodes,
+    to = nodes,
+    stringsAsFactors = FALSE
   )
   args <- list(
     edge_list_df = probe_df,
@@ -1128,11 +1168,13 @@ pagerank <- function(edge_list_df,
 #' Collect filter values present pre-fold but folded away post-fold.
 #' @keywords internal
 #' @noRd
-.sf_faf_collect <- function(values,
-                            prefold_nodes,
-                            postfold_nodes,
-                            type,
-                            rurl_params) {
+.sf_faf_collect <- function(
+  values,
+  prefold_nodes,
+  postfold_nodes,
+  type,
+  rurl_params
+) {
   folded_away <- character(0)
   for (value in values) {
     if (!.sf_faf_present(prefold_nodes, value, type, rurl_params)) {
@@ -1149,11 +1191,13 @@ pagerank <- function(edge_list_df,
 #' Apply pagerank() duplicate-edge policy.
 #' @keywords internal
 #' @noRd
-.apply_duplicate_edge_policy <- function(edge_list_df,
-                                         policy,
-                                         self_loops,
-                                         from_col,
-                                         to_col) {
+.apply_duplicate_edge_policy <- function(
+  edge_list_df,
+  policy,
+  self_loops,
+  from_col,
+  to_col
+) {
   if (policy == "collapse") {
     return(get_unique_edges(
       edge_list_df = edge_list_df,
@@ -1163,9 +1207,11 @@ pagerank <- function(edge_list_df,
     ))
   }
 
-  if (policy == "count_instances" &&
-        nrow(edge_list_df) > 0 &&
-        all(c(from_col, to_col) %in% names(edge_list_df))) {
+  if (
+    policy == "count_instances" &&
+      nrow(edge_list_df) > 0 &&
+      all(c(from_col, to_col) %in% names(edge_list_df))
+  ) {
     from <- as.character(edge_list_df[[from_col]])
     to <- as.character(edge_list_df[[to_col]])
     valid <- !is.na(from) & !is.na(to)
@@ -1189,14 +1235,18 @@ pagerank <- function(edge_list_df,
 #' Build compact duplicate-edge audit rows for counted mode.
 #' @keywords internal
 #' @noRd
-.duplicate_edge_audit_rows <- function(edge_list_df,
-                                       from_col,
-                                       to_col,
-                                       instance_count_col,
-                                       weight_col) {
-  if (is.null(instance_count_col) ||
-        !(instance_count_col %in% names(edge_list_df)) ||
-        nrow(edge_list_df) == 0) {
+.duplicate_edge_audit_rows <- function(
+  edge_list_df,
+  from_col,
+  to_col,
+  instance_count_col,
+  weight_col
+) {
+  if (
+    is.null(instance_count_col) ||
+      !(instance_count_col %in% names(edge_list_df)) ||
+      nrow(edge_list_df) == 0
+  ) {
     return(NULL)
   }
 
@@ -1237,29 +1287,31 @@ pagerank <- function(edge_list_df,
 #' `match.arg()`-normalized by the caller.
 #' @keywords internal
 #' @noRd
-.validate_pagerank_args <- function(edge_list_df,
-                                    redirects_df,
-                                    canonicals_df,
-                                    clean_canonical_urls,
-                                    canonical_from_col,
-                                    canonical_to_col,
-                                    clean_edge_urls,
-                                    clean_redirect_urls,
-                                    rurl_params,
-                                    drop_isolates_flag,
-                                    reverse,
-                                    damping,
-                                    weight_col,
-                                    nofollow_col,
-                                    nofollow_action,
-                                    indexability_df,
-                                    indexability_url_col,
-                                    indexability_status_col,
-                                    prior_df,
-                                    prior_url_col,
-                                    prior_weight_col,
-                                    prior_alpha,
-                                    prior_inject_unmatched) {
+.validate_pagerank_args <- function(
+  edge_list_df,
+  redirects_df,
+  canonicals_df,
+  clean_canonical_urls,
+  canonical_from_col,
+  canonical_to_col,
+  clean_edge_urls,
+  clean_redirect_urls,
+  rurl_params,
+  drop_isolates_flag,
+  reverse,
+  damping,
+  weight_col,
+  nofollow_col,
+  nofollow_action,
+  indexability_df,
+  indexability_url_col,
+  indexability_status_col,
+  prior_df,
+  prior_url_col,
+  prior_weight_col,
+  prior_alpha,
+  prior_inject_unmatched
+) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
   }
@@ -1278,13 +1330,18 @@ pagerank <- function(edge_list_df,
   .assert_unit_interval(damping, "damping", "numeric value")
 
   .validate_reverse_guards(
-    reverse, indexability_df, nofollow_col, nofollow_action
+    reverse,
+    indexability_df,
+    nofollow_col,
+    nofollow_action
   )
 
   .assert_col_or_null(weight_col, "weight_col", edge_list_df)
   .assert_col_or_null(nofollow_col, "nofollow_col", edge_list_df)
   .validate_indexability_df(
-    indexability_df, indexability_url_col, indexability_status_col
+    indexability_df,
+    indexability_url_col,
+    indexability_status_col
   )
   .validate_prior_df(prior_df, prior_url_col, prior_weight_col)
   .assert_unit_interval(prior_alpha, "prior_alpha", "number")
@@ -1321,15 +1378,30 @@ pagerank <- function(edge_list_df,
   # Sequential checks (rather than one `||` chain) keep the short-circuit order
   # and message identical while staying low-complexity.
   bad <- function() {
-    stop("`", name, "` must be a single ", word, " between 0 and 1.",
+    stop(
+      "`",
+      name,
+      "` must be a single ",
+      word,
+      " between 0 and 1.",
       call. = FALSE
     )
   }
-  if (!is.numeric(x)) bad()
-  if (length(x) != 1) bad()
-  if (is.na(x)) bad()
-  if (x < 0) bad()
-  if (x > 1) bad()
+  if (!is.numeric(x)) {
+    bad()
+  }
+  if (length(x) != 1) {
+    bad()
+  }
+  if (is.na(x)) {
+    bad()
+  }
+  if (x < 0) {
+    bad()
+  }
+  if (x > 1) {
+    bad()
+  }
   invisible(NULL)
 }
 
@@ -1342,7 +1414,10 @@ pagerank <- function(edge_list_df,
     return(invisible(NULL))
   }
   if (!is.character(x) || length(x) != 1) {
-    stop("`", name, "` must be a single character string or NULL.",
+    stop(
+      "`",
+      name,
+      "` must be a single character string or NULL.",
       call. = FALSE
     )
   }
@@ -1355,14 +1430,23 @@ pagerank <- function(edge_list_df,
 #' Error unless `canonicals_df` (when non-empty) has the declared from/to cols.
 #' @keywords internal
 #' @noRd
-.validate_canonical_cols <- function(canonicals_df,
-                                     canonical_from_col,
-                                     canonical_to_col) {
+.validate_canonical_cols <- function(
+  canonicals_df,
+  canonical_from_col,
+  canonical_to_col
+) {
   canonical_cols <- c(canonical_from_col, canonical_to_col)
-  if (!is.null(canonicals_df) && nrow(canonicals_df) > 0 &&
-        !all(canonical_cols %in% names(canonicals_df))) {
-    stop("`canonicals_df` must have '", canonical_from_col, "' and '",
-      canonical_to_col, "' columns.",
+  if (
+    !is.null(canonicals_df) &&
+      nrow(canonicals_df) > 0 &&
+      !all(canonical_cols %in% names(canonicals_df))
+  ) {
+    stop(
+      "`canonicals_df` must have '",
+      canonical_from_col,
+      "' and '",
+      canonical_to_col,
+      "' columns.",
       call. = FALSE
     )
   }
@@ -1385,10 +1469,12 @@ pagerank <- function(edge_list_df,
 #' domain/host filtering, TIPR prior) remain fully supported under reverse.
 #' @keywords internal
 #' @noRd
-.validate_reverse_guards <- function(reverse,
-                                     indexability_df,
-                                     nofollow_col,
-                                     nofollow_action) {
+.validate_reverse_guards <- function(
+  reverse,
+  indexability_df,
+  nofollow_col,
+  nofollow_action
+) {
   if (!isTRUE(reverse)) {
     return(invisible(NULL))
   }
@@ -1416,9 +1502,11 @@ pagerank <- function(edge_list_df,
 #' Validate `indexability_df` and its url/status column names.
 #' @keywords internal
 #' @noRd
-.validate_indexability_df <- function(indexability_df,
-                                      indexability_url_col,
-                                      indexability_status_col) {
+.validate_indexability_df <- function(
+  indexability_df,
+  indexability_url_col,
+  indexability_status_col
+) {
   if (is.null(indexability_df)) {
     return(invisible(NULL))
   }
@@ -1427,13 +1515,17 @@ pagerank <- function(edge_list_df,
   }
   if (nrow(indexability_df) > 0) {
     if (!(indexability_url_col %in% names(indexability_df))) {
-      stop("`indexability_url_col` '", indexability_url_col,
+      stop(
+        "`indexability_url_col` '",
+        indexability_url_col,
         "' not found in `indexability_df`.",
         call. = FALSE
       )
     }
     if (!(indexability_status_col %in% names(indexability_df))) {
-      stop("`indexability_status_col` '", indexability_status_col,
+      stop(
+        "`indexability_status_col` '",
+        indexability_status_col,
         "' not found in `indexability_df`.",
         call. = FALSE
       )
@@ -1454,19 +1546,25 @@ pagerank <- function(edge_list_df,
   }
   if (nrow(prior_df) > 0) {
     if (!(prior_url_col %in% names(prior_df))) {
-      stop("`prior_url_col` '", prior_url_col,
+      stop(
+        "`prior_url_col` '",
+        prior_url_col,
         "' not found in `prior_df`.",
         call. = FALSE
       )
     }
     if (!(prior_weight_col %in% names(prior_df))) {
-      stop("`prior_weight_col` '", prior_weight_col,
+      stop(
+        "`prior_weight_col` '",
+        prior_weight_col,
         "' not found in `prior_df`.",
         call. = FALSE
       )
     }
     if (!is.numeric(prior_df[[prior_weight_col]])) {
-      stop("`prior_weight_col` '", prior_weight_col,
+      stop(
+        "`prior_weight_col` '",
+        prior_weight_col,
         "' must be a numeric column.",
         call. = FALSE
       )
@@ -1534,15 +1632,17 @@ pagerank <- function(edge_list_df,
 #'   diagnostic is unavailable.
 #' @keywords internal
 #' @noRd
-.detect_fold_collisions <- function(fold_map,
-                                    edge_list_df,
-                                    prefold_nodes,
-                                    indexability_df,
-                                    indexability_url_col,
-                                    clean_edge_urls,
-                                    effective_rurl_params,
-                                    from_col,
-                                    to_col) {
+.detect_fold_collisions <- function(
+  fold_map,
+  edge_list_df,
+  prefold_nodes,
+  indexability_df,
+  indexability_url_col,
+  clean_edge_urls,
+  effective_rurl_params,
+  from_col,
+  to_col
+) {
   have_crawl_urls <- !is.null(indexability_df) && nrow(indexability_df) > 0
   if (!have_crawl_urls) {
     return(NULL)
@@ -1596,10 +1696,12 @@ pagerank <- function(edge_list_df,
 #' same resolved rurl profile when edge cleaning is on, then drop NA/duplicates.
 #' @keywords internal
 #' @noRd
-.detect_crawl_urls <- function(indexability_df,
-                               indexability_url_col,
-                               clean_edge_urls,
-                               effective_rurl_params) {
+.detect_crawl_urls <- function(
+  indexability_df,
+  indexability_url_col,
+  clean_edge_urls,
+  effective_rurl_params
+) {
   crawl_urls <- as.character(indexability_df[[indexability_url_col]])
   if (clean_edge_urls) {
     idx_tmp <- data.frame(u = crawl_urls, stringsAsFactors = FALSE)
@@ -1620,11 +1722,13 @@ pagerank <- function(edge_list_df,
 #' `targets` / `nrefs` / `sources` vectors (empty when there are none).
 #' @keywords internal
 #' @noRd
-.collect_fold_collisions <- function(fold_map,
-                                     prefold_from,
-                                     prefold_to,
-                                     prefold_nodes,
-                                     crawl_urls) {
+.collect_fold_collisions <- function(
+  fold_map,
+  prefold_from,
+  prefold_to,
+  prefold_nodes,
+  crawl_urls
+) {
   fold_sources <- names(fold_map)
   fold_targets <- unname(fold_map)
 
@@ -1651,7 +1755,8 @@ pagerank <- function(edge_list_df,
       targets <- c(targets, tgt)
       nrefs <- c(nrefs, as.integer(n_indep))
       sources <- c(
-        sources, toString(unique(srcs[srcs %in% prefold_nodes]))
+        sources,
+        toString(unique(srcs[srcs %in% prefold_nodes]))
       )
     }
   }
@@ -1671,16 +1776,21 @@ pagerank <- function(edge_list_df,
 #'   newly created synthetic column name), and `robots_blocked_urls`.
 #' @keywords internal
 #' @noRd
-.apply_indexability <- function(edge_list_df,
-                                indexability_df,
-                                indexability_url_col,
-                                indexability_status_col,
-                                nofollow_col,
-                                all_vertex_universe,
-                                from_col,
-                                to_col) {
-  if (is.null(indexability_df) || nrow(indexability_df) == 0 ||
-        nrow(edge_list_df) == 0) {
+.apply_indexability <- function(
+  edge_list_df,
+  indexability_df,
+  indexability_url_col,
+  indexability_status_col,
+  nofollow_col,
+  all_vertex_universe,
+  from_col,
+  to_col
+) {
+  if (
+    is.null(indexability_df) ||
+      nrow(indexability_df) == 0 ||
+      nrow(edge_list_df) == 0
+  ) {
     return(list(
       edge_list_df = edge_list_df,
       nofollow_col = nofollow_col,
@@ -1735,10 +1845,12 @@ pagerank <- function(edge_list_df,
 #' and the effective nofollow column name.
 #' @keywords internal
 #' @noRd
-.mark_noindex_nofollow <- function(edge_list_df,
-                                   noindex_urls,
-                                   nofollow_col,
-                                   from_col) {
+.mark_noindex_nofollow <- function(
+  edge_list_df,
+  noindex_urls,
+  nofollow_col,
+  from_col
+) {
   from_is_noindex <- edge_list_df[[from_col]] %in% noindex_urls
   if (any(from_is_noindex)) {
     # Create nofollow column if it doesn't exist
@@ -1760,11 +1872,13 @@ pagerank <- function(edge_list_df,
 #' trapped equity does not dangle. Returns the mutated edge list.
 #' @keywords internal
 #' @noRd
-.apply_robots_blocked <- function(edge_list_df,
-                                  robots_blocked_urls,
-                                  all_vertex_universe,
-                                  from_col,
-                                  to_col) {
+.apply_robots_blocked <- function(
+  edge_list_df,
+  robots_blocked_urls,
+  all_vertex_universe,
+  from_col,
+  to_col
+) {
   from_is_blocked <- edge_list_df[[from_col]] %in% robots_blocked_urls
   if (any(from_is_blocked)) {
     # Remove all outgoing edges from blocked pages
@@ -1772,13 +1886,17 @@ pagerank <- function(edge_list_df,
 
     # Add self-loops for each blocked URL that exists as a source
     blocked_with_edges <- unique(robots_blocked_urls[
-      robots_blocked_urls %in% edge_list_df[[from_col]] |
+      robots_blocked_urls %in%
+        edge_list_df[[from_col]] |
         robots_blocked_urls %in% edge_list_df[[to_col]] |
         robots_blocked_urls %in% all_vertex_universe
     ])
     if (length(blocked_with_edges) > 0) {
       self_loop_df <- .make_sink_rows(
-        edge_list_df, from_col, to_col, blocked_with_edges
+        edge_list_df,
+        from_col,
+        to_col,
+        blocked_with_edges
       )
       edge_list_df <- rbind(edge_list_df, self_loop_df)
     }
@@ -1796,23 +1914,30 @@ pagerank <- function(edge_list_df,
 #'   (whether the evaporation sink node was introduced).
 #' @keywords internal
 #' @noRd
-.apply_nofollow <- function(edge_list_df,
-                            nofollow_col,
-                            nofollow_action,
-                            nofollow_sink_name,
-                            from_col,
-                            to_col) {
+.apply_nofollow <- function(
+  edge_list_df,
+  nofollow_col,
+  nofollow_action,
+  nofollow_sink_name,
+  from_col,
+  to_col
+) {
   used_nofollow_sink <- FALSE
 
   # No-op when there is no usable nofollow column.
-  if (is.null(nofollow_col) || !(nofollow_col %in% names(edge_list_df)) ||
-        nrow(edge_list_df) == 0) {
+  if (
+    is.null(nofollow_col) ||
+      !(nofollow_col %in% names(edge_list_df)) ||
+      nrow(edge_list_df) == 0
+  ) {
     return(list(edge_list_df = edge_list_df, used_nofollow_sink = FALSE))
   }
 
   # Coerce nofollow column to logical
   nf_vals <- edge_list_df[[nofollow_col]]
-  if (is.numeric(nf_vals)) nf_vals <- as.logical(nf_vals)
+  if (is.numeric(nf_vals)) {
+    nf_vals <- as.logical(nf_vals)
+  }
   nf_mask <- !is.na(nf_vals) & nf_vals
 
   if (any(nf_mask)) {
@@ -1825,7 +1950,10 @@ pagerank <- function(edge_list_df,
 
       # Add a self-loop on the sink so it isn't a dangling node
       sink_row <- .make_sink_rows(
-        edge_list_df, from_col, to_col, nofollow_sink_name
+        edge_list_df,
+        from_col,
+        to_col,
+        nofollow_sink_name
       )
       edge_list_df <- rbind(edge_list_df, sink_row)
       used_nofollow_sink <- TRUE
@@ -1851,42 +1979,55 @@ pagerank <- function(edge_list_df,
 #'   and `canonicals_df`.
 #' @keywords internal
 #' @noRd
-.clean_pipeline_urls <- function(edge_list_df,
-                                 redirects_df,
-                                 canonicals_df,
-                                 edge_from_col,
-                                 edge_to_col,
-                                 redirect_from_col,
-                                 redirect_to_col,
-                                 canonical_from_col,
-                                 canonical_to_col,
-                                 clean_edge_urls,
-                                 clean_redirect_urls,
-                                 clean_canonical_urls,
-                                 effective_rurl_params,
-                                 warn_uncleaned_edges = TRUE) {
+.clean_pipeline_urls <- function(
+  edge_list_df,
+  redirects_df,
+  canonicals_df,
+  edge_from_col,
+  edge_to_col,
+  redirect_from_col,
+  redirect_to_col,
+  canonical_from_col,
+  canonical_to_col,
+  clean_edge_urls,
+  clean_redirect_urls,
+  clean_canonical_urls,
+  effective_rurl_params,
+  warn_uncleaned_edges = TRUE
+) {
   # Determine edge, redirect, and canonical URL columns for cleaning
   edge_url_cols <- intersect(c(edge_from_col, edge_to_col), names(edge_list_df))
   redirect_url_cols <- .url_cols_of(
-    redirects_df, redirect_from_col, redirect_to_col
+    redirects_df,
+    redirect_from_col,
+    redirect_to_col
   )
   canonical_url_cols <- .url_cols_of(
-    canonicals_df, canonical_from_col, canonical_to_col
+    canonicals_df,
+    canonical_from_col,
+    canonical_to_col
   )
 
   # Edge cleaning has no data-frame emptiness guard (edge_list_df is always a
   # data frame); redirect/canonical cleaning additionally require a non-empty
   # frame, matching the original inline conditions.
   edge_list_df <- .clean_cols_if(
-    edge_list_df, edge_url_cols, clean_edge_urls, effective_rurl_params
+    edge_list_df,
+    edge_url_cols,
+    clean_edge_urls,
+    effective_rurl_params
   )
   redirects_df <- .clean_cols_if(
-    redirects_df, redirect_url_cols,
-    clean_redirect_urls && .df_has_rows(redirects_df), effective_rurl_params
+    redirects_df,
+    redirect_url_cols,
+    clean_redirect_urls && .df_has_rows(redirects_df),
+    effective_rurl_params
   )
   canonicals_df <- .clean_cols_if(
-    canonicals_df, canonical_url_cols,
-    clean_canonical_urls && .df_has_rows(canonicals_df), effective_rurl_params
+    canonicals_df,
+    canonical_url_cols,
+    clean_canonical_urls && .df_has_rows(canonicals_df),
+    effective_rurl_params
   )
 
   # The uncleaned-edge advisory is a pagerank() diagnostic; hits()/salsa() share
@@ -1937,11 +2078,16 @@ pagerank <- function(edge_list_df,
 #' Warn when edge cleaning is disabled but edge URLs still carry query params.
 #' @keywords internal
 #' @noRd
-.warn_uncleaned_query_params <- function(edge_list_df,
-                                         edge_url_cols,
-                                         clean_edge_urls) {
-  if (!clean_edge_urls && length(edge_url_cols) > 0 &&
-        .urls_contain_query_params(edge_list_df, columns = edge_url_cols)) {
+.warn_uncleaned_query_params <- function(
+  edge_list_df,
+  edge_url_cols,
+  clean_edge_urls
+) {
+  if (
+    !clean_edge_urls &&
+      length(edge_url_cols) > 0 &&
+      .urls_contain_query_params(edge_list_df, columns = edge_url_cols)
+  ) {
     warning(
       "URLs in `edge_list_df` may contain query parameters ",
       "(e.g. '?' or '&'). Consider setting `clean_edge_urls = TRUE` ",
@@ -1971,25 +2117,27 @@ pagerank <- function(edge_list_df,
 #'   `leak_sources` / `used_leak_sink`.
 #' @keywords internal
 #' @noRd
-.resolve_fold_and_apply <- function(edge_list_df,
-                                    redirects_df,
-                                    canonicals_df,
-                                    edge_from_col,
-                                    edge_to_col,
-                                    redirect_from_col,
-                                    redirect_to_col,
-                                    canonical_from_col,
-                                    canonical_to_col,
-                                    duplicate_from_policy,
-                                    loop_handling,
-                                    canonical_duplicate_from_policy,
-                                    canonical_loop_handling,
-                                    canonical_conflict_policy,
-                                    out_of_scope_fold,
-                                    indexability_df,
-                                    indexability_url_col,
-                                    clean_edge_urls,
-                                    effective_rurl_params) {
+.resolve_fold_and_apply <- function(
+  edge_list_df,
+  redirects_df,
+  canonicals_df,
+  edge_from_col,
+  edge_to_col,
+  redirect_from_col,
+  redirect_to_col,
+  canonical_from_col,
+  canonical_to_col,
+  duplicate_from_policy,
+  loop_handling,
+  canonical_duplicate_from_policy,
+  canonical_loop_handling,
+  canonical_conflict_policy,
+  out_of_scope_fold,
+  indexability_df,
+  indexability_url_col,
+  clean_edge_urls,
+  effective_rurl_params
+) {
   has_redirects <- .df_has_rows(redirects_df)
   has_canonicals <- .df_has_rows(canonicals_df)
 
@@ -2069,17 +2217,19 @@ pagerank <- function(edge_list_df,
 #' the edge endpoints through the map. Mutates and returns `out`.
 #' @keywords internal
 #' @noRd
-.apply_composed_fold <- function(out,
-                                 fold_map,
-                                 fold_signal,
-                                 edge_list_df,
-                                 out_of_scope_fold,
-                                 indexability_df,
-                                 indexability_url_col,
-                                 clean_edge_urls,
-                                 effective_rurl_params,
-                                 edge_from_col,
-                                 edge_to_col) {
+.apply_composed_fold <- function(
+  out,
+  fold_map,
+  fold_signal,
+  edge_list_df,
+  out_of_scope_fold,
+  indexability_df,
+  indexability_url_col,
+  clean_edge_urls,
+  effective_rurl_params,
+  edge_from_col,
+  edge_to_col
+) {
   # Pre-fold crawled node set: unique, non-NA edge endpoints captured
   # IMMEDIATELY BEFORE the fold is applied. Indexability URLs are NOT part of
   # scope -- the crawled set is edge endpoints only.
@@ -2119,7 +2269,8 @@ pagerank <- function(edge_list_df,
     for (col_name in c(edge_from_col, edge_to_col)) {
       if (col_name %in% names(edge_list_df)) {
         edge_list_df[[col_name]] <- .apply_fold_map(
-          edge_list_df[[col_name]], fold_map
+          edge_list_df[[col_name]],
+          fold_map
         )
       }
     }
@@ -2143,10 +2294,12 @@ pagerank <- function(edge_list_df,
 #'   `used_leak_sink`.
 #' @keywords internal
 #' @noRd
-.classify_oos_folds <- function(fold_map,
-                                fold_signal,
-                                prefold_nodes,
-                                out_of_scope_fold) {
+.classify_oos_folds <- function(
+  fold_map,
+  fold_signal,
+  prefold_nodes,
+  out_of_scope_fold
+) {
   out <- list(
     fold_map = fold_map,
     oos_sources = character(0),
@@ -2184,17 +2337,23 @@ pagerank <- function(edge_list_df,
 #' @return The (possibly filtered) edge list data frame.
 #' @keywords internal
 #' @noRd
-.apply_domain_host_filter <- function(edge_list_df,
-                                      prefold_nodes,
-                                      keep_domains,
-                                      exclude_domains,
-                                      keep_hosts,
-                                      exclude_hosts,
-                                      edge_from_col,
-                                      edge_to_col,
-                                      effective_rurl_params) {
-  if (is.null(keep_domains) && is.null(exclude_domains) &&
-        is.null(keep_hosts) && is.null(exclude_hosts)) {
+.apply_domain_host_filter <- function(
+  edge_list_df,
+  prefold_nodes,
+  keep_domains,
+  exclude_domains,
+  keep_hosts,
+  exclude_hosts,
+  edge_from_col,
+  edge_to_col,
+  effective_rurl_params
+) {
+  if (
+    is.null(keep_domains) &&
+      is.null(exclude_domains) &&
+      is.null(keep_hosts) &&
+      is.null(exclude_hosts)
+  ) {
     return(edge_list_df)
   }
 
@@ -2253,16 +2412,19 @@ pagerank <- function(edge_list_df,
 #' @return A list with the mutated `edge_list_df` and `all_vertex_universe`.
 #' @keywords internal
 #' @noRd
-.route_leak_sources <- function(edge_list_df,
-                                all_vertex_universe,
-                                used_leak_sink,
-                                leak_sources,
-                                leak_sink_name,
-                                edge_from_col,
-                                edge_to_col) {
+.route_leak_sources <- function(
+  edge_list_df,
+  all_vertex_universe,
+  used_leak_sink,
+  leak_sources,
+  leak_sink_name,
+  edge_from_col,
+  edge_to_col
+) {
   if (!used_leak_sink || length(leak_sources) == 0) {
     return(list(
-      edge_list_df = edge_list_df, all_vertex_universe = all_vertex_universe
+      edge_list_df = edge_list_df,
+      all_vertex_universe = all_vertex_universe
     ))
   }
   if (nrow(edge_list_df) > 0) {
@@ -2290,20 +2452,23 @@ pagerank <- function(edge_list_df,
 #' @return The folded prior data frame, or `NULL` when no prior was supplied.
 #' @keywords internal
 #' @noRd
-.prepare_prior <- function(prior_df,
-                           prior_url_col,
-                           prior_weight_col,
-                           clean_edge_urls,
-                           effective_rurl_params,
-                           fold_map,
-                           used_leak_sink,
-                           leak_sources,
-                           leak_sink_name) {
+.prepare_prior <- function(
+  prior_df,
+  prior_url_col,
+  prior_weight_col,
+  clean_edge_urls,
+  effective_rurl_params,
+  fold_map,
+  used_leak_sink,
+  leak_sources,
+  leak_sink_name
+) {
   if (is.null(prior_df) || nrow(prior_df) == 0) {
     return(NULL)
   }
 
-  folded_prior_df <- prior_df[, c(prior_url_col, prior_weight_col),
+  folded_prior_df <- prior_df[,
+    c(prior_url_col, prior_weight_col),
     drop = FALSE
   ]
   folded_prior_df[[prior_url_col]] <-
@@ -2312,7 +2477,8 @@ pagerank <- function(edge_list_df,
   if (clean_edge_urls) {
     folded_prior_df <- do.call(
       clean_url_columns,
-      c(list(data_frame = folded_prior_df, columns = prior_url_col),
+      c(
+        list(data_frame = folded_prior_df, columns = prior_url_col),
         effective_rurl_params
       )
     )
@@ -2320,7 +2486,8 @@ pagerank <- function(edge_list_df,
 
   if (length(fold_map) > 0) {
     folded_prior_df[[prior_url_col]] <- .apply_fold_map(
-      folded_prior_df[[prior_url_col]], fold_map
+      folded_prior_df[[prior_url_col]],
+      fold_map
     )
   }
 
@@ -2341,15 +2508,19 @@ pagerank <- function(edge_list_df,
 #' @return A list with `n_rows_na`, `n_self_loops`, and `n_rows_duplicate`.
 #' @keywords internal
 #' @noRd
-.count_dropped_edge_rows <- function(edge_list_df,
-                                     self_loops,
-                                     edge_from_col,
-                                     edge_to_col) {
+.count_dropped_edge_rows <- function(
+  edge_list_df,
+  self_loops,
+  edge_from_col,
+  edge_to_col
+) {
   n_rows_na <- 0L
   n_self_loops <- 0L
   n_rows_duplicate <- 0L
-  if (nrow(edge_list_df) > 0 &&
-        all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))) {
+  if (
+    nrow(edge_list_df) > 0 &&
+      all(c(edge_from_col, edge_to_col) %in% names(edge_list_df))
+  ) {
     pre_from <- as.character(edge_list_df[[edge_from_col]])
     pre_to <- as.character(edge_list_df[[edge_to_col]])
     na_mask <- is.na(pre_from) | is.na(pre_to)
@@ -2386,15 +2557,17 @@ pagerank <- function(edge_list_df,
 #'   vertices.
 #' @keywords internal
 #' @noRd
-.build_vertex_set <- function(edge_list_df,
-                              all_vertex_universe,
-                              drop_isolates_flag,
-                              folded_prior_df,
-                              prior_inject_unmatched,
-                              prior_url_col,
-                              node_col_name,
-                              edge_from_col,
-                              edge_to_col) {
+.build_vertex_set <- function(
+  edge_list_df,
+  all_vertex_universe,
+  drop_isolates_flag,
+  folded_prior_df,
+  prior_inject_unmatched,
+  prior_url_col,
+  node_col_name,
+  edge_from_col,
+  edge_to_col
+) {
   current_edge_nodes <- unique(c(
     as.character(edge_list_df[[edge_from_col]]),
     as.character(edge_list_df[[edge_to_col]])
@@ -2406,7 +2579,8 @@ pagerank <- function(edge_list_df,
     # Only keep nodes that participate in at least one complete edge.
     if (length(current_edge_nodes) > 0) {
       vertices_for_pagerank_df <- stats::setNames(
-        data.frame(sort(current_edge_nodes)), node_col_name
+        data.frame(sort(current_edge_nodes)),
+        node_col_name
       )
     }
   } else {
@@ -2414,19 +2588,24 @@ pagerank <- function(edge_list_df,
     full_universe <- unique(c(all_vertex_universe, current_edge_nodes))
     if (length(full_universe) > 0) {
       vertices_for_pagerank_df <- stats::setNames(
-        data.frame(sort(full_universe)), node_col_name
+        data.frame(sort(full_universe)),
+        node_col_name
       )
     }
   }
 
-  if (!is.null(folded_prior_df) && prior_inject_unmatched &&
-        !is.null(vertices_for_pagerank_df)) {
+  if (
+    !is.null(folded_prior_df) &&
+      prior_inject_unmatched &&
+      !is.null(vertices_for_pagerank_df)
+  ) {
     existing_nodes <- vertices_for_pagerank_df[[node_col_name]]
     prior_dests <- unique(stats::na.omit(folded_prior_df[[prior_url_col]]))
     to_add <- setdiff(prior_dests, existing_nodes)
     if (length(to_add) > 0) {
       vertices_for_pagerank_df <- stats::setNames(
-        data.frame(sort(c(existing_nodes, to_add))), node_col_name
+        data.frame(sort(c(existing_nodes, to_add))),
+        node_col_name
       )
     }
   }
@@ -2446,13 +2625,15 @@ pagerank <- function(edge_list_df,
 #'   / `mass_leaked` / `mass_hidden` scalars.
 #' @keywords internal
 #' @noRd
-.strip_internal_nodes <- function(pagerank_results,
-                                  used_nofollow_sink,
-                                  nofollow_sink_name,
-                                  used_leak_sink,
-                                  leak_sink_name,
-                                  robots_blocked_action,
-                                  robots_blocked_urls) {
+.strip_internal_nodes <- function(
+  pagerank_results,
+  used_nofollow_sink,
+  nofollow_sink_name,
+  used_leak_sink,
+  leak_sink_name,
+  robots_blocked_action,
+  robots_blocked_urls
+) {
   mass_evaporated <- 0
   mass_leaked <- 0
   mass_hidden <- 0
@@ -2462,7 +2643,8 @@ pagerank <- function(edge_list_df,
 
     if (used_nofollow_sink) {
       sink_mask <- pagerank_results[[pr_node_col]] == nofollow_sink_name
-      mass_evaporated <- sum(pagerank_results[[pr_value_col]][sink_mask],
+      mass_evaporated <- sum(
+        pagerank_results[[pr_value_col]][sink_mask],
         na.rm = TRUE
       )
       pagerank_results <- pagerank_results[!sink_mask, , drop = FALSE]
@@ -2470,7 +2652,8 @@ pagerank <- function(edge_list_df,
 
     if (used_leak_sink) {
       leak_sink_mask <- pagerank_results[[pr_node_col]] == leak_sink_name
-      mass_leaked <- sum(pagerank_results[[pr_value_col]][leak_sink_mask],
+      mass_leaked <- sum(
+        pagerank_results[[pr_value_col]][leak_sink_mask],
         na.rm = TRUE
       )
       pagerank_results <- pagerank_results[!leak_sink_mask, , drop = FALSE]
@@ -2478,7 +2661,8 @@ pagerank <- function(edge_list_df,
 
     if (robots_blocked_action == "vanish" && length(robots_blocked_urls) > 0) {
       hidden_mask <- pagerank_results[[pr_node_col]] %in% robots_blocked_urls
-      mass_hidden <- sum(pagerank_results[[pr_value_col]][hidden_mask],
+      mass_hidden <- sum(
+        pagerank_results[[pr_value_col]][hidden_mask],
         na.rm = TRUE
       )
       pagerank_results <- pagerank_results[!hidden_mask, , drop = FALSE]
@@ -2503,45 +2687,47 @@ pagerank <- function(edge_list_df,
 #' @return A `transition_audit` object.
 #' @keywords internal
 #' @noRd
-.build_transition_audit <- function(pagerank_results,
-                                    current_edge_list,
-                                    folded_prior_df,
-                                    vertices_for_pagerank_df,
-                                    node_col_name,
-                                    prior_url_col,
-                                    effective_weight_col,
-                                    weight_col,
-                                    n_input_rows,
-                                    n_edges,
-                                    duplicate_edge_policy,
-                                    instance_count_col,
-                                    n_duplicate_instances,
-                                    duplicate_edges,
-                                    n_rows_na,
-                                    n_rows_duplicate,
-                                    n_self_loops,
-                                    robots_blocked_urls,
-                                    mass_evaporated,
-                                    mass_leaked,
-                                    mass_hidden,
-                                    out_of_scope_fold,
-                                    oos_sources,
-                                    oos_targets,
-                                    oos_signals,
-                                    oos_applied,
-                                    collisions_df,
-                                    self_loops,
-                                    drop_isolates_flag,
-                                    reverse,
-                                    nofollow_col,
-                                    nofollow_action,
-                                    robots_blocked_action,
-                                    prior_alpha,
-                                    prior_transform,
-                                    prior_inject_unmatched,
-                                    has_redirects,
-                                    has_canonicals,
-                                    indexability_df) {
+.build_transition_audit <- function(
+  pagerank_results,
+  current_edge_list,
+  folded_prior_df,
+  vertices_for_pagerank_df,
+  node_col_name,
+  prior_url_col,
+  effective_weight_col,
+  weight_col,
+  n_input_rows,
+  n_edges,
+  duplicate_edge_policy,
+  instance_count_col,
+  n_duplicate_instances,
+  duplicate_edges,
+  n_rows_na,
+  n_rows_duplicate,
+  n_self_loops,
+  robots_blocked_urls,
+  mass_evaporated,
+  mass_leaked,
+  mass_hidden,
+  out_of_scope_fold,
+  oos_sources,
+  oos_targets,
+  oos_signals,
+  oos_applied,
+  collisions_df,
+  self_loops,
+  drop_isolates_flag,
+  reverse,
+  nofollow_col,
+  nofollow_action,
+  robots_blocked_action,
+  prior_alpha,
+  prior_transform,
+  prior_inject_unmatched,
+  has_redirects,
+  has_canonicals,
+  indexability_df
+) {
   # Derived scalars, config snapshot, and construction live in helpers below.
   metrics <- .transition_audit_metrics(
     pagerank_results = pagerank_results,
@@ -2598,17 +2784,19 @@ pagerank <- function(edge_list_df,
 #' / oos counts. Returns a named list consumed by [.assemble_transition_audit].
 #' @keywords internal
 #' @noRd
-.transition_audit_metrics <- function(pagerank_results,
-                                      current_edge_list,
-                                      folded_prior_df,
-                                      vertices_for_pagerank_df,
-                                      node_col_name,
-                                      prior_url_col,
-                                      effective_weight_col,
-                                      oos_sources,
-                                      oos_targets,
-                                      oos_signals,
-                                      robots_blocked_urls) {
+.transition_audit_metrics <- function(
+  pagerank_results,
+  current_edge_list,
+  folded_prior_df,
+  vertices_for_pagerank_df,
+  node_col_name,
+  prior_url_col,
+  effective_weight_col,
+  oos_sources,
+  oos_targets,
+  oos_signals,
+  robots_blocked_urls
+) {
   # Behavioral-weight coverage: how many scored edges carry a usable weight.
   weighted <- !is.null(effective_weight_col) &&
     effective_weight_col %in% names(current_edge_list)
@@ -2626,8 +2814,10 @@ pagerank <- function(edge_list_df,
     n_prior_unmatched <- length(setdiff(prior_dests, final_nodes))
   }
 
-  pagerank_total <- if (nrow(pagerank_results) > 0 &&
-                          ncol(pagerank_results) >= 2) {
+  pagerank_total <- if (
+    nrow(pagerank_results) > 0 &&
+      ncol(pagerank_results) >= 2
+  ) {
     sum(pagerank_results[[2]], na.rm = TRUE)
   } else {
     NA_real_
@@ -2661,22 +2851,24 @@ pagerank <- function(edge_list_df,
 #' Snapshot the pagerank() configuration into the transition_audit config list.
 #' @keywords internal
 #' @noRd
-.transition_audit_config <- function(self_loops,
-                                     drop_isolates_flag,
-                                     reverse,
-                                     weight_col,
-                                     effective_weight_col,
-                                     duplicate_edge_policy,
-                                     nofollow_col,
-                                     nofollow_action,
-                                     robots_blocked_action,
-                                     prior_alpha,
-                                     prior_transform,
-                                     prior_inject_unmatched,
-                                     has_redirects,
-                                     has_canonicals,
-                                     indexability_df,
-                                     folded_prior_df) {
+.transition_audit_config <- function(
+  self_loops,
+  drop_isolates_flag,
+  reverse,
+  weight_col,
+  effective_weight_col,
+  duplicate_edge_policy,
+  nofollow_col,
+  nofollow_action,
+  robots_blocked_action,
+  prior_alpha,
+  prior_transform,
+  prior_inject_unmatched,
+  has_redirects,
+  has_canonicals,
+  indexability_df,
+  folded_prior_df
+) {
   config_nofollow_col <- if (identical(nofollow_col, "__pr_nofollow__")) {
     NULL
   } else {
@@ -2710,37 +2902,39 @@ pagerank <- function(edge_list_df,
 #' config concerns live in their own helpers; behavior is unchanged.
 #' @keywords internal
 #' @noRd
-.assemble_transition_audit <- function(metrics,
-                                       n_input_rows,
-                                       n_edges,
-                                       duplicate_edge_policy,
-                                       instance_count_col,
-                                       n_duplicate_instances,
-                                       duplicate_edges,
-                                       n_rows_na,
-                                       n_rows_duplicate,
-                                       n_self_loops,
-                                       mass_evaporated,
-                                       mass_leaked,
-                                       mass_hidden,
-                                       out_of_scope_fold,
-                                       oos_applied,
-                                       collisions_df,
-                                       self_loops,
-                                       drop_isolates_flag,
-                                       reverse,
-                                       weight_col,
-                                       effective_weight_col,
-                                       nofollow_col,
-                                       nofollow_action,
-                                       robots_blocked_action,
-                                       prior_alpha,
-                                       prior_transform,
-                                       prior_inject_unmatched,
-                                       has_redirects,
-                                       has_canonicals,
-                                       indexability_df,
-                                       folded_prior_df) {
+.assemble_transition_audit <- function(
+  metrics,
+  n_input_rows,
+  n_edges,
+  duplicate_edge_policy,
+  instance_count_col,
+  n_duplicate_instances,
+  duplicate_edges,
+  n_rows_na,
+  n_rows_duplicate,
+  n_self_loops,
+  mass_evaporated,
+  mass_leaked,
+  mass_hidden,
+  out_of_scope_fold,
+  oos_applied,
+  collisions_df,
+  self_loops,
+  drop_isolates_flag,
+  reverse,
+  weight_col,
+  effective_weight_col,
+  nofollow_col,
+  nofollow_action,
+  robots_blocked_action,
+  prior_alpha,
+  prior_transform,
+  prior_inject_unmatched,
+  has_redirects,
+  has_canonicals,
+  indexability_df,
+  folded_prior_df
+) {
   new_transition_audit(
     n_input_rows = n_input_rows,
     n_edges = n_edges,
@@ -2800,12 +2994,14 @@ pagerank <- function(edge_list_df,
 #'   `effective_weight_col`, `duplicate_edges`, and `n_duplicate_instances`.
 #' @keywords internal
 #' @noRd
-.apply_duplicate_policy_audited <- function(edge_list_df,
-                                            duplicate_edge_policy,
-                                            self_loops,
-                                            weight_col,
-                                            from_col,
-                                            to_col) {
+.apply_duplicate_policy_audited <- function(
+  edge_list_df,
+  duplicate_edge_policy,
+  self_loops,
+  weight_col,
+  from_col,
+  to_col
+) {
   edge_list_df <- .apply_duplicate_edge_policy(
     edge_list_df = edge_list_df,
     policy = duplicate_edge_policy,
@@ -2853,14 +3049,19 @@ pagerank <- function(edge_list_df,
 #' @return The (possibly extended) edge list data frame.
 #' @keywords internal
 #' @noRd
-.add_leak_sink_selfloop <- function(edge_list_df,
-                                    used_leak_sink,
-                                    leak_sink_name,
-                                    edge_from_col,
-                                    edge_to_col) {
+.add_leak_sink_selfloop <- function(
+  edge_list_df,
+  used_leak_sink,
+  leak_sink_name,
+  edge_from_col,
+  edge_to_col
+) {
   if (used_leak_sink && nrow(edge_list_df) > 0) {
     leak_sink_row <- .make_sink_rows(
-      edge_list_df, edge_from_col, edge_to_col, leak_sink_name
+      edge_list_df,
+      edge_from_col,
+      edge_to_col,
+      leak_sink_name
     )
     edge_list_df <- rbind(edge_list_df, leak_sink_row)
   }
@@ -2874,10 +3075,12 @@ pagerank <- function(edge_list_df,
 #' @return A character vector of node names to exclude from teleport.
 #' @keywords internal
 #' @noRd
-.prior_exclude_nodes <- function(used_nofollow_sink,
-                                 nofollow_sink_name,
-                                 used_leak_sink,
-                                 leak_sink_name) {
+.prior_exclude_nodes <- function(
+  used_nofollow_sink,
+  nofollow_sink_name,
+  used_leak_sink,
+  leak_sink_name
+) {
   nodes <- character(0)
   if (used_nofollow_sink) {
     nodes <- c(nodes, nofollow_sink_name)
