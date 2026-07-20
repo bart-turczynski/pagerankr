@@ -219,7 +219,7 @@ describe("pagerank_screaming_frog()", {
     expect_true(transition$coverage$weighted)
     expect_identical(
       transition$coverage$weight_col,
-      ".__pr_placement_weight__"
+      ".__pr_edge_weight__"
     )
     expect_identical(import$scoring$placement_weights[["nav"]], 3)
     expect_null(import$scoring$weight_col)
