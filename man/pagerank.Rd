@@ -14,6 +14,9 @@ pagerank(
   drop_isolates_flag = TRUE,
   reverse = FALSE,
   weight_col = NULL,
+  placement_col = NULL,
+  accepted_placements = NULL,
+  placement_weights = NULL,
   duplicate_edge_policy = c("collapse", "aggregate", "count_instances"),
   nofollow_col = NULL,
   nofollow_action = c("evaporate", "drop", "keep"),
@@ -90,6 +93,30 @@ compatible.}
 \item{weight_col}{Optional name of a numeric column in `edge_list_df`
 containing edge weights. Higher weights make edges more likely to be
 followed. If `NULL` (default), all edges have equal weight.}
+
+\item{placement_col}{Optional name of a column in `edge_list_df` holding the
+page region each link sits in, using the crawler-neutral vocabulary
+`"content"`, `"nav"`, `"header"`, `"footer"`, `"aside"`. Matching is
+case-insensitive and whitespace is trimmed. `NULL` (default) means no
+placement handling. Placement is **not** a Screaming Frog concept: a
+per-crawler adapter maps vendor labels onto this vocabulary (see
+[sf_normalize_position()]) and `pagerank()` only consumes the result, so
+any crawler that reports link regions can drive placement-aware scoring.}
+
+\item{accepted_placements}{Optional character vector of placements to
+retain; edges placed elsewhere (or with a missing placement) are dropped.
+`NULL` (default) keeps every edge. Requires `placement_col`.}
+
+\item{placement_weights}{Optional named positive numeric vector assigning
+edge weights by placement, e.g.
+`c(content = 1, nav = 0.1, header = 0.1, footer = 0.1, aside = 0.1)`.
+Placements not named keep weight `1`, so name all five to state a complete
+recipe. Requires `placement_col` and cannot be combined with `weight_col`,
+which it supersedes by building a weight column of its own. Downweighting
+rather than filtering is deliberate: dropping a region changes the graph's
+*shape* (pages reachable only through nav become teleport-only, pages
+linking out only through nav become dangling), whereas a small weight
+leaves the topology intact and merely stops the region dominating.}
 
 \item{duplicate_edge_policy}{How repeated `from -> to` rows are represented
 after URL cleaning, redirect/canonical folding, and domain filtering. One

@@ -7,17 +7,17 @@
 #' [pagerank()] arguments.
 #'
 #' @param bundle A `screaming_frog_bundle` object.
-#' @param accepted_placements Optional character vector of normalized
-#'   placements to retain. Values must be among `"nav"`, `"header"`,
-#'   `"footer"`, `"sidebar"`, and `"content"`. `NULL` keeps all graph-eligible
-#'   hyperlink edges.
+#' @param accepted_placements,placement_weights Placement controls forwarded to
+#'   [pagerank()], which owns them: placement is a crawler-neutral concept, and
+#'   this wrapper only supplies the bundle's normalized `placement` column as
+#'   [pagerank()]'s `placement_col`. See [pagerank()] for the vocabulary
+#'   (`"content"`, `"nav"`, `"header"`, `"footer"`, `"aside"`) and semantics.
 #' @param link_origins Optional character vector of normalized link origins to
 #'   retain. Values must be among `"html"`, `"rendered"`, and
 #'   `"html_rendered"`. `NULL` keeps all origins present in `bundle$edges`.
-#' @param placement_weights Optional named positive numeric vector assigning
-#'   edge weights by normalized placement. Unnamed or unknown placements are
-#'   rejected. Edges whose placement is not named receive weight `1`.
-#' @param weight_col Optional existing edge weight column to pass to
+#'   Unlike placement, link origin *is* a Screaming Frog concept and stays
+#'   wrapper-owned.
+#' @param weight_col Optional existing edge weight column, forwarded to
 #'   [pagerank()]. Cannot be combined with `placement_weights`.
 #' @param apply_canonicals Logical flag (default `TRUE`). When `TRUE` the
 #'   bundle's `rel=canonical` signals are folded into the graph via
@@ -73,37 +73,29 @@ pagerank_screaming_frog <- function(bundle,
 
   dots <- list(...)
   .sf_check_reserved_dots(dots)
-  .sf_validate_weight_col(weight_col, placement_weights)
+  .sf_validate_weight_col(weight_col)
+  # Checked here, not left to pagerank(), so the wrapper's own weight_col
+  # presence check below cannot pre-empt the clearer combination error.
+  .pr_check_weight_col_exclusivity(weight_col, placement_weights)
 
   edges <- bundle$edges
   input_edges <- nrow(edges)
 
-  accepted_placements <- .sf_validate_accepted_placements(
-    accepted_placements
-  )
-  edges <- .sf_filter_by_placements(edges, accepted_placements)
-
   link_origins <- .sf_validate_link_origins(link_origins)
   edges <- .sf_filter_by_origins(edges, link_origins)
 
-  weighted <- .sf_apply_placement_weights(edges, placement_weights, weight_col)
-  edges <- weighted$edges
-  placement_weights <- weighted$placement_weights
-  effective_weight_col <- weighted$effective_weight_col
-
-  .sf_check_effective_weight_col(effective_weight_col, edges)
+  .sf_check_weight_col_present(weight_col, edges)
   .sf_check_nonempty_edges(edges)
 
   pr_args <- .sf_build_pr_args(
-    edges, bundle, apply_redirects, apply_canonicals,
-    effective_weight_col, dots
+    edges, bundle, apply_redirects, apply_canonicals, weight_col,
+    accepted_placements, placement_weights, dots
   )
   result <- do.call(pagerank, pr_args)
 
   attr(result, "screaming_frog_import") <- .sf_build_import_attr(
     bundle, input_edges, edges, accepted_placements, link_origins,
-    placement_weights, weight_col, effective_weight_col,
-    apply_canonicals, apply_redirects
+    placement_weights, weight_col, apply_canonicals, apply_redirects
   )
 
   result
@@ -130,13 +122,7 @@ pagerank_screaming_frog <- function(bundle,
   invisible(NULL)
 }
 
-.sf_validate_weight_col <- function(weight_col, placement_weights) {
-  if (!is.null(weight_col) && !is.null(placement_weights)) {
-    stop(
-      "`weight_col` cannot be combined with `placement_weights`.",
-      call. = FALSE
-    )
-  }
+.sf_validate_weight_col <- function(weight_col) {
   if (is.null(weight_col)) {
     return(invisible(NULL))
   }
@@ -153,17 +139,6 @@ pagerank_screaming_frog <- function(bundle,
   invisible(NULL)
 }
 
-.sf_filter_by_placements <- function(edges, accepted_placements) {
-  if (is.null(accepted_placements)) {
-    return(edges)
-  }
-  edges[
-    !is.na(edges$placement) & edges$placement %in% accepted_placements,
-    ,
-    drop = FALSE
-  ]
-}
-
 .sf_filter_by_origins <- function(edges, link_origins) {
   origin_keys <- .sf_link_origin_key(edges$link_origin)
   if (is.null(link_origins)) {
@@ -176,31 +151,13 @@ pagerank_screaming_frog <- function(bundle,
   ]
 }
 
-.sf_apply_placement_weights <- function(edges, placement_weights, weight_col) {
-  effective_weight_col <- weight_col
-  if (!is.null(placement_weights)) {
-    placement_weights <- .sf_validate_placement_weights(placement_weights)
-    edges$.__sf_placement_weight__ <- 1
-    weighted <- !is.na(edges$placement) &
-      edges$placement %in% names(placement_weights)
-    edges$.__sf_placement_weight__[weighted] <-
-      unname(placement_weights[edges$placement[weighted]])
-    effective_weight_col <- ".__sf_placement_weight__"
-  }
-  list(
-    edges = edges,
-    placement_weights = placement_weights,
-    effective_weight_col = effective_weight_col
-  )
-}
-
-.sf_check_effective_weight_col <- function(effective_weight_col, edges) {
-  if (is.null(effective_weight_col)) {
+.sf_check_weight_col_present <- function(weight_col, edges) {
+  if (is.null(weight_col)) {
     return(invisible(NULL))
   }
-  if (nrow(edges) > 0L && !(effective_weight_col %in% names(edges))) {
+  if (nrow(edges) > 0L && !(weight_col %in% names(edges))) {
     stop(
-      "`weight_col` '", effective_weight_col,
+      "`weight_col` '", weight_col,
       "' is not present in `bundle$edges`.",
       call. = FALSE
     )
@@ -220,7 +177,8 @@ pagerank_screaming_frog <- function(bundle,
 }
 
 .sf_build_pr_args <- function(edges, bundle, apply_redirects,
-                              apply_canonicals, effective_weight_col, dots) {
+                              apply_canonicals, weight_col,
+                              accepted_placements, placement_weights, dots) {
   redirects_df <- if (apply_redirects) {
     .sf_nullable_df(bundle$redirects)
   } else {
@@ -246,7 +204,10 @@ pagerank_screaming_frog <- function(bundle,
       indexability_url_col = "url",
       indexability_status_col = "indexability_status",
       nofollow_col = "nofollow",
-      weight_col = effective_weight_col
+      weight_col = weight_col,
+      placement_col = "placement",
+      accepted_placements = accepted_placements,
+      placement_weights = placement_weights
     ),
     dots
   )
@@ -255,20 +216,21 @@ pagerank_screaming_frog <- function(bundle,
 .sf_build_import_attr <- function(bundle, input_edges, edges,
                                   accepted_placements, link_origins,
                                   placement_weights, weight_col,
-                                  effective_weight_col, apply_canonicals,
-                                  apply_redirects) {
+                                  apply_canonicals, apply_redirects) {
   structure(
     list(
       diagnostics = bundle$diagnostics,
       provenance = bundle$provenance,
       scoring = list(
         input_edges = input_edges,
-        scored_edge_rows = nrow(edges),
+        # Rows handed to pagerank(), i.e. after the wrapper-owned origin
+        # filter. The placement filter now runs inside pagerank(), which
+        # records what it dropped in the transition audit's config$placement.
+        edge_rows_to_pagerank = nrow(edges),
         accepted_placements = accepted_placements,
         link_origins = link_origins,
         placement_weights = placement_weights,
         weight_col = weight_col,
-        effective_weight_col = effective_weight_col,
         apply_canonicals = apply_canonicals,
         apply_redirects = apply_redirects,
         canonicals_off_domain =
@@ -322,27 +284,6 @@ pagerank_screaming_frog <- function(bundle,
   x
 }
 
-.sf_validate_accepted_placements <- function(x) {
-  if (is.null(x)) {
-    return(NULL)
-  }
-  allowed <- c("nav", "header", "footer", "sidebar", "content")
-  if (!is.character(x) || anyNA(x)) {
-    stop("`accepted_placements` must be a character vector or NULL.",
-      call. = FALSE
-    )
-  }
-  x <- unique(tolower(trimws(x)))
-  if (!all(x %in% allowed)) {
-    stop(
-      "`accepted_placements` must contain only: ",
-      toString(allowed), ".",
-      call. = FALSE
-    )
-  }
-  x
-}
-
 .sf_validate_link_origins <- function(x) {
   if (is.null(x)) {
     return(NULL)
@@ -358,34 +299,6 @@ pagerank_screaming_frog <- function(bundle,
       toString(allowed), ".",
       call. = FALSE
     )
-  }
-  x
-}
-
-.sf_validate_placement_weights <- function(x) {
-  if (!is.numeric(x) || is.null(names(x)) || !all(nzchar(names(x)))) {
-    stop(
-      "`placement_weights` must be a named positive numeric vector.",
-      call. = FALSE
-    )
-  }
-  if (anyNA(x) || !all(is.finite(x)) || any(x <= 0)) {
-    stop(
-      "`placement_weights` must contain finite positive values.",
-      call. = FALSE
-    )
-  }
-  names(x) <- tolower(trimws(names(x)))
-  allowed <- c("nav", "header", "footer", "sidebar", "content")
-  if (!all(names(x) %in% allowed)) {
-    stop(
-      "`placement_weights` names must contain only: ",
-      toString(allowed), ".",
-      call. = FALSE
-    )
-  }
-  if (anyDuplicated(names(x)) > 0L) {
-    stop("`placement_weights` names must be unique.", call. = FALSE)
   }
   x
 }

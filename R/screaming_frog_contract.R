@@ -428,14 +428,15 @@ sf_rel_nofollow <- function(x) {
 #'
 #' @description Maps Screaming Frog's "Link Position" values onto the compact
 #'   vocabulary pagerankr uses for placement-aware weighting: \code{navigation}
-#'   becomes \code{"nav"} and \code{aside} becomes \code{"sidebar"}, while
-#'   \code{header}, \code{footer}, and \code{content} pass through unchanged.
-#'   Matching is case-insensitive and whitespace is trimmed.
+#'   becomes \code{"nav"}, while \code{header}, \code{footer}, \code{aside}, and
+#'   \code{content} pass through unchanged. Matching is case-insensitive and
+#'   whitespace is trimmed. The result is what [pagerank()] consumes through its
+#'   \code{placement_col} argument.
 #'
 #' @param x A vector (typically character) of link positions.
 #'
 #' @return A character vector the same length as \code{x} containing
-#'   \code{"nav"}, \code{"header"}, \code{"footer"}, \code{"sidebar"}, or
+#'   \code{"nav"}, \code{"header"}, \code{"footer"}, \code{"aside"}, or
 #'   \code{"content"}. Blank strings, \code{NA}, and unrecognized values yield
 #'   \code{NA}.
 #'
@@ -449,7 +450,7 @@ sf_normalize_position <- function(x) {
     navigation = "nav",
     header = "header",
     footer = "footer",
-    aside = "sidebar",
+    aside = "aside",
     content = "content"
   )
   out <- unname(normalized[value])
