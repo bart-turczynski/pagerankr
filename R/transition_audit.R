@@ -51,7 +51,13 @@
 #'     into transition weights), and `duplicate_edges` (a compact data frame of
 #'     counted edges with more than one link instance, or `NULL`).}
 #'   \item{config}{A list of the [pagerank()] arguments that materially shape
-#'     the transition graph: `self_loops`, `drop_isolates_flag`, `reverse`,
+#'     the transition graph. `preset` records the *provenance* of the rest:
+#'     the name of the [pr_preset()] bundle the caller asked for (e.g.
+#'     `"declared"`), `"custom"` for a hand-rolled bundle, or `NULL` when no
+#'     preset was used — so a run made as a named view stays distinguishable
+#'     from the same arguments typed out by hand. The remaining fields are the
+#'     resolved configuration itself: `self_loops`, `drop_isolates_flag`,
+#'     `reverse`,
 #'     `weight_col`, `nofollow_col`, `nofollow_action`, `robots_blocked_action`,
 #'     `prior_alpha`, `prior_transform`, `prior_inject_unmatched`, and the
 #'     logical flags `has_redirects` / `has_canonicals` (whether that signal
@@ -334,6 +340,22 @@ new_transition_audit <- function(n_input_rows = 0L,
   )
 }
 
+#' Print the preset provenance line of a transition_audit
+#'
+#' Printed only when a preset was actually used, so the default output of a
+#' plain `pagerank()` run is unchanged.
+#' @param x A `transition_audit` object.
+#' @return `NULL`, invisibly; called for its printed output.
+#' @noRd
+.print_ta_preset <- function(x) {
+  preset <- x$config$preset
+  if (is.null(preset)) {
+    return(invisible(NULL))
+  }
+  cat("Preset:              ", preset, "\n\n")
+  invisible(NULL)
+}
+
 #' Print the counts section of a transition_audit
 #' @param x A `transition_audit` object.
 #' @return `NULL`, invisibly; called for its printed output.
@@ -505,6 +527,7 @@ new_transition_audit <- function(n_input_rows = 0L,
 #' @export
 print.transition_audit <- function(x, ...) {
   cat("=== Transition Construction Audit ===\n\n")
+  .print_ta_preset(x)
   .print_ta_counts(x)
   .print_ta_dropped(x)
   .print_ta_coverage(x)

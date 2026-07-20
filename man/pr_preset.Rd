@@ -34,13 +34,29 @@ directly -- `pagerank(edges, preset = "raw")` -- is equivalent.
     vertices. This is the faithful baseline to compare every other view
     against.}
   \item{`"declared"`}{The graph after honoring the signals the site
-    *declares*: `rel=nofollow` evaporates, robots-blocked pages are removed
-    from the results, declared canonical/redirect targets are followed even
-    when they were not crawled, and self loops and isolates are dropped.
-    Note that the declared **data** (`redirects_df`, `canonicals_df`,
+    *declares*: `rel=nofollow` evaporates, declared canonical/redirect
+    targets are followed even when they were not crawled, robots-blocked
+    pages keep the authority they collect, and self loops and isolates are
+    dropped. This is a **pure pin of the package defaults** -- it changes
+    nothing about how [pagerank()] behaves today. Its value is that it
+    *states* the default view: a run made with `preset = "declared"` is a
+    recorded, auditable claim about which view was intended, and it stays
+    pinned to the bundle as documented even if a future default moves. Note
+    that the declared **data** (`redirects_df`, `canonicals_df`,
     `indexability_df`) still has to be supplied by the caller -- a preset
     sets policy, never data.}
 }
+}
+
+\section{Provenance}{
+
+
+The [transition_audit] attached to a [pagerank()] result records which
+preset produced it, in `audit$config$preset`: the preset name for a
+registered preset (whether passed by name or as a `pr_preset()` result),
+`"custom"` for a hand-rolled bundle, and `NULL` when no preset was used. The
+rest of `config` records the resulting configuration, so a result can be
+both reconstructed and attributed to the named view it was asked for.
 }
 
 \section{Precedence}{
