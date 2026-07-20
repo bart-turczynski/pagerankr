@@ -23,8 +23,7 @@
   cuts the *opposite* way from `sf_region_from_path()`, which strips class
   predicates so a `div[@class='site-footer']` is not read as a `<footer>`; the
   two answer different questions ("which region is this" versus "is this the
-  same component") and the inconsistency is deliberate. On a real 9,655-page
-  crawl this compresses 22,022 distinct paths to 1,630 skeletons (92.6%).
+  same component") and the inconsistency is deliberate.
   Rows with no `Link Path` get `NA` and stay unscored — unlike placement there
   is no `Link Position` fallback, because a region label cannot manufacture a
   component identity.
