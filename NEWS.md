@@ -15,6 +15,12 @@
   applied *once classified*). The last two constants are unrelated quantities
   that happen to share a value. Off unless `container_col` is supplied, and
   crawler-neutral: any crawler that can identify a link's component can drive it.
+* **New `vignette("boilerplate")`** documents the detector: the
+  container-conditioned metric and the direction of its ratio, the four
+  arguments and why `boilerplate_threshold` and `boilerplate_weight` are
+  unrelated despite sharing a default, how region weighting and recurrence
+  compose as one graded axis rather than two multiplied ones, and which kinds of
+  page the detector characteristically discounts.
 * **New `sf_container_from_path()`** derives that component identity from a
   Screaming Frog `Link Path`, and `screaming_frog_links()` now carries a
   `container` column on both the observation and edge tables (counted in the
