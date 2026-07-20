@@ -308,3 +308,82 @@ closes.**
   reclassification as the cheapest de-sink) and a **methods caveat** on
   two-crawl natural experiments (read rank/concentration/relative deltas, not
   absolute PR).
+
+---
+
+## 11. Uniform teleport pays pages for existing — dead pages can capture 95% of a site
+
+*Synthetic experiment, not a field observation. Reproduce with
+`notes/experiments/teleport-dead-pages.R`.*
+
+Setup: a 21-page site (hub + 20 interlinked pages), plus **K fake dead URLs**
+each discovered via exactly one link from the hub — the realistic shape, since a
+crawler only finds a URL because something links to it. The dead pages have no
+outlinks, which is what a 404 actually looks like.
+
+Under the **uniform teleport vector** (current behavior), dead pages are ordinary
+dangling nodes:
+
+| K dead URLs | dead pages hold | real content holds | hub |
+|---|---|---|---|
+| 0 | 0% | **69.7%** | 0.303 |
+| 10 | 16.6% | 57.8% | 0.255 |
+| 100 | 66.5% | 23.1% | 0.104 |
+| 1000 | **95.2%** | **3.3%** | 0.015 |
+
+A thousand fake broken URLs capture **95% of the site's PageRank** and collapse
+real content 21x. Nobody linked to them except one hub link each.
+
+**Excluding dead pages from the teleport vector** makes it plateau instead of
+running away:
+
+| K | dead pages hold | real content holds | teleport's share of a dead page's score |
+|---|---|---|---|
+| 10 | 8.0% | 63.9% | 52.0% |
+| 100 | 18.0% | 56.5% | 72.9% |
+| 1000 | **20.6%** | **54.6%** | **78.3%** |
+
+At K=1000, **78% of a dead page's score is mass it received for existing.**
+
+Note the residual decline under exclusion (69.7% -> 54.6%): that part is
+**correct and should be reported**. The hub really is spending its outgoing link
+budget on 1000 broken links. What exclusion removes is the manufactured collapse
+layered on top of it.
+
+**Convergence with zeroed teleport entries** — the one thing the literature does
+not address directly — checks out at all three sizes: scores sum to exactly 1,
+no `NA`, no negatives, minimum score strictly positive.
+
+### Why this is not a deviation from PageRank
+
+Page & Brin (1998, §6) treat the teleport vector `E` as a free parameter and
+criticize the uniform choice in these words: *"This is a very democratic choice
+for E since all web pages are valued simply because they exist."* They test `E`
+concentrated on a **single page**. Sparse teleport is authorial intent, not a
+departure.
+
+Bianchini, Gori & Scarselli, *Inside PageRank* (2005) formalize the inflation:
+a group of pages carries a **"default energy" equal to its page count**, and
+their stated "golden rule" is that *"the same content divided into many small
+pages yields a higher score than the same content into a single large page."*
+Adding K junk URLs harvests K units of default energy. Langville & Meyer report
+Google itself tinkered with teleport-vector elements to annihilate link farms.
+
+### Dangling nodes: every option invents something
+
+A page with no outlinks is undefined in the formula — its mass is divided among
+zero destinations. There is no invention-free choice, only three inventions:
+
+| Treatment | What it claims about the site |
+|---|---|
+| **Dangle** (today) | authority flowing into 404s is spread evenly across every page |
+| **Self-loop** | the 404 links to itself forever, compounding |
+| **Sink** | authority flows into 404s and stops there |
+
+Only the third is true. Langville & Meyer name the second: a self-absorbing
+dangling node is a **rank sink / absorbing state** that *"keeps accumulating more
+and more PageRank at each iteration."* Measured in `pagerankr`: identical graph,
+page X under `noindex` (evaporate) scores **0.1065**; under robots-blocked
+(trap/self-loop) it scores **0.8875** — 8.3x, holding 89% of the graph.
+
+See fp `PAGE-qzskzcfd` for the resulting policy decisions.
