@@ -658,8 +658,9 @@ from ≤10-page containers.
 
 **Open question, not a settled result.** Surfaced by the question "can we reverse on content
 only?" while shipping the `content` preset. The answer is yes mechanically —
-`pagerank(edges, preset = "content", placement_col = ..., reverse = TRUE)` — but what it *means*
-is unclear, and the empirical behavior was not what anyone predicted.
+`pagerank(edges, preset = "content", placement_col = ..., reverse = TRUE)`, and it is a coherent
+operator. But it is **not the same claim** as the forward view, it has a site-dependent blind
+spot, and the empirical behavior was not what anyone predicted.
 
 ### The mechanism
 
@@ -674,11 +675,45 @@ Reversing the graph swaps what "source" means, and so swaps the normalization gr
 | Forward | a page's **outlinks** | "this page splits its vote 10:1 between its editorial and chrome links" |
 | Reversed | a page's **inlinks** | "this page splits credit among the pages linking *at* it, by where they put the link" |
 
-The forward reading is the one the model was designed around and the one §2 argues for. **The
-reversed reading has no established editorial meaning** — it is not obviously wrong, but nothing
-in the model justifies it, and it is not what a user asking for "feeder-ness over editorial links
-only" would be asking for. That view would require the discount to stay attached to the original
-*source's* outflow, which surviving the reversal is exactly what row normalization prevents.
+The forward reading is the one the model was designed around and the one §2 argues for.
+
+> **Correction (same session).** This section first claimed the reversed reading had *no*
+> established editorial meaning. That was wrong, and the evidence contradicting it was already in
+> this file. Read as **credit allocation among a target's inlinkers**, reversed placement
+> weighting is coherent and does the right thing: on a graph where `H` is linked from `P1`'s
+> footer and `P2`'s content, weighting moves `P1` 0.257 → **0.088** and `P2` 0.257 → **0.426**.
+> `P2` earns hub credit for editorially endorsing `H`; `P1` earns little, because its link is
+> boilerplate. That is exactly what an inverse-PageRank-over-editorial-links score should say.
+
+The real limitation is narrower, and it is a **relativity** problem rather than a meaning problem.
+The discount is normalized *within a target*: a page linked only from footers splits full credit
+among its footer-linkers, because there is nothing to compare them against. So reversed weighting
+fails precisely on **chrome hubs** — the pages it most needs to catch. The share of edges sitting
+in homogeneous groups is therefore not a curiosity; it is the **failure rate** of the reversed
+view on a given site (6% on tidio, 48% on natu.care — see below).
+
+### Two operators, only one implemented
+
+The residual question is not "does reversed weighting mean anything" but "which of two
+operators do we want":
+
+| | Construction | Discount attaches to |
+|---|---|---|
+| **A** *(implemented)* | Reverse the graph, then row-normalize the weights | a target's **inlinks** — credit allocation |
+| **B** *(not expressible)* | Row-normalize forward, then transpose the transition matrix | the original source's **outflow** |
+
+**A** is standard CheiRank over a weighted graph, and is what `reverse = TRUE` composed with
+`placement_weights` produces today. **B** is arguably closer to the intent behind "score pages by
+how well they feed authority through *their own* editorial choices" — it keeps the discount
+attached to the choice the source page made, which is the thing being credited.
+
+B is not a configuration change and may not be CheiRank at all: transposing a row-stochastic
+matrix does not yield a row-stochastic matrix, so B needs a re-normalization step whose choice
+reintroduces the same question one level down. Open.
+
+⚠️ **Naming.** Neither `cheirank` nor `editorial` is available for whatever B becomes.
+`cheirank` is reserved for the eventual rename of global inverse PageRank; `editorial` is
+reserved for the future composite of region weighting *plus* boilerplate suppression (§7).
 
 ### A constructed degenerate case
 
@@ -718,17 +753,22 @@ that were themselves crawled.
 2. **It is a general property of weighted PageRank**, not of placement specifically. Any
    row-normalized edge weight — boilerplate (§5), position (§6 constant 6), anything fitted —
    inherits the same asymmetry. It therefore bears on the whole two-axis model, not one preset.
-3. **The reversed view is a shipped feature** (`preset = "reversed"`, `topic_feeder_pagerank()`),
-   so the package currently lets users compose two things whose combination it cannot interpret.
+3. **The reversed view is a shipped feature** (`preset = "reversed"`, `topic_feeder_pagerank()`)
+   and composes with `content` today. The composition is *usable* — operator A is coherent — but
+   it has a site-dependent blind spot the package does not currently surface.
 4. **The asymmetry is measurable and varies by site**, so it is an empirical claim with a number
-   attached rather than a philosophical one.
+   attached rather than a philosophical one. The homogeneous-group share is a candidate
+   **diagnostic**: it tells a user what fraction of their reversed run is effectively unweighted.
 
 ### Open, in rough order
 
-- Does the reversed reading admit *any* defensible editorial interpretation, or should combining
-  `content` with `reverse = TRUE` warn?
-- Is there a formulation that keeps the discount on the original source's outflow under
-  reversal — and is that still PageRank, or a different operator?
+- ~~Does the reversed reading admit any defensible editorial interpretation?~~ **Resolved: yes**
+  — operator A is credit allocation among a target's inlinkers. `content` + `reverse = TRUE`
+  should **not** warn; it works, with a documented blind spot.
+- Is operator **B** (normalize forward, then transpose) constructible, and what re-normalization
+  does it need? Is the result still PageRank?
+- Should the homogeneous-group share ship as a diagnostic on reversed weighted runs, so a user
+  learns that half their natu.care run was effectively unweighted?
 - What drives the tidio/natu.care spread (94% vs 52%)? Region mix is a candidate: tidio is
   header-heavy (56.6% of edges) where natu.care is content-heavy (66.1%).
 - Does the heterogeneity share predict how much the ranking actually *moves*? Heterogeneity is
