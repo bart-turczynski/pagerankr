@@ -61,10 +61,12 @@ edge_weight = boilerplate_weight × position_weight
 
 **Two numbers, not three.**
 
-> **Status of the position factor (§13, 2026-07-21).** The composition argument below stands, but
-> `position_weight` has no data source yet: link order is not recoverable from a Screaming Frog
-> All Inlinks export. Until that is solved the shipped model is the boilerplate axis alone, and
-> `edge_weight = boilerplate_weight` with `position_weight` fixed at 1.
+> **Status of the position factor (§13, 2026-07-21).** The composition argument below stands.
+> `position_weight` is not yet implemented, but its data source is now settled: link order is
+> recoverable from a Screaming Frog **All Outlinks** export (row order is document order), though
+> **not** from All Inlinks (row order is destination alphabetical order). Until the axis is built
+> the shipped model is the boilerplate axis alone, `edge_weight = boilerplate_weight` with
+> `position_weight` fixed at 1.
 
 ### Why multiplicative composition is right
 
@@ -528,14 +530,17 @@ finding and a paper angle.
    detection hard-require it, or fall back to something clearly labeled weaker? Same "column may
    or may not exist" shape as placement.
 4. ~~**Position signal source**: CSV row order is fragile — materialize it into an explicit
-   per-source index at ingest.~~ **Answered (§13): the premise was wrong.** Row order is not
-   fragile, it is *absent* — All Inlinks is grouped by destination, so a per-source index built at
-   ingest would materialize noise. DOM-path ordinals are durable but order only 39–58% of
-   within-page content-link pairs, because XPath indices are per-tag-name. No signal on this
-   source.
-5. ~~**Position decay shape**: linear, exponential, or rank-bucketed?~~ **Moot until Q4 is
-   resolved** (§13) — there is no rank to apply a decay to. The open question moved upstream: does
-   All Outlinks carry document order, or does the axis require a crawler that reports position?
+   per-source index at ingest.~~ **Answered (§13): the signal is in All Outlinks, not All
+   Inlinks.** All Outlinks is grouped by source and its row order *is* document order (98.3%
+   monotone; footer links land at median page position 0.911). All Inlinks is grouped by
+   destination — its row order is destination alphabetical order and carries nothing. Both exports
+   describe the identical graph, so switching to All Outlinks for position changes no score. The
+   ticket's "materialize an index at ingest" instruction is correct *and required* here, because
+   order is genuinely fragile in transit — a stray `setkey()` in the probe script destroyed it once.
+5. ~~**Position decay shape**: linear, exponential, or rank-bucketed?~~ **Live again (§13.4).** No
+   longer moot — All Outlinks gives a total order over each page's links, so there is a real rank to
+   decay over. Settle the shape against data: content links per source page run median 22 / p75 58
+   / p90 77 on tidio, so a decay has room to act.
 6. **Unnamed placements currently get weight 1** (`R/pagerank_screaming_frog.R:183`). Under the
    field-notes recipe that makes `footer` and `aside` outweigh `nav` tenfold — almost certainly
    not intended. Fix by having the preset name all five placements explicitly rather than adding
@@ -660,7 +665,8 @@ from ≤10-page containers.
   §5 (structural boilerplate detection), §8 (the confound), and §12 (the forward/reverse
   asymmetry) are all paper material.
 - `PAGE-kddhyhpw` — two-crawl fixture; the validation substrate for §10.
-- `PAGE-xzxntstl` — positional decay; §13 is its feasibility probe and blocks it as written.
+- `PAGE-xzxntstl` — positional decay; §13 is its feasibility probe. Unblocked: order is
+  recoverable from an All Outlinks export.
 
 ---
 
@@ -790,7 +796,19 @@ destinations restricted to crawled sources.
 
 ---
 
-## 13. Link order is not recoverable from an All Inlinks export (2026-07-21)
+## 13. Link order comes from All Outlinks, not All Inlinks (2026-07-21)
+
+> **This section was corrected the same day it was written.** Its first version concluded that
+> link order is not recoverable at all and that `PAGE-xzxntstl` was blocked. That conclusion was
+> drawn from the **All Inlinks** export alone, which was the only export held at the time, and it
+> **generalized from one export to the crawler**. An All Outlinks export was supplied hours later
+> and resolves the problem cleanly: it is grouped by source and its row order *is* document order.
+>
+> The inlinks findings below all still hold and are still load-bearing — All Inlinks genuinely
+> carries no order, and a naive implementation reading order out of it would have shipped silent
+> nonsense. What was wrong was the scope of the claim. The lesson is narrower than "probe before
+> you build" and more useful: **a negative result about a data source is not a negative result
+> about the signal.** §13.4 records what the negative result was worth anyway.
 
 **Probe for `PAGE-xzxntstl` (positional decay), run before designing any argument surface.**
 The ticket's stated blocker is that CSV row order is *fragile in transit* — that filters, joins
@@ -803,7 +821,7 @@ would do it in the one place where the result looks authoritative.
 
 Measured on all three crawls: `tidioreviews` (62 pages), `tidio.com` (2,767), `natu.care` (9,655).
 
-### Carrier A — CSV row order: does not exist
+### 13.1 Carrier A — All Inlinks CSV row order: does not exist
 
 The All Inlinks export is **grouped by destination**, not by source. On tidioreviews, 185 distinct
 destinations occupy exactly **185 contiguous blocks**, while 69 distinct sources are scattered
@@ -818,7 +836,7 @@ signal; the first is worse than chance because destination ordering actively ant
 This is a property of the export format, not of a particular crawl. Any consumer reading order out
 of All Inlinks row order is reading the alphabet of the destination URLs.
 
-### Carrier B — DOM path ordinals: structurally partial, not merely noisy
+### 13.2 Carrier B — DOM path ordinals: structurally partial, not merely noisy
 
 `Link Path` does carry ordinals (`//body/div/main/article/p[5]/a[1]`), present on 93–99% of rows,
 and unlike row order they survive any filter or join because they live *in* the value. So the
@@ -847,41 +865,110 @@ the time, so a *within-branch* depth (paragraph 5 of the article) is available �
 `li[2]` still have no common scale, and a position axis whose values are incomparable between two
 links on the same page is not a position axis.
 
-### What this means for the ticket
+### 13.3 All Outlinks: row order *is* document order
 
-`PAGE-xzxntstl` as written **cannot be implemented against a Screaming Frog All Inlinks export**.
-This is not "the decay shape is unexamined" — that question does not arise, because there is no
-rank to apply a decay to. The blocking question moved upstream, from *what shape* to *is there a
-signal at all*, and on this data source the answer is no.
+Measured on `_scratch/crawls/tidio/all_outlinks.csv` (741 MB, 1,611,765 rows, 611,108 hyperlinks).
 
-Three ways forward, in order of cost:
+**Grouped by source, exactly.** 9,385 distinct sources occupy **9,385 contiguous blocks**; rows are
+99.7% monotone in `Source`. That is the necessary condition. It is not sufficient — SF must also
+emit each page's links in the order it met them — so the same sibling test was rerun:
 
-1. **Test All Outlinks.** Not held for any crawl here, so untested. It is the same data model
-   grouped the other way, and grouping by source is a *necessary* condition for row order to carry
-   document order — not a sufficient one. SF would additionally have to emit each source's links in
-   document order. Cheap to settle: re-export from an existing crawl and rerun the sibling test in
-   `_scratch/probe-order.R`. **Do this before anything else** — it is the difference between the
-   axis needing a new ingest path and needing a new crawler.
-2. **Require a crawler that reports order.** Same shape as `container_col`: the axis becomes a
-   `position_col` that some adapters can fill and others cannot, and it is off unless the data is
-   there. Honest, and consistent with how placement and boilerplate are already switched on by
-   data. Costs a crawler that emits it — a bespoke extractor, or `cf-crawl`-style rendering where
-   we control the DOM walk and can number links in document order ourselves.
-3. **Drop the axis.** The two-axis model (§2) is shipped and validated; position was always the
-   speculative third. `PAGE-gkpltihp` (fitted reasonable-surfer, GA4-gated) is the successor that
-   would supersede a heuristic decay anyway, and it derives position from click data rather than
-   from markup.
+| export | sibling groups | monotone in DOM index | DOM/CSV agreement |
+|---|---:|---:|---:|
+| All Inlinks | 2,969 | 55.7% | 55.5% |
+| **All Outlinks** | **2,969** | **98.3%** | **98.3%** |
+
+Same crawl, same links, same test. Inlinks sits at chance; outlinks sits at 98.3%.
+
+An independent check, which does not use DOM paths at all: if row order is document order, then a
+link's normalized position within its page should recover the order a reader meets the regions in.
+
+| region | links | mean position | median |
+|---|---:|---:|---:|
+| Navigation | 451,432 | 0.446 | 0.414 |
+| Aside | 12,642 | 0.545 | 0.536 |
+| Header | 16,370 | 0.554 | 0.643 |
+| Content | 93,321 | 0.606 | 0.627 |
+| **Footer** | **36,955** | **0.860** | **0.911** |
+
+`0` is the first link on the page and `1` the last. Footer lands decisively at the bottom, which is
+what document order predicts and what no other ordering would produce. (`Header` at 0.554 is the §4
+artifact, not a contradiction: on tidio nearly all header links report as `Navigation`, so what
+remains in the `Header` bucket is unrepresentative.)
+
+**Row order is also strictly better than the DOM-path carrier**, not merely a substitute for it. It
+yields a *total* order over a page's links — every pair ranked — where §13.2's path ordinals could
+only order 39–58% of pairs. The 98.3% above is agreement where the path is checkable at all; the
+remaining disagreement is concentrated in Content (96.8% monotone) with Navigation and Header at
+100%, and the offending groups are dominated by repeat targets rather than genuine reordering.
+
+### 13.3.1 The two exports describe the identical graph
+
+Necessary before adopting outlinks, since every shipped result was measured on inlinks. Same crawl,
+both exports, hyperlinks only:
+
+| | All Inlinks | All Outlinks |
+|---|---:|---:|
+| hyperlink rows | 611,108 | 611,108 |
+| distinct sources | 2,767 | 2,767 |
+| distinct targets | 11,704 | 11,704 |
+| distinct `src → dst` edges | 371,323 | 371,323 |
+
+Rows present in only one export: **0** in each direction. Multiplicity mismatches: **0**. The
+distinct edge sets are identical by `fsetdiff` in both directions.
+
+**So PageRank cannot depend on which export you read.** The two files are the same relation written
+in a different order, and order is the only thing that differs — which is precisely why one carries
+position and the other does not. Switching the position axis to All Outlinks changes no score.
+
+### 13.4 What this means for the ticket
+
+`PAGE-xzxntstl` is **unblocked**, with its ingest question answered and its premise repaired:
+
+- **Read order from All Outlinks, never All Inlinks.** This is now a hard requirement on the ingest
+  path, not a preference. All Inlinks row order is destination alphabetical order (§13.1); reading
+  position from it would silently rank pages by the spelling of their destination URLs.
+- **The ticket's original instruction still stands, for a different reason.** It says to materialize
+  order into an explicit per-source index at ingest and never infer it downstream. On All Inlinks
+  that would have materialized noise. On All Outlinks it is exactly right, and it is *required*,
+  because the order genuinely is fragile in transit — see the method note below.
+- **Decay shape is live again** (§9 Q5), and now has data to be settled against rather than
+  argued from first principles. Content links per source page on tidio: median 22, p75 58, p90 77.
+  A decay has real room to act, and the content-link deciles are far from uniform.
+
+The two fallbacks from the first version of this section — require a position-reporting crawler, or
+drop the axis — are no longer needed for Screaming Frog. They remain the answer for *other*
+crawlers, which is an argument for the `position_col` shape (data switches the axis on, adapters
+fill it where they can) rather than an SF-specific ingest hack.
 
 ### Method note
 
-This probe was run *before* any argument surface was designed, which is the opposite order from
-`PAGE-izdemdfs` — correctly, since that ticket's spec was already settled and this one's premise
-was not. §2's lesson was that a shipped axis needs a real-crawl scale check; the cheaper version of
-that lesson is to run the scale check on the *premise* first. Had the ticket been implemented as
-written, the tests would have passed — an index materialized at ingest is trivially self-consistent
-— and the axis would have shipped ranking pages by the alphabetical order of their destination
-URLs. No unit test written from that implementation could have caught it.
+Two lessons, and the second one cost the first one's credibility.
 
-Probe scripts: `_scratch/probe-order.R`, `_scratch/probe-content-order.R` (aggregates only;
-destinations unrestricted here because the question is about source-side ordering, not per-page
-target measurement).
+**1. Probe the premise, not just the implementation.** This probe ran *before* any argument surface
+was designed — the opposite order from `PAGE-izdemdfs`, correctly, since that ticket's spec was
+settled and this one's premise was not. Had the ticket been built as written against All Inlinks,
+the tests would have passed: an index materialized at ingest is trivially self-consistent, so the
+axis would have shipped ranking pages by the alphabetical order of their destination URLs, and no
+unit test written from that implementation could have caught it. That risk was real and is now
+retired.
+
+**2. A negative result about one export is not a negative result about the crawler.** The first
+version of this section said the axis "cannot be implemented against a Screaming Frog export" on
+evidence that only covered All Inlinks — a file that had never been *chosen* for this question,
+merely the one already on disk. Three crawls agreeing made the finding feel general; they were
+three instances of the same format, so they could only ever agree. **Sample size does not fix
+sampling from the wrong population.** The correct claim was always the narrow one, and the correct
+next step was the one the section itself listed first.
+
+**3. Order really is fragile in transit — demonstrated accidentally.** The first run of
+`_scratch/probe-inlinks-vs-outlinks.R` called `data.table::setkey()` before the sibling test.
+`setkey` sorts **in place**, so the test ran on re-sorted data and reported 62.7% monotone instead
+of 98.3% — a number that would have reinstated the wrong conclusion, from a one-line side effect in
+the measurement script itself. This is the ticket's stated hazard, reproduced in the code written to
+investigate it. It is the strongest available argument for materializing the index at ingest.
+
+Probe scripts (aggregates only): `_scratch/probe-order.R`, `_scratch/probe-content-order.R`,
+`_scratch/probe-sortkey.R`, `_scratch/probe-inlinks-vs-outlinks.R`,
+`_scratch/probe-outlink-position.R`. Destinations are unrestricted throughout, because the question
+is source-side ordering rather than a per-page target measurement.
