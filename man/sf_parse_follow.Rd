@@ -30,6 +30,7 @@ Other Screaming Frog toolkit:
 \code{\link[=sf_graph_eligible]{sf_graph_eligible()}},
 \code{\link[=sf_normalize_position]{sf_normalize_position()}},
 \code{\link[=sf_read_input]{sf_read_input()}},
+\code{\link[=sf_region_from_path]{sf_region_from_path()}},
 \code{\link[=sf_rel_nofollow]{sf_rel_nofollow()}}
 }
 \concept{Screaming Frog toolkit}

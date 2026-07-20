@@ -12,6 +12,21 @@
   to `NULL`, so nothing changes for callers that do not use them, and because
   they are `pagerank()` formals they compose with `preset` and are inherited by
   every wrapper that forwards `...`.
+* **A Screaming Frog bundle's `placement` is now derived from the DOM path**
+  rather than from `Link Position`, via a new exported `sf_region_from_path()`.
+  `Link Position` loses the enclosing region whenever a `<nav>` is nested inside
+  one: on a site whose footer is marked up as `footer > nav > a`, Screaming Frog
+  reports every footer link as `Navigation` and emits no `Footer` bucket at all,
+  so `footer` is not merely mislabeled but unreachable — a user wanting footer
+  at 0.05 and nav at 0.2 had no way to express it. Other sites *do* emit
+  `Footer`, so the vocabulary silently varied with the site's markup. The region
+  is the outermost layout container on the path (`header`, `footer`, `aside`,
+  else `content`), and `nav` applies only to a `<nav>` that is not inside one of
+  those; `Link Position` remains the fallback for rows with no path, counted in
+  the link diagnostics as `placement_from_position_rows`. Expect footer and
+  header navigation to reclassify out of `nav` — this changes which edges
+  `accepted_placements` selects, though not the usual recipe, which weights all
+  three alike.
 * The placement vocabulary term `"sidebar"` is renamed **`"aside"`**, matching
   both Screaming Frog's own label and the HTML element; `"sidebar"` is a layout
   word rather than a semantic one. `sf_normalize_position()` now returns
