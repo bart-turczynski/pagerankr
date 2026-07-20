@@ -1,5 +1,24 @@
 # pagerankr (development version)
 
+* New `preset` argument on `pagerank()` and a new exported `pr_preset()`
+  constructor: named argument bundles for recurring *views* of a link graph,
+  so a view is a one-liner instead of a hand-assembled argument list. Two
+  presets ship so far: `"raw"` (the graph exactly as crawled -- self loops and
+  isolates kept, `rel=nofollow` ignored, no relabeling onto uncrawled fold
+  targets) and `"declared"` (honor the signals the site declares -- nofollow
+  evaporates, robots-blocked pages leave the results, declared canonical and
+  redirect targets are followed, self loops and isolates dropped). `preset`
+  accepts a preset name, a `pr_preset()` result, or any hand-rolled named list
+  of `pagerank()` arguments; bundles are plain named lists, so they are
+  inspectable and spliceable via `do.call()`. Precedence is **explicit
+  argument > preset > base default** -- a preset value is applied only to
+  arguments the caller did not name -- and this holds through the wrappers
+  that forward `...` to `pagerank()` (`trustrank()`,
+  `topic_sensitive_pagerank()`, `topic_feeder_pagerank()`,
+  `pagerank_screaming_frog()`), with the boundary that arguments a wrapper
+  sets itself stay wrapper-owned. Presets are strictly opt-in; no default
+  behavior changes.
+
 * **Breaking:** the six dot-prefixed Screaming Frog helpers are renamed without
   their leading dot and are now documented public API: `.sf_contract()`,
   `.sf_read_input()`, `.sf_parse_follow()`, `.sf_rel_nofollow()`,
