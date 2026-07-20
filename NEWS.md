@@ -38,9 +38,6 @@
   in-content `0.5`, unique in-content `1`. The transition audit still records
   both factor sets separately in `config$placement` and `config$boilerplate`,
   since the resulting weight alone cannot say which detector produced it.
-* **Expect author pages to lose rank** where bylines are template-generated.
-  This is intended: that rank was manufactured by the template rather than
-  earned by any editorial decision.
 * The internal synthetic weight column is renamed `.__pr_placement_weight__` to
   **`.__pr_edge_weight__`**, since both weighting axes now write it. It surfaces
   in `attr(result, "transition_audit")$config$weight_col`.
