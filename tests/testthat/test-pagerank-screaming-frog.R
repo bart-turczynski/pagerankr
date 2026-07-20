@@ -199,7 +199,7 @@ describe("pagerank_screaming_frog()", {
     import <- attr(result, "screaming_frog_import")
     expect_identical(import$scoring$accepted_placements, c("nav", "content"))
     expect_identical(import$scoring$link_origins, c("html", "html_rendered"))
-    expect_identical(import$scoring$scored_edge_rows, 3L)
+    expect_identical(import$scoring$edge_rows_to_pagerank, 3L)
   })
 
   it("supports opt-in placement weighting", {
@@ -219,7 +219,7 @@ describe("pagerank_screaming_frog()", {
     expect_true(transition$coverage$weighted)
     expect_identical(
       transition$coverage$weight_col,
-      ".__sf_placement_weight__"
+      ".__pr_placement_weight__"
     )
     expect_identical(import$scoring$placement_weights[["nav"]], 3)
     expect_null(import$scoring$weight_col)
@@ -450,9 +450,18 @@ describe("pagerank_screaming_frog()", {
   it("rejects filters that leave no graph-eligible edges", {
     bundle <- sf_pr_bundle_fixture()
 
+    # The origin filter is wrapper-owned; the placement filter now lives in
+    # pagerank(), so each reports the empty result at its own layer.
     expect_error(
-      pagerank_screaming_frog(bundle, accepted_placements = "sidebar"),
+      pagerank_screaming_frog(
+        sf_pr_crossdomain_bundle_fixture(),
+        link_origins = "rendered"
+      ),
       "after Screaming Frog wrapper filters"
+    )
+    expect_error(
+      pagerank_screaming_frog(bundle, accepted_placements = "aside"),
+      "No edges remain after filtering to `accepted_placements`"
     )
   })
 

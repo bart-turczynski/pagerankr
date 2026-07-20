@@ -44,6 +44,27 @@
 #' @param weight_col Optional name of a numeric column in `edge_list_df`
 #'   containing edge weights. Higher weights make edges more likely to be
 #'   followed. If `NULL` (default), all edges have equal weight.
+#' @param placement_col Optional name of a column in `edge_list_df` holding the
+#'   page region each link sits in, using the crawler-neutral vocabulary
+#'   `"content"`, `"nav"`, `"header"`, `"footer"`, `"aside"`. Matching is
+#'   case-insensitive and whitespace is trimmed. `NULL` (default) means no
+#'   placement handling. Placement is **not** a Screaming Frog concept: a
+#'   per-crawler adapter maps vendor labels onto this vocabulary (see
+#'   [sf_normalize_position()]) and `pagerank()` only consumes the result, so
+#'   any crawler that reports link regions can drive placement-aware scoring.
+#' @param accepted_placements Optional character vector of placements to
+#'   retain; edges placed elsewhere (or with a missing placement) are dropped.
+#'   `NULL` (default) keeps every edge. Requires `placement_col`.
+#' @param placement_weights Optional named positive numeric vector assigning
+#'   edge weights by placement, e.g.
+#'   `c(content = 1, nav = 0.1, header = 0.1, footer = 0.1, aside = 0.1)`.
+#'   Placements not named keep weight `1`, so name all five to state a complete
+#'   recipe. Requires `placement_col` and cannot be combined with `weight_col`,
+#'   which it supersedes by building a weight column of its own. Downweighting
+#'   rather than filtering is deliberate: dropping a region changes the graph's
+#'   *shape* (pages reachable only through nav become teleport-only, pages
+#'   linking out only through nav become dangling), whereas a small weight
+#'   leaves the topology intact and merely stops the region dominating.
 #' @param duplicate_edge_policy How repeated `from -> to` rows are represented
 #'   after URL cleaning, redirect/canonical folding, and domain filtering. One
 #'   of:
@@ -469,6 +490,9 @@ pagerank <- function(
   drop_isolates_flag = TRUE,
   reverse = FALSE,
   weight_col = NULL,
+  placement_col = NULL,
+  accepted_placements = NULL,
+  placement_weights = NULL,
   duplicate_edge_policy = c(
     "collapse",
     "aggregate",
@@ -562,6 +586,11 @@ pagerank <- function(
   out_of_scope_fold <- match.arg(out_of_scope_fold)
   prior_transform <- match.arg(prior_transform)
 
+  # Hoisted above the main validation block: `placement_weights` builds a
+  # weight column of its own, so pairing it with `weight_col` is a contradiction
+  # worth reporting before `weight_col` is checked against the edge list.
+  .pr_check_weight_col_exclusivity(weight_col, placement_weights)
+
   # Validate all arguments up front (see .validate_pagerank_args below). Kept in
   # a dedicated helper so this orchestrator stays readable; error messages and
   # `call. = FALSE` behavior are unchanged.
@@ -590,6 +619,21 @@ pagerank <- function(
     prior_alpha = prior_alpha,
     prior_inject_unmatched = prior_inject_unmatched
   )
+
+  # --- 0. Placement: region filter + region weighting -----------------------
+  # Runs before URL cleaning so the rest of the pipeline sees a plain weighted
+  # edge list and knows nothing about page regions. `placement_weights` builds
+  # a synthetic weight column and hands it back as `weight_col`; see
+  # .pr_apply_placement() in R/placement.R.
+  .placement <- .pr_apply_placement(
+    edge_list_df = edge_list_df,
+    placement_col = placement_col,
+    accepted_placements = accepted_placements,
+    placement_weights = placement_weights,
+    weight_col = weight_col
+  )
+  edge_list_df <- .placement$edge_list_df
+  weight_col <- .placement$weight_col
 
   # Dots for igraph params are handled by compute_pagerank directly.
 
@@ -872,7 +916,8 @@ pagerank <- function(
     has_redirects = audit_has_redirects,
     has_canonicals = audit_has_canonicals,
     indexability_df = indexability_df,
-    preset = preset
+    preset = preset,
+    placement = .placement$provenance
   )
 
   attr(pagerank_results, "transition_audit") <- transition_audit
@@ -2728,7 +2773,8 @@ pagerank <- function(
   has_redirects,
   has_canonicals,
   indexability_df,
-  preset = NULL
+  preset = NULL,
+  placement = NULL
 ) {
   # Derived scalars, config snapshot, and construction live in helpers below.
   metrics <- .transition_audit_metrics(
@@ -2776,7 +2822,8 @@ pagerank <- function(
     has_canonicals = has_canonicals,
     indexability_df = indexability_df,
     folded_prior_df = folded_prior_df,
-    preset = preset
+    preset = preset,
+    placement = placement
   )
 }
 
@@ -2871,7 +2918,8 @@ pagerank <- function(
   has_canonicals,
   indexability_df,
   folded_prior_df,
-  preset = NULL
+  preset = NULL,
+  placement = NULL
 ) {
   config_nofollow_col <- if (identical(nofollow_col, "__pr_nofollow__")) {
     NULL
@@ -2880,6 +2928,7 @@ pagerank <- function(
   }
   list(
     preset = .pr_preset_label(preset),
+    placement = placement,
     self_loops = self_loops,
     drop_isolates_flag = drop_isolates_flag,
     reverse = reverse,
@@ -2939,7 +2988,8 @@ pagerank <- function(
   has_canonicals,
   indexability_df,
   folded_prior_df,
-  preset = NULL
+  preset = NULL,
+  placement = NULL
 ) {
   new_transition_audit(
     n_input_rows = n_input_rows,
@@ -2984,7 +3034,8 @@ pagerank <- function(
       has_canonicals = has_canonicals,
       indexability_df = indexability_df,
       folded_prior_df = folded_prior_df,
-      preset = preset
+      preset = preset,
+      placement = placement
     )
   )
 }
