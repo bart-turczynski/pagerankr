@@ -286,6 +286,44 @@ Measured compression (§10): 256 → 29 skeletons on tidioreviews (88.7%), 22,02
 natu.care (92.6%). Load-bearing — without it the detector under-detects in-content components
 while working fine on nav, which is backwards, since nav is already covered by placement.
 
+### `boilerplate_threshold = 0.5`, `min_container_pages = 10`
+
+Both settled from the three-crawl comparison (§10). The reasoning matters more than the numbers.
+
+**The threshold only has consequences for Content-position pairs.** Nav, header, footer and aside
+edges are already discounted to 0.1 by placement, so the detector failing to catch them costs
+nothing. An early reading of the data ("a 0.9 threshold misses `/cart` at ratio 0.82") was
+mis-emphasised — `/cart` sits in Header position and was already handled. Only content-position
+edges are at stake, because that is the only place placement cannot help.
+
+**At 0.9 the detector misses two whole families of real boilerplate**, consistent across
+tidio.com and natu.care:
+
+| family | examples | ratio |
+|---|---|---|
+| recurring in-content CTAs | `/panel/register` (×3 containers), `/blog/`, `/integrations/`, `/collections` | 0.54 – 0.82 |
+| author byline links | `/bart-turczynski`, `/ludwik-jelonek`, `/nina-wawryszuk-1`, `/people/gosia-szaniawska-schiavo/` | 0.53 – 0.69 |
+
+Bylines are the persuasive case, and the better documentation example than `/cart`: on natu.care
+a single author page is linked from 4,116 of 7,563 pages by an identical template element. That
+is the §4 pattern exactly — uniform in-degree inflation with no editorial judgment behind any
+individual link — and placement can never catch it, because the byline sits in content.
+
+Moving 0.9 → 0.5 adds 37 content pairs on tidio (against 42 already caught) and 19 on natu.care
+(against 77). Meaningful, not floodgates.
+
+**`min_container_pages` is the weaker default.** Small containers dominate the high-ratio counts
+(78 pairs at ratio ≥ 0.9 from 3–10-page containers on tidio, 147 on natu.care), and "3 out of 3"
+is thin evidence — a 3-page container can only produce ratios of 0.33, 0.67 or 1.0, so band
+membership is partly quantization rather than genuine ambiguity. Excluding them is cheap because
+they carry few edges. But 10 is a judgement call, not a measured cut.
+
+### Known surprise: author pages lose rank
+
+The detector discounts byline links hard, so author pages will drop. **This is correct** — their
+rank was manufactured by the template rather than earned — but it is counter-intuitive enough
+that it belongs in user-facing docs rather than being discovered.
+
 ### Scope philosophy
 
 Presence/recurrence detection is a **convenience**. We will not predict every site's weirdness,
@@ -307,12 +345,51 @@ This is exactly what presets are for: opinionated constants that are visible, in
 0.5", not "the package believes 0.5". No magic number buried in a signature for a reviewer to
 argue with.
 
-### On 0.5 for repetitive in-content links
+### Every constant in play
 
-The value must be definable. 0.5 is the naive middle ground and is deliberately *not* 0.9 —
-at 0.9 the discount is a rounding error, and anything near the top of the page would beat a
-genuinely good, natural link halfway down. Somewhere between 1 and 0.1, closer to the middle.
-This is a declared guess, not a measured constant, and should be documented as such.
+| # | Constant | Value | What it does |
+|---|---|---|---|
+| 1 | placement weight — nav / header / footer / aside | 0.1 | region discount |
+| 2 | placement weight — content | 1.0 | no discount |
+| 3 | **`boilerplate_weight`** | 0.5 | discount applied to a *detected* repetitive in-content link |
+| 4 | **`boilerplate_threshold`** | 0.5 | ratio at/above which an edge is *classified* boilerplate |
+| 5 | `min_container_pages` | 10 | ignore components seen on too few pages to judge |
+| 6 | position weight | TBD | decay by reading order; shape unexamined (§9 Q5) |
+
+Constants 1–3 are the single graded boilerplate axis (§2). Constants 4–5 are the detector that
+feeds it (§5). Constant 6 is the orthogonal axis.
+
+> ### ⚠️ Two different 0.5s — do not conflate them
+>
+> `boilerplate_threshold` and `boilerplate_weight` are unrelated quantities that happen to share
+> a value. One is a **classifier input** (a fraction of pages), the other a **weighting output**
+> (a multiplier). This caused real confusion during the design session.
+>
+> **Never write a bare "0.5" — always attach the name.**
+
+### Worked example, end to end
+
+A byline link to `/bart-turczynski`, in a container appearing on 7,563 pages and pointing there
+on 5,112 of them:
+
+```
+ratio = 5112 / 7563                    = 0.68
+0.68 >= boilerplate_threshold (0.5)    -> classified boilerplate
+7563 >= min_container_pages (10)       -> enough evidence to judge
+position = Content                     -> placement weight 1.0
+boilerplate_weight                     = 0.5
+position weight (top of page)          = 1.0
+edge_weight = 0.5 x 1.0                = 0.50
+```
+
+Classified at 0.68, weighted at 0.5. The two numbers never interact beyond the comparison.
+
+### On `boilerplate_weight = 0.5`
+
+Definable, and deliberately *not* 0.9 — at 0.9 the discount is a rounding error, and anything
+near the top of the page would beat a genuinely good, natural link halfway down. Somewhere
+between 1 and 0.1, closer to the middle. **A declared guess, not a measured constant**, and
+documented as such. Unlike `boilerplate_threshold`, no data bears on it.
 
 ---
 
@@ -327,12 +404,35 @@ Settled:
   not its replacement, and must not squat the name. (Same reasoning as the `cheirank`
   reservation.)
 
-Open. Candidates for the placement-weighted preset:
+**Settled: the preset is `content`.** Preset set becomes **`raw` · `declared` · `reversed` ·
+`content`**, with `editorial` reserved for a future composite (content weighting *plus*
+boilerplate suppression) that would actually earn the name.
+
+`content` names the region bucket it favours — nothing more. It matches SF's vocabulary, matches
+our own placement term, and glosses cleanly as "weights toward the (main) content region". One
+concept, one word, used consistently in both places.
+
+The earlier `content_first` proposal was over-engineered. It defended against someone reading
+`content` as "content *only*" — but that is the harmless misreading:
+
+- Believing it *dropped* nav when it downweighted → mental model slightly off, **output still
+  correct**.
+- Believing you have genuine editorial data when in-content boilerplate survived → you trust a
+  wrong ranking. **This is the §4 failure.**
+
+`editorial` invites the harmful misreading; `content` invites only the harmless one. The extra
+syllables in `content_first` bought protection against the wrong risk.
+
+Note that adding a separate position dial does **not** rehabilitate `editorial` for this preset.
+The preset still performs region weighting only, so the name would still claim discretionary
+intent it has not established. Dials around it do not change what it does.
+
+### Rejected candidates (for the record)
 
 | Candidate | For | Against |
 |---|---|---|
-| `content_first` | Direction clear; *first* ≠ *only*, so the rename itself corrects the "this drops nav" misreading; fits `raw`/`declared`/`reversed` as a description of the resulting graph | Still leans on `content`, our residual bucket |
-| `editorial` | Established SEO vocabulary, instantly legible | Connotation is *naturally given* — the exact overclaim, and the path that produced the §4 misreading. Only defensible if boilerplate suppression is bundled in, or composable and clearly documented |
+| `content_first` | Direction clear; *first* ≠ *only* | Protects against the harmless misreading at the cost of a clumsier name |
+| `editorial` | Established SEO vocabulary, instantly legible | Connotation is *naturally given* — the exact overclaim, and the path that produced the §4 misreading. **Reserved** for the composite |
 | `chrome_suppressed` | Structurally the most honest — describes the operation, asserts nothing about the residual | "Chrome" reads as the browser in an SEO package; UI jargon more familiar to devs than SEOs |
 | `placement_weighted` | Axis-honest | **Rejected**: names the knob, not the view. A preset that *boosted* nav would be equally "placement weighted", and it breaks the family — `raw`/`declared`/`reversed` all name a resulting graph |
 
@@ -393,11 +493,11 @@ finding and a paper angle.
 
 ## 9. Open questions
 
-1. ~~**Recurrence threshold**: user-facing or fixed?~~ **Answered (§10): user-facing.** Not
-   because the data shows a clean cut — it does not — but because the ambiguous band is sparse
-   (~0.5% of pairs on natu.care), so threshold choice has *low leverage* rather than *no*
-   leverage. Ship a documented default, let it be overridden, and do not claim empirical
-   separation.
+1. ~~**Recurrence threshold**: user-facing or fixed?~~ **Answered: user-facing, default
+   `boilerplate_threshold = 0.5`** (§5, §10.6). Not because the data shows a clean cut — it does
+   not — but because the band is populated by two real families of boilerplate that a 0.9
+   threshold would miss. Ship a documented default, let it be overridden, and do not claim
+   empirical separation.
 2. ~~**Natural cut**: is there a natural break in the ratio distribution?~~ **Answered (§10): no,
    and the earlier "yes" was wrong.** tidioreviews showed a strikingly clean bimodal gap
    (literally zero pairs in 0.5–0.95). That is a **small-site artifact**: on a 62-page site a
@@ -428,7 +528,8 @@ export is 1.3 GB / 3.86M rows.
 |---|---:|---:|---|
 | `~/Projects/tidioreviews/old/` | 67 | 3,820 | pre-intervention |
 | `~/Projects/tidioreviews/` | 62 | 3,599 | post-intervention |
-| `_scratch/crawls/natu.care/` | 9,655 | 2,344,199 | large, uncleaned, multilingual |
+| `_scratch/crawls/natu.care/` | 9,655 | 2,344,199 | large, uncleaned, multilingual e-commerce |
+| `_scratch/crawls/tidio/` | 2,767 | 611,108 | large SaaS marketing site, different stack |
 
 ### 1. Skeleton normalization — confirmed
 
@@ -492,10 +593,34 @@ by hand, which is the normal case.
 - **Non-HTML is ~35% of natu.care rows** (Image 472,239; Misc 397,390; JavaScript 299,640;
   Font 154,252). Feeds `PAGE-ztmtdzzu`.
 
-### Still open
+### 6. The ambiguous band, resolved
 
-Whether the ~500 pairs in natu.care's 0.5–0.9 band are genuinely ambiguous or noise. That decides
-whether the documented default sits at 0.9 or lower. Feeds `PAGE-kddhyhpw`.
+Isolating **Content-position** pairs — the only ones where the threshold has consequences, since
+everything else is already discounted by placement:
+
+**tidio.com**
+
+| container pages | <0.5 | 0.5–0.7 | 0.7–0.9 | ≥0.9 |
+|---|---:|---:|---:|---:|
+| 3–10 | 340 | 18 | 10 | 78 |
+| 11–50 | 2,298 | 17 | 8 | 204 |
+| 50+ | 16,762 | 29 | 8 | 42 |
+
+**natu.care**
+
+| container pages | <0.5 | 0.5–0.7 | 0.7–0.9 | ≥0.9 |
+|---|---:|---:|---:|---:|
+| 3–10 | 1,722 | 93 | 19 | 147 |
+| 11–50 | 13,124 | 71 | 139 | 174 |
+| 50+ | 85,546 | 18 | 1 | 77 |
+
+The band is not noise. It contains two recognisable families — recurring in-content CTAs and
+author byline links — that recur across both sites and that placement cannot reach. This settles
+`boilerplate_threshold = 0.5` and motivates `min_container_pages`; see §5.
+
+Whether tidioreviews' sibling crawl (once colocated) shifts anything: unlikely on this evidence,
+since the small site contributes 0 band pairs pre-intervention and 3 after, two of which come
+from ≤10-page containers.
 
 ---
 
