@@ -107,6 +107,61 @@ describe("Screaming Frog import contract", {
     expect_identical(links$link_path[[1L]], "/html/body/a[1]")
   })
 
+  it("derives the region from the DOM path, outermost container first", {
+    expect_identical(
+      pagerankr::sf_region_from_path(c(
+        "//body/footer/nav/ul/li[1]/a",
+        "//body/header/nav/ul/li[2]/a",
+        "//body/nav/ul/li[1]/a",
+        "//body/main/aside/nav/a",
+        "//body/main/article/p[5]/a[1]"
+      )),
+      c("footer", "header", "nav", "aside", "content")
+    )
+  })
+
+  it("matches element names, not class predicates", {
+    # `div[@class='site-footer']` is a div. Reading the class would make the
+    # region depend on a site's naming conventions rather than its markup.
+    expect_identical(
+      pagerankr::sf_region_from_path(c(
+        "//body/div[@class='site-footer']/a",
+        "//body/div[@class='header']/nav/a"
+      )),
+      c("content", "nav")
+    )
+  })
+
+  it("returns NA for a missing path so the caller can fall back", {
+    expect_identical(
+      pagerankr::sf_region_from_path(c("", NA, "   ")),
+      c(NA_character_, NA_character_, NA_character_)
+    )
+  })
+
+  it("prefers the path over Link Position, which loses nested regions", {
+    # The motivating case: a site whose footer is `footer > nav > a`. Screaming
+    # Frog reports every such link as Navigation and emits no Footer bucket at
+    # all, so `footer` is unreachable from Link Position alone.
+    links <- data.frame(
+      Type = c("Hyperlink", "Hyperlink"),
+      Source = c("https://example.com/", "https://example.com/"),
+      Destination = c("https://example.com/a", "https://example.com/b"),
+      Follow = c("TRUE", "TRUE"),
+      `Link Position` = c("Navigation", "Navigation"),
+      `Link Path` = c("//body/footer/nav/ul/li[1]/a", ""),
+      check.names = FALSE
+    )
+    imported <- pagerankr::screaming_frog_links(links, "all_outlinks")
+
+    expect_identical(imported$edges$placement, c("footer", "nav"))
+    # The second row had no path and fell back to Link Position.
+    expect_identical(
+      imported$diagnostics$placement_from_position_rows,
+      1L
+    )
+  })
+
   it("handles BOM, blanks, aliases, stable ordering, and ignored extras", {
     internal <- pagerankr::sf_read_input(
       fixture_path("internal-all-bom.csv"),

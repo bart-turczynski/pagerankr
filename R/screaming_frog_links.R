@@ -105,7 +105,13 @@ screaming_frog_links <- function(x,
 .sf_links_classify <- function(raw, origin_policy) {
   follow <- sf_parse_follow(raw$follow)
   rel_nofollow <- sf_rel_nofollow(raw$rel)
-  placement <- sf_normalize_position(raw$link_position)
+  # Placement prefers the DOM path, which carries the enclosing region even
+  # when a <nav> is nested inside it; Link Position is the fallback for rows
+  # (or crawls) with no path. See sf_region_from_path().
+  position_placement <- sf_normalize_position(raw$link_position)
+  placement <- sf_region_from_path(raw$link_path)
+  from_position <- is.na(placement)
+  placement[from_position] <- position_placement[from_position]
   status_code <- .sf_parse_status_code(raw$status_code)
   graph_type <- sf_graph_eligible(raw$type)
   valid_source <- !is.na(raw$source)
@@ -118,13 +124,14 @@ screaming_frog_links <- function(x,
   invalid_follow <- !is.na(raw$follow) & is.na(follow)
   follow_rel_disagreement <- !is.na(follow) & !is.na(rel_nofollow) &
     ((!follow) != rel_nofollow)
-  unmapped_position <- !is.na(raw$link_position) & is.na(placement)
+  unmapped_position <- !is.na(raw$link_position) & is.na(position_placement)
   invalid_status <- !is.na(raw$status_code) & is.na(status_code)
 
   list(
     follow = follow,
     rel_nofollow = rel_nofollow,
     placement = placement,
+    placement_from_position = from_position & !is.na(placement),
     status_code = status_code,
     graph_type = graph_type,
     valid_source = valid_source,
@@ -261,6 +268,7 @@ screaming_frog_links <- function(x,
     invalid_follow_values = sum(d$invalid_follow),
     follow_rel_disagreements = sum(d$follow_rel_disagreement),
     unmapped_position_rows = sum(d$unmapped_position),
+    placement_from_position_rows = sum(d$placement_from_position),
     invalid_status_codes = sum(d$invalid_status),
     missing_optional_columns = missing_optional,
     ignored_columns = schema$ignored_columns,
