@@ -287,30 +287,6 @@ closes.**
 
 ---
 
-## Paper hooks (candidate angles)
-
-- **The canonical-vs-redirect distinction in link-graph modeling**, with the
-  "happenstance PageRank" cautionary tale — scope-aware folding as a
-  contribution (ties `pagerankr` to the `rurl` URL-canonicalization stack).
-- **"Your PageRank is mostly your navigation"** — placement-aware PageRank and
-  the reasonable-surfer proxy as the fix; the double-boilerplate problem
-  (template nav + in-content compliance links).
-- **A reproducible internal-link audit workflow in R** — Screaming Frog bundle →
-  placement-weighted PageRank + CheiRank + `simulate_changes`, with mass
-  accounting and provenance, on a real site.
-- **Close the loop: does the model predict the re-crawl?** — the strongest hook.
-  Diagnose sinks → model a fix with `simulate_changes` → ship it → re-crawl →
-  show the projection and the measured before/after agree (§10). Positions
-  `pagerankr` as *predictive*, not just descriptive, and gives the "living /
-  multi-site" paper its template: one section per site, each an intervention
-  with a modeled projection and a re-measured outcome. Also seeds a
-  **placement-as-intervention** sub-angle (the byline content→nav
-  reclassification as the cheapest de-sink) and a **methods caveat** on
-  two-crawl natural experiments (read rank/concentration/relative deltas, not
-  absolute PR).
-
----
-
 ## 11. Uniform teleport pays pages for existing — dead pages can capture 95% of a site
 
 *Synthetic experiment, not a field observation. Reproduce with
@@ -387,3 +363,46 @@ page X under `noindex` (evaporate) scores **0.1065**; under robots-blocked
 (trap/self-loop) it scores **0.8875** — 8.3x, holding 89% of the graph.
 
 See fp `PAGE-qzskzcfd` for the resulting policy decisions.
+
+---
+
+## Paper hooks (candidate angles)
+
+Tracked in fp `PAGE-vqfytgam`.
+
+- **The canonical-vs-redirect distinction in link-graph modeling**, with the
+  "happenstance PageRank" cautionary tale — scope-aware folding as a
+  contribution (ties `pagerankr` to the `rurl` URL-canonicalization stack).
+- **"Your PageRank is mostly your navigation"** — placement-aware PageRank and
+  the reasonable-surfer proxy as the fix; the double-boilerplate problem
+  (template nav + in-content compliance links).
+- **A reproducible internal-link audit workflow in R** — Screaming Frog bundle →
+  placement-weighted PageRank + CheiRank + `simulate_changes`, with mass
+  accounting and provenance, on a real site.
+- **Close the loop: does the model predict the re-crawl?** — the strongest
+  *applied* hook. Diagnose sinks → model a fix with `simulate_changes` → ship it
+  → re-crawl → show the projection and the measured before/after agree (§10).
+  Positions `pagerankr` as *predictive*, not just descriptive, and gives the
+  "living / multi-site" paper its template: one section per site, each an
+  intervention with a modeled projection and a re-measured outcome. Also seeds a
+  **placement-as-intervention** sub-angle (the byline content→nav
+  reclassification as the cheapest de-sink) and a **methods caveat** on
+  two-crawl natural experiments (read rank/concentration/relative deltas, not
+  absolute PR).
+- **Teleport-vector design for site-scale PageRank** (§11) — the strongest
+  *methodological* hook, and the only one with a plausible claim to an open
+  question: a commissioned literature review found no source addressing it
+  directly. Core claim: site-scale PageRank is a different regime from web-scale
+  PageRank, and the uniform teleport vector — harmless when N is billions —
+  becomes a first-order distortion when N is dozens. Dead pages get paid for
+  existing. Sub-contributions: (a) the **dangling-node invention taxonomy**
+  (dangle / self-loop / sink, each a substantive claim about the site);
+  (b) measured **self-loop inflation** (8.3×) as a concrete instance of the
+  Langville & Meyer rank-sink result; (c) a small **mathematical note** that
+  uniqueness survives a zero-entry teleport vector, verified empirically, which
+  the standard treatments state only for strictly positive `v`; (d) a
+  **comparative tool audit** — what do commercial internal-link authority scores
+  actually compute, and do their vendors say? Unlike the applied angles, this one
+  does not depend on the `tidioreviews` case study, so it sidesteps the
+  publishability/anonymization gate. Could stand alone or serve as the methods
+  spine the applied angles hang off.
