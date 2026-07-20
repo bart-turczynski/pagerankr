@@ -45,7 +45,31 @@ directly -- `pagerank(edges, preset = "raw")` -- is equivalent.
     that the declared **data** (`redirects_df`, `canonicals_df`,
     `indexability_df`) still has to be supplied by the caller -- a preset
     sets policy, never data.}
+  \item{`"reversed"`}{The graph with every edge flipped (`reverse = TRUE`),
+    yielding reverse / inverse PageRank: a page scores highly when it points
+    *at* well-connected pages rather than when it is pointed at. The feeder
+    view. Note that [topic_feeder_pagerank()] already reverses the graph
+    itself, so this preset is a no-op there rather than an error.}
+  \item{`"content"`}{Weights edges by the page region they were found in:
+    links in the main content keep their full vote, while links in
+    navigation, header, footer and aside are discounted to a tenth. Site
+    chrome is typically the large majority of a crawl's edges, so left
+    unweighted it *manufactures* the ranking. Edges are **downweighted, never
+    dropped** -- placement is a heuristic classification, so a misclassified
+    content link at 0.1 is a small error where a dropped one is a silent
+    deletion, and dropping most of the graph would also manufacture isolates
+    and dangling pages. All five placement terms are named explicitly, so
+    this is a complete recipe rather than a partial adjustment.
+
+    This preset sets policy; the *data* is `placement_col`, which the caller
+    must supply (it errors otherwise). [pagerank_screaming_frog()] supplies
+    it from the bundle, so `preset = "content"` works there directly.}
 }
+
+Presets are not composable with one another -- `preset` takes a single
+bundle. `"content"` sets only placement weights and leaves every graph
+hygiene knob at its default, which *is* the `"declared"` view, so the two do
+not need to be combined.
 }
 
 \section{Provenance}{
@@ -90,4 +114,17 @@ do.call(pagerank, c(list(edges), pr_preset("raw")))
 
 # An explicit argument always wins over the preset
 pagerank(edges, preset = "raw", drop_isolates_flag = TRUE)
+
+# "content" needs a placement column to read regions from. B is linked from
+# the main content and C only from the footer, so B outranks C.
+placed <- data.frame(
+  from = c("A", "A", "B", "C"),
+  to = c("B", "C", "A", "A"),
+  region = c("content", "footer", "content", "content")
+)
+pagerank(placed, preset = "content", placement_col = "region")
+}
+\seealso{
+`vignette("presets")` for each preset's full expansion, worked
+  examples, and the precedence rule.
 }

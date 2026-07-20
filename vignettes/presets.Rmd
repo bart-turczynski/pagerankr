@@ -1,0 +1,199 @@
+---
+title: "Presets: named views of the link graph"
+author: "Bart Turczynski"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Presets: named views of the link graph}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(pagerankr)
+```
+
+## Why presets exist
+
+PageRank is a lens, not the deliverable. The same crawl answers different
+questions depending on how you prepare the graph first: *what does the site
+look like exactly as crawled?* *What does it look like once its own canonical
+and nofollow declarations are honored?* *Which pages feed authority outward
+rather than collect it?* *What survives once site chrome stops voting?*
+
+`pagerank()` can express all of those, but only through a long argument list.
+A **preset** is a small named bundle of those arguments describing one
+recurring view, so a view becomes a one-liner:
+
+```{r}
+edges <- data.frame(
+  from = c("A", "A", "B", "C"),
+  to = c("B", "C", "A", "A")
+)
+
+pagerank(edges, preset = "raw")
+```
+
+Presets are opt-in. `pagerank()` with no `preset` behaves exactly as it always
+has — nothing here changes a default.
+
+## The four presets
+
+```{r}
+pr_preset("raw")
+```
+
+A preset is a plain named list, so you can always print one to see exactly what
+it does. Nothing is hidden: the table below is the whole registry.
+
+| Preset | Expands to | The view |
+|---|---|---|
+| `"raw"` | `self_loops = "keep"`, `drop_isolates_flag = FALSE`, `nofollow_action = "keep"`, `out_of_scope_fold = "keep"` | The graph exactly as crawled. Nothing is applied; `rel=nofollow` votes like any other link. The faithful baseline. |
+| `"declared"` | `self_loops = "drop"`, `drop_isolates_flag = TRUE`, `nofollow_action = "evaporate"`, `robots_blocked_action = "trap"`, `out_of_scope_fold = "relabel"` | The graph after honoring what the site *declares* — nofollow, canonicals, redirects, robots. A **pure pin of today's defaults**. |
+| `"reversed"` | `reverse = TRUE` | Every edge flipped: a page scores highly when it points *at* well-connected pages. The feeder view. |
+| `"content"` | `placement_weights = c(content = 1, nav = 0.1, header = 0.1, footer = 0.1, aside = 0.1)` | Links in the main content keep their full vote; links in site chrome are discounted to a tenth. |
+
+### `"raw"` — the faithful baseline
+
+The naive view, and deliberately the one the package makes easiest to state.
+Every other view is a claim about what *should* count; `"raw"` is the claim-free
+comparison point. Reach for it when you want to see how much of a ranking your
+own preparation choices produced.
+
+### `"declared"` — a pin, not a change
+
+`"declared"` sets every value to what `pagerank()` already defaults to. Running
+with it produces byte-identical scores to running without it:
+
+```{r}
+identical(
+  pagerank(edges, preset = "declared")$pagerank,
+  pagerank(edges)$pagerank
+)
+```
+
+That is the point. Its value is *provenance*: a run made with
+`preset = "declared"` is a recorded, auditable statement that the declared view
+was intended, and it stays pinned to the bundle as documented even if a future
+package default moves.
+
+Note the boundary: a preset sets **policy, never data**. `"declared"` turns on
+*honoring* canonicals and redirects, but the canonical and redirect tables
+themselves (`canonicals_df`, `redirects_df`, `indexability_df`) are still yours
+to supply.
+
+### `"reversed"` — the feeder view
+
+```{r}
+pagerank(edges, preset = "reversed")
+```
+
+`topic_feeder_pagerank()` already reverses the graph itself, so
+`preset = "reversed"` is a harmless no-op there rather than an error.
+
+### `"content"` — stop letting the navigation rank the site
+
+Site chrome — navigation, header, footer, sidebar — is typically the large
+majority of a crawl's edges. Left unweighted it does not merely influence the
+ranking, it *manufactures* it: every page links to the same handful of chrome
+targets, so those targets win by sheer repetition regardless of editorial
+intent.
+
+`"content"` discounts them. It needs one thing from you: `placement_col`, the
+name of a column saying which page region each link was found in. That is data,
+so the preset cannot supply it.
+
+```{r}
+placed <- data.frame(
+  from = c("A", "A", "B", "C"),
+  to = c("B", "C", "A", "A"),
+  region = c("content", "footer", "content", "content")
+)
+
+pagerank(placed, preset = "content", placement_col = "region")
+```
+
+`B` and `C` are each linked once from `A`. Unweighted they tie; weighted, the
+footer link is worth a tenth of the in-content one and `C` falls behind.
+
+The accepted region terms are `content`, `nav`, `header`, `footer` and `aside`.
+`pagerank_screaming_frog()` derives them for you from the crawl, so there
+`preset = "content"` works with no extra argument.
+
+Two properties worth stating explicitly:
+
+- **All five terms are named.** Regions absent from `placement_weights` keep
+  weight 1, which is what makes a partial recipe like `c(nav = 0.1)` mean
+  "discount nav, leave everything else alone". A preset is a *complete* recipe,
+  so it names every term — otherwise footer and aside would quietly outweigh
+  nav tenfold.
+- **Edges are downweighted, never dropped.** Region detection is a heuristic,
+  so a misclassified content link at 0.1 is a small error where a dropped one
+  is a silent deletion. Dropping most of a graph also manufactures isolates and
+  dangling pages, at which point you are measuring your own sink policy rather
+  than the site.
+
+## Precedence: explicit argument > preset > default
+
+A preset never silently overrides something you typed.
+
+```{r}
+# The raw bundle says nofollow_action = "keep"; the explicit argument wins.
+attr(
+  pagerank(edges, preset = "raw", nofollow_action = "drop"),
+  "transition_audit"
+)$config$nofollow_action
+```
+
+This holds through every wrapper that forwards `...` to `pagerank()` —
+`trustrank()`, `topic_sensitive_pagerank()`, `topic_feeder_pagerank()` and
+`pagerank_screaming_frog()` — with one boundary: arguments a wrapper sets
+*itself* are wrapper-owned, and a preset cannot change those.
+
+Presets are not composable with each other; `preset` takes a single bundle.
+They do not need to be: `"content"` sets only placement weights and leaves
+every hygiene knob at its default, and the defaults *are* the `"declared"`
+view.
+
+## Inspecting and adapting a bundle
+
+Because a preset is an ordinary list, you can splice it, print it, or use it as
+a starting point:
+
+```{r}
+# Splice a bundle into a call
+do.call(pagerank, c(list(edges), pr_preset("raw")))
+
+# Start from a preset and adjust
+my_view <- pr_preset("raw")
+my_view$drop_isolates_flag <- TRUE
+pagerank(edges, preset = my_view)
+```
+
+Hand-rolled bundles are validated against `pagerank()`'s formals, so a
+misspelled argument fails loudly instead of sliding through `...`.
+
+## Provenance in the transition audit
+
+The audit attached to every result records which named view produced it:
+
+```{r}
+attr(pagerank(edges, preset = "raw"), "transition_audit")$config$preset
+```
+
+It records the preset name for a registered preset (whether passed by name or
+as a `pr_preset()` result), `"custom"` for a hand-rolled bundle, and `NULL`
+when no preset was used. Two runs that expand to the same configuration are
+therefore still distinguishable by the intent behind them — which, for a pure
+pin like `"declared"`, is the only durable record that intent existed.
+
+## See also
+
+- `?pr_preset` for the reference documentation.
+- `vignette("pagerankr-usage")` for the underlying arguments each preset sets.

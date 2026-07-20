@@ -90,7 +90,8 @@
                                         accepted_placements,
                                         placement_weights,
                                         weight_col,
-                                        edge_list_df) {
+                                        edge_list_df,
+                                        preset_source = NULL) {
   .pr_check_weight_col_exclusivity(weight_col, placement_weights)
   accepted_placements <- .pr_validate_accepted_placements(accepted_placements)
   placement_weights <- .pr_validate_placement_weights(placement_weights)
@@ -103,6 +104,7 @@
       stop(
         "`", toString(names(dependent)[dependent]),
         "` requires `placement_col`.",
+        .pr_placement_preset_hint(preset_source),
         call. = FALSE
       )
     }
@@ -112,6 +114,36 @@
   list(
     accepted_placements = accepted_placements,
     placement_weights = placement_weights
+  )
+}
+
+#' Which preset, if any, supplied the placement arguments
+#'
+#' A preset sets *policy*; `placement_col` is *data* the caller must supply. So
+#' `preset = "content"` on an edge list with no placement column errors on an
+#' argument the caller never typed -- this reports the preset it came from.
+#' Returns `NULL` unless the preset is what set a placement argument.
+#'
+#' @keywords internal
+#' @noRd
+.pr_placement_preset_source <- function(preset, applied) {
+  placement_args <- c("accepted_placements", "placement_weights")
+  if (!any(placement_args %in% applied)) {
+    return(NULL)
+  }
+  .pr_preset_label(preset)
+}
+
+#' @keywords internal
+#' @noRd
+.pr_placement_preset_hint <- function(preset_source) {
+  if (is.null(preset_source)) {
+    return("")
+  }
+  paste0(
+    " It was set by `preset = \"", preset_source,
+    "\"`, which sets policy but not data: name the column holding each",
+    " edge's page region."
   )
 }
 
@@ -160,13 +192,15 @@
                                 placement_col,
                                 accepted_placements,
                                 placement_weights,
-                                weight_col) {
+                                weight_col,
+                                preset_source = NULL) {
   validated <- .pr_validate_placement_args(
     placement_col = placement_col,
     accepted_placements = accepted_placements,
     placement_weights = placement_weights,
     weight_col = weight_col,
-    edge_list_df = edge_list_df
+    edge_list_df = edge_list_df,
+    preset_source = preset_source
   )
   accepted_placements <- validated$accepted_placements
   placement_weights <- validated$placement_weights

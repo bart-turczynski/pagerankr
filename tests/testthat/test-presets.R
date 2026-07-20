@@ -179,6 +179,128 @@ describe("preset = on pagerank()", {
   })
 })
 
+placed_edges <- function() {
+  # B is linked from the main content, C only from the footer.
+  data.frame(
+    from = c("A", "A", "B", "C"),
+    to = c("B", "C", "A", "A"),
+    region = c("content", "footer", "content", "content")
+  )
+}
+
+describe("the reversed preset", {
+  it("flips the graph", {
+    edges <- data.frame(from = c("A", "B"), to = c("B", "C"))
+    expect_equal(
+      pagerank(edges, preset = "reversed")$pagerank,
+      pagerank(edges, reverse = TRUE)$pagerank
+    )
+  })
+
+  it("is a no-op under topic_feeder_pagerank(), which owns reverse", {
+    # The wrapper names `reverse = TRUE` itself, so precedence (explicit arg >
+    # preset) leaves the preset with nothing to change -- it must not error.
+    edges <- data.frame(from = c("A", "B", "C"), to = c("B", "C", "A"))
+    seeds <- data.frame(url = "A", weight = 1)
+    suppressMessages({
+      with_preset <- topic_feeder_pagerank(edges, seeds, preset = "reversed")
+      baseline <- topic_feeder_pagerank(edges, seeds)
+    })
+    expect_equal(with_preset$pagerank, baseline$pagerank)
+  })
+})
+
+describe("the content preset", {
+  it("names all five placements, so no region silently keeps weight 1", {
+    weights <- pr_preset("content")$placement_weights
+    expect_setequal(
+      names(weights),
+      c("content", "nav", "header", "footer", "aside")
+    )
+    expect_equal(unname(weights[["content"]]), 1)
+    expect_true(all(weights[names(weights) != "content"] == 0.1))
+  })
+
+  it("sets placement weights only, leaving graph hygiene at the defaults", {
+    # "content" is orthogonal to the hygiene presets: the defaults already are
+    # the "declared" view, so the bundle must not restate them.
+    expect_named(pr_preset("content"), "placement_weights")
+  })
+
+  it("downweights links found outside the main content", {
+    edges <- placed_edges()
+    scores <- pagerank(edges, preset = "content", placement_col = "region")
+    b <- scores$pagerank[scores$node_name == "B"]
+    c_score <- scores$pagerank[scores$node_name == "C"]
+    expect_gt(b, c_score)
+
+    # Unweighted, the two are indistinguishable -- A splits its vote evenly.
+    flat <- pagerank(edges)
+    expect_equal(
+      flat$pagerank[flat$node_name == "B"],
+      flat$pagerank[flat$node_name == "C"]
+    )
+  })
+
+  it("downweights rather than drops: no region disappears from the graph", {
+    edges <- placed_edges()
+    scores <- pagerank(edges, preset = "content", placement_col = "region")
+    expect_setequal(scores$node_name, c("A", "B", "C"))
+  })
+
+  it("records the placement factors in the transition audit", {
+    edges <- placed_edges()
+    scores <- pagerank(edges, preset = "content", placement_col = "region")
+    config <- attr(scores, "transition_audit")$config
+    expect_equal(config$preset, "content")
+    expect_equal(config$placement$placement_col, "region")
+    expect_equal(
+      config$placement$placement_weights,
+      pr_preset("content")$placement_weights
+    )
+  })
+
+  it("works through pagerank(), not just the Screaming Frog wrapper", {
+    # The edge list is a plain data frame with no crawler columns: placement is
+    # crawler-neutral, so the preset must ride on bare pagerank().
+    expect_s3_class(
+      pagerank(placed_edges(), preset = "content", placement_col = "region"),
+      "data.frame"
+    )
+  })
+
+  it("errors without placement_col, naming the preset that set the policy", {
+    err <- expect_error(
+      pagerank(placed_edges(), preset = "content"),
+      "requires `placement_col`"
+    )
+    expect_match(conditionMessage(err), "preset = \"content\"", fixed = TRUE)
+  })
+
+  it("does not blame a preset when the caller typed the argument", {
+    err <- expect_error(
+      pagerank(placed_edges(), placement_weights = c(nav = 0.1)),
+      "requires `placement_col`"
+    )
+    expect_false(grepl("preset", conditionMessage(err), fixed = TRUE))
+  })
+
+  it("still lets an explicit placement_weights win over the preset", {
+    edges <- placed_edges()
+    override <- c(content = 1, nav = 1, header = 1, footer = 1, aside = 1)
+    scores <- pagerank(
+      edges,
+      preset = "content",
+      placement_col = "region",
+      placement_weights = override
+    )
+    expect_equal(
+      attr(scores, "transition_audit")$config$placement$placement_weights,
+      override
+    )
+  })
+})
+
 describe("preset precedence (explicit arg > preset > default)", {
   it("an explicit argument wins over the preset", {
     edges <- nf_edges()
