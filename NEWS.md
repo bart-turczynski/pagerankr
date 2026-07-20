@@ -23,8 +23,7 @@
   cuts the *opposite* way from `sf_region_from_path()`, which strips class
   predicates so a `div[@class='site-footer']` is not read as a `<footer>`; the
   two answer different questions ("which region is this" versus "is this the
-  same component") and the inconsistency is deliberate. On a real 9,655-page
-  crawl this compresses 22,022 distinct paths to 1,630 skeletons (92.6%).
+  same component") and the inconsistency is deliberate.
   Rows with no `Link Path` get `NA` and stay unscored — unlike placement there
   is no `Link Position` fallback, because a region label cannot manufacture a
   component identity.
@@ -39,9 +38,6 @@
   in-content `0.5`, unique in-content `1`. The transition audit still records
   both factor sets separately in `config$placement` and `config$boilerplate`,
   since the resulting weight alone cannot say which detector produced it.
-* **Expect author pages to lose rank** where bylines are template-generated.
-  This is intended: that rank was manufactured by the template rather than
-  earned by any editorial decision.
 * The internal synthetic weight column is renamed `.__pr_placement_weight__` to
   **`.__pr_edge_weight__`**, since both weighting axes now write it. It surfaces
   in `attr(result, "transition_audit")$config$weight_col`.
