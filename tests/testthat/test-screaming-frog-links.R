@@ -89,7 +89,7 @@ describe("screaming_frog_links()", {
 
     expect_identical(
       result$observations$placement,
-      c("nav", "content", NA, NA, NA, "header", "sidebar", "footer", "footer")
+      c("nav", "content", NA, NA, NA, "header", "aside", "footer", "footer")
     )
     expect_identical(result$edges$nofollow[1:2], c(FALSE, TRUE))
     expect_identical(result$edges$link_origin[1:2], c(

@@ -1,5 +1,31 @@
 # pagerankr (development version)
 
+* **Placement-aware scoring is now crawler-neutral.** `pagerank()` gains
+  `placement_col`, `accepted_placements`, and `placement_weights`: point
+  `placement_col` at a column holding the page region each link sits in and
+  the region can filter or weight edges directly, e.g.
+  `pagerank(edges, placement_col = "region", placement_weights = c(content = 1,
+  nav = 0.1, header = 0.1, footer = 0.1, aside = 0.1))`. Placement is not a
+  Screaming Frog concept — any crawler that reports link regions can drive it,
+  with a per-crawler adapter (`sf_normalize_position()` for Screaming Frog)
+  mapping vendor labels onto the shared vocabulary. All three arguments default
+  to `NULL`, so nothing changes for callers that do not use them, and because
+  they are `pagerank()` formals they compose with `preset` and are inherited by
+  every wrapper that forwards `...`.
+* The placement vocabulary term `"sidebar"` is renamed **`"aside"`**, matching
+  both Screaming Frog's own label and the HTML element; `"sidebar"` is a layout
+  word rather than a semantic one. `sf_normalize_position()` now returns
+  `"aside"` where it previously returned `"sidebar"`, and `"sidebar"` is no
+  longer accepted in `accepted_placements` / `placement_weights`.
+* `pagerank_screaming_frog()` keeps its signature but is now a thin adapter:
+  `accepted_placements` and `placement_weights` are forwarded to `pagerank()`,
+  which owns the filtering and weighting. Two consequences for the
+  `"screaming_frog_import"` attribute: `scoring$scored_edge_rows` is renamed
+  `scoring$edge_rows_to_pagerank` (it counts rows after the wrapper-owned link
+  origin filter, since placement filtering has moved down a layer), and
+  `scoring$effective_weight_col` is dropped — the transition audit already
+  carries it, alongside a new `config$placement` entry recording the placement
+  column, filter, weights, and the number of rows the filter dropped.
 * New `preset` argument on `pagerank()` and a new exported `pr_preset()`
   constructor: named argument bundles for recurring *views* of a link graph,
   so a view is a one-liner instead of a hand-assembled argument list. Two

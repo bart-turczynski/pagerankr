@@ -105,6 +105,27 @@ pagerank_screaming_frog(
 )
 ```
 
+Placement is not a Screaming Frog concept: `accepted_placements` and
+`placement_weights` are `pagerank()` arguments, and the wrapper only supplies
+the bundle's normalized placement column. Any crawler that reports link regions
+can drive the same weighting by naming its own column, using the shared
+vocabulary `"content"`, `"nav"`, `"header"`, `"footer"`, `"aside"`:
+
+```{r placement_generic, eval = FALSE}
+pagerank(
+  edges,
+  placement_col = "region",
+  placement_weights = c(
+    content = 1, nav = 0.1, header = 0.1, footer = 0.1, aside = 0.1
+  )
+)
+```
+
+Note that regions are *downweighted*, not dropped. Filtering nav out changes
+the graph's shape — pages reachable only through nav become teleport-only —
+whereas a small weight leaves the topology intact and merely stops nav
+dominating, which on a real crawl it usually does.
+
 For large crawls, the import adapters read only the columns used by the stable
 contract. If an export is degraded, missing optional columns become typed `NA`
 values and are reported in diagnostics; missing required columns error early.

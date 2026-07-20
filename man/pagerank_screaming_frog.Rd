@@ -18,20 +18,19 @@ pagerank_screaming_frog(
 \arguments{
 \item{bundle}{A `screaming_frog_bundle` object.}
 
-\item{accepted_placements}{Optional character vector of normalized
-placements to retain. Values must be among `"nav"`, `"header"`,
-`"footer"`, `"sidebar"`, and `"content"`. `NULL` keeps all graph-eligible
-hyperlink edges.}
+\item{accepted_placements, placement_weights}{Placement controls forwarded to
+[pagerank()], which owns them: placement is a crawler-neutral concept, and
+this wrapper only supplies the bundle's normalized `placement` column as
+[pagerank()]'s `placement_col`. See [pagerank()] for the vocabulary
+(`"content"`, `"nav"`, `"header"`, `"footer"`, `"aside"`) and semantics.}
 
 \item{link_origins}{Optional character vector of normalized link origins to
 retain. Values must be among `"html"`, `"rendered"`, and
-`"html_rendered"`. `NULL` keeps all origins present in `bundle$edges`.}
+`"html_rendered"`. `NULL` keeps all origins present in `bundle$edges`.
+Unlike placement, link origin *is* a Screaming Frog concept and stays
+wrapper-owned.}
 
-\item{placement_weights}{Optional named positive numeric vector assigning
-edge weights by normalized placement. Unnamed or unknown placements are
-rejected. Edges whose placement is not named receive weight `1`.}
-
-\item{weight_col}{Optional existing edge weight column to pass to
+\item{weight_col}{Optional existing edge weight column, forwarded to
 [pagerank()]. Cannot be combined with `placement_weights`.}
 
 \item{apply_canonicals}{Logical flag (default `TRUE`). When `TRUE` the

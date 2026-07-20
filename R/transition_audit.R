@@ -55,7 +55,13 @@
 #'     the name of the [pr_preset()] bundle the caller asked for (e.g.
 #'     `"declared"`), `"custom"` for a hand-rolled bundle, or `NULL` when no
 #'     preset was used — so a run made as a named view stays distinguishable
-#'     from the same arguments typed out by hand. The remaining fields are the
+#'     from the same arguments typed out by hand. `placement` records
+#'     placement-aware weighting when it was used (`placement_col`,
+#'     `accepted_placements`, `placement_weights`, and `n_rows_dropped`, the
+#'     number of edge rows the placement filter removed), or `NULL` when it was
+#'     not — so a downweighted edge can be explained by the region it sits in
+#'     rather than only by the opaque weight column it produced. The other
+#'     fields are the
 #'     resolved configuration itself: `self_loops`, `drop_isolates_flag`,
 #'     `reverse`,
 #'     `weight_col`, `nofollow_col`, `nofollow_action`, `robots_blocked_action`,
