@@ -568,3 +568,59 @@ sf_region_from_path <- function(x) {
 sf_graph_eligible <- function(type) {
   trimws(as.character(type)) %in% sf_contract()$graph_eligible_types
 }
+
+#' Derive a link's container component from its DOM path
+#'
+#' @description Reduces a Screaming Frog \code{Link Path} to the **component
+#'   the link sits in**, stable across every page that component appears on.
+#'   This is the identity the boilerplate detector conditions on: see
+#'   \code{\link{pagerank}()}'s \code{container_col}.
+#'
+#' Two steps:
+#'
+#' \enumerate{
+#'   \item **Strip numeric predicates, keep class predicates.** Screaming Frog's
+#'     \code{Link Path} is a hybrid, using \code{[@class='...']} where classes
+#'     exist and positional \code{[n]} elsewhere. Positions are unstable --- the
+#'     same recycled call-to-action lands at \code{p[5]} on a post with four
+#'     preceding paragraphs and \code{p[3]} on a shorter one --- while a class
+#'     is
+#'     exactly the stable component identifier we want.
+#'   \item **Drop the trailing \code{<a>} step**, whatever predicate it carries.
+#'     The anchor's own class describes the link, not the component containing
+#'     it.
+#' }
+#'
+#' Note this cuts the **opposite** way from
+#' \code{\link{sf_region_from_path}()}, which strips class predicates so that a
+#' \code{div[@class='site-footer']} is not mistaken for a \code{<footer>}. The
+#' two answer different questions --- *which region is this* versus *is this the
+#' same component* --- and the inconsistency is deliberate.
+#'
+#' @param x A vector (typically character) of Screaming Frog link paths, e.g.
+#'   \code{"//body/main/article/p[5]/a[1]"}.
+#'
+#' @return A character vector the same length as \code{x} holding the container
+#'   path. Blank strings and \code{NA} yield \code{NA}, leaving those rows
+#'   unscored by the detector.
+#'
+#' @family Screaming Frog toolkit
+#' @seealso [pagerank()], whose `container_col` consumes the result.
+#' @export
+#' @examples
+#' sf_container_from_path(c(
+#'   "//body/main/article/p[5]/a[1]", # positions stripped
+#'   "//body/main/article/p[3]/a[1]", # ... so these two agree
+#'   "//body/div[@class='cta']/a", # class kept as the component identity
+#'   "//body/div[@class='cta']/a[@class='btn']" # anchor's own class dropped
+#' ))
+sf_container_from_path <- function(x) {
+  value <- trimws(as.character(x))
+  # Numeric predicates only. `[@class='...']` is the component identifier and
+  # must survive; see the note above on why this differs from the region parser.
+  skeleton <- gsub("\\[[0-9]+\\]", "", value)
+  # The trailing <a> is the link itself, not its container.
+  out <- sub("/[aA](\\[[^]]*\\])?$", "", skeleton)
+  out[is.na(x) | value == ""] <- NA_character_
+  out
+}

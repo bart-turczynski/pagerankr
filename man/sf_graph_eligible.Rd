@@ -25,6 +25,7 @@ sf_graph_eligible(c("Hyperlink", "Image", "Stylesheet"))
 }
 \seealso{
 Other Screaming Frog toolkit:
+\code{\link[=sf_container_from_path]{sf_container_from_path()}},
 \code{\link[=sf_contract]{sf_contract()}},
 \code{\link[=sf_normalize_position]{sf_normalize_position()}},
 \code{\link[=sf_parse_follow]{sf_parse_follow()}},

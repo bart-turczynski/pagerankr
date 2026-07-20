@@ -26,6 +26,7 @@ sf_parse_follow(c("True", "nofollow", "yes", "", NA))
 }
 \seealso{
 Other Screaming Frog toolkit:
+\code{\link[=sf_container_from_path]{sf_container_from_path()}},
 \code{\link[=sf_contract]{sf_contract()}},
 \code{\link[=sf_graph_eligible]{sf_graph_eligible()}},
 \code{\link[=sf_normalize_position]{sf_normalize_position()}},

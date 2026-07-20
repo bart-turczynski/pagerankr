@@ -122,7 +122,7 @@ describe("the evidence floor", {
 })
 
 describe("composition with placement", {
-  it("multiplies into the placement factor rather than replacing it", {
+  it("takes the strongest discount, never double-discounting chrome", {
     p <- pages(20)
     edges <- rbind(
       data.frame(
@@ -145,9 +145,49 @@ describe("composition with placement", {
     )
     res <- apply_bp(placed$edge_list_df, weight_col = placed$weight_col)
     w <- weights_by(res, edges)
-    # nav 0.1 x boilerplate 0.5; content 1 x boilerplate 0.5.
-    expect_equal(unname(w[["menu"]]), 0.05)
+    # notes section 2: placement and recurrence are two detectors feeding ONE
+    # graded axis. A nav link is boilerplate by construction, so multiplying
+    # both would discount it twice for the same fact (0.1 x 0.5 = 0.05). The
+    # strongest discount wins, reproducing the section 2 table.
+    expect_equal(unname(w[["menu"]]), 0.1)
     expect_equal(unname(w[["cta"]]), 0.5)
+  })
+
+  it("reproduces the notes section 2 weight table", {
+    p <- pages(20)
+    edges <- rbind(
+      # chrome, and boilerplate by construction -> 0.1, not 0.05
+      data.frame(
+        from = p, to = "https://x.test/menu",
+        container = "menu", region = "nav"
+      ),
+      # repetitive in-content -> 0.5
+      data.frame(
+        from = p, to = "https://x.test/demo",
+        container = "cta", region = "content"
+      ),
+      # unique in-content -> 1
+      data.frame(
+        from = p, to = p[c(20, 1:19)],
+        container = "prose", region = "content"
+      )
+    )
+    placed <- pagerankr:::.pr_apply_placement(
+      edge_list_df = edges,
+      placement_col = "region",
+      accepted_placements = NULL,
+      placement_weights = c(
+        content = 1, nav = 0.1, header = 0.1, footer = 0.1, aside = 0.1
+      ),
+      weight_col = NULL
+    )
+    w <- weights_by(
+      apply_bp(placed$edge_list_df, weight_col = placed$weight_col),
+      edges
+    )
+    expect_equal(unname(w[["menu"]]), 0.1)
+    expect_equal(unname(w[["cta"]]), 0.5)
+    expect_equal(unname(w[["prose"]]), 1)
   })
 
   it("records both factor sets separately in the transition audit", {
@@ -265,6 +305,80 @@ describe("validation", {
     expect_error(
       pagerank(edges, container_col = "container", min_container_pages = 0),
       "`min_container_pages` must be a single finite number >= 1"
+    )
+  })
+})
+
+describe("Screaming Frog adapter integration", {
+  sf_container_links <- function() {
+    p <- sprintf("https://example.com/p%02d", 1:15)
+    data.frame(
+      Type = "Hyperlink",
+      Source = c(p, p),
+      # Each page links the CTA target and, in prose, the *next* page. Linking
+      # to itself would be a self-loop, dropped by default, leaving one
+      # out-edge per page -- and a lone out-edge carries its source's whole
+      # vote whatever it weighs, so the discount would be unobservable.
+      Destination = c(rep("https://example.com/demo", 15), p[c(15, 1:14)]),
+      Follow = "TRUE",
+      `Link Path` = c(
+        # One recycled component, always linking the same target.
+        rep("//body/main/div[@class='cta']/a[1]", 15),
+        # In-body prose links, each at a different paragraph index.
+        sprintf("//body/main/article/p[%d]/a[1]", 1:15)
+      ),
+      `Link Position` = "Content",
+      check.names = FALSE
+    )
+  }
+
+  it("carries a container column onto the edge table", {
+    imported <- screaming_frog_links(sf_container_links(), "all_outlinks")
+    expect_true("container" %in% names(imported$edges))
+    expect_true("container" %in% names(imported$observations))
+    expect_equal(imported$diagnostics$container_rows, 30L)
+  })
+
+  it("collapses unstable paragraph indices into one container", {
+    imported <- screaming_frog_links(sf_container_links(), "all_outlinks")
+    expect_setequal(
+      unique(imported$edges$container),
+      c("//body/main/div[@class='cta']", "//body/main/article/p")
+    )
+  })
+
+  it("leaves container NA when the crawl has no Link Path", {
+    # Unlike placement there is no Link Position fallback: a region label
+    # cannot manufacture a component identity.
+    links <- sf_container_links()
+    links$`Link Path` <- NA_character_
+    imported <- screaming_frog_links(links, "all_outlinks")
+    expect_true(all(is.na(imported$edges$container)))
+    expect_equal(imported$diagnostics$container_rows, 0L)
+  })
+
+  it("does not enable the detector unless the caller asks", {
+    # Supplying container_col is what switches detection on, so the wrapper
+    # must not pass it automatically -- that would change the default view.
+    imported <- screaming_frog_links(sf_container_links(), "all_outlinks")
+    expect_false(is.null(imported$edges$container))
+    scores <- pagerank(imported$edges)
+    expect_null(attr(scores, "transition_audit")$config$boilerplate)
+  })
+
+  it("detects boilerplate once container_col is named", {
+    imported <- screaming_frog_links(sf_container_links(), "all_outlinks")
+    scores <- pagerank(imported$edges, container_col = "container")
+    audit <- attr(scores, "transition_audit")$config$boilerplate
+    expect_equal(audit$container_col, "container")
+    # The CTA container is on 15 pages and always links /demo -> ratio 1.
+    expect_equal(audit$n_edges_discounted, 15L)
+    target <- "https://example.com/demo"
+    expect_lt(
+      scores$pagerank[scores$node_name == target],
+      pagerank(imported$edges)$pagerank[
+        pagerank(imported$edges)$node_name == target
+      ]
     )
   })
 })
