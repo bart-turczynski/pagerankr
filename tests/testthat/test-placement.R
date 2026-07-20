@@ -51,7 +51,7 @@ describe("pagerank() placement arguments", {
 
     audit <- attr(result, "transition_audit")
     expect_true(audit$coverage$weighted)
-    expect_identical(audit$coverage$weight_col, ".__pr_placement_weight__")
+    expect_identical(audit$coverage$weight_col, ".__pr_edge_weight__")
     expect_identical(audit$config$placement$placement_weights[["nav"]], 0.1)
   })
 
@@ -94,7 +94,7 @@ describe("pagerank() placement arguments", {
       weight_col = NULL
     )
     expect_identical(
-      applied$edge_list_df[[".__pr_placement_weight__"]],
+      applied$edge_list_df[[".__pr_edge_weight__"]],
       c(1, 0.1, 1, 1, 1, 1)
     )
   })

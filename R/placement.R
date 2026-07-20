@@ -168,8 +168,8 @@
 #' Name of the synthetic weight column `placement_weights` builds
 #' @keywords internal
 #' @noRd
-.pr_placement_weight_col <- function() {
-  ".__pr_placement_weight__"
+.pr_edge_weight_col <- function() {
+  ".__pr_edge_weight__"
 }
 
 #' Filter and weight edges by placement region
@@ -230,7 +230,7 @@
   }
 
   if (!is.null(placement_weights)) {
-    weight_col <- .pr_placement_weight_col()
+    weight_col <- .pr_edge_weight_col()
     weights <- rep(1, length(placement))
     named <- !is.na(placement) & placement %in% names(placement_weights)
     weights[named] <- unname(placement_weights[placement[named]])
