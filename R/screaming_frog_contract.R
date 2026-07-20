@@ -458,6 +458,96 @@ sf_normalize_position <- function(x) {
   out
 }
 
+#' Derive a link's page region from its DOM path
+#'
+#' @description Reads the page region a link sits in out of Screaming Frog's
+#'   \code{Link Path} (an XPath-like source locator), returning the same compact
+#'   vocabulary as \code{\link{sf_normalize_position}()}. This is the preferred
+#'   source of placement, because \code{Link Position} loses the enclosing
+#'   region whenever a \code{<nav>} is nested inside one.
+#'
+#' @details
+#' The region is the **outermost** layout container on the path ---
+#' \code{header}, \code{footer}, or \code{aside} --- and \code{"nav"} applies
+#' only when the link sits in a \code{<nav>} that is not inside one of those.
+#' So a footer nav resolves to \code{"footer"}, a header nav to
+#' \code{"header"}, and a standalone nav to \code{"nav"}. Anything else is
+#' \code{"content"}, which is an acknowledged residual bucket rather than a
+#' positive claim about the markup.
+#'
+#' Why not just read \code{Link Position}? On a site whose footer is marked up
+#' as \code{footer > nav > a}, Screaming Frog reports every footer link as
+#' \code{Navigation} and emits no \code{Footer} bucket at all, so \code{footer}
+#' is not merely mislabeled but unreachable --- a user wanting footer at 0.05
+#' and nav at 0.2 has no way to express it. Other sites do emit \code{Footer},
+#' so the vocabulary silently varies with the site's markup. The DOM path has
+#' the region unambiguously in both cases.
+#'
+#' Element names are matched on their own: predicates are stripped first, so a
+#' \code{div[@class='site-footer']} is \emph{not} read as a footer. Only real
+#' \code{<footer>} elements are.
+#'
+#' @param x A vector (typically character) of Screaming Frog link paths, e.g.
+#'   \code{"//body/footer/nav/ul/li[1]/a"}.
+#'
+#' @return A character vector the same length as \code{x} containing
+#'   \code{"nav"}, \code{"header"}, \code{"footer"}, \code{"aside"}, or
+#'   \code{"content"}. Blank strings and \code{NA} yield \code{NA}, so a caller
+#'   can fall back to \code{\link{sf_normalize_position}()}.
+#'
+#' @family Screaming Frog toolkit
+#' @seealso [pagerank()], whose `placement_col` consumes the result.
+#' @export
+#' @examples
+#' sf_region_from_path(c(
+#'   "//body/footer/nav/ul/li[1]/a", # footer nav -> footer, not nav
+#'   "//body/header/nav/ul/li[2]/a", # header nav -> header
+#'   "//body/nav/ul/li[1]/a", # standalone nav -> nav
+#'   "//body/main/article/p[5]/a[1]", # -> content
+#'   "//body/div[@class='site-footer']/a" # a class is not an element
+#' ))
+sf_region_from_path <- function(x) {
+  value <- trimws(as.character(x))
+  out <- vapply(
+    value, .sf_region_from_one_path, character(1),
+    USE.NAMES = FALSE
+  )
+  out[is.na(x) | value == ""] <- NA_character_
+  out
+}
+
+#' Resolve a single DOM path to a region
+#'
+#' Split into steps, strip predicates, then apply the precedence rule: the
+#' outermost layout container wins, `nav` only counts outside one, and
+#' everything else falls through to the `content` residual.
+#'
+#' @keywords internal
+#' @noRd
+.sf_region_from_one_path <- function(path) {
+  if (is.na(path) || !nzchar(path)) {
+    return(NA_character_)
+  }
+  steps <- strsplit(path, "/", fixed = TRUE)[[1]]
+  # Drop predicates -- `div[@class='site-footer']` is a div, not a footer.
+  steps <- tolower(sub("\\[.*$", "", steps))
+  # A link outside <body> sits in no page region at all: Screaming Frog emits
+  # `//head/link[...]` rows for stylesheets, canonicals, and hreflang. None are
+  # graph-eligible, so this is NA rather than the `content` residual.
+  if (!any(steps == "body")) {
+    return(NA_character_)
+  }
+  containers <- c("header", "footer", "aside")
+  outermost <- which(steps %in% containers)
+  if (length(outermost) > 0L) {
+    return(steps[outermost[1L]])
+  }
+  if (any(steps == "nav")) {
+    return("nav")
+  }
+  "content"
+}
+
 #' Test whether a link type is graph-eligible
 #'
 #' @description Reports which Screaming Frog link types count as edges in the

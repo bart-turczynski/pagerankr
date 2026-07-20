@@ -33,10 +33,13 @@ sf_links_fixture <- function() {
       "nofollow"
     ),
     `Path Type` = rep("Absolute", 9),
+    # Paths agree with Link Position below, except row 5, which has none and so
+    # exercises the fallback. Placement is derived from the path first.
     `Link Path` = c(
-      "/html/body/a[1]", "/html/body/a[2]", "/html/body/img[1]",
-      "/html/head/link[1]", "/html/body/a[3]", "/html/body/a[4]",
-      "/html/body/a[5]", "/html/body/a[6]", "/html/body/a[6]"
+      "/html/body/nav/a[1]", "/html/body/main/a[2]", "/html/head/link[1]",
+      "/html/head/link[2]", "", "/html/body/header/a[4]",
+      "/html/body/main/aside/a[5]", "/html/body/footer/a[6]",
+      "/html/body/footer/a[6]"
     ),
     `Link Position` = c(
       "Navigation", "Content", "Head", "Head", "", "Header", "Aside",
@@ -95,7 +98,7 @@ describe("screaming_frog_links()", {
     expect_identical(result$edges$link_origin[1:2], c(
       "HTML & Rendered HTML", "Rendered HTML"
     ))
-    expect_identical(result$edges$link_path[[1L]], "/html/body/a[1]")
+    expect_identical(result$edges$link_path[[1L]], "/html/body/nav/a[1]")
     expect_equal(result$diagnostics$invalid_follow_values, 1L)
     expect_equal(result$diagnostics$follow_rel_disagreements, 2L)
     expect_true(any(
