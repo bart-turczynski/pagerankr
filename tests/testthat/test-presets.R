@@ -21,7 +21,7 @@ describe("pr_preset()", {
   it("returns the declared bundle", {
     declared <- pr_preset("declared")
     expect_equal(declared$nofollow_action, "evaporate")
-    expect_equal(declared$robots_blocked_action, "vanish")
+    expect_equal(declared$robots_blocked_action, "trap")
     expect_true(declared$drop_isolates_flag)
     expect_equal(declared$self_loops, "drop")
     expect_equal(declared$out_of_scope_fold, "relabel")
@@ -118,38 +118,64 @@ describe("preset = on pagerank()", {
 
   it("is spliceable through do.call()", {
     edges <- nf_edges()
-    expect_equal(
-      do.call(
-        pagerank,
-        c(
-          list(edges, nofollow_col = "nofollow", clean_edge_urls = FALSE),
-          pr_preset("raw")
-        )
-      ),
-      pagerank(
-        edges,
-        nofollow_col = "nofollow",
-        clean_edge_urls = FALSE,
-        preset = "raw"
+    spliced <- do.call(
+      pagerank,
+      c(
+        list(edges, nofollow_col = "nofollow", clean_edge_urls = FALSE),
+        pr_preset("raw")
       )
     )
+    via_preset <- pagerank(
+      edges,
+      nofollow_col = "nofollow",
+      clean_edge_urls = FALSE,
+      preset = "raw"
+    )
+    # Same scores, same configuration. The audit's `preset` provenance field
+    # differs on purpose: splicing passes plain arguments, so there is no
+    # preset to attribute the run to.
+    expect_equal(spliced$pagerank, via_preset$pagerank)
+    strip_preset <- function(x) {
+      cfg <- attr(x, "transition_audit")$config
+      cfg[setdiff(names(cfg), "preset")]
+    }
+    expect_equal(strip_preset(spliced), strip_preset(via_preset))
+    expect_null(attr(spliced, "transition_audit")$config$preset)
+    expect_equal(attr(via_preset, "transition_audit")$config$preset, "raw")
   })
 
-  it("applies the declared preset's robots handling", {
+  it("pins the declared preset to the package defaults", {
+    # "declared" is a pure pin: every value in the bundle must equal the
+    # corresponding `pagerank()` default, so asking for the declared view can
+    # never change a result -- it only records that the view was intended.
+    defaults <- formals(pagerank)
+    for (arg in names(pr_preset("declared"))) {
+      default <- eval(defaults[[arg]])
+      expect_equal(
+        pr_preset("declared")[[arg]],
+        if (is.character(default)) default[[1]] else default,
+        info = arg
+      )
+    }
+  })
+
+  it("leaves results untouched under the declared preset", {
     edges <- data.frame(from = c("A", "B"), to = c("B", "C"))
     indexability <- data.frame(
       url = "C",
       indexability_status = "Blocked by robots.txt"
     )
-    declared <- pagerank(
+    args <- list(
       edges,
       indexability_df = indexability,
-      clean_edge_urls = FALSE,
-      preset = "declared"
+      clean_edge_urls = FALSE
     )
-    # robots_blocked_action = "vanish": the blocked page leaves the results.
-    expect_false("C" %in% declared$node_name)
-    expect_gt(attr(declared, "transition_audit")$mass$hidden, 0)
+    declared <- do.call(pagerank, c(args, list(preset = "declared")))
+    baseline <- do.call(pagerank, args)
+    # robots_blocked_action = "trap": the blocked page stays in the results,
+    # holding the authority it collects.
+    expect_true("C" %in% declared$node_name)
+    expect_equal(declared$pagerank, baseline$pagerank)
   })
 })
 
@@ -288,5 +314,73 @@ describe(".pr_apply_preset()", {
       0
     )
     expect_length(ls(env), 0)
+  })
+})
+
+describe("preset provenance in the transition audit", {
+  audit_of <- function(...) {
+    attr(pagerank(...), "transition_audit")
+  }
+
+  it("records the preset name for a registry preset", {
+    edges <- nf_edges()
+    audit <- audit_of(edges, clean_edge_urls = FALSE, preset = "raw")
+    expect_equal(audit$config$preset, "raw")
+  })
+
+  it("records \"custom\" for a hand-rolled bundle", {
+    edges <- nf_edges()
+    audit <- audit_of(
+      edges,
+      clean_edge_urls = FALSE,
+      preset = list(nofollow_action = "keep")
+    )
+    expect_equal(audit$config$preset, "custom")
+  })
+
+  it("records NULL when no preset was used", {
+    edges <- nf_edges()
+    audit <- audit_of(edges, clean_edge_urls = FALSE)
+    expect_null(audit$config$preset)
+  })
+
+  it("distinguishes a preset run from the same arguments typed by hand", {
+    edges <- nf_edges()
+    by_preset <- audit_of(edges, clean_edge_urls = FALSE, preset = "declared")
+    by_hand <- audit_of(
+      edges,
+      clean_edge_urls = FALSE,
+      self_loops = "drop",
+      drop_isolates_flag = TRUE,
+      nofollow_action = "evaporate",
+      out_of_scope_fold = "relabel"
+    )
+    expect_equal(by_preset$config$preset, "declared")
+    expect_null(by_hand$config$preset)
+    # Everything else about the two configs is identical -- the preset field is
+    # the only thing carrying which named view was asked for.
+    expect_equal(
+      by_preset$config[setdiff(names(by_preset$config), "preset")],
+      by_hand$config[setdiff(names(by_hand$config), "preset")]
+    )
+  })
+
+  it("records the preset through a ...-forwarding wrapper", {
+    edges <- nf_edges()
+    audit <- attr(
+      trustrank(edges, seeds = "A", clean_edge_urls = FALSE, preset = "raw"),
+      "transition_audit"
+    )
+    expect_equal(audit$config$preset, "raw")
+  })
+
+  it("prints the preset only when one was used", {
+    edges <- nf_edges()
+    with_preset <- capture.output(
+      print(audit_of(edges, clean_edge_urls = FALSE, preset = "raw"))
+    )
+    without <- capture.output(print(audit_of(edges, clean_edge_urls = FALSE)))
+    expect_true(any(grepl("Preset:\\s+raw", with_preset)))
+    expect_false(any(grepl("Preset:", without, fixed = TRUE)))
   })
 })

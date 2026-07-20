@@ -19,13 +19,27 @@
 #'     vertices. This is the faithful baseline to compare every other view
 #'     against.}
 #'   \item{`"declared"`}{The graph after honoring the signals the site
-#'     *declares*: `rel=nofollow` evaporates, robots-blocked pages are removed
-#'     from the results, declared canonical/redirect targets are followed even
-#'     when they were not crawled, and self loops and isolates are dropped.
-#'     Note that the declared **data** (`redirects_df`, `canonicals_df`,
+#'     *declares*: `rel=nofollow` evaporates, declared canonical/redirect
+#'     targets are followed even when they were not crawled, robots-blocked
+#'     pages keep the authority they collect, and self loops and isolates are
+#'     dropped. This is a **pure pin of the package defaults** -- it changes
+#'     nothing about how [pagerank()] behaves today. Its value is that it
+#'     *states* the default view: a run made with `preset = "declared"` is a
+#'     recorded, auditable claim about which view was intended, and it stays
+#'     pinned to the bundle as documented even if a future default moves. Note
+#'     that the declared **data** (`redirects_df`, `canonicals_df`,
 #'     `indexability_df`) still has to be supplied by the caller -- a preset
 #'     sets policy, never data.}
 #' }
+#'
+#' @section Provenance:
+#'
+#' The [transition_audit] attached to a [pagerank()] result records which
+#' preset produced it, in `audit$config$preset`: the preset name for a
+#' registered preset (whether passed by name or as a `pr_preset()` result),
+#' `"custom"` for a hand-rolled bundle, and `NULL` when no preset was used. The
+#' rest of `config` records the resulting configuration, so a result can be
+#' both reconstructed and attributed to the named view it was asked for.
 #'
 #' @section Precedence:
 #'
@@ -75,7 +89,10 @@ pr_preset <- function(name) {
       call. = FALSE
     )
   }
-  registry[[name]]
+  # Tag the bundle with its name so provenance survives
+  # `pagerank(edges, preset = pr_preset("raw"))` -- the list form is still just
+  # a plain named list, but the audit can tell it apart from a hand-rolled one.
+  structure(registry[[name]], pr_preset_name = name)
 }
 
 # Single source of truth for preset names and their expansions. Every entry
@@ -89,11 +106,16 @@ pr_preset <- function(name) {
       nofollow_action = "keep",
       out_of_scope_fold = "keep"
     ),
+    # "declared" is a PURE PIN of today's `pagerank()` defaults: it changes
+    # nothing, it *states* the default view so a result can be frozen against
+    # future default drift. When a default moves, this bundle is re-pinned to
+    # whatever the defaults then are -- the pin tracks the defaults by
+    # definition.
     declared = list(
       self_loops = "drop",
       drop_isolates_flag = TRUE,
       nofollow_action = "evaporate",
-      robots_blocked_action = "vanish",
+      robots_blocked_action = "trap",
       out_of_scope_fold = "relabel"
     )
   )
@@ -153,6 +175,24 @@ pr_preset <- function(name) {
     )
   }
   invisible(NULL)
+}
+
+# Provenance label for the `preset` argument, recorded in the transition audit
+# so a result says which named view produced it. A registry preset is recorded
+# by name; a hand-rolled bundle is recorded as "custom" (its expansion is
+# already visible in the rest of the config); no preset is recorded as NULL.
+.pr_preset_label <- function(preset) {
+  if (is.null(preset)) {
+    return(NULL)
+  }
+  if (is.character(preset)) {
+    return(preset)
+  }
+  name <- attr(preset, "pr_preset_name", exact = TRUE)
+  if (is.character(name) && length(name) == 1L) {
+    return(name)
+  }
+  "custom"
 }
 
 # Apply a preset into `env` (a `pagerank()` evaluation frame), honoring the

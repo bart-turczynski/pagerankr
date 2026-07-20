@@ -871,7 +871,8 @@ pagerank <- function(
     prior_inject_unmatched = prior_inject_unmatched,
     has_redirects = audit_has_redirects,
     has_canonicals = audit_has_canonicals,
-    indexability_df = indexability_df
+    indexability_df = indexability_df,
+    preset = preset
   )
 
   attr(pagerank_results, "transition_audit") <- transition_audit
@@ -2726,7 +2727,8 @@ pagerank <- function(
   prior_inject_unmatched,
   has_redirects,
   has_canonicals,
-  indexability_df
+  indexability_df,
+  preset = NULL
 ) {
   # Derived scalars, config snapshot, and construction live in helpers below.
   metrics <- .transition_audit_metrics(
@@ -2773,7 +2775,8 @@ pagerank <- function(
     has_redirects = has_redirects,
     has_canonicals = has_canonicals,
     indexability_df = indexability_df,
-    folded_prior_df = folded_prior_df
+    folded_prior_df = folded_prior_df,
+    preset = preset
   )
 }
 
@@ -2867,7 +2870,8 @@ pagerank <- function(
   has_redirects,
   has_canonicals,
   indexability_df,
-  folded_prior_df
+  folded_prior_df,
+  preset = NULL
 ) {
   config_nofollow_col <- if (identical(nofollow_col, "__pr_nofollow__")) {
     NULL
@@ -2875,6 +2879,7 @@ pagerank <- function(
     nofollow_col
   }
   list(
+    preset = .pr_preset_label(preset),
     self_loops = self_loops,
     drop_isolates_flag = drop_isolates_flag,
     reverse = reverse,
@@ -2933,7 +2938,8 @@ pagerank <- function(
   has_redirects,
   has_canonicals,
   indexability_df,
-  folded_prior_df
+  folded_prior_df,
+  preset = NULL
 ) {
   new_transition_audit(
     n_input_rows = n_input_rows,
@@ -2977,7 +2983,8 @@ pagerank <- function(
       has_redirects = has_redirects,
       has_canonicals = has_canonicals,
       indexability_df = indexability_df,
-      folded_prior_df = folded_prior_df
+      folded_prior_df = folded_prior_df,
+      preset = preset
     )
   )
 }

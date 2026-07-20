@@ -6,8 +6,12 @@
   presets ship so far: `"raw"` (the graph exactly as crawled -- self loops and
   isolates kept, `rel=nofollow` ignored, no relabeling onto uncrawled fold
   targets) and `"declared"` (honor the signals the site declares -- nofollow
-  evaporates, robots-blocked pages leave the results, declared canonical and
-  redirect targets are followed, self loops and isolates dropped). `preset`
+  evaporates, declared canonical and redirect targets are followed,
+  robots-blocked pages keep the authority they collect, self loops and
+  isolates dropped). `"declared"` is a **pure pin of the package defaults**:
+  it changes nothing about how `pagerank()` behaves, it states the default
+  view so a run can record which view was intended and stay pinned to that
+  bundle if a default later moves. `preset`
   accepts a preset name, a `pr_preset()` result, or any hand-rolled named list
   of `pagerank()` arguments; bundles are plain named lists, so they are
   inspectable and spliceable via `do.call()`. Precedence is **explicit
@@ -18,6 +22,15 @@
   `pagerank_screaming_frog()`), with the boundary that arguments a wrapper
   sets itself stay wrapper-owned. Presets are strictly opt-in; no default
   behavior changes.
+
+* The `transition_audit` attached to a `pagerank()` result now records which
+  preset produced it, in `config$preset`: the preset name for a registered
+  preset (passed by name or as a `pr_preset()` result), `"custom"` for a
+  hand-rolled bundle, and `NULL` when no preset was used. Two runs that expand
+  to the same configuration are no longer indistinguishable in the audit --
+  which *named view* was asked for is itself a provenance fact, and it is the
+  only durable record of intent for a pin like `"declared"`. `print()` shows a
+  `Preset:` line only when a preset was used, so default output is unchanged.
 
 * **Breaking:** the six dot-prefixed Screaming Frog helpers are renamed without
   their leading dot and are now documented public API: `.sf_contract()`,
