@@ -1,0 +1,297 @@
+---
+title: "Boilerplate detection: template links that live in the content"
+author: "Bart Turczynski"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Boilerplate detection: template links that live in the content}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(pagerankr)
+```
+
+## The links placement cannot reach
+
+Weighting links by page region — `vignette("presets")`, `preset = "content"` —
+handles site chrome. Navigation, header, footer and sidebar stop voting at full
+strength, and the ranking stops being manufactured by whatever the template
+repeats on every page.
+
+It handles chrome and nothing else, because it can only ask *where on the page
+is this link*. A recycled call-to-action inside the article body, a compliance
+link dropped into every post, an author byline under every headline — these are
+in the content region. They *are* content, structurally. Placement will keep
+them at full weight forever, and they carry exactly the problem chrome does:
+one editorial decision, made once in a template, cast as thousands of votes.
+
+The boilerplate detector is the second way of asking. Instead of *where is this
+link*, it asks **does this component always point at the same place**.
+
+## The metric
+
+The unit is a **container**: the template element a link sits in, identified
+stably across the pages it appears on. For each container-and-target pair:
+
+- **denominator** — the number of pages the container appears on at all;
+- **numerator** — the number of those pages where it points at *this* target;
+- **ratio** — numerator over denominator.
+
+`ratio` is a boilerplate score in `[0, 1]`, and **higher means more
+boilerplate**. The polarity is easy to invert when reading, so it is worth
+stating twice:
+
+- `ratio = 1.0` — every single time this component appeared, it linked here. A
+  template link. Gets discounted.
+- `ratio → 0` — this component picks a different target on each page. A genuine
+  editorial choice, made per page. Keeps full weight.
+
+That separates two things which look identical structurally:
+
+| Component | Behavior | Ratio | Verdict |
+|---|---|---|---|
+| A recycled "Book a demo" CTA | always the same target | ~1.0 | boilerplate |
+| A related-posts module | different articles per page | low | **not** boilerplate |
+
+Both recur identically across the site. Only the first one is a template
+casting the same vote over and over; the second is the template asking a real
+question and getting a different answer every time. A detector keyed on "this
+component repeats" would flag both, and would be wrong about the second.
+
+### Why the container is the denominator
+
+Scoring against the whole site instead would flag the homepage — correctly for
+the header logo, wrongly for an in-body link from an article that genuinely
+chose to point there. Same destination, opposite nature. **Boilerplate is a
+property of the edge and of its source context, not of the destination.**
+
+Conditioning on the container also keeps the metric local. Landing pages, blog
+categories and post templates each have their own component sets, and a ratio
+computed within one of them says something a sitewide count cannot.
+
+## Turning it on
+
+The detector is off by default. It is switched on by **data** — the
+`container_col` argument naming a column of container identities — in the same
+way `placement_col` switches on region weighting and `nofollow_col` switches on
+nofollow handling.
+
+Here is a twelve-post blog. Every post carries a byline component linking one
+author, and a related-posts component linking a different post each time:
+
+```{r}
+posts <- sprintf("/post-%02d", 1:12)
+
+edges <- rbind(
+  # The byline: same component, same target, every single page.
+  data.frame(from = posts, to = "/author/dana", container = "byline"),
+  # Related posts: same component, a different target on each page.
+  data.frame(from = posts, to = rev(posts), container = "related"),
+  # A CTA that mostly, but not always, points at pricing.
+  data.frame(
+    from = posts,
+    to = c(rep("/pricing", 7), sprintf("/guide-%02d", 1:5)),
+    container = "cta"
+  )
+)
+
+scored <- pagerank(edges, container_col = "container")
+head(scored[order(-scored$pagerank), ], 4)
+```
+
+All three components appear on all twelve pages, and the ratio tells them
+apart. The byline scores `12/12 = 1.0` and is discounted. `related` scores
+`1/12` per target and keeps full weight. The CTA scores `7/12 = 0.58` for
+`/pricing` — over the default threshold, so discounted — and `1/12` for each
+guide, which is not.
+
+The provenance is recorded in the transition audit, so a run can always account
+for what it discounted and why:
+
+```{r}
+attr(scored, "transition_audit")$config$boilerplate
+```
+
+### It is a downweight, never a drop
+
+Discounted edges stay in the graph at reduced weight. This is the same rule
+that governs region weighting, for the same two reasons: dropping edges changes
+the graph's *shape* rather than its transition probabilities — pages reachable
+only through a template become teleport-only, pages linking out only through
+one become dangling — and detection is a heuristic, so a misclassified link at
+half weight is a small error where a deleted one is silent.
+
+## The four arguments
+
+| Argument | Default | What it does |
+|---|---|---|
+| `container_col` | `NULL` | Names the container column. **Supplying it turns the detector on.** |
+| `boilerplate_threshold` | `0.5` | Ratio at or above which an edge is *classified* boilerplate. |
+| `min_container_pages` | `10` | Pages a container must appear on before any of its edges may be classified at all. |
+| `boilerplate_weight` | `0.5` | The multiplier applied *once* an edge is classified. |
+
+**`boilerplate_threshold` and `boilerplate_weight` are unrelated quantities
+that happen to share a default of 0.5.** One is a fraction of pages that
+decides *whether* an edge is boilerplate; the other is the discount applied
+once it is. Never read a bare "0.5" in this area without checking which one it
+refers to.
+
+`0.5` as a threshold is a documented default, not an empirical cut — there is
+no natural break in the ratio distribution to find. It sits where it does
+because a stricter `0.9` misses two whole families of real boilerplate that
+recur across every crawl tested: recurring in-content CTAs (ratios 0.54–0.82)
+and author byline links (0.53–0.69).
+
+`min_container_pages` is an evidence floor. A container appearing on three
+pages can only score `0.33`, `0.67` or `1.0`, so a high ratio there is
+quantization rather than signal. Ten is a judgement call, not a measured cut —
+raise it if your containers are large, lower it if your site is small.
+
+The CTA above is exactly the case the threshold decides. At the default it is
+caught; at `0.9` it is not, and only the byline is:
+
+```{r}
+discounted <- function(threshold) {
+  run <- pagerank(edges, container_col = "container",
+                  boilerplate_threshold = threshold)
+  attr(run, "transition_audit")$config$boilerplate$n_edges_discounted
+}
+
+c(default = discounted(0.5), strict = discounted(0.9))
+```
+
+Seven of those nineteen edges are the recurring CTA. On a real site that is the
+difference between catching the promotional module on every post and missing
+it — which is why the default sits at `0.5` rather than somewhere stricter and
+more comfortable-looking.
+
+## Composing with region weighting
+
+Region and recurrence are **two detectors feeding one axis**, not two axes.
+
+This matters arithmetically. A nav link is boilerplate *by construction* — it
+is the same fact detected twice — so multiplying the two factors would discount
+it to `0.1 × 0.5 = 0.05`, a number nobody can explain and which no one
+intended. Instead the **strongest applicable discount wins**:
+
+| Edge | Detected by | Weight |
+|---|---|---:|
+| nav / header / footer | region | 0.10 |
+| repetitive in-content | recurrence | 0.50 |
+| unique in-content | neither | 1.00 |
+
+Three tiers, and chrome does not get pushed into a fourth just because two
+detectors agree about it. Supply both `placement_col` and `container_col` and
+you get exactly this table:
+
+```{r}
+mixed <- data.frame(
+  from = rep(posts, each = 2),
+  to = rep(c("/home", "/author/dana"), times = 12),
+  region = rep(c("nav", "content"), times = 12),
+  container = rep(c("mainnav", "byline"), times = 12)
+)
+
+both <- pagerank(
+  mixed,
+  placement_col = "region",
+  placement_weights = c(content = 1, nav = 0.1, header = 0.1,
+                        footer = 0.1, aside = 0.1),
+  container_col = "container"
+)
+head(both[order(-both$pagerank), ], 3)
+```
+
+The nav edge stays at `0.1` rather than falling to `0.05`, and the byline —
+which region weighting could never have touched — lands at `0.5`.
+
+## What to expect on a real site: author pages will drop
+
+This is the consequence worth knowing in advance, because it looks like a bug
+the first time you see it.
+
+Byline links are textbook boilerplate: one template decision, replicated across
+every article, pointing at the same author page each time. On one crawl a
+single author page was linked from 4,116 of 7,563 pages by an identical
+element. Under an unweighted PageRank that in-degree makes author pages some of
+the strongest nodes on the site.
+
+Turn the detector on and they fall — often a long way.
+
+**That is the detector working, not failing.** None of those thousands of links
+was an editorial judgment that the author page deserved authority; one of them
+was, and it got replicated by a template. The ranking those links produced was
+manufactured by the markup rather than earned by the page. Discounting them
+puts author pages roughly where their genuinely editorial inbound links place
+them.
+
+The same reasoning applies to the other families the detector reliably finds —
+terms and privacy pages, cart and account links, promotional CTAs. If a page's
+rank drops sharply when you enable the detector, that is a measurement of how
+much of its rank came from a template.
+
+If you disagree in a specific case, the judgement is yours to make: raise
+`boilerplate_threshold`, raise `boilerplate_weight` toward 1, or curate the
+container column so the component in question is not scored. The detector is a
+convenience, not an oracle, and "boilerplate but in main content" is ultimately
+a call about your own site.
+
+## Getting a container column from a crawl
+
+`container_col` is crawler-neutral by design: `pagerank()` only consumes
+container *identity* and never asks how it was derived. Any crawler that can
+say "these two links are the same template element" can drive the detector — a
+DOM path, a CSS selector, a template ID from a CMS export.
+
+For Screaming Frog, `sf_container_from_path()` derives identity from the DOM
+path SF exports:
+
+```{r}
+sf_container_from_path(c(
+  "//body/div/main/article/div[@class='byline']/a[1]",
+  "//body/div/main/article/div[@class='byline']/a[3]",
+  "//body/div/main/article/p[5]/a"
+))
+```
+
+Two things happen there. The link's own step is dropped, so the first and third
+anchor inside one byline resolve to the **same** container rather than to two —
+which is the point, since they are one component. And numeric indices are
+stripped, because the same component lands at `p[5]` on a long post and `p[3]`
+on a short one, so positions are noise for this question. Class predicates
+survive, because a class is exactly the stable component identifier we want.
+
+On real crawls this compresses 22,022 raw paths to 1,630 skeletons. The
+normalization is load-bearing: without it the detector under-detects in-content
+components while working fine on navigation, which is precisely backwards —
+navigation is already covered by region weighting.
+
+Note this cuts the **opposite** way from `sf_region_from_path()`, which strips
+predicates entirely so that a `div[@class='site-footer']` is not mistaken for a
+`<footer>` element. The two functions answer different questions — *which
+region is this* versus *is this the same component* — and the difference is
+deliberate.
+
+`screaming_frog_links()` carries a `container` column for you. Note that
+`pagerank_screaming_frog()` does **not** pass it automatically: enabling a
+detector that reshuffles rankings for every Screaming Frog user by default
+would violate the package's faithful-default rule. Ask for it explicitly.
+
+```{r, eval = FALSE}
+links <- screaming_frog_links("all_inlinks.csv")
+pagerank(links$edges, container_col = "container")
+```
+
+## See also
+
+- `vignette("presets")` — region weighting and the `"content"` preset.
+- `?pagerank` for the argument reference.
+- `?sf_container_from_path`, `?screaming_frog_links` for the Screaming Frog path.
