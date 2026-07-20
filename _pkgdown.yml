@@ -109,6 +109,7 @@ reference:
       - sf_rel_nofollow
       - sf_normalize_position
       - sf_region_from_path
+      - sf_container_from_path
       - sf_graph_eligible
 
   - title: "Behavioral data and simulation"

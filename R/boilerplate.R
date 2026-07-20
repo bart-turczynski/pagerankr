@@ -144,16 +144,20 @@
   judged <- !is.na(ratio) & container_pages >= min_container_pages
   is_boilerplate <- judged & ratio >= boilerplate_threshold
 
-  # Multiply into the existing weights rather than replacing them: placement
-  # may already have written a factor here, and the two axes compose (see
-  # notes/edge-weighting-model.md section 2). Both factors are recorded
-  # separately in the audit, because storing only the product is unauditable.
+  # Placement and recurrence are TWO DETECTORS FEEDING ONE GRADED AXIS, not two
+  # axes -- see notes/edge-weighting-model.md section 2. A nav link is
+  # boilerplate *by construction*, so multiplying both factors would discount
+  # the same link twice for the same fact (0.1 x 0.5 = 0.05) and produce a
+  # number nobody can explain. The strongest applicable discount wins instead,
+  # which reproduces the section 2 table exactly: chrome 0.1, repetitive
+  # in-content 0.5, unique in-content 1. Only *position* is genuinely
+  # orthogonal, and that is the axis that multiplies.
   if (is.null(weight_col)) {
     weight_col <- .pr_edge_weight_col()
     edge_list_df[[weight_col]] <- rep(1, nrow(edge_list_df))
   }
   factor <- ifelse(is_boilerplate, boilerplate_weight, 1)
-  edge_list_df[[weight_col]] <- edge_list_df[[weight_col]] * factor
+  edge_list_df[[weight_col]] <- pmin(edge_list_df[[weight_col]], factor)
 
   list(
     edge_list_df = edge_list_df,

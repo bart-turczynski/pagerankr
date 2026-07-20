@@ -92,9 +92,13 @@
 #'   boilerplate, in `(0, 1]`. Default `0.5`. Note this is a different quantity
 #'   from `boilerplate_threshold` despite sharing a default value: the
 #'   threshold is a fraction of pages that decides *whether* an edge is
-#'   boilerplate, this is the discount applied *once it is*. Composes
-#'   multiplicatively with `placement_weights`; both factors are recorded
-#'   separately in the transition audit.
+#'   boilerplate, this is the discount applied *once it is*. Placement and
+#'   recurrence are two **detectors feeding one graded axis**, not two
+#'   independent axes: a nav link is boilerplate by construction, so the
+#'   factors are not multiplied -- that would discount the same link twice for
+#'   the same fact. The strongest applicable discount wins, giving chrome
+#'   `0.1`, repetitive in-content `0.5`, and unique in-content `1`. Both
+#'   factors are recorded separately in the transition audit.
 #' @param duplicate_edge_policy How repeated `from -> to` rows are represented
 #'   after URL cleaning, redirect/canonical folding, and domain filtering. One
 #'   of:
