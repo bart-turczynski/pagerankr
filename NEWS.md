@@ -1,5 +1,21 @@
 # pagerankr (development version)
 
+* **Two new presets complete the set: `"reversed"` and `"content"`.**
+  `pr_preset()` now registers `raw` · `declared` · `reversed` · `content`.
+  `"reversed"` is the feeder view (`reverse = TRUE`); it is a no-op rather than
+  an error under `topic_feeder_pagerank()`, which reverses the graph itself.
+  `"content"` carries the placement recipe `c(content = 1, nav = 0.1,
+  header = 0.1, footer = 0.1, aside = 0.1)`, so links found in site chrome are
+  discounted to a tenth of an in-content link — downweighted, never dropped.
+  All five regions are named on purpose: unnamed placements keep weight 1, so a
+  partial recipe would leave footer and aside outweighing nav tenfold. Because
+  a preset sets policy and never data, `"content"` still needs you to supply
+  `placement_col`; `pagerank_screaming_frog()` supplies it from the bundle.
+* **New `vignette("presets")`** documenting every preset's full expansion, the
+  precedence rule, and how provenance is recorded in the transition audit.
+* Asking for `placement_weights` or `accepted_placements` without
+  `placement_col` now names the preset responsible when a preset is what set
+  them, instead of reporting an argument the caller never typed.
 * **Placement-aware scoring is now crawler-neutral.** `pagerank()` gains
   `placement_col`, `accepted_placements`, and `placement_weights`: point
   `placement_col` at a column holding the page region each link sits in and
