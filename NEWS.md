@@ -15,10 +15,30 @@
   applied *once classified*). The last two constants are unrelated quantities
   that happen to share a value. Off unless `container_col` is supplied, and
   crawler-neutral: any crawler that can identify a link's component can drive it.
-* The boilerplate and placement axes **compose multiplicatively** — a nav link
-  that is also template-recurring weighs `0.1 x 0.5 = 0.05` — and the transition
-  audit records both factor sets separately in `config$placement` and
-  `config$boilerplate`, since the product alone cannot explain a weight.
+* **New `sf_container_from_path()`** derives that component identity from a
+  Screaming Frog `Link Path`, and `screaming_frog_links()` now carries a
+  `container` column on both the observation and edge tables (counted in the
+  link diagnostics as `container_rows`). The rule is: strip numeric `[n]`
+  predicates, **keep** `[@class='…']`, then drop the trailing `<a>` step. This
+  cuts the *opposite* way from `sf_region_from_path()`, which strips class
+  predicates so a `div[@class='site-footer']` is not read as a `<footer>`; the
+  two answer different questions ("which region is this" versus "is this the
+  same component") and the inconsistency is deliberate. On a real 9,655-page
+  crawl this compresses 22,022 distinct paths to 1,630 skeletons (92.6%).
+  Rows with no `Link Path` get `NA` and stay unscored — unlike placement there
+  is no `Link Position` fallback, because a region label cannot manufacture a
+  component identity.
+* `pagerank_screaming_frog()` does **not** enable the detector on its own. Pass
+  `container_col = "container"` to opt in, exactly as a non-Screaming-Frog
+  caller would; supplying the column is what switches detection on, so passing
+  it automatically would change the default view.
+* Placement and recurrence are two **detectors feeding one graded axis**, not
+  two independent axes. A nav link is boilerplate by construction, so the two
+  factors are *not* multiplied — that would discount the same link twice for the
+  same fact. The strongest applicable discount wins: chrome `0.1`, repetitive
+  in-content `0.5`, unique in-content `1`. The transition audit still records
+  both factor sets separately in `config$placement` and `config$boilerplate`,
+  since the resulting weight alone cannot say which detector produced it.
 * **Expect author pages to lose rank** where bylines are template-generated.
   This is intended: that rank was manufactured by the template rather than
   earned by any editorial decision.

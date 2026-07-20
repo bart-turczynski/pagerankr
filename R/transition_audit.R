@@ -65,9 +65,10 @@
 #'     (`container_col`, `boilerplate_threshold`, `min_container_pages`,
 #'     `boilerplate_weight`, and the counts `n_containers`, `n_edges_scored`,
 #'     `n_edges_judged` and `n_edges_discounted`), or `NULL` when it was not.
-#'     The two weighting axes compose multiplicatively, so both are recorded
-#'     **separately**: the product alone cannot explain why an edge weighs
-#'     `0.05`. The other fields are the
+#'     Placement and recurrence are two detectors feeding one graded axis, and
+#'     the strongest applicable discount wins, so both are recorded
+#'     **separately**: the resulting weight alone cannot say which detector
+#'     produced it. The other fields are the
 #'     resolved configuration itself: `self_loops`, `drop_isolates_flag`,
 #'     `reverse`,
 #'     `weight_col`, `nofollow_col`, `nofollow_action`, `robots_blocked_action`,

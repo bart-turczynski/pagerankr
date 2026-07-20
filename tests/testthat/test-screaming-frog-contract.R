@@ -213,3 +213,66 @@ describe("Screaming Frog import contract", {
     expect_equal(nrow(links), 5L)
   })
 })
+
+describe("sf_container_from_path()", {
+  it("strips numeric predicates so unstable positions agree", {
+    # The same recycled component lands at a different paragraph index
+    # depending on how much prose precedes it. Both must be one container.
+    expect_equal(
+      sf_container_from_path("//body/main/article/p[5]/a[1]"),
+      sf_container_from_path("//body/main/article/p[3]/a[1]")
+    )
+  })
+
+  it("keeps class predicates as the component identity", {
+    # Deliberately the OPPOSITE of sf_region_from_path(), which strips classes
+    # so a div[@class='site-footer'] is not read as a <footer>. Different
+    # questions: "which region is this" vs "is this the same component".
+    expect_equal(
+      sf_container_from_path("//body/div[@class='cta']/a"),
+      "//body/div[@class='cta']"
+    )
+    expect_false(identical(
+      sf_container_from_path("//body/div[@class='cta']/a"),
+      sf_container_from_path("//body/div[@class='hero']/a")
+    ))
+  })
+
+  it("drops the trailing anchor step whatever predicate it carries", {
+    # The anchor's own class describes the link, not its container.
+    expect_equal(
+      sf_container_from_path("//body/div[@class='cta']/a[@class='btn']"),
+      "//body/div[@class='cta']"
+    )
+    expect_equal(
+      sf_container_from_path("//body/div[@class='cta']/a[@class='btn']"),
+      sf_container_from_path("//body/div[@class='cta']/a")
+    )
+  })
+
+  it("returns NA for blank and missing paths", {
+    # No path means no component identity; the detector leaves the row
+    # unscored rather than inventing one.
+    expect_true(is.na(sf_container_from_path(NA_character_)))
+    expect_true(is.na(sf_container_from_path("")))
+    expect_true(is.na(sf_container_from_path("   ")))
+  })
+
+  it("is vectorized and length-preserving", {
+    paths <- c("//body/main/p[1]/a", NA, "//body/nav/ul/li[2]/a")
+    expect_length(sf_container_from_path(paths), 3L)
+  })
+})
+
+describe("container vs region on the same path", {
+  it("disagree about class predicates, on purpose", {
+    path <- "//body/div[@class='site-footer']/a"
+    # The region parser must not see a <footer> here...
+    expect_equal(sf_region_from_path(path), "content")
+    # ...but the container parser must keep the class as the identity.
+    expect_equal(
+      sf_container_from_path(path),
+      "//body/div[@class='site-footer']"
+    )
+  })
+})

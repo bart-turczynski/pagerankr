@@ -112,6 +112,10 @@ screaming_frog_links <- function(x,
   placement <- sf_region_from_path(raw$link_path)
   from_position <- is.na(placement)
   placement[from_position] <- position_placement[from_position]
+  # Component identity for the boilerplate detector. Unlike placement there is
+  # no Link Position fallback: a row with no path has no component identity, and
+  # guessing one from a region label would invent evidence.
+  container <- sf_container_from_path(raw$link_path)
   status_code <- .sf_parse_status_code(raw$status_code)
   graph_type <- sf_graph_eligible(raw$type)
   valid_source <- !is.na(raw$source)
@@ -131,6 +135,7 @@ screaming_frog_links <- function(x,
     follow = follow,
     rel_nofollow = rel_nofollow,
     placement = placement,
+    container = container,
     placement_from_position = from_position & !is.na(placement),
     status_code = status_code,
     graph_type = graph_type,
@@ -173,6 +178,7 @@ screaming_frog_links <- function(x,
     link_path = raw$link_path,
     link_position = raw$link_position,
     placement = d$placement,
+    container = d$container,
     link_origin = raw$link_origin
   )
 }
@@ -199,6 +205,7 @@ screaming_frog_links <- function(x,
     link_path = raw$link_path[edge_rows],
     link_position = raw$link_position[edge_rows],
     placement = d$placement[edge_rows],
+    container = d$container[edge_rows],
     link_origin = raw$link_origin[edge_rows],
     destination_status_code = d$status_code[edge_rows],
     destination_status = raw$status[edge_rows],
@@ -269,6 +276,7 @@ screaming_frog_links <- function(x,
     follow_rel_disagreements = sum(d$follow_rel_disagreement),
     unmapped_position_rows = sum(d$unmapped_position),
     placement_from_position_rows = sum(d$placement_from_position),
+    container_rows = sum(!is.na(d$container)),
     invalid_status_codes = sum(d$invalid_status),
     missing_optional_columns = missing_optional,
     ignored_columns = schema$ignored_columns,
