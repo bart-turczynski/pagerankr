@@ -5,8 +5,9 @@ Design notes from the 2026-07-20 session. Companion to
 this file records *the model we think explains it* and the decisions that follow.
 
 Status: design agreed and validated against three real crawls (§10). **§4 (placement) is
-implemented** — PRs #127 and #128, `PAGE-ktatjtta` done. §5 (boilerplate detection) and the
-position axis are still design only.
+implemented** — PRs #127 and #128, `PAGE-ktatjtta` done; the `content` preset that carries the
+recipe shipped in PR #130, `PAGE-ooqveone` done. §5 (boilerplate detection) and the position axis
+are still design only. **§12 is an open empirical question**, not part of the agreed model.
 Tickets: see "Where this lives" at the end.
 
 ---
@@ -647,5 +648,92 @@ from ≤10-page containers.
 - `PAGE-bcggkykd` — vocabulary collision (conceptual raw vs the `raw` preset); adjacent to §4.
 - `PAGE-vqfytgam` — the paper. Its headline is *placement-aware PageRank*, which makes this
   file's model the paper's core contribution. §2 (two-axis model), §3 (downweight-not-drop),
-  §5 (structural boilerplate detection), and §8 (the confound) are all paper material.
+  §5 (structural boilerplate detection), §8 (the confound), and §12 (the forward/reverse
+  asymmetry) are all paper material.
 - `PAGE-kddhyhpw` — two-crawl fixture; the validation substrate for §10.
+
+---
+
+## 12. Edge weighting is not direction-invariant (2026-07-20)
+
+**Open question, not a settled result.** Surfaced by the question "can we reverse on content
+only?" while shipping the `content` preset. The answer is yes mechanically —
+`pagerank(edges, preset = "content", placement_col = ..., reverse = TRUE)` — but what it *means*
+is unclear, and the empirical behavior was not what anyone predicted.
+
+### The mechanism
+
+Edge weights are **row-normalized per source**. An edge's weight therefore only changes the
+result if its normalization group holds more than one distinct weight; a source with a single
+out-edge passes 100% of its rank regardless of what that edge weighs.
+
+Reversing the graph swaps what "source" means, and so swaps the normalization group:
+
+| Direction | Weights normalize across | Reads as |
+|---|---|---|
+| Forward | a page's **outlinks** | "this page splits its vote 10:1 between its editorial and chrome links" |
+| Reversed | a page's **inlinks** | "this page splits credit among the pages linking *at* it, by where they put the link" |
+
+The forward reading is the one the model was designed around and the one §2 argues for. **The
+reversed reading has no established editorial meaning** — it is not obviously wrong, but nothing
+in the model justifies it, and it is not what a user asking for "feeder-ness over editorial links
+only" would be asking for. That view would require the discount to stay attached to the original
+*source's* outflow, which surviving the reversal is exactly what row normalization prevents.
+
+### A constructed degenerate case
+
+On a graph where every page footer-links a hub `H` and one page content-links `E`, forward
+weighting reshuffles substantially (`H` 0.331 → 0.267, `E` 0.155 → 0.220) while reversed
+weighting changes **nothing** — every score identical to eight decimals. Each spoke had a single
+footer out-link, and `H`'s inlinks were uniformly footer, so all five weights normalized away.
+
+### What the crawls actually say — the initial hypothesis was wrong
+
+The hypothesis drawn from that example was that reversed weighting is near-degenerate on real
+sites, because a chrome target is linked from chrome everywhere. **Two crawls contradict it.**
+Share of edges whose normalization group is heterogeneous (a necessary condition for the weight
+to matter at all), internal graph only:
+
+| Crawl | Forward, edges | Forward, groups | Reversed, edges | Reversed, groups |
+|---|---:|---:|---:|---:|
+| tidio (2,526 nodes, 517k edges) | 99.14% | 95.41% | 93.91% | 63.56% |
+| natu.care (9,655 nodes, 1.43M edges) | 99.73% | 99.37% | 52.45% | 21.96% |
+
+Reversed weighting is **not** degenerate — it bites on most edges. But it is strikingly
+**asymmetric and site-dependent**: forward is near-universal on both sites (>99% of edges, >95%
+of pages), while reversed ranges from 94% to 52% of edges and 64% to 22% of pages. The gap
+between the edge and group columns says the heterogeneity concentrates in a *minority of
+high-degree pages* — the pages linked both from chrome everywhere *and* from content sometimes.
+
+⚠️ **Restricting to the internal graph matters a great deal.** Including uncrawled and external
+destinations (linked once, hence trivially homogeneous) dropped reversed groups to 13.5% / 12.1%
+and would have supported the wrong conclusion. Any measurement here must filter to destinations
+that were themselves crawled.
+
+### Why this is worth investigating
+
+1. **Nobody predicted the outcome**, in either direction — first the degenerate example, then the
+   crawls contradicting the generalization drawn from it. That is the signature of a real effect
+   rather than a modeling artifact.
+2. **It is a general property of weighted PageRank**, not of placement specifically. Any
+   row-normalized edge weight — boilerplate (§5), position (§6 constant 6), anything fitted —
+   inherits the same asymmetry. It therefore bears on the whole two-axis model, not one preset.
+3. **The reversed view is a shipped feature** (`preset = "reversed"`, `topic_feeder_pagerank()`),
+   so the package currently lets users compose two things whose combination it cannot interpret.
+4. **The asymmetry is measurable and varies by site**, so it is an empirical claim with a number
+   attached rather than a philosophical one.
+
+### Open, in rough order
+
+- Does the reversed reading admit *any* defensible editorial interpretation, or should combining
+  `content` with `reverse = TRUE` warn?
+- Is there a formulation that keeps the discount on the original source's outflow under
+  reversal — and is that still PageRank, or a different operator?
+- What drives the tidio/natu.care spread (94% vs 52%)? Region mix is a candidate: tidio is
+  header-heavy (56.6% of edges) where natu.care is content-heavy (66.1%).
+- Does the heterogeneity share predict how much the ranking actually *moves*? Heterogeneity is
+  only a necessary condition — magnitude is unmeasured.
+
+Measurement script: `_scratch/` (not committed); regenerate from the recipe above —
+region via `sf_region_from_path()` with `sf_normalize_position()` fallback, `Type == "Hyperlink"`,
+destinations restricted to crawled sources.
