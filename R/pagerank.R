@@ -245,7 +245,8 @@
 #'   convergence controls `algo` (`"prpack"` / `"arpack"`), `eps`, and `niter`
 #'   are forwarded here; see the "Convergence controls" section below.
 #' @param preset Optional named argument bundle describing a common view of
-#'   the graph: a preset name (e.g. `"raw"`, `"declared"`), a [pr_preset()]
+#'   the graph: a preset name (`"raw"`, `"declared"`, `"reversed"`,
+#'   `"content"`), a [pr_preset()]
 #'   result, or `NULL` (default, no preset). Preset values are applied only to
 #'   arguments you did not name yourself, so precedence is **explicit argument
 #'   > preset > base default**. Must be named in full (it sits after `...`).
@@ -571,7 +572,9 @@ pagerank <- function(
   # name, so precedence stays explicit arg > preset > base default. See
   # .pr_apply_preset() in R/presets.R.
   .pr_matched_call <- match.call()
-  .pr_apply_preset(preset, .pr_matched_call, environment())
+  .pr_preset_applied <- .pr_apply_preset(
+    preset, .pr_matched_call, environment()
+  )
 
   # --- Argument Matching and Basic Validation ---
   self_loops <- match.arg(self_loops)
@@ -630,7 +633,8 @@ pagerank <- function(
     placement_col = placement_col,
     accepted_placements = accepted_placements,
     placement_weights = placement_weights,
-    weight_col = weight_col
+    weight_col = weight_col,
+    preset_source = .pr_placement_preset_source(preset, .pr_preset_applied)
   )
   edge_list_df <- .placement$edge_list_df
   weight_col <- .placement$weight_col
