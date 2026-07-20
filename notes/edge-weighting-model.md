@@ -4,7 +4,9 @@ Design notes from the 2026-07-20 session. Companion to
 `notes/pagerank-behavior-field-notes.md` — the field notes record *what a real crawl did*,
 this file records *the model we think explains it* and the decisions that follow.
 
-Status: design agreed and validated against two real crawls (§10); nothing implemented.
+Status: design agreed and validated against three real crawls (§10). **§4 (placement) is
+implemented** — PRs #127 and #128, `PAGE-ktatjtta` done. §5 (boilerplate detection) and the
+position axis are still design only.
 Tickets: see "Where this lives" at the end.
 
 ---
@@ -189,6 +191,19 @@ user wanting footer at 0.05 and nav at 0.2 currently has no way to express that.
 
 It also makes the vocabulary genuinely crawler-neutral: derived from DOM structure we compute
 ourselves rather than inherited from whichever taxonomy a vendor happened to pick.
+
+**Implemented in PR #128** as `sf_region_from_path()`. Two details settled while writing it:
+
+- **Predicates are stripped before matching**, so `div[@class='site-footer']` stays a div.
+  Matching on classes would make the region depend on a site's *naming conventions* rather than
+  its markup. Note this cuts the opposite way from the boilerplate skeleton rule (§5), which
+  *keeps* class predicates — different questions: "which region is this" versus "is this the
+  same component".
+- **A path with no `<body>` step returns `NA`**, not the `content` residual. §10.5 dismissed
+  SF's `Head` position as a non-bug because `sf_graph_eligible()` filters those rows before
+  placement is consulted — true for the graph, but the observations table still carries a
+  placement, and calling a stylesheet "content" would be wrong. `NA` also lets `Link Position`
+  take over cleanly.
 
 ### Out of scope (deliberately)
 
