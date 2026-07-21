@@ -1,5 +1,14 @@
 # pagerankr (development version)
 
+* **`pagerank_screaming_frog()` gains a `preset` argument, and `preset = "raw"`
+  now actually produces the as-crawled graph.** Previously the wrapper fed
+  `pagerank()` the bundle's declared canonical, redirect and indexability
+  tables unconditionally, so a preset — which sets policy, never data — could
+  not unset them, and `preset = "raw"` still folded canonicals/redirects and
+  trapped robots-blocked pages. The `"raw"` view now switches all three
+  declared tables off at the wrapper level. An explicit `apply_canonicals` or
+  `apply_redirects` still overrides the `"raw"` default for that table; the
+  import audit records `apply_indexability` alongside the existing two flags.
 * **Boilerplate detection: `pagerank()` can now discount repetitive template
   links that sit in the main content.** Point the new `container_col` at a
   column identifying each link's source-side component and every edge is scored

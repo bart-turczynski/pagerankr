@@ -542,4 +542,149 @@ describe("pagerank_screaming_frog()", {
       "must be unique"
     )
   })
+
+  # A robots-blocked page makes the raw defect visible: robots_blocked_action
+  # defaults to "trap" and the `raw` preset does not override it, so an always-
+  # fed indexability table would trap inbound rank even under raw. This bundle
+  # carries a redirect, an off-page canonical AND a robots-blocked page, so it
+  # exercises all three declared tables the raw view must switch off.
+  sf_pr_raw_bundle_fixture <- function() {
+    internal <- data.frame(
+      Address = c(
+        "https://example.com/", "https://example.com/a",
+        "https://example.com/b", "https://example.com/c",
+        "https://example.com/old", "https://example.com/canon",
+        "https://example.com/blocked"
+      ),
+      `Status Code` = c("200", "200", "200", "200", "301", "200", "0"),
+      Indexability = c(
+        "Indexable", "Indexable", "Indexable", "Indexable",
+        "Non-Indexable", "Indexable", "Non-Indexable"
+      ),
+      `Indexability Status` = c(
+        "", "", "", "", "Redirected", "", "Blocked by robots.txt"
+      ),
+      `Redirect URL` = c("", "", "", "", "https://example.com/b", "", ""),
+      `Canonical Link Element` = c(
+        "", "", "", "", "", "https://example.com/c", ""
+      ),
+      check.names = FALSE
+    )
+    links <- data.frame(
+      Type = rep("Hyperlink", 6),
+      Source = c(
+        "https://example.com/", "https://example.com/",
+        "https://example.com/a", "https://example.com/old",
+        "https://example.com/canon", "https://example.com/blocked"
+      ),
+      Destination = c(
+        "https://example.com/a", "https://example.com/blocked",
+        "https://example.com/b", "https://example.com/c",
+        "https://example.com/c", "https://example.com/"
+      ),
+      Follow = rep("TRUE", 6),
+      Rel = rep("", 6),
+      `Link Position` = rep("Content", 6),
+      `Link Origin` = rep("HTML", 6),
+      check.names = FALSE
+    )
+    screaming_frog_bundle(internal, links, "all_outlinks")
+  }
+
+  it("preset = 'raw' produces the graph exactly as crawled", {
+    bundle <- sf_pr_raw_bundle_fixture()
+
+    wrapped <- pagerank_screaming_frog(
+      bundle, preset = "raw", prior_verbose = FALSE
+    )
+    # The raw view honors no declaration, so it must equal a pagerank() run
+    # over the bundle edges alone with none of the declared tables supplied.
+    pure_raw <- pagerank(
+      bundle$edges,
+      edge_from_col = "from", edge_to_col = "to",
+      preset = "raw", prior_verbose = FALSE
+    )
+
+    expect_setequal(wrapped$node_name, pure_raw$node_name)
+    expect_equal(
+      wrapped$pagerank[order(wrapped$node_name)],
+      pure_raw$pagerank[order(pure_raw$node_name)]
+    )
+    expect_equal(attr(wrapped, "transition_audit")$config$preset, "raw")
+  })
+
+  it("preset = 'raw' switches off all three declared tables", {
+    bundle <- sf_pr_raw_bundle_fixture()
+
+    scoring <- attr(
+      pagerank_screaming_frog(bundle, preset = "raw", prior_verbose = FALSE),
+      "screaming_frog_import"
+    )$scoring
+
+    expect_false(scoring$apply_canonicals)
+    expect_false(scoring$apply_redirects)
+    expect_false(scoring$apply_indexability)
+  })
+
+  it("preset = 'raw' differs from the default (declared) view", {
+    bundle <- sf_pr_raw_bundle_fixture()
+
+    raw <- pagerank_screaming_frog(
+      bundle, preset = "raw", prior_verbose = FALSE
+    )
+    declared <- pagerank_screaming_frog(bundle, prior_verbose = FALSE)
+
+    expect_false(setequal(raw$node_name, declared$node_name) &&
+      isTRUE(all.equal(
+        raw$pagerank[order(raw$node_name)],
+        declared$pagerank[order(declared$node_name)]
+      )))
+  })
+
+  it("an explicit apply_* argument overrides the raw preset default", {
+    bundle <- sf_pr_raw_bundle_fixture()
+
+    scoring <- attr(
+      pagerank_screaming_frog(
+        bundle, preset = "raw", apply_canonicals = TRUE,
+        prior_verbose = FALSE
+      ),
+      "screaming_frog_import"
+    )$scoring
+
+    # The explicitly named flag wins; the ones left to the preset stay off.
+    expect_true(scoring$apply_canonicals)
+    expect_false(scoring$apply_redirects)
+    expect_false(scoring$apply_indexability)
+  })
+
+  it("presets other than 'raw' leave the declared tables applied", {
+    bundle <- sf_pr_raw_bundle_fixture()
+
+    scoring <- attr(
+      pagerank_screaming_frog(
+        bundle, preset = "declared", prior_verbose = FALSE
+      ),
+      "screaming_frog_import"
+    )$scoring
+
+    expect_true(scoring$apply_canonicals)
+    expect_true(scoring$apply_redirects)
+    expect_true(scoring$apply_indexability)
+  })
+
+  it("preset = pr_preset('raw') is recognized as the raw view", {
+    bundle <- sf_pr_raw_bundle_fixture()
+
+    scoring <- attr(
+      pagerank_screaming_frog(
+        bundle, preset = pr_preset("raw"), prior_verbose = FALSE
+      ),
+      "screaming_frog_import"
+    )$scoring
+
+    expect_false(scoring$apply_canonicals)
+    expect_false(scoring$apply_redirects)
+    expect_false(scoring$apply_indexability)
+  })
 })
