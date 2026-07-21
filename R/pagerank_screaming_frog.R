@@ -29,6 +29,13 @@
 #'   bundle's redirect signals are folded into the graph via [pagerank()]'s
 #'   `redirects_df`. Set `FALSE` to skip redirect folding and keep the
 #'   as-crawled node identities.
+#' @param preset Optional named view forwarded to [pagerank()]'s `preset`, one
+#'   of `"raw"`, `"declared"`, `"reversed"`, `"content"`, or a [pr_preset()]
+#'   result. The `"raw"` view additionally switches off the bundle's declared
+#'   canonical, redirect and indexability tables, since "the graph exactly as
+#'   crawled" cannot honor declarations the wrapper would otherwise feed in.
+#'   An explicit `apply_canonicals` or `apply_redirects` still overrides the
+#'   `"raw"` default for that table. See `vignette("presets")`.
 #' @param ... Additional scoring controls passed to [pagerank()], such as
 #'   `self_loops`, `drop_isolates_flag`, `nofollow_action`,
 #'   `robots_blocked_action`, `rurl_params`, prior settings, and `damping`.
@@ -61,7 +68,13 @@ pagerank_screaming_frog <- function(bundle,
                                     weight_col = NULL,
                                     apply_canonicals = TRUE,
                                     apply_redirects = TRUE,
+                                    preset = NULL,
                                     ...) {
+  # Capture before the validation calls below reassign these, since a
+  # reassigned formal is no longer `missing()`. Needed for the raw-preset flip.
+  missing_canonicals <- missing(apply_canonicals)
+  missing_redirects <- missing(apply_redirects)
+
   if (!inherits(bundle, "screaming_frog_bundle")) {
     stop("`bundle` must be a `screaming_frog_bundle` object.", call. = FALSE)
   }
@@ -70,6 +83,28 @@ pagerank_screaming_frog <- function(bundle,
     apply_canonicals, "apply_canonicals"
   )
   apply_redirects <- .sf_validate_fold_flag(apply_redirects, "apply_redirects")
+
+  # The `raw` preset means "the graph exactly as crawled -- nothing applied."
+  # The wrapper feeds pagerank() the bundle's declared canonical, redirect and
+  # indexability tables, and folding any of that declared data IS an
+  # application, so the raw view has to switch it all off. This cannot be
+  # delegated to pagerank(): a preset sets policy, never data, so pagerank()
+  # sees the wrapper-fed `canonicals_df` / `redirects_df` / `indexability_df`
+  # as caller-named and (correctly) refuses to let the preset unset them. Hence
+  # the flip lives here.
+  #
+  # Canonicals and redirects have public apply_* flags, so an explicitly passed
+  # one still wins over the preset. Indexability has no such flag -- it drives
+  # `robots_blocked_action`, which `raw` leaves at its "trap" default, so a
+  # robots-blocked page would otherwise trap inbound rank even under raw. It is
+  # dropped for the raw view with no override, because "raw but still honor
+  # robots-blocking" contradicts the view's definition.
+  raw_view <- identical(.pr_preset_label(preset), "raw")
+  if (raw_view) {
+    if (missing_canonicals) apply_canonicals <- FALSE
+    if (missing_redirects) apply_redirects <- FALSE
+  }
+  apply_indexability <- !raw_view
 
   dots <- list(...)
   .sf_check_reserved_dots(dots)
@@ -88,14 +123,15 @@ pagerank_screaming_frog <- function(bundle,
   .sf_check_nonempty_edges(edges)
 
   pr_args <- .sf_build_pr_args(
-    edges, bundle, apply_redirects, apply_canonicals, weight_col,
-    accepted_placements, placement_weights, dots
+    edges, bundle, apply_redirects, apply_canonicals, apply_indexability,
+    weight_col, accepted_placements, placement_weights, preset, dots
   )
   result <- do.call(pagerank, pr_args)
 
   attr(result, "screaming_frog_import") <- .sf_build_import_attr(
     bundle, input_edges, edges, accepted_placements, link_origins,
-    placement_weights, weight_col, apply_canonicals, apply_redirects
+    placement_weights, weight_col, apply_canonicals, apply_redirects,
+    apply_indexability
   )
 
   result
@@ -177,8 +213,9 @@ pagerank_screaming_frog <- function(bundle,
 }
 
 .sf_build_pr_args <- function(edges, bundle, apply_redirects,
-                              apply_canonicals, weight_col,
-                              accepted_placements, placement_weights, dots) {
+                              apply_canonicals, apply_indexability, weight_col,
+                              accepted_placements, placement_weights,
+                              preset, dots) {
   redirects_df <- if (apply_redirects) {
     .sf_nullable_df(bundle$redirects)
   } else {
@@ -189,12 +226,17 @@ pagerank_screaming_frog <- function(bundle,
   } else {
     NULL
   }
+  indexability_df <- if (apply_indexability) {
+    .sf_nullable_df(bundle$indexability)
+  } else {
+    NULL
+  }
   c(
     list(
       edge_list_df = edges,
       redirects_df = redirects_df,
       canonicals_df = canonicals_df,
-      indexability_df = .sf_nullable_df(bundle$indexability),
+      indexability_df = indexability_df,
       edge_from_col = "from",
       edge_to_col = "to",
       redirect_from_col = "from",
@@ -207,7 +249,8 @@ pagerank_screaming_frog <- function(bundle,
       weight_col = weight_col,
       placement_col = "placement",
       accepted_placements = accepted_placements,
-      placement_weights = placement_weights
+      placement_weights = placement_weights,
+      preset = preset
     ),
     dots
   )
@@ -216,7 +259,8 @@ pagerank_screaming_frog <- function(bundle,
 .sf_build_import_attr <- function(bundle, input_edges, edges,
                                   accepted_placements, link_origins,
                                   placement_weights, weight_col,
-                                  apply_canonicals, apply_redirects) {
+                                  apply_canonicals, apply_redirects,
+                                  apply_indexability) {
   structure(
     list(
       diagnostics = bundle$diagnostics,
@@ -233,6 +277,7 @@ pagerank_screaming_frog <- function(bundle,
         weight_col = weight_col,
         apply_canonicals = apply_canonicals,
         apply_redirects = apply_redirects,
+        apply_indexability = apply_indexability,
         canonicals_off_domain =
           bundle$diagnostics$counts$canonicals_off_domain,
         nofollow_col = "nofollow"

@@ -12,6 +12,7 @@ pagerank_screaming_frog(
   weight_col = NULL,
   apply_canonicals = TRUE,
   apply_redirects = TRUE,
+  preset = NULL,
   ...
 )
 }
@@ -44,6 +45,14 @@ would otherwise relabel crawled pages onto uncrawled targets.}
 bundle's redirect signals are folded into the graph via [pagerank()]'s
 `redirects_df`. Set `FALSE` to skip redirect folding and keep the
 as-crawled node identities.}
+
+\item{preset}{Optional named view forwarded to [pagerank()]'s `preset`, one
+of `"raw"`, `"declared"`, `"reversed"`, `"content"`, or a [pr_preset()]
+result. The `"raw"` view additionally switches off the bundle's declared
+canonical, redirect and indexability tables, since "the graph exactly as
+crawled" cannot honor declarations the wrapper would otherwise feed in.
+An explicit `apply_canonicals` or `apply_redirects` still overrides the
+`"raw"` default for that table. See `vignette("presets")`.}
 
 \item{...}{Additional scoring controls passed to [pagerank()], such as
 `self_loops`, `drop_isolates_flag`, `nofollow_action`,
