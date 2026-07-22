@@ -25,7 +25,11 @@
 #'   \describe{
 #'     \item{observations}{Normalized observations in input row order.}
 #'     \item{edges}{Unaggregated, graph-eligible `from` / `to` rows with
-#'       nofollow, placement, origin, and link provenance.}
+#'       nofollow, placement, origin, and link provenance. `position_index`
+#'       carries each link's reading-order rank among its source page's
+#'       content links (`1` = first), materialized from document order for
+#'       `all_outlinks` and `NA` otherwise; it feeds [pagerank()]'s
+#'       `position_col`.}
 #'     \item{diagnostics}{Input, eligibility, endpoint, type, origin,
 #'       Follow/Rel, and schema counts plus row-level issues.}
 #'     \item{provenance}{Export kind, source, policy, retained input-row IDs,
@@ -77,7 +81,7 @@ screaming_frog_links <- function(x,
   }
 
   observations <- .sf_links_observations(raw, input_row, d)
-  edges <- .sf_links_edges(raw, input_row, d)
+  edges <- .sf_links_edges(raw, input_row, d, export_kind)
   issues <- .sf_links_issues(raw, input_row, d)
   diagnostics <- .sf_links_diagnostics(
     raw, d, observations, edges, input_rows, missing_optional, schema, issues
@@ -187,7 +191,7 @@ screaming_frog_links <- function(x,
 #'
 #' @keywords internal
 #' @noRd
-.sf_links_edges <- function(raw, input_row, d) {
+.sf_links_edges <- function(raw, input_row, d, export_kind) {
   edge_rows <- d$edge_rows
   follow <- d$follow
   data.frame(
@@ -206,11 +210,50 @@ screaming_frog_links <- function(x,
     link_position = raw$link_position[edge_rows],
     placement = d$placement[edge_rows],
     container = d$container[edge_rows],
+    position_index = .sf_content_position_index(
+      raw$source[edge_rows], d$placement[edge_rows], export_kind
+    ),
     link_origin = raw$link_origin[edge_rows],
     destination_status_code = d$status_code[edge_rows],
     destination_status = raw$status[edge_rows],
     destination_crawlability = raw$crawlability[edge_rows]
   )
+}
+
+#' Reading-order position index among a source's main-content links
+#'
+#' Materializes [pagerank()]'s `position_col` at ingest, while row order is
+#' still trustworthy. Rows arrive in the export's file order, so a per-source
+#' running count over the **content**-placement edges is each link's reading-
+#' order rank -- `1` for the first content link on the page, `2` for the second.
+#'
+#' Only **All Outlinks** carries document order (it is grouped by source and its
+#' row order *is* the order links were met); All Inlinks is grouped by
+#' destination and its row order is destination-alphabetical, so an index built
+#' from it would rank pages by the spelling of their destination URLs. The index
+#' is therefore left `NA` for anything but an `all_outlinks` export, which makes
+#' the positional-decay axis inert rather than wrong if it is switched on.
+#'
+#' Chrome links (nav / header / footer / aside, and any row with no placement)
+#' get `NA`: reading order among them is not the signal, and their discount is
+#' the placement axis's job.
+#'
+#' @keywords internal
+#' @noRd
+.sf_content_position_index <- function(from, placement, export_kind) {
+  idx <- rep(NA_integer_, length(from))
+  if (!identical(export_kind, "all_outlinks")) {
+    return(idx)
+  }
+  is_content <- !is.na(placement) & placement == "content" & !is.na(from)
+  if (!any(is_content)) {
+    return(idx)
+  }
+  src <- from[is_content]
+  idx[is_content] <- as.integer(
+    stats::ave(seq_along(src), src, FUN = seq_along)
+  )
+  idx
 }
 
 #' Assemble row-level link issue records
