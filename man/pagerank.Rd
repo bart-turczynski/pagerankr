@@ -31,6 +31,9 @@ pagerank(
   indexability_df = NULL,
   indexability_url_col = "url",
   indexability_status_col = "indexability_status",
+  status_df = NULL,
+  status_url_col = "url",
+  status_col = "status_code",
   robots_blocked_action = c("trap", "vanish"),
   edge_from_col = "from",
   edge_to_col = "to",
@@ -249,6 +252,18 @@ Default `"url"`.}
 `indexability_df`. Default `"indexability_status"`. Values are
 comma-separated strings; recognized statuses are `"Blocked by robots.txt"`
 and `"noindex"` (case-insensitive for noindex).}
+
+\item{status_df}{Optional data frame mapping URLs to their HTTP response
+status code (e.g., from an SEO crawl export). Lets `pagerank()` recognize
+response-dead pages, which would otherwise be scored as ordinary live
+vertices. See the "HTTP response status" section in Details.}
+
+\item{status_url_col}{Name of the URL column in `status_df`. Default
+`"url"`.}
+
+\item{status_col}{Name of the HTTP status-code column in `status_df`.
+Default `"status_code"`. Values are HTTP status codes (integer, or
+coercible to integer); codes in `400:599` mark a page response-dead.}
 
 \item{robots_blocked_action}{How to present robots.txt-blocked pages in
 results. One of:
@@ -543,6 +558,28 @@ are removed (`"vanish"`).
 
 **Priority rule:** robots.txt always takes precedence over noindex. If a
 page is both robots-blocked and noindex, it is treated as robots-blocked.
+
+## HTTP response status
+
+When `status_df` is provided, pages whose HTTP status code falls in
+`400:599` are recognized as **response-dead**: at crawl time they returned
+no content and expose no outgoing links, so they can collect authority
+through their inlinks but cannot pass any of it on. They belong to the same
+"collects PageRank but cannot pass it" class as noindex pages.
+
+`pagerankr` does **not** split 4xx from 5xx. The crawl is a snapshot, and at
+crawl time a transient `503` and a permanent `404` are indistinguishable:
+both return no content and expose no links. Modeling one as recoverable
+would require guessing about a future the crawl has no data on — the same
+reason `pagerankr` folds a `302` exactly like a `301`. A caller who knows a
+given `5xx` was a blip should re-crawl rather than have the tool assume
+recovery on its behalf.
+
+`3xx` redirects are **not** part of this class; they are modeled through
+`redirects_df`. Codes below `400`, and rows whose status is missing or
+cannot be parsed as an integer, are treated as live. Response-dead pages
+that are present in the graph are counted in the returned `transition_audit`
+(`config$has_status` and `n_status_dead`).
 
 ## Reverse / inverse PageRank (`reverse = TRUE`)
 

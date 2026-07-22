@@ -1,5 +1,16 @@
 # pagerankr (development version)
 
+* **`pagerank()` gains a `status_df` input for HTTP response status.** Supply a
+  `url` + `status_code` frame (column names configurable via `status_url_col`
+  and `status_col`) and pages that returned a 4xx or 5xx code are identified as
+  *response-dead* and counted in the transition audit (`config$has_status` and
+  `dropped$n_status_dead`). 4xx and 5xx are treated identically — a crawl is a
+  snapshot, and a transient `503` is indistinguishable from a permanent `404` at
+  crawl time (the same reason a `302` is folded exactly like a `301`); `3xx`
+  stays with `redirects_df`, and unparseable or sub-`400` codes are treated as
+  live. `pagerank_screaming_frog()` now feeds status from the bundle's node
+  table automatically instead of discarding it, and the `raw` preset leaves it
+  off. Not supported with `reverse = TRUE`.
 * **`simulate_changes()` can now model URL-level what-ifs, not just edge-level
   ones.** The new `redirect_urls_df` argument (a two-column `from`/`to` frame)
   models retiring a page behind a redirect: it strips the live source's own
