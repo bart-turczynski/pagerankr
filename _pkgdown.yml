@@ -119,6 +119,7 @@ reference:
       - smooth_transitions
       - ga4_entrance_teleport
       - simulate_changes
+      - simulate_changes_screaming_frog
 
   - title: "Export and exploration"
     desc: "Export graph data and explore results interactively."

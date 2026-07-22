@@ -519,20 +519,43 @@ print(impact_remove)
 
 ### Simulating redirects
 
+`redirect_urls_df` models a URL-level change: retiring a live page behind a
+redirect. It uses **retire semantics** — the source's own outbound links are
+stripped before folding (an honest 301 has no body), so the target inherits the
+source's *inbound* authority only, never its outlinks. The source then leaves
+the proposed graph. A row for a source also **overrides** any existing redirect
+for it, so repointing an old redirect is a single change.
+
 ```{r simulate_redirect}
+# OldPage is live: Blog links to it, and it links out to Home. Retire it
+# behind a 301 to About. Its inbound authority (from Blog) passes to About;
+# its outlink to Home is dropped; OldPage leaves the proposed graph.
 extended_links <- rbind(site_links, data.frame(
-  from = "OldPage", to = "Home"
+  from = c("Blog", "OldPage"),
+  to = c("OldPage", "Home")
 ))
 
 impact_redirect <- simulate_changes(
   extended_links,
-  add_redirects_df = data.frame(
+  redirect_urls_df = data.frame(
     from = "OldPage", to = "About"
   ),
   clean_edge_urls = FALSE
 )
 print(impact_redirect)
 ```
+
+The output carries a `node_status` column (`"normal"`, or `"new-target"` for a
+page the changeset introduces) and a change manifest attribute describing what
+was applied:
+
+```{r simulate_redirect_manifest}
+attr(impact_redirect, "manifest")$redirects_applied
+```
+
+Screaming Frog users get the same verbs through
+`simulate_changes_screaming_frog(bundle, ...)`, which reuses the bundle's
+placement, nofollow, redirect, and canonical handling automatically.
 
 ### Combined changes
 

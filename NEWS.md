@@ -1,5 +1,28 @@
 # pagerankr (development version)
 
+* **`simulate_changes()` can now model URL-level what-ifs, not just edge-level
+  ones.** The new `redirect_urls_df` argument (a two-column `from`/`to` frame)
+  models retiring a page behind a redirect: it strips the live source's own
+  outbound links before folding, so the target inherits the source's *inbound*
+  authority only — never its outlinks — and the source drops out of the proposed
+  set. A row for a source **overrides** any prior redirect for it (an earlier
+  row, or the baseline crawl's real 3xx), so "repoint A→B into A→C" is a single
+  override. Redirects pass authority through at 100% (the only per-hop loss is
+  the global damping every edge already incurs). This replaces the removed
+  `add_redirects_df`, which folded a live source *without* stripping its
+  outedges and so modeled a content move rather than a retire.
+* **New `on_unknown_target = c("warn", "error", "allow")`** controls what happens
+  when a redirect or link target is not yet a node in the graph (it may be a
+  legitimate new page); the default `"warn"` proceeds and models it as a new
+  node carrying inbound authority.
+* **The comparison output gains a `node_status` column** (`"normal"` or
+  `"new-target"`) plus `proposed` (the full proposed `pagerank()` result, with
+  its transition audit) and `manifest` (redirects applied/overridden, link
+  add/remove counts, unknown targets) attributes.
+* **New `simulate_changes_screaming_frog()`** applies the same what-if verbs to a
+  `screaming_frog_bundle`, reusing the same bundle → `pagerank()` adapter as
+  `pagerank_screaming_frog()` so placement, boilerplate, nofollow, and status
+  are preserved automatically. Both entry points share one changeset engine.
 * **Positional decay: `pagerank()` can now weight links by their reading order
   within the page.** Point the new `position_col` at a numeric per-source
   position index — `1` for the first link, `2` for the second — and each edge's
