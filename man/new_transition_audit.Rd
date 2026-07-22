@@ -78,17 +78,18 @@ them response-dead (4xx/5xx).}
 \item{mass_reported}{Numeric, stationary mass on returned/visible pages
 (typically equal to `pagerank_total`).}
 
-\item{mass_evaporated}{Numeric, stationary mass sent to the nofollow
-evaporation sink (authority wasted on nofollowed outlinks). `0` when no
-evaporation occurred.}
+\item{mass_evaporated}{Numeric, stationary mass routed to the shared waste
+sink (authority the waste class and every real nofollowed link passed on
+but could not deliver). `0` when nothing reached the sink.}
 
 \item{mass_leaked}{Numeric, stationary mass sent to the leak sink under
 `out_of_scope_fold = "leak"` (authority that flowed into
 out-of-scope-folded sources, treated like an external redirect). `0` when
 no leak occurred.}
 
-\item{mass_hidden}{Numeric, stationary mass trapped on hidden / vanished
-robots-blocked nodes that were removed from the results. `0` when none.}
+\item{mass_hidden}{Numeric, the own stationary mass of vanished
+robots-blocked nodes removed from the results (their pass-through is
+counted in `mass_evaporated`, not here). `0` when none.}
 
 \item{out_of_scope_fold}{Character, the `out_of_scope_fold` policy used
 (`"relabel"`, `"keep"` or `"leak"`).}

@@ -159,7 +159,7 @@ pagerank_screaming_frog(
   links to the same target increase transition probability.
 - `nofollow_col` + `nofollow_action = c("evaporate", "drop", "keep")`
 - `indexability_df` support for `noindex` and `Blocked by robots.txt`
-  behaviors (`robots_blocked_action = "trap"` or `"vanish"`)
+  behaviors (`robots_blocked_action = "show"` or `"vanish"`)
 - Domain scoping directly in `pagerank()` (`keep_domains`,
   `exclude_domains`) or via `filter_links_by_domain()` with domain/host
   keep/ignore rules

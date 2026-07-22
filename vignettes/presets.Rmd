@@ -55,7 +55,7 @@ it does. Nothing is hidden: the table below is the whole registry.
 | Preset | Expands to | The view |
 |---|---|---|
 | `"raw"` | `self_loops = "keep"`, `drop_isolates_flag = FALSE`, `nofollow_action = "keep"`, `out_of_scope_fold = "keep"` | The graph exactly as crawled. Nothing is applied; `rel=nofollow` votes like any other link. The faithful baseline. |
-| `"declared"` | `self_loops = "drop"`, `drop_isolates_flag = TRUE`, `nofollow_action = "evaporate"`, `robots_blocked_action = "trap"`, `out_of_scope_fold = "relabel"` | The graph after honoring what the site *declares* — nofollow, canonicals, redirects, robots. A **pure pin of today's defaults**. |
+| `"declared"` | `self_loops = "drop"`, `drop_isolates_flag = TRUE`, `nofollow_action = "evaporate"`, `robots_blocked_action = "show"`, `out_of_scope_fold = "relabel"` | The graph after honoring what the site *declares* — nofollow, canonicals, redirects, robots. A **pure pin of today's defaults**. |
 | `"reversed"` | `reverse = TRUE` | Every edge flipped: a page scores highly when it points *at* well-connected pages. The feeder view. |
 | `"content"` | `placement_weights = c(content = 1, nav = 0.1, header = 0.1, footer = 0.1, aside = 0.1)` | Links in the main content keep their full vote; links in site chrome are discounted to a tenth. |
 

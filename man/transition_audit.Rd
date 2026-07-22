@@ -91,14 +91,17 @@ fields are **stable**; callers may rely on them being present.
   \item{mass}{A list decomposing the internal stationary vector (which
     always sums to 1) into its accounted-for components: `reported` (the
     mass on returned, visible pages — equals the summed result scores),
-    `sink` (the **evaporated mass**: authority sent to the synthetic
-    nofollow-evaporation sink under `nofollow_action = "evaporate"`),
+    `sink` (the **evaporated mass**: authority routed to the shared waste
+    sink — what the whole waste class (noindex / robots-blocked / 4xx-5xx)
+    and every real nofollowed link under `nofollow_action = "evaporate"`
+    passed on but could not deliver),
     `leaked` (the **leaked mass**: authority sent to the synthetic leak sink
     under `out_of_scope_fold = "leak"`, i.e. equity that flowed into
     out-of-scope-folded sources and left the measured graph — `0` when no
-    leak occurred), `hidden` (the **hidden mass**: authority trapped on
-    hidden / robots-blocked nodes removed under
-    `robots_blocked_action = "vanish"`), and `total` (their sum, which
+    leak occurred), `hidden` (the **hidden mass**: the own stationary mass of
+    robots-blocked nodes removed under `robots_blocked_action = "vanish"`;
+    their pass-through still routes to the waste sink and is counted in
+    `sink`), and `total` (their sum, which
     reconciles to 1 by construction). These are the precise components of
     the deficit between the reported scores and 1 — it is evaporated, leaked
     and hidden mass, not undifferentiated "leakage". Each is `NULL` when the

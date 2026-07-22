@@ -20,8 +20,11 @@ describe("status_df classification", {
     res <- pagerank(status_edges(), status_df = st, clean_edge_urls = FALSE)
     expect_equal(dead_count(res), 1L)
     expect_true(attr(res, "transition_audit")$config$has_status)
-    # Response accounting never breaks normalization.
-    expect_equal(sum(res[[2]]), 1, tolerance = 1e-8)
+    # X (dead) now routes its throughput to the waste sink, so the visible
+    # scores sum to < 1; normalization is preserved on the internal vector,
+    # which the mass decomposition reconciles to 1.
+    expect_lt(sum(res[[2]]), 1)
+    expect_equal(attr(res, "transition_audit")$mass$total, 1, tolerance = 1e-8)
   })
 
   it("treats 4xx and 5xx identically (no transient/permanent split)", {

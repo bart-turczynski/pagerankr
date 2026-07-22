@@ -11,6 +11,30 @@
   live. `pagerank_screaming_frog()` now feeds status from the bundle's node
   table automatically instead of discarding it, and the `raw` preset leaves it
   off. Not supported with `reverse = TRUE`.
+* **Unified waste-sink mechanism for the "collects PageRank but cannot pass it"
+  class.** noindex, robots-blocked, and response-dead (4xx/5xx) pages now share
+  one mechanism: each loses its outgoing edges and gains exactly one edge to a
+  shared internal waste sink, so it absorbs the authority its inlinks send but
+  passes none back into the graph. This removes the old robots-blocked
+  self-loop, which was an absorbing rank sink that compounded inbound authority
+  every iteration (a measured 8.3× inflation); **robots-blocked scores change
+  accordingly.** A no-outlink 404 now gets the one sink edge that stops it from
+  dangling and recycling its authority to every page via teleport.
+    * `robots_blocked_action` values are renamed `c("trap", "vanish")` →
+      `c("show", "vanish")`, default `"show"` (the self-loop "trap" is gone).
+      Both values route the page's throughput to the sink; they differ only in
+      whether the page is shown (`"show"`) or removed with its own mass booked
+      as hidden (`"vanish"`).
+    * noindex is decoupled from `nofollow_action`: a noindex page always routes
+      to the sink, and `nofollow_action` now governs only real `rel=nofollow`
+      edges. This changes noindex behavior only under `nofollow_action` `"drop"`
+      / `"keep"`; the default `"evaporate"` is numerically unchanged.
+    * When `indexability_df` or `status_df` is supplied, the result gains a
+      `page_state` column tagging each visible page `"live"`, `"noindex"`,
+      `"robots_blocked"`, or `"response_dead"`, so wasted mass is attributable
+      per URL (robots-blocked > response-dead > noindex when a page carries more
+      than one signal). It appears only with those inputs, mirroring how
+      `prior_weight` appears only with `prior_df`.
 * **`simulate_changes()` can now model URL-level what-ifs, not just edge-level
   ones.** The new `redirect_urls_df` argument (a two-column `from`/`to` frame)
   models retiring a page behind a redirect: it strips the live source's own

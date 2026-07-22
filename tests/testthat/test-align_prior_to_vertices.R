@@ -20,12 +20,12 @@ test_that("multiple rows for the same URL are summed (raw, additive)", {
 })
 
 test_that("excluded (synthetic) nodes get exactly zero in both components", {
-  v <- c("a", "b", "__pr_nofollow_sink__")
+  v <- c("a", "b", "__pr_waste_sink__")
   prior <- data.frame(
     url = c("a", "b"), weight = c(50, 50)
   )
   p_auth <- align_prior_to_vertices(v, prior,
-    exclude_nodes = "__pr_nofollow_sink__",
+    exclude_nodes = "__pr_waste_sink__",
     verbose = FALSE
   )
   expect_equal(p_auth[3], 0)
@@ -34,7 +34,7 @@ test_that("excluded (synthetic) nodes get exactly zero in both components", {
   # Even under a pure-uniform mixture the sink stays at zero.
   p_uni <- align_prior_to_vertices(v, prior,
     alpha = 1,
-    exclude_nodes = "__pr_nofollow_sink__",
+    exclude_nodes = "__pr_waste_sink__",
     verbose = FALSE
   )
   expect_equal(p_uni[3], 0)

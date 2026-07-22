@@ -134,10 +134,10 @@ pagerank_screaming_frog <- function(bundle,
   #
   # Canonicals and redirects have public apply_* flags, so an explicitly passed
   # one still wins over the preset. Indexability has no such flag -- it drives
-  # `robots_blocked_action`, which `raw` leaves at its "trap" default, so a
-  # robots-blocked page would otherwise trap inbound rank even under raw. It is
-  # dropped for the raw view with no override, because "raw but still honor
-  # robots-blocking" contradicts the view's definition.
+  # `robots_blocked_action`, which `raw` leaves at its "show" default, so a
+  # robots-blocked page would otherwise route its inbound rank to the waste sink
+  # even under raw. It is dropped for the raw view with no override, because
+  # "raw but still honor robots-blocking" contradicts the view's definition.
   raw_view <- identical(.pr_preset_label(preset), "raw")
   if (raw_view) {
     if (missing_canonicals) apply_canonicals <- FALSE

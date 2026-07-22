@@ -364,7 +364,7 @@ describe("pagerank nofollow handling", {
       clean_edge_urls = FALSE, drop_isolates_flag = FALSE
     )
     # Sink node should NOT appear in results
-    expect_false("__pr_nofollow_sink__" %in% pr_evap$node_name)
+    expect_false("__pr_waste_sink__" %in% pr_evap$node_name)
     # C gets no PR from A (redirected to sink),
     # but C is still in results as isolate
     # PR sum should be less than 1 (evaporated portion went to sink)
@@ -413,9 +413,9 @@ describe("pagerank nofollow handling", {
 })
 
 describe("pagerank indexability handling", {
-  it("noindex pages make outgoing edges nofollow (evaporate)", {
+  it("noindex pages route their outgoing budget to the sink", {
     # A -> B, A -> C. A is noindex.
-    # All of A's outgoing edges become nofollow, redirected to sink.
+    # All of A's outgoing edges are replaced by one edge to the waste sink.
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "C", "A")
@@ -429,14 +429,14 @@ describe("pagerank indexability handling", {
       nofollow_action = "evaporate",
       clean_edge_urls = FALSE, drop_isolates_flag = FALSE
     )
-    expect_false("__pr_nofollow_sink__" %in% pr$node_name)
-    # A's links are nofollow-evaporated, so PR from A doesn't flow to B or C
-    # B still links to A, so A gets some PR
-    # PR should sum to < 1 due to evaporation
+    expect_false("__pr_waste_sink__" %in% pr$node_name)
+    expect_equal(pr$page_state[pr$node_name == "A"], "noindex")
+    # A passes nothing to B or C; B still links to A, so A gets some PR.
+    # PR sums to < 1 because A's throughput evaporates to the sink.
     expect_lt(sum(pr$pagerank), 1)
   })
 
-  it("noindex with drop action removes outgoing edges entirely", {
+  it("noindex is decoupled from nofollow_action (still routes under drop)", {
     edges <- data.frame(
       from = c("A", "A", "B"),
       to = c("B", "C", "A")
@@ -450,17 +450,21 @@ describe("pagerank indexability handling", {
       nofollow_action = "drop",
       clean_edge_urls = FALSE, drop_isolates_flag = FALSE
     )
-    # A->B and A->C dropped. Only B->A remains.
+    # nofollow_action = "drop" governs only real rel=nofollow edges; noindex
+    # still routes to the sink rather than dropping A's edges, so mass
+    # evaporates (sum < 1) instead of dangling back via teleport (sum == 1).
     expect_true(all(c("A", "B", "C") %in% pr$node_name))
+    expect_lt(sum(pr$pagerank), 1)
     # C becomes an isolate (low PR)
     pr_c <- pr$pagerank[pr$node_name == "C"]
     pr_a <- pr$pagerank[pr$node_name == "A"]
     expect_gt(pr_a, pr_c)
   })
 
-  it("robots-blocked pages trap PR (self-loop)", {
+  it("robots-blocked pages are shown, routing throughput to the sink", {
     # A -> B, B -> Blocked, Blocked -> C
-    # Blocked is robots-blocked: outgoing edges removed, self-loop added
+    # Blocked is robots-blocked: outgoing edges replaced by one edge to the
+    # waste sink (no self-loop trap), and the page itself is shown.
     edges <- data.frame(
       from = c("A", "B", "Blocked"),
       to = c("B", "Blocked", "C")
@@ -469,17 +473,23 @@ describe("pagerank indexability handling", {
       url = "Blocked",
       indexability_status = "Blocked by robots.txt"
     )
-    pr_trap <- pagerank(edges,
+    pr_show <- pagerank(edges,
       indexability_df = idx_df,
-      robots_blocked_action = "trap",
+      robots_blocked_action = "show",
       clean_edge_urls = FALSE, drop_isolates_flag = TRUE
     )
-    # Blocked should appear with trapped PR
-    expect_true("Blocked" %in% pr_trap$node_name)
-    # C should have no inbound edges (Blocked -> C was removed)
-    # With drop_isolates_flag=TRUE, C should not appear
-    expect_false("C" %in% pr_trap$node_name)
-    expect_equal(sum(pr_trap$pagerank), 1, tolerance = 1e-9)
+    # Blocked appears, showing the authority it collects.
+    expect_true("Blocked" %in% pr_show$node_name)
+    expect_equal(
+      pr_show$page_state[pr_show$node_name == "Blocked"], "robots_blocked"
+    )
+    # C had only Blocked -> C, which was replaced; with drop_isolates it goes.
+    expect_false("C" %in% pr_show$node_name)
+    # Blocked passes its authority to the sink, so visible scores sum to < 1
+    # (no self-loop trap that would keep the total at 1 by absorbing it).
+    expect_lt(sum(pr_show$pagerank), 1)
+    expect_equal(attr(pr_show, "transition_audit")$mass$total, 1,
+      tolerance = 1e-8)
   })
 
   it("robots-blocked pages vanish from results", {
@@ -511,15 +521,17 @@ describe("pagerank indexability handling", {
       url = "Both",
       indexability_status = "Blocked by robots.txt,noindex"
     )
-    # Should be treated as robots-blocked (outgoing edges removed + self-loop),
-    # not just noindex (outgoing edges -> nofollow)
+    # Should be treated as robots-blocked (outgoing edges routed to the sink),
+    # not noindex — but since both now route to the same sink, the observable
+    # difference is only the page_state label.
     pr <- pagerank(edges,
       indexability_df = idx_df,
-      robots_blocked_action = "trap",
+      robots_blocked_action = "show",
       clean_edge_urls = FALSE, drop_isolates_flag = TRUE
     )
-    # "Both" should trap PR (self-loop), C should have no inbound edges
+    # "Both" is shown as robots_blocked; C loses its only inbound edge.
     expect_true("Both" %in% pr$node_name)
+    expect_equal(pr$page_state[pr$node_name == "Both"], "robots_blocked")
     expect_false("C" %in% pr$node_name)
   })
 
@@ -539,16 +551,19 @@ describe("pagerank indexability handling", {
     pr <- pagerank(edges,
       indexability_df = idx_df,
       nofollow_action = "drop",
-      robots_blocked_action = "trap",
+      robots_blocked_action = "show",
       clean_edge_urls = FALSE, drop_isolates_flag = TRUE
     )
-    # PageA is noindex with drop: its outgoing edge removed
-    # PageB is robots-blocked: outgoing edge removed, self-loop added
-    # PageC is indexable: normal
-    expect_true("PageB" %in% pr$node_name) # trapped
+    # PageA is noindex: its outgoing edge is routed to the sink (noindex is
+    #   decoupled from nofollow_action, so "drop" does not apply to it).
+    # PageB is robots-blocked: outgoing edge routed to the sink, page shown.
+    # PageC is indexable: normal.
+    expect_true("PageB" %in% pr$node_name)
+    expect_equal(pr$page_state[pr$node_name == "PageB"], "robots_blocked")
     expect_true("PageC" %in% pr$node_name) # normal
     expect_true("Z" %in% pr$node_name) # PageC -> Z works
-    # X should not appear (PageA->X was nofollow-dropped, no other inbound)
+    # X was PageA's only inbound; PageA -> X is replaced by PageA -> sink, so X
+    # has no inbound edge and is dropped as an isolate.
     expect_false("X" %in% pr$node_name)
   })
 })
@@ -745,7 +760,7 @@ describe("pagerank validation coverage", {
 })
 
 describe("pagerank robots-blocked with extra columns", {
-  it("fills extra columns correctly on self-loop rows for blocked pages", {
+  it("fills extra columns correctly on the member -> sink edge", {
     edges <- data.frame(
       from = c("A", "Blocked"),
       to = c("Blocked", "C"),
@@ -759,10 +774,11 @@ describe("pagerank robots-blocked with extra columns", {
     )
     pr <- pagerank(edges,
       indexability_df = idx_df,
-      robots_blocked_action = "trap",
+      robots_blocked_action = "show",
       clean_edge_urls = FALSE, drop_isolates_flag = FALSE
     )
-    # Blocked should be in results (trapped)
+    # Blocked is shown; the synthetic Blocked -> sink edge rbinds cleanly even
+    # though the edge list carries extra numeric / logical / character columns.
     expect_true("Blocked" %in% pr$node_name)
   })
 })
@@ -780,13 +796,13 @@ describe("pagerank nofollow evaporate with extra columns", {
       nofollow_col = "nf", nofollow_action = "evaporate",
       clean_edge_urls = FALSE, drop_isolates_flag = FALSE
     )
-    expect_false("__pr_nofollow_sink__" %in% pr$node_name)
+    expect_false("__pr_waste_sink__" %in% pr$node_name)
     expect_lt(sum(pr$pagerank), 1)
   })
 })
 
-describe("pagerank noindex creates nofollow_col when none exists", {
-  it("creates nofollow column internally when nofollow_col is NULL", {
+describe("pagerank noindex routes to the sink without a nofollow column", {
+  it("handles noindex when no nofollow_col is supplied", {
     edges <- data.frame(
       from = c("NI", "B"),
       to = c("B", "NI")
@@ -795,14 +811,16 @@ describe("pagerank noindex creates nofollow_col when none exists", {
       url = "NI",
       indexability_status = "noindex"
     )
-    # nofollow_col is NULL, indexability creates __pr_nofollow__ internally
+    # noindex no longer needs (or creates) a nofollow column: it routes NI's
+    # outgoing edge straight to the waste sink.
     pr <- pagerank(edges,
       indexability_df = idx_df,
       nofollow_action = "evaporate",
       clean_edge_urls = FALSE, drop_isolates_flag = FALSE
     )
-    expect_false("__pr_nofollow_sink__" %in% pr$node_name)
-    # NI's outgoing edges are evaporated, so PR < 1
+    expect_false("__pr_waste_sink__" %in% pr$node_name)
+    expect_equal(pr$page_state[pr$node_name == "NI"], "noindex")
+    # NI's outgoing edge routes to the sink, so PR < 1
     expect_lt(sum(pr$pagerank), 1)
   })
 })
