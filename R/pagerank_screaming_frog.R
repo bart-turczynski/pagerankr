@@ -77,11 +77,43 @@ pagerank_screaming_frog <- function(bundle,
                                     apply_redirects = TRUE,
                                     preset = NULL,
                                     ...) {
-  # Capture before the validation calls below reassign these, since a
-  # reassigned formal is no longer `missing()`. Needed for the raw-preset flip.
-  missing_canonicals <- missing(apply_canonicals)
-  missing_redirects <- missing(apply_redirects)
+  # Capture before the prep call reassigns these, since a reassigned formal is
+  # no longer `missing()`. Needed for the raw-preset flip inside the prep.
+  prep <- .sf_prepare_pr_args(
+    bundle, accepted_placements, link_origins, placement_weights, weight_col,
+    apply_canonicals, apply_redirects, preset, list(...),
+    missing(apply_canonicals), missing(apply_redirects)
+  )
+  result <- do.call(pagerank, prep$pr_args)
 
+  attr(result, "screaming_frog_import") <- .sf_build_import_attr(
+    bundle, prep$input_edges, prep$edges, accepted_placements,
+    prep$link_origins, placement_weights, weight_col, prep$apply_canonicals,
+    prep$apply_redirects, prep$apply_indexability
+  )
+
+  result
+}
+
+#' Validate a bundle and build the [pagerank()] argument list from it
+#'
+#' The shared bundle -> `pagerank()` adapter behind both
+#' [pagerank_screaming_frog()] and [simulate_changes_screaming_frog()]. Runs the
+#' wrapper-owned validation, applies the `"raw"` preset's declaration flip,
+#' filters edges by link origin, and assembles the full `pagerank()` argument
+#' list. Returns that list plus the pieces the scoring entry point needs to
+#' build its import-audit attribute, so no bundle logic is duplicated between
+#' the two entry points.
+#'
+#' @param missing_canonicals,missing_redirects Whether the caller left
+#'   `apply_canonicals` / `apply_redirects` at their defaults, captured via
+#'   `missing()` in the public function's frame (the `"raw"` flip only overrides
+#'   a defaulted flag).
+#' @noRd
+.sf_prepare_pr_args <- function(bundle, accepted_placements, link_origins,
+                                placement_weights, weight_col,
+                                apply_canonicals, apply_redirects, preset, dots,
+                                missing_canonicals, missing_redirects) {
   if (!inherits(bundle, "screaming_frog_bundle")) {
     stop("`bundle` must be a `screaming_frog_bundle` object.", call. = FALSE)
   }
@@ -113,7 +145,6 @@ pagerank_screaming_frog <- function(bundle,
   }
   apply_indexability <- !raw_view
 
-  dots <- list(...)
   .sf_check_reserved_dots(dots)
   .sf_validate_weight_col(weight_col)
   # Checked here, not left to pagerank(), so the wrapper's own weight_col
@@ -133,15 +164,15 @@ pagerank_screaming_frog <- function(bundle,
     edges, bundle, apply_redirects, apply_canonicals, apply_indexability,
     weight_col, accepted_placements, placement_weights, preset, dots
   )
-  result <- do.call(pagerank, pr_args)
-
-  attr(result, "screaming_frog_import") <- .sf_build_import_attr(
-    bundle, input_edges, edges, accepted_placements, link_origins,
-    placement_weights, weight_col, apply_canonicals, apply_redirects,
-    apply_indexability
+  list(
+    pr_args = pr_args,
+    input_edges = input_edges,
+    edges = edges,
+    apply_canonicals = apply_canonicals,
+    apply_redirects = apply_redirects,
+    apply_indexability = apply_indexability,
+    link_origins = link_origins
   )
-
-  result
 }
 
 .sf_check_reserved_dots <- function(dots) {

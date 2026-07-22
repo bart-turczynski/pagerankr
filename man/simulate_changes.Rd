@@ -8,11 +8,14 @@ simulate_changes(
   edge_list_df,
   add_links_df = NULL,
   remove_links_df = NULL,
-  add_redirects_df = NULL,
+  redirect_urls_df = NULL,
   redirects_df = NULL,
+  on_unknown_target = c("warn", "error", "allow"),
   ...,
   edge_from_col = "from",
   edge_to_col = "to",
+  redirect_from_col = "from",
+  redirect_to_col = "to",
   label_baseline = "baseline",
   label_proposed = "proposed"
 )
@@ -21,19 +24,35 @@ simulate_changes(
 \item{edge_list_df}{A data frame representing the current link edge list.}
 
 \item{add_links_df}{Optional data frame of links to add. Must have the same
-from/to column names as \code{edge_list_df}. Default \code{NULL}.}
+from/to column names as \code{edge_list_df}. Columns present in
+\code{edge_list_df} but absent here are padded with \code{NA} on the added
+rows, so weighted / annotated edge lists keep their schema.
+Default \code{NULL}.}
 
 \item{remove_links_df}{Optional data frame of links to remove. Matching is
 by exact from+to pair. Must have the same from/to column names as
 \code{edge_list_df}. Default \code{NULL}.}
 
-\item{add_redirects_df}{Optional data frame of new redirects to add. Must
-have from/to columns (names controlled by \code{pagerank()}'s
-\code{redirect_from_col} / \code{redirect_to_col} defaults).
+\item{redirect_urls_df}{Optional two-column \code{from}/\code{to} data frame
+of URL-level redirects to model. Each row retires the \code{from} URL and
+sends its inbound authority to \code{to} at 100\% pass-through. Retire
+semantics: the live source's own outbound links are \strong{stripped}
+before folding (an honest 301 has no body), so the target inherits the
+source's inbound authority only, never its outlinks. A row for source
+\code{A} \strong{overrides} any prior redirect for \code{A} -- whether from
+an earlier row or from the baseline crawl's real 3xx -- so
+"change A into a redirect to C" is a single override. A duplicate source
+mapping to two distinct targets in one changeset is an error (strict).
 Default \code{NULL}.}
 
 \item{redirects_df}{Optional data frame of existing redirects (baseline).
 Default \code{NULL}.}
+
+\item{on_unknown_target}{How to treat a redirect or link \emph{target} that
+is not a node in the current graph (it may be a legitimate new page,
+modeled as a new node that carries inbound authority with no outlinks yet).
+One of \code{"warn"} (default, warn and proceed), \code{"error"}, or
+\code{"allow"} (proceed silently).}
 
 \item{...}{Additional arguments passed to both \code{pagerank()} calls
 (e.g., \code{clean_edge_urls}, \code{damping}, \code{nofollow_col},
@@ -45,6 +64,12 @@ Default \code{"from"}.}
 \item{edge_to_col}{Name of the to column in edge list data frames.
 Default \code{"to"}.}
 
+\item{redirect_from_col}{Name of the source column in \code{redirect_urls_df}
+and \code{redirects_df}. Default \code{"from"}.}
+
+\item{redirect_to_col}{Name of the target column in \code{redirect_urls_df}
+and \code{redirects_df}. Default \code{"to"}.}
+
 \item{label_baseline}{Label for the baseline model in the comparison output.
 Default \code{"baseline"}.}
 
@@ -52,16 +77,27 @@ Default \code{"baseline"}.}
 Default \code{"proposed"}.}
 }
 \value{
-The output of \code{\link{compare_pagerank}}: a data frame with
-  per-node deltas, percentage changes, and rank changes between baseline and
-  proposed. A \code{"summary"} attribute contains aggregate statistics
-  (Spearman rho, mean absolute delta, nodes gained/lost).
+The output of \code{\link{compare_pagerank}} (per-node deltas,
+  percentage changes, and rank changes between baseline and proposed) with an
+  added \code{node_status} column: \code{"normal"} for a node present in
+  both models, or \code{"new-target"} for a node introduced by the changeset
+  (present in the proposed model, absent from the baseline). Attributes:
+  \describe{
+    \item{summary}{Aggregate statistics from \code{compare_pagerank()}.}
+    \item{proposed}{The full proposed \code{pagerank()} result, including its
+      \code{transition_audit} attribute.}
+    \item{manifest}{A named list describing the changeset: redirects applied,
+      which sources overrode a prior redirect, link add/remove counts, and
+      any unknown targets.}
+  }
 }
 \description{
 Compares PageRank before and after proposed changes to the link
-  graph. Useful for SEOs who want to predict the impact of adding or removing
-  internal links, or implementing redirects, before making changes in
-  production.
+  graph, at both the edge level (adding/removing links) and the URL level
+  (retiring a page behind a redirect, or repointing an existing redirect).
+  The whole graph is recomputed and a before/after table is returned;
+  interpretation is left to the caller. This is a faithful recompute
+  primitive, not a ranking or target-optimization engine.
 }
 \examples{
 # Current site links
@@ -80,4 +116,12 @@ result <- simulate_changes(edges,
 )
 print(result)
 attr(result, "summary")
+
+# Retire the About page behind a redirect to Home
+retire <- data.frame(from = "About", to = "Home")
+simulate_changes(edges, redirect_urls_df = retire, clean_edge_urls = FALSE)
+}
+\seealso{
+\code{\link{simulate_changes_screaming_frog}} for the Screaming Frog
+  bundle entry point.
 }
