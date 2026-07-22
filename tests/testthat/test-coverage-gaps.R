@@ -376,19 +376,20 @@ describe("pagerank internal defensive helpers", {
     expect_named(out, c("from", "to", "instance_count"))
   })
 
-  it(".apply_indexability adds a supplied nofollow column that is absent", {
-    res <- .apply_indexability(
-      edge_list_df = data.frame(from = "A", to = "B"),
-      indexability_df = data.frame(url = "A", indexability_status = "noindex"),
+  it(".classify_indexability splits noindex vs robots-blocked (robots wins)", {
+    res <- .classify_indexability(
+      indexability_df = data.frame(
+        url = c("A", "B", "C"),
+        indexability_status = c(
+          "noindex", "Blocked by robots.txt", "Blocked by robots.txt,noindex"
+        )
+      ),
       indexability_url_col = "url",
-      indexability_status_col = "indexability_status",
-      nofollow_col = "nf",
-      all_vertex_universe = c("A", "B"),
-      from_col = "from",
-      to_col = "to"
+      indexability_status_col = "indexability_status"
     )
-    expect_true("nf" %in% names(res$edge_list_df))
-    expect_true(res$edge_list_df$nf[1])
+    expect_equal(res$noindex_urls, "A")
+    # C is both, but robots.txt takes priority, so it is never noindex.
+    expect_setequal(res$robots_blocked_urls, c("B", "C"))
   })
 
   it(".detect_fold_collisions skips targets folded only by uncrawled sources", {

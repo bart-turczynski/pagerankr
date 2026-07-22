@@ -87,14 +87,17 @@
 #'   \item{mass}{A list decomposing the internal stationary vector (which
 #'     always sums to 1) into its accounted-for components: `reported` (the
 #'     mass on returned, visible pages — equals the summed result scores),
-#'     `sink` (the **evaporated mass**: authority sent to the synthetic
-#'     nofollow-evaporation sink under `nofollow_action = "evaporate"`),
+#'     `sink` (the **evaporated mass**: authority routed to the shared waste
+#'     sink — what the whole waste class (noindex / robots-blocked / 4xx-5xx)
+#'     and every real nofollowed link under `nofollow_action = "evaporate"`
+#'     passed on but could not deliver),
 #'     `leaked` (the **leaked mass**: authority sent to the synthetic leak sink
 #'     under `out_of_scope_fold = "leak"`, i.e. equity that flowed into
 #'     out-of-scope-folded sources and left the measured graph — `0` when no
-#'     leak occurred), `hidden` (the **hidden mass**: authority trapped on
-#'     hidden / robots-blocked nodes removed under
-#'     `robots_blocked_action = "vanish"`), and `total` (their sum, which
+#'     leak occurred), `hidden` (the **hidden mass**: the own stationary mass of
+#'     robots-blocked nodes removed under `robots_blocked_action = "vanish"`;
+#'     their pass-through still routes to the waste sink and is counted in
+#'     `sink`), and `total` (their sum, which
 #'     reconciles to 1 by construction). These are the precise components of
 #'     the deficit between the reported scores and 1 — it is evaporated, leaked
 #'     and hidden mass, not undifferentiated "leakage". Each is `NULL` when the
@@ -161,15 +164,16 @@ NULL
 #' @param pagerank_total Numeric, sum of the returned PageRank scores.
 #' @param mass_reported Numeric, stationary mass on returned/visible pages
 #'   (typically equal to `pagerank_total`).
-#' @param mass_evaporated Numeric, stationary mass sent to the nofollow
-#'   evaporation sink (authority wasted on nofollowed outlinks). `0` when no
-#'   evaporation occurred.
+#' @param mass_evaporated Numeric, stationary mass routed to the shared waste
+#'   sink (authority the waste class and every real nofollowed link passed on
+#'   but could not deliver). `0` when nothing reached the sink.
 #' @param mass_leaked Numeric, stationary mass sent to the leak sink under
 #'   `out_of_scope_fold = "leak"` (authority that flowed into
 #'   out-of-scope-folded sources, treated like an external redirect). `0` when
 #'   no leak occurred.
-#' @param mass_hidden Numeric, stationary mass trapped on hidden / vanished
-#'   robots-blocked nodes that were removed from the results. `0` when none.
+#' @param mass_hidden Numeric, the own stationary mass of vanished
+#'   robots-blocked nodes removed from the results (their pass-through is
+#'   counted in `mass_evaporated`, not here). `0` when none.
 #' @param out_of_scope_fold Character, the `out_of_scope_fold` policy used
 #'   (`"relabel"`, `"keep"` or `"leak"`).
 #' @param n_out_of_scope_folds Integer, count of composed fold-map entries whose

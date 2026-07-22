@@ -71,13 +71,13 @@ test_that("alpha = 1 forces uniform teleport regardless of entrance skew", {
 })
 
 test_that("excluded synthetic nodes receive zero teleport mass", {
-  v <- c("a", "b", "__pr_nofollow_sink__")
+  v <- c("a", "b", "__pr_waste_sink__")
   ga4 <- data.frame(
     url = c("a", "b"), entrances = c(50, 50)
   )
   p <- ga4_entrance_teleport(ga4,
     vertex_names = v,
-    exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE
+    exclude_nodes = "__pr_waste_sink__", verbose = FALSE
   )
   expect_equal(p[3], 0)
   expect_equal(sum(p), 1)

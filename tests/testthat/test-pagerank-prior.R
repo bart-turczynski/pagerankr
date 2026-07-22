@@ -103,7 +103,7 @@ test_that("nofollow sink is excluded from teleport (no error, scores valid)", {
     prior_df = prior, nofollow_col = "nofollow",
     nofollow_action = "evaporate", clean_edge_urls = FALSE
   ))
-  expect_false("__pr_nofollow_sink__" %in% res$node_name) # removed in output
+  expect_false("__pr_waste_sink__" %in% res$node_name) # removed in output
   expect_true(all(res$prior_weight >= 0))
 })
 

@@ -34,7 +34,7 @@ pagerank(
   status_df = NULL,
   status_url_col = "url",
   status_col = "status_code",
-  robots_blocked_action = c("trap", "vanish"),
+  robots_blocked_action = c("show", "vanish"),
   edge_from_col = "from",
   edge_to_col = "to",
   redirect_from_col = "from",
@@ -266,12 +266,16 @@ Default `"status_code"`. Values are HTTP status codes (integer, or
 coercible to integer); codes in `400:599` mark a page response-dead.}
 
 \item{robots_blocked_action}{How to present robots.txt-blocked pages in
-results. One of:
+results. Both values route the page's throughput to the shared waste sink
+(no self-loop); they differ only in whether the page itself is shown. One
+of:
 \describe{
-  \item{`"trap"`}{(default) Blocked pages appear in results showing their
-    accumulated (trapped) PageRank, useful for seeing wasted PR.}
-  \item{`"vanish"`}{Blocked pages are removed from results. Their PR
-    disappears.}
+  \item{`"show"`}{(default) Blocked pages appear in results showing the
+    authority they collect, useful for seeing wasted PageRank. What they
+    would pass on evaporates to the sink.}
+  \item{`"vanish"`}{Blocked pages are removed from results; their own
+    stationary mass is booked as hidden (their throughput still evaporates
+    to the sink).}
 }}
 
 \item{edge_from_col, edge_to_col}{Names of from/to columns in `edge_list_df`.}
@@ -447,15 +451,24 @@ See [pr_preset()] for the exact expansion of each preset.}
 }
 \value{
 A data frame with node names and their PageRank scores. When
-  nofollow evaporation, indexability handling, or `robots_blocked_action =
-  "vanish"` is active, the returned scores may sum to less than 1. The
-  difference is not undifferentiated "leakage": it is decomposed into
-  **evaporated mass** (authority sent to the nofollow sink), **leaked mass**
+  nofollow evaporation, the waste class (noindex / robots-blocked /
+  response-dead), or `robots_blocked_action = "vanish"` is active, the
+  returned scores may sum to less than 1. The difference is not
+  undifferentiated "leakage": it is decomposed into **evaporated mass**
+  (authority sent to the shared waste sink, i.e. what the class and every
+  real nofollowed link passed on but could not deliver), **leaked mass**
   (authority sent to the leak sink under `out_of_scope_fold = "leak"`), and
-  **hidden mass** (authority trapped on robots-blocked nodes removed from the
-  results). The full breakdown — reported / evaporated (sink) / leaked /
-  hidden / total (= 1) — is recorded in the `mass` field of the transition
-  audit (see below).
+  **hidden mass** (the own stationary mass of robots-blocked nodes removed
+  from the results). The full breakdown — reported / evaporated (sink) /
+  leaked / hidden / total (= 1) — is recorded in the `mass` field of the
+  transition audit (see below).
+
+  When `indexability_df` or `status_df` is supplied, the result gains a
+  `page_state` column tagging each visible page as `"live"`, `"noindex"`,
+  `"robots_blocked"`, or `"response_dead"` (robots-blocked > response-dead >
+  noindex > live when a page carries more than one signal). It appears only
+  with those inputs, mirroring how `prior_weight` appears only with
+  `prior_df`, so the two-column result is otherwise unchanged.
 
   The data frame additionally carries a `"transition_audit"` attribute (a
   [transition_audit] object) recording how the transition graph was built:
@@ -464,8 +477,7 @@ A data frame with node names and their PageRank scores. When
   dropped
   data (rows lost to NA / dedup / self-loops, unmatched prior URLs), and the
   model configuration used. Retrieve it with
-  `attr(result, "transition_audit")`. This attribute is backward-compatible:
-  the data frame itself (its columns and rows) is unchanged.
+  `attr(result, "transition_audit")`.
 
   The result additionally carries a `"convergence"` attribute (a
   [pagerank_convergence] object); see the "Convergence controls" section.
@@ -532,29 +544,35 @@ the solver exposes it), and the solver-independent post-hoc L1 residual
 \eqn{\|G x - x\|_1} of the returned vector. Retrieve it with
 `attr(result, "convergence")`.
 
-## Indexability handling
+## The waste class (noindex, robots-blocked, response-dead)
 
-When `indexability_df` is provided, two types of pages receive special
-treatment:
+`pagerankr` models one **"collects PageRank but cannot pass it"** class and
+routes every member through a single shared **waste sink** with the same
+mechanism: the member loses all of its outgoing edges and gains exactly one
+edge to the sink, so it still absorbs the authority its inlinks send but
+passes none of it back into the graph. The sink is an internal accounting
+bucket (never a page, always stripped from the returned result); the mass it
+collects is reported as **evaporated** mass in the transition audit. Removing
+the old robots-blocked self-loop is deliberate: a self-loop is an absorbing
+rank sink that compounds inbound authority every iteration (a measured 8.3×
+inflation), whereas the waste sink lets authority flow in and stop.
 
-**Indexed-corpus assumption and noindex pages:** `pagerankr` models the
-ranked corpus as the set of indexed documents. Under this package assumption,
-a noindex page is outside that corpus: it may receive authority through
-inlinks, but it cannot redistribute that authority within the indexed graph.
-Its outgoing links are therefore treated as nofollow for propagation and
-processed according to `nofollow_action`: `"evaporate"` leaves them as
-slot-consuming links whose shares reach the sink, `"drop"` removes them
-before shares are allocated, and `"keep"` follows them normally. This is a
-PageRank modeling choice in `pagerankr`; it does not assert that Google
-defines noindex as a nofollow directive. Noindex pages may still appear in
-the returned results so their received authority remains auditable. Hiding
-them would be an optional reporting choice, not a propagation correction.
+Members come from three signals:
 
-**robots.txt-blocked pages:** Google cannot access the page content, so
-there are no visible outgoing links. All outgoing edges are removed and a
-self-loop is added to trap inbound PageRank. The `robots_blocked_action`
-parameter controls whether these pages appear in results (`"trap"`) or
-are removed (`"vanish"`).
+**noindex** (`indexability_df`): `pagerankr` models the ranked corpus as the
+set of indexed documents, so a noindex page is outside it — it may receive
+authority through inlinks but cannot redistribute it within the indexed
+graph. This is a PageRank modeling choice; it does not assert that Google
+defines noindex as a nofollow directive. noindex routing to the sink is
+independent of `nofollow_action` (which governs only real `rel=nofollow`
+edges): a noindex page always routes to the sink. noindex pages still appear
+in results so their received authority remains auditable.
+
+**robots.txt-blocked** (`indexability_df`): Google cannot access the page
+content, so there are no visible outgoing links. `robots_blocked_action`
+controls only whether the page appears in results (`"show"`, the default) or
+is removed with its own mass booked as hidden (`"vanish"`) — both route the
+page's throughput to the sink.
 
 **Priority rule:** robots.txt always takes precedence over noindex. If a
 page is both robots-blocked and noindex, it is treated as robots-blocked.
@@ -565,7 +583,9 @@ When `status_df` is provided, pages whose HTTP status code falls in
 `400:599` are recognized as **response-dead**: at crawl time they returned
 no content and expose no outgoing links, so they can collect authority
 through their inlinks but cannot pass any of it on. They belong to the same
-"collects PageRank but cannot pass it" class as noindex pages.
+waste class as noindex pages and route to the same sink; because a dead page
+typically has no outlinks, this ADDS the one edge to the sink that stops it
+from dangling and recycling its inbound authority to every page via teleport.
 
 `pagerankr` does **not** split 4xx from 5xx. The crawl is a snapshot, and at
 crawl time a transient `503` and a permanent `404` are indistinguishable:
@@ -612,9 +632,9 @@ their semantics do not transpose:
     a *source* wasting its outgoing budget; reversed, it would inject rank
     instead. Use `"drop"` — the correct treatment of a nofollowed link for
     outflow centrality, since it funnels no authority outward — or `"keep"`.}
-  \item{`indexability_df`}{Errors. noindex (outlinks-as-nofollow) and
-    robots.txt blocking (drop outlinks + trap self-loop) encode forward
-    crawl/index behavior with no meaningful transpose.}
+  \item{`indexability_df`}{Errors. noindex and robots.txt blocking (route
+    the page's outgoing budget to the waste sink) encode forward crawl/index
+    behavior with no meaningful transpose.}
 }
 
 ## Duplicate edge policy

@@ -185,12 +185,16 @@
 #'   Default `"status_code"`. Values are HTTP status codes (integer, or
 #'   coercible to integer); codes in `400:599` mark a page response-dead.
 #' @param robots_blocked_action How to present robots.txt-blocked pages in
-#'   results. One of:
+#'   results. Both values route the page's throughput to the shared waste sink
+#'   (no self-loop); they differ only in whether the page itself is shown. One
+#'   of:
 #'   \describe{
-#'     \item{`"trap"`}{(default) Blocked pages appear in results showing their
-#'       accumulated (trapped) PageRank, useful for seeing wasted PR.}
-#'     \item{`"vanish"`}{Blocked pages are removed from results. Their PR
-#'       disappears.}
+#'     \item{`"show"`}{(default) Blocked pages appear in results showing the
+#'       authority they collect, useful for seeing wasted PageRank. What they
+#'       would pass on evaporates to the sink.}
+#'     \item{`"vanish"`}{Blocked pages are removed from results; their own
+#'       stationary mass is booked as hidden (their throughput still evaporates
+#'       to the sink).}
 #'   }
 #' @param edge_from_col,edge_to_col Names of from/to columns in `edge_list_df`.
 #' @param redirect_from_col,redirect_to_col Names of from/to columns in
@@ -385,29 +389,35 @@
 #' \eqn{\|G x - x\|_1} of the returned vector. Retrieve it with
 #' `attr(result, "convergence")`.
 #'
-#' ## Indexability handling
+#' ## The waste class (noindex, robots-blocked, response-dead)
 #'
-#' When `indexability_df` is provided, two types of pages receive special
-#' treatment:
+#' `pagerankr` models one **"collects PageRank but cannot pass it"** class and
+#' routes every member through a single shared **waste sink** with the same
+#' mechanism: the member loses all of its outgoing edges and gains exactly one
+#' edge to the sink, so it still absorbs the authority its inlinks send but
+#' passes none of it back into the graph. The sink is an internal accounting
+#' bucket (never a page, always stripped from the returned result); the mass it
+#' collects is reported as **evaporated** mass in the transition audit. Removing
+#' the old robots-blocked self-loop is deliberate: a self-loop is an absorbing
+#' rank sink that compounds inbound authority every iteration (a measured 8.3×
+#' inflation), whereas the waste sink lets authority flow in and stop.
 #'
-#' **Indexed-corpus assumption and noindex pages:** `pagerankr` models the
-#' ranked corpus as the set of indexed documents. Under this package assumption,
-#' a noindex page is outside that corpus: it may receive authority through
-#' inlinks, but it cannot redistribute that authority within the indexed graph.
-#' Its outgoing links are therefore treated as nofollow for propagation and
-#' processed according to `nofollow_action`: `"evaporate"` leaves them as
-#' slot-consuming links whose shares reach the sink, `"drop"` removes them
-#' before shares are allocated, and `"keep"` follows them normally. This is a
-#' PageRank modeling choice in `pagerankr`; it does not assert that Google
-#' defines noindex as a nofollow directive. Noindex pages may still appear in
-#' the returned results so their received authority remains auditable. Hiding
-#' them would be an optional reporting choice, not a propagation correction.
+#' Members come from three signals:
 #'
-#' **robots.txt-blocked pages:** Google cannot access the page content, so
-#' there are no visible outgoing links. All outgoing edges are removed and a
-#' self-loop is added to trap inbound PageRank. The `robots_blocked_action`
-#' parameter controls whether these pages appear in results (`"trap"`) or
-#' are removed (`"vanish"`).
+#' **noindex** (`indexability_df`): `pagerankr` models the ranked corpus as the
+#' set of indexed documents, so a noindex page is outside it — it may receive
+#' authority through inlinks but cannot redistribute it within the indexed
+#' graph. This is a PageRank modeling choice; it does not assert that Google
+#' defines noindex as a nofollow directive. noindex routing to the sink is
+#' independent of `nofollow_action` (which governs only real `rel=nofollow`
+#' edges): a noindex page always routes to the sink. noindex pages still appear
+#' in results so their received authority remains auditable.
+#'
+#' **robots.txt-blocked** (`indexability_df`): Google cannot access the page
+#' content, so there are no visible outgoing links. `robots_blocked_action`
+#' controls only whether the page appears in results (`"show"`, the default) or
+#' is removed with its own mass booked as hidden (`"vanish"`) — both route the
+#' page's throughput to the sink.
 #'
 #' **Priority rule:** robots.txt always takes precedence over noindex. If a
 #' page is both robots-blocked and noindex, it is treated as robots-blocked.
@@ -418,7 +428,9 @@
 #' `400:599` are recognized as **response-dead**: at crawl time they returned
 #' no content and expose no outgoing links, so they can collect authority
 #' through their inlinks but cannot pass any of it on. They belong to the same
-#' "collects PageRank but cannot pass it" class as noindex pages.
+#' waste class as noindex pages and route to the same sink; because a dead page
+#' typically has no outlinks, this ADDS the one edge to the sink that stops it
+#' from dangling and recycling its inbound authority to every page via teleport.
 #'
 #' `pagerankr` does **not** split 4xx from 5xx. The crawl is a snapshot, and at
 #' crawl time a transient `503` and a permanent `404` are indistinguishable:
@@ -465,9 +477,9 @@
 #'     a *source* wasting its outgoing budget; reversed, it would inject rank
 #'     instead. Use `"drop"` — the correct treatment of a nofollowed link for
 #'     outflow centrality, since it funnels no authority outward — or `"keep"`.}
-#'   \item{`indexability_df`}{Errors. noindex (outlinks-as-nofollow) and
-#'     robots.txt blocking (drop outlinks + trap self-loop) encode forward
-#'     crawl/index behavior with no meaningful transpose.}
+#'   \item{`indexability_df`}{Errors. noindex and robots.txt blocking (route
+#'     the page's outgoing budget to the waste sink) encode forward crawl/index
+#'     behavior with no meaningful transpose.}
 #' }
 #'
 #' ## Duplicate edge policy
@@ -511,15 +523,24 @@
 #' graph, filter on the post-fold (canonical) domain/host instead.
 #'
 #' @return A data frame with node names and their PageRank scores. When
-#'   nofollow evaporation, indexability handling, or `robots_blocked_action =
-#'   "vanish"` is active, the returned scores may sum to less than 1. The
-#'   difference is not undifferentiated "leakage": it is decomposed into
-#'   **evaporated mass** (authority sent to the nofollow sink), **leaked mass**
+#'   nofollow evaporation, the waste class (noindex / robots-blocked /
+#'   response-dead), or `robots_blocked_action = "vanish"` is active, the
+#'   returned scores may sum to less than 1. The difference is not
+#'   undifferentiated "leakage": it is decomposed into **evaporated mass**
+#'   (authority sent to the shared waste sink, i.e. what the class and every
+#'   real nofollowed link passed on but could not deliver), **leaked mass**
 #'   (authority sent to the leak sink under `out_of_scope_fold = "leak"`), and
-#'   **hidden mass** (authority trapped on robots-blocked nodes removed from the
-#'   results). The full breakdown — reported / evaporated (sink) / leaked /
-#'   hidden / total (= 1) — is recorded in the `mass` field of the transition
-#'   audit (see below).
+#'   **hidden mass** (the own stationary mass of robots-blocked nodes removed
+#'   from the results). The full breakdown — reported / evaporated (sink) /
+#'   leaked / hidden / total (= 1) — is recorded in the `mass` field of the
+#'   transition audit (see below).
+#'
+#'   When `indexability_df` or `status_df` is supplied, the result gains a
+#'   `page_state` column tagging each visible page as `"live"`, `"noindex"`,
+#'   `"robots_blocked"`, or `"response_dead"` (robots-blocked > response-dead >
+#'   noindex > live when a page carries more than one signal). It appears only
+#'   with those inputs, mirroring how `prior_weight` appears only with
+#'   `prior_df`, so the two-column result is otherwise unchanged.
 #'
 #'   The data frame additionally carries a `"transition_audit"` attribute (a
 #'   [transition_audit] object) recording how the transition graph was built:
@@ -528,8 +549,7 @@
 #'   dropped
 #'   data (rows lost to NA / dedup / self-loops, unmatched prior URLs), and the
 #'   model configuration used. Retrieve it with
-#'   `attr(result, "transition_audit")`. This attribute is backward-compatible:
-#'   the data frame itself (its columns and rows) is unchanged.
+#'   `attr(result, "transition_audit")`.
 #'
 #'   The result additionally carries a `"convergence"` attribute (a
 #'   [pagerank_convergence] object); see the "Convergence controls" section.
@@ -614,7 +634,7 @@ pagerank <- function(
   status_df = NULL,
   status_url_col = "url",
   status_col = "status_code",
-  robots_blocked_action = c("trap", "vanish"),
+  robots_blocked_action = c("show", "vanish"),
   edge_from_col = "from",
   edge_to_col = "to",
   redirect_from_col = "from",
@@ -925,13 +945,14 @@ pagerank <- function(
   audit_n_self_loops <- .dropped$n_self_loops
   audit_n_rows_duplicate <- .dropped$n_rows_duplicate
 
-  # --- 3. Edge policies: dedup, indexability, nofollow, leak-sink self-loop ---
+  # --- 3. Edge policies: dedup, waste-sink routing, leak-sink self-loop ---
   # See .pagerank_apply_edge_policies: dedups per duplicate_edge_policy (fixing
-  # n_edges before any synthetic rows are added), applies noindex/robots
-  # indexability handling, routes nofollowed edges per nofollow_action, and adds
-  # the leak-sink self-loop -- all after dedup so self_loops = "drop" cannot
-  # strip the synthetic self-loops.
-  nofollow_sink_name <- "__pr_nofollow_sink__"
+  # n_edges before any synthetic rows are added), evaporates real nofollow edges
+  # per nofollow_action, routes the whole "collects PR but cannot pass it" class
+  # (noindex, robots-blocked, 4xx/5xx) through the shared waste sink -- exactly
+  # one member -> sink edge each -- and adds the leak-sink self-loop. All after
+  # dedup so self_loops = "drop" cannot strip the synthetic rows.
+  waste_sink_name <- "__pr_waste_sink__"
   .edges <- .pagerank_apply_edge_policies(
     edge_list_df = current_edge_list,
     duplicate_edge_policy = duplicate_edge_policy,
@@ -942,10 +963,11 @@ pagerank <- function(
     indexability_df = indexability_df,
     indexability_url_col = indexability_url_col,
     indexability_status_col = indexability_status_col,
+    status_dead_urls = status_dead_urls,
     nofollow_col = nofollow_col,
     all_vertex_universe = all_vertex_universe,
     nofollow_action = nofollow_action,
-    nofollow_sink_name = nofollow_sink_name,
+    waste_sink_name = waste_sink_name,
     used_leak_sink = used_leak_sink,
     leak_sink_name = leak_sink_name
   )
@@ -957,7 +979,8 @@ pagerank <- function(
   audit_n_edges <- .edges$n_edges
   nofollow_col <- .edges$nofollow_col
   robots_blocked_urls <- .edges$robots_blocked_urls
-  used_nofollow_sink <- .edges$used_nofollow_sink
+  noindex_urls <- .edges$noindex_urls
+  used_waste_sink <- .edges$used_waste_sink
 
   # --- 4. Handle isolates + inject unmatched prior URLs (opt-in) ---
   # See .build_vertex_set below: with drop_isolates_flag = TRUE only nodes on a
@@ -977,11 +1000,12 @@ pagerank <- function(
     edge_to_col = edge_to_col
   )
 
-  # The synthetic nofollow and leak sinks are excluded from teleport; robots/404
-  # self-loop nodes are real pages and keep their authority.
+  # The synthetic waste and leak sinks are excluded from teleport; class members
+  # (noindex / robots-blocked / response-dead) are real pages and keep their
+  # authority (excluding them from teleport is PAGE-bcpacnfm, a later change).
   prior_exclude_nodes <- .prior_exclude_nodes(
-    used_nofollow_sink = used_nofollow_sink,
-    nofollow_sink_name = nofollow_sink_name,
+    used_waste_sink = used_waste_sink,
+    waste_sink_name = waste_sink_name,
     used_leak_sink = used_leak_sink,
     leak_sink_name = leak_sink_name
   )
@@ -1013,24 +1037,27 @@ pagerank <- function(
   # --- 6. Post-processing: remove internal nodes from results ---
   #
   # The stationary vector computed in step 5 spans EVERY node — including the
-  # synthetic nofollow-evaporation sink and any robots-blocked nodes that the
-  # caller asked to vanish — so it sums to 1 by construction. The visible
-  # result only carries real, reported pages, so its scores can sum to < 1.
-  # Before dropping the internal nodes we measure how much stationary mass
-  # each carried away, so the difference is fully accounted for rather than
-  # written off as undifferentiated "leakage":
-  #   * evaporated mass = stationary mass parked on the nofollow sink (the
-  #     authority a source wasted on nofollowed outlinks);
+  # shared waste sink and any robots-blocked nodes that the caller asked to
+  # vanish — so it sums to 1 by construction. The visible result only carries
+  # real, reported pages, so its scores can sum to < 1. Before dropping the
+  # internal nodes we measure how much stationary mass each carried away, so the
+  # difference is fully accounted for rather than written off as
+  # undifferentiated "leakage":
+  #   * evaporated mass = stationary mass parked on the waste sink (what the
+  #     whole class — noindex, robots-blocked, 4xx/5xx — and every real
+  #     nofollowed outlink passed on but could not deliver);
   #   * leaked mass     = stationary mass parked on the leak sink (the authority
   #     that flowed into out-of-scope-folded sources under
   #     `out_of_scope_fold = "leak"`, treated like an external redirect);
-  #   * hidden mass      = stationary mass trapped on robots-blocked nodes that
-  #     were removed under `robots_blocked_action = "vanish"`.
+  #   * hidden mass      = the own stationary mass of robots-blocked nodes that
+  #     were removed under `robots_blocked_action = "vanish"` (their
+  #     pass-through still routed to the waste sink, so it is counted as
+  #     evaporated, not hidden).
   # Captured here, fed into the transition audit's mass$ fields in step 7.
   .stripped <- .strip_internal_nodes(
     pagerank_results = pagerank_results,
-    used_nofollow_sink = used_nofollow_sink,
-    nofollow_sink_name = nofollow_sink_name,
+    used_waste_sink = used_waste_sink,
+    waste_sink_name = waste_sink_name,
     used_leak_sink = used_leak_sink,
     leak_sink_name = leak_sink_name,
     robots_blocked_action = robots_blocked_action,
@@ -1040,6 +1067,20 @@ pagerank <- function(
   mass_evaporated <- .stripped$mass_evaporated
   mass_leaked <- .stripped$mass_leaked
   mass_hidden <- .stripped$mass_hidden
+
+  # Per-URL waste attribution: tag every reported page with its page_state
+  # (live / noindex / robots_blocked / response_dead). Present only when
+  # indexability_df or status_df was supplied, mirroring how prior_weight
+  # appears only with prior_df. Added after the internal nodes are stripped so
+  # the sink and vanished robots pages are never tagged.
+  pagerank_results <- .attach_page_state(
+    pagerank_results = pagerank_results,
+    indexability_df = indexability_df,
+    status_df = status_df,
+    noindex_urls = noindex_urls,
+    robots_blocked_urls = robots_blocked_urls,
+    status_dead_urls = status_dead_urls
+  )
 
   # --- 7. Transition audit / provenance object ---
   # Assembled from the counts captured along the path above and attached to the
@@ -1235,11 +1276,13 @@ pagerank <- function(
 #' Apply pagerank() edge policies to the scoped edge list.
 #'
 #' Dedups per `duplicate_edge_policy` (fixing the scored-edge count before any
-#' synthetic rows are added), applies noindex / robots.txt indexability
-#' handling, routes nofollowed edges per `nofollow_action`, and adds the
-#' leak-sink self-loop. All mutations happen after dedup so `self_loops =
-#' "drop"` cannot strip the synthetic self-loops. Returns the mutated edge list
-#' plus the dedup / nofollow / robots audit and column metadata.
+#' synthetic rows are added), evaporates real nofollowed edges per
+#' `nofollow_action`, routes the whole "collects PageRank but cannot pass it"
+#' class (noindex, robots-blocked, 4xx/5xx) through the shared waste sink via a
+#' single member -> sink edge each, adds one absorbing sink self-loop when the
+#' sink was used, and adds the leak-sink self-loop. All mutations happen after
+#' dedup so `self_loops = "drop"` cannot strip the synthetic rows. Returns the
+#' mutated edge list plus the dedup / class audit and column metadata.
 #' @keywords internal
 #' @noRd
 .pagerank_apply_edge_policies <- function(
@@ -1252,10 +1295,11 @@ pagerank <- function(
   indexability_df,
   indexability_url_col,
   indexability_status_col,
+  status_dead_urls,
   nofollow_col,
   all_vertex_universe,
   nofollow_action,
-  nofollow_sink_name,
+  waste_sink_name,
   used_leak_sink,
   leak_sink_name
 ) {
@@ -1269,26 +1313,56 @@ pagerank <- function(
   )
   edge_list_df <- dup$edge_list_df
   n_edges <- nrow(edge_list_df)
-  idx <- .apply_indexability(
-    edge_list_df = edge_list_df,
+
+  # Classify indexability directives (detection only; flow handled below).
+  idx <- .classify_indexability(
     indexability_df = indexability_df,
     indexability_url_col = indexability_url_col,
-    indexability_status_col = indexability_status_col,
-    nofollow_col = nofollow_col,
-    all_vertex_universe = all_vertex_universe,
-    from_col = edge_from_col,
-    to_col = edge_to_col
+    indexability_status_col = indexability_status_col
   )
+
+  # Real rel=nofollow edges evaporate to (or drop before reaching) the shared
+  # waste sink per nofollow_action; noindex is decoupled from this and routed
+  # below with the rest of the class.
   nf <- .apply_nofollow(
-    edge_list_df = idx$edge_list_df,
-    nofollow_col = idx$nofollow_col,
+    edge_list_df = edge_list_df,
+    nofollow_col = nofollow_col,
     nofollow_action = nofollow_action,
-    nofollow_sink_name = nofollow_sink_name,
+    waste_sink_name = waste_sink_name,
     from_col = edge_from_col,
     to_col = edge_to_col
   )
+  edge_list_df <- nf$edge_list_df
+
+  # Route the whole class through the sink: strip each member's outedges and add
+  # exactly one member -> sink edge (the "adds one" that stops a no-outlink 404
+  # from dangling into teleport).
+  class_urls <- unique(c(
+    idx$noindex_urls,
+    idx$robots_blocked_urls,
+    status_dead_urls
+  ))
+  wc <- .route_waste_class(
+    edge_list_df = edge_list_df,
+    class_urls = class_urls,
+    all_vertex_universe = all_vertex_universe,
+    waste_sink_name = waste_sink_name,
+    from_col = edge_from_col,
+    to_col = edge_to_col
+  )
+  edge_list_df <- wc$edge_list_df
+
+  # Exactly one absorbing sink self-loop if either channel used the sink.
+  used_waste_sink <- isTRUE(nf$used_waste_sink) || isTRUE(wc$used_sink)
+  if (used_waste_sink) {
+    edge_list_df <- rbind(
+      edge_list_df,
+      .make_sink_rows(edge_list_df, edge_from_col, edge_to_col, waste_sink_name)
+    )
+  }
+
   edge_list_df <- .add_leak_sink_selfloop(
-    edge_list_df = nf$edge_list_df,
+    edge_list_df = edge_list_df,
     used_leak_sink = used_leak_sink,
     leak_sink_name = leak_sink_name,
     edge_from_col = edge_from_col,
@@ -1301,9 +1375,10 @@ pagerank <- function(
     duplicate_edges = dup$duplicate_edges,
     n_duplicate_instances = dup$n_duplicate_instances,
     n_edges = n_edges,
-    nofollow_col = idx$nofollow_col,
+    nofollow_col = nofollow_col,
     robots_blocked_urls = idx$robots_blocked_urls,
-    used_nofollow_sink = nf$used_nofollow_sink
+    noindex_urls = idx$noindex_urls,
+    used_waste_sink = used_waste_sink
   )
 }
 
@@ -1689,9 +1764,9 @@ pagerank <- function(
 #'     outgoing budget (a forward concept); reversed, the sink would inject rank
 #'     instead. Use "drop" (the correct CheiRank treatment: a nofollowed link
 #'     funnels no authority outward) or "keep".
-#'   * indexability: noindex => outlinks-as-nofollow and robots-blocked =>
-#'     drop-outlinks + trap-self-loop both encode forward crawl/index behavior
-#'     with no meaningful transpose.
+#'   * indexability: noindex and robots-blocked both route the page's outgoing
+#'     budget to the waste sink, encoding forward crawl/index behavior with no
+#'     meaningful transpose.
 #' Direction-agnostic features (cleaning, redirect folding, dedup, weights,
 #' domain/host filtering, TIPR prior) remain fully supported under reverse.
 #' @keywords internal
@@ -1873,19 +1948,32 @@ pagerank <- function(
   invisible(NULL)
 }
 
-#' Build synthetic self-loop rows for a sink / trap node.
+#' Build synthetic self-loop rows for a sink node.
 #'
-#' Constructs one `from == to == node` row per element of `nodes`, matching the
-#' column structure of `edge_list_df`. Extra columns beyond the from/to pair are
-#' filled with type-appropriate neutral defaults (`FALSE` for logical, `1` for
-#' numeric, `NA` otherwise) so the rows `rbind()` cleanly. Used for the
-#' robots-blocked self-loops and the nofollow / leak sink self-loops, which
-#' previously duplicated this fill logic verbatim.
+#' Constructs one `from == to == node` row per element of `nodes` (via
+#' [.make_synthetic_rows]), matching the column structure of `edge_list_df`.
+#' Used for the absorbing waste-sink and leak-sink self-loops.
 #' @keywords internal
 #' @noRd
 .make_sink_rows <- function(edge_list_df, from_col, to_col, nodes) {
+  .make_synthetic_rows(edge_list_df, from_col, to_col, nodes, nodes)
+}
+
+#' Build synthetic edge rows with an explicit from/to pairing.
+#'
+#' Generalizes [.make_sink_rows]: constructs one row per `from_nodes[i] ->
+#' to_nodes[i]` pair (recycled the usual R way), matching the column structure
+#' of `edge_list_df`. Extra columns beyond the from/to pair are filled with
+#' type-appropriate neutral defaults (`FALSE` for logical, `1` for numeric, `NA`
+#' otherwise) so the rows `rbind()` cleanly. Used both for self-loop sink rows
+#' (`to_nodes == from_nodes`) and for the class members' single edge to the
+#' waste sink (`to_nodes == waste_sink_name`).
+#' @keywords internal
+#' @noRd
+.make_synthetic_rows <- function(edge_list_df, from_col, to_col,
+                                 from_nodes, to_nodes) {
   rows <- stats::setNames(
-    data.frame(nodes, nodes, stringsAsFactors = FALSE),
+    data.frame(from_nodes, to_nodes, stringsAsFactors = FALSE),
     c(from_col, to_col)
   )
   extra_cols <- setdiff(names(edge_list_df), c(from_col, to_col))
@@ -2064,165 +2152,155 @@ pagerank <- function(
   list(targets = targets, nrefs = nrefs, sources = sources)
 }
 
-#' Apply indexability handling (noindex + robots.txt) to the edge list.
+#' Classify indexability directives into noindex / robots-blocked URL sets.
 #'
-#' noindex pages have all their outgoing edges marked nofollow (creating a
-#' synthetic `"__pr_nofollow__"` column when the caller supplied none), so the
-#' downstream nofollow mechanism treats their outlinks per `nofollow_action`.
-#' robots.txt-blocked pages have their outgoing edges removed and a trapping
-#' self-loop added. robots.txt takes priority over noindex.
+#' Detection only: parses `indexability_df` statuses and returns the URLs
+#' declared noindex or robots.txt-blocked, with robots.txt taking priority (a
+#' page that is both is treated as robots-blocked, never noindex). Flow
+#' treatment — routing the whole "collects PR but cannot pass it" class through
+#' the waste sink — happens uniformly in [.route_waste_class], so this no longer
+#' mutates edges or the nofollow column.
 #'
-#' @return A list with `edge_list_df` (mutated), `nofollow_col` (possibly the
-#'   newly created synthetic column name), and `robots_blocked_urls`.
+#' @return A list with `noindex_urls` and `robots_blocked_urls` character
+#'   vectors (both empty when no `indexability_df` was supplied).
 #' @keywords internal
 #' @noRd
-.apply_indexability <- function(
-  edge_list_df,
+.classify_indexability <- function(
   indexability_df,
   indexability_url_col,
-  indexability_status_col,
-  nofollow_col,
-  all_vertex_universe,
-  from_col,
-  to_col
+  indexability_status_col
 ) {
-  if (
-    is.null(indexability_df) ||
-      nrow(indexability_df) == 0 ||
-      nrow(edge_list_df) == 0
-  ) {
+  if (is.null(indexability_df) || nrow(indexability_df) == 0) {
     return(list(
-      edge_list_df = edge_list_df,
-      nofollow_col = nofollow_col,
+      noindex_urls = character(0),
       robots_blocked_urls = character(0)
     ))
   }
   statuses <- as.character(indexability_df[[indexability_status_col]])
   urls <- as.character(indexability_df[[indexability_url_col]])
 
-  # Statuses parsed with robots.txt taking priority over noindex.
+  # robots.txt takes priority over noindex.
   is_robots_blocked <- grepl("Blocked by robots.txt", statuses, fixed = TRUE)
   is_noindex <- grepl("noindex", statuses, ignore.case = TRUE) &
     !is_robots_blocked
 
-  noindex_urls <- urls[is_noindex]
-  robots_blocked_urls <- urls[is_robots_blocked]
-
-  # --- noindex pages: mark all outgoing edges as nofollow ---
-  if (length(noindex_urls) > 0) {
-    .ni <- .mark_noindex_nofollow(
-      edge_list_df = edge_list_df,
-      noindex_urls = noindex_urls,
-      nofollow_col = nofollow_col,
-      from_col = from_col
-    )
-    edge_list_df <- .ni$edge_list_df
-    nofollow_col <- .ni$nofollow_col
-  }
-
-  # --- robots-blocked pages: remove outgoing edges, add self-loop ---
-  if (length(robots_blocked_urls) > 0) {
-    edge_list_df <- .apply_robots_blocked(
-      edge_list_df = edge_list_df,
-      robots_blocked_urls = robots_blocked_urls,
-      all_vertex_universe = all_vertex_universe,
-      from_col = from_col,
-      to_col = to_col
-    )
-  }
-
   list(
-    edge_list_df = edge_list_df,
-    nofollow_col = nofollow_col,
-    robots_blocked_urls = robots_blocked_urls
+    noindex_urls = unique(urls[is_noindex]),
+    robots_blocked_urls = unique(urls[is_robots_blocked])
   )
 }
 
-#' Mark noindex pages' outgoing edges as nofollow.
+#' Route the whole waste class through a single edge to the shared sink.
 #'
-#' Creates a synthetic `"__pr_nofollow__"` column when the caller supplied none
-#' (or none present in the edge list). Returns the (possibly mutated) edge list
-#' and the effective nofollow column name.
+#' Every member of the "collects PageRank but cannot pass it" class (noindex,
+#' robots-blocked, response-dead 4xx/5xx) loses ALL of its outgoing edges and
+#' gains EXACTLY ONE `member -> sink` edge. For a page with real outlinks
+#' (noindex, robots-blocked) this REPLACES them; for a page with none (a 404)
+#' it ADDS one, which is what stops a no-outlink dead page from dangling and
+#' recycling its inbound authority to every page via teleport. Only members
+#' still present as a real node (an edge endpoint after the strip, or in
+#' `all_vertex_universe`) get the sink edge, so a class URL that never appears
+#' in the graph introduces no phantom node. The absorbing sink self-loop is
+#' added once by the caller.
+#'
+#' @return A list with `edge_list_df` (mutated) and `used_sink` (whether any
+#'   member -> sink edge was added).
 #' @keywords internal
 #' @noRd
-.mark_noindex_nofollow <- function(
+.route_waste_class <- function(
   edge_list_df,
-  noindex_urls,
-  nofollow_col,
-  from_col
-) {
-  from_is_noindex <- edge_list_df[[from_col]] %in% noindex_urls
-  if (any(from_is_noindex)) {
-    # Create nofollow column if it doesn't exist
-    if (is.null(nofollow_col)) {
-      nofollow_col <- "__pr_nofollow__"
-      edge_list_df[[nofollow_col]] <- FALSE
-    } else if (!(nofollow_col %in% names(edge_list_df))) {
-      edge_list_df[[nofollow_col]] <- FALSE
-    }
-    edge_list_df[[nofollow_col]][from_is_noindex] <- TRUE
-  }
-  list(edge_list_df = edge_list_df, nofollow_col = nofollow_col)
-}
-
-#' Remove robots-blocked pages' outgoing edges and add trapping self-loops.
-#'
-#' Blocked sources lose their outgoing edges; each blocked URL still present as
-#' a node (edge endpoint or in the vertex universe) gains a self-loop so its
-#' trapped equity does not dangle. Returns the mutated edge list.
-#' @keywords internal
-#' @noRd
-.apply_robots_blocked <- function(
-  edge_list_df,
-  robots_blocked_urls,
+  class_urls,
   all_vertex_universe,
+  waste_sink_name,
   from_col,
   to_col
 ) {
-  from_is_blocked <- edge_list_df[[from_col]] %in% robots_blocked_urls
-  if (any(from_is_blocked)) {
-    # Remove all outgoing edges from blocked pages
-    edge_list_df <- edge_list_df[!from_is_blocked, , drop = FALSE]
-
-    # Add self-loops for each blocked URL that exists as a source
-    blocked_with_edges <- unique(robots_blocked_urls[
-      robots_blocked_urls %in%
-        edge_list_df[[from_col]] |
-        robots_blocked_urls %in% edge_list_df[[to_col]] |
-        robots_blocked_urls %in% all_vertex_universe
-    ])
-    if (length(blocked_with_edges) > 0) {
-      self_loop_df <- .make_sink_rows(
-        edge_list_df,
-        from_col,
-        to_col,
-        blocked_with_edges
-      )
-      edge_list_df <- rbind(edge_list_df, self_loop_df)
+  if (length(class_urls) == 0) {
+    return(list(edge_list_df = edge_list_df, used_sink = FALSE))
+  }
+  # Strip every outgoing edge from a class member.
+  if (nrow(edge_list_df) > 0) {
+    from_in_class <- edge_list_df[[from_col]] %in% class_urls
+    if (any(from_in_class)) {
+      edge_list_df <- edge_list_df[!from_in_class, , drop = FALSE]
     }
   }
-  edge_list_df
+  # Exactly one member -> sink edge per class member that is a real node.
+  members_present <- unique(class_urls[
+    class_urls %in% edge_list_df[[from_col]] |
+      class_urls %in% edge_list_df[[to_col]] |
+      class_urls %in% all_vertex_universe
+  ])
+  if (length(members_present) == 0) {
+    return(list(edge_list_df = edge_list_df, used_sink = FALSE))
+  }
+  sink_edges <- .make_synthetic_rows(
+    edge_list_df,
+    from_col,
+    to_col,
+    from_nodes = members_present,
+    to_nodes = rep(waste_sink_name, length(members_present))
+  )
+  list(
+    edge_list_df = rbind(edge_list_df, sink_edges),
+    used_sink = TRUE
+  )
 }
 
-#' Apply nofollow handling to the edge list.
+#' Tag each reported page with its page_state (per-URL waste attribution).
 #'
-#' Drops, evaporates (retargets onto a trapping sink node), or keeps nofollowed
+#' Appends a `page_state` column ∈ {`live`, `noindex`, `robots_blocked`,
+#' `response_dead`} to the visible results, present only when `indexability_df`
+#' or `status_df` was supplied (mirroring how `prior_weight` appears only with
+#' `prior_df`). Precedence, highest first: robots_blocked > response_dead >
+#' noindex > live. Called after the internal / vanished nodes are stripped, so
+#' the sink and any vanished robots pages are never tagged.
+#' @keywords internal
+#' @noRd
+.attach_page_state <- function(
+  pagerank_results,
+  indexability_df,
+  status_df,
+  noindex_urls,
+  robots_blocked_urls,
+  status_dead_urls
+) {
+  has_idx <- !is.null(indexability_df) && nrow(indexability_df) > 0
+  has_status <- !is.null(status_df) && nrow(status_df) > 0
+  if ((!has_idx && !has_status) || nrow(pagerank_results) == 0) {
+    return(pagerank_results)
+  }
+  nodes <- pagerank_results[[1]]
+  state <- rep("live", length(nodes))
+  # Lowest precedence first so higher-precedence assignments win.
+  state[nodes %in% noindex_urls] <- "noindex"
+  state[nodes %in% status_dead_urls] <- "response_dead"
+  state[nodes %in% robots_blocked_urls] <- "robots_blocked"
+  pagerank_results[["page_state"]] <- state
+  pagerank_results
+}
+
+#' Apply nofollow handling to real rel=nofollow edges.
+#'
+#' Drops, evaporates (retargets onto the shared waste sink), or keeps nofollowed
 #' edges per `nofollow_action`. The nofollow column is coerced to logical (0/1
-#' numeric accepted); `NA` is treated as not-nofollow.
+#' numeric accepted); `NA` is treated as not-nofollow. The absorbing sink
+#' self-loop is added once by the caller, so this only signals whether the sink
+#' was used.
 #'
-#' @return A list with `edge_list_df` (mutated) and `used_nofollow_sink`
-#'   (whether the evaporation sink node was introduced).
+#' @return A list with `edge_list_df` (mutated) and `used_waste_sink`
+#'   (whether any edge was retargeted to the sink).
 #' @keywords internal
 #' @noRd
 .apply_nofollow <- function(
   edge_list_df,
   nofollow_col,
   nofollow_action,
-  nofollow_sink_name,
+  waste_sink_name,
   from_col,
   to_col
 ) {
-  used_nofollow_sink <- FALSE
+  used_waste_sink <- FALSE
 
   # No-op when there is no usable nofollow column.
   if (
@@ -2230,7 +2308,7 @@ pagerank <- function(
       !(nofollow_col %in% names(edge_list_df)) ||
       nrow(edge_list_df) == 0
   ) {
-    return(list(edge_list_df = edge_list_df, used_nofollow_sink = FALSE))
+    return(list(edge_list_df = edge_list_df, used_waste_sink = FALSE))
   }
 
   # Coerce nofollow column to logical
@@ -2245,23 +2323,14 @@ pagerank <- function(
       # Simply remove nofollow edges
       edge_list_df <- edge_list_df[!nf_mask, , drop = FALSE]
     } else if (nofollow_action == "evaporate") {
-      # Redirect nofollow edge targets to the sink node
-      edge_list_df[[to_col]][nf_mask] <- nofollow_sink_name
-
-      # Add a self-loop on the sink so it isn't a dangling node
-      sink_row <- .make_sink_rows(
-        edge_list_df,
-        from_col,
-        to_col,
-        nofollow_sink_name
-      )
-      edge_list_df <- rbind(edge_list_df, sink_row)
-      used_nofollow_sink <- TRUE
+      # Retarget nofollow edges to the shared waste sink.
+      edge_list_df[[to_col]][nf_mask] <- waste_sink_name
+      used_waste_sink <- TRUE
     }
     # nofollow_action == "keep": do nothing
   }
 
-  list(edge_list_df = edge_list_df, used_nofollow_sink = used_nofollow_sink)
+  list(edge_list_df = edge_list_df, used_waste_sink = used_waste_sink)
 }
 
 #' Clean the edge / redirect / canonical URL columns through one rurl profile.
@@ -2915,11 +2984,12 @@ pagerank <- function(
 #' Remove synthetic / hidden nodes from results, measuring their mass first.
 #'
 #' The stationary vector spans EVERY node (it sums to 1 by construction),
-#' including the nofollow-evaporation sink, the leak sink, and any
-#' robots-blocked nodes the caller asked to vanish. This measures the mass each
-#' carried away — evaporated (nofollow sink), leaked (leak sink), and hidden
-#' (robots-blocked, `robots_blocked_action = "vanish"`) — then drops those rows
-#' so the visible result carries only real, reported pages.
+#' including the shared waste sink, the leak sink, and any robots-blocked nodes
+#' the caller asked to vanish. This measures the mass each carried away —
+#' evaporated (waste sink), leaked (leak sink), and hidden (the own mass of
+#' robots-blocked nodes under `robots_blocked_action = "vanish"`; their
+#' pass-through already routed to the waste sink) — then drops those rows so the
+#' visible result carries only real, reported pages.
 #'
 #' @return A list with the trimmed `pagerank_results` and the `mass_evaporated`
 #'   / `mass_leaked` / `mass_hidden` scalars.
@@ -2927,8 +2997,8 @@ pagerank <- function(
 #' @noRd
 .strip_internal_nodes <- function(
   pagerank_results,
-  used_nofollow_sink,
-  nofollow_sink_name,
+  used_waste_sink,
+  waste_sink_name,
   used_leak_sink,
   leak_sink_name,
   robots_blocked_action,
@@ -2941,8 +3011,8 @@ pagerank <- function(
     pr_node_col <- names(pagerank_results)[1]
     pr_value_col <- names(pagerank_results)[2]
 
-    if (used_nofollow_sink) {
-      sink_mask <- pagerank_results[[pr_node_col]] == nofollow_sink_name
+    if (used_waste_sink) {
+      sink_mask <- pagerank_results[[pr_node_col]] == waste_sink_name
       mass_evaporated <- sum(
         pagerank_results[[pr_value_col]][sink_mask],
         na.rm = TRUE
@@ -3188,11 +3258,9 @@ pagerank <- function(
   boilerplate = NULL,
   position = NULL
 ) {
-  config_nofollow_col <- if (identical(nofollow_col, "__pr_nofollow__")) {
-    NULL
-  } else {
-    nofollow_col
-  }
+  # noindex no longer synthesizes a nofollow column, so the config reports the
+  # caller-supplied nofollow_col verbatim (NULL when none was given).
+  config_nofollow_col <- nofollow_col
   list(
     preset = .pr_preset_label(preset),
     placement = placement,
@@ -3404,22 +3472,23 @@ pagerank <- function(
   edge_list_df
 }
 
-#' Nodes excluded from the teleport prior (synthetic nofollow / leak sinks).
+#' Nodes excluded from the teleport prior (synthetic waste / leak sinks).
 #'
-#' robots/404 self-loop nodes are real pages and keep their authority, so they
-#' are NOT excluded.
+#' Class members (noindex / robots-blocked / response-dead) are real pages and
+#' keep their authority, so they are NOT excluded here (excluding them is
+#' PAGE-bcpacnfm, a separate change).
 #' @return A character vector of node names to exclude from teleport.
 #' @keywords internal
 #' @noRd
 .prior_exclude_nodes <- function(
-  used_nofollow_sink,
-  nofollow_sink_name,
+  used_waste_sink,
+  waste_sink_name,
   used_leak_sink,
   leak_sink_name
 ) {
   nodes <- character(0)
-  if (used_nofollow_sink) {
-    nodes <- c(nodes, nofollow_sink_name)
+  if (used_waste_sink) {
+    nodes <- c(nodes, waste_sink_name)
   }
   if (used_leak_sink) {
     nodes <- c(nodes, leak_sink_name)

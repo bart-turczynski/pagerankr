@@ -258,10 +258,10 @@ print(pr_drop)
 `pagerankr` assumes that the ranked corpus consists of indexed documents.
 Under this indexed-corpus assumption, a `noindex` page is outside the ranked
 corpus. It may receive authority through inlinks, but cannot redistribute that
-authority within the indexed graph. The package therefore treats its outgoing
-links as nofollow for propagation, applying the selected `nofollow_action`:
-slot-consuming `"evaporate"`, slot-removing `"drop"`, or normally followed
-`"keep"`.
+authority within the indexed graph. The package therefore routes its outgoing
+budget to the shared waste sink — the same mechanism used for robots-blocked
+and response-dead (4xx/5xx) pages. This is independent of `nofollow_action`,
+which governs only real `rel=nofollow` edges.
 
 This is strictly a `pagerankr` PageRank assumption. It does not mean that
 Google or another search engine defines `noindex` as an explicit nofollow
@@ -290,7 +290,9 @@ print(pr)
 ### robots.txt blocked pages
 
 A robots.txt-blocked page receives inbound PageRank but cannot pass it
-outbound (Google can't see the links). The PR is either trapped or vanishes:
+outbound (Google can't see the links). Its outgoing budget routes to the
+shared waste sink; `robots_blocked_action` controls only whether the page is
+shown or removed:
 
 ```{r indexability_robots}
 edges <- data.frame(
@@ -303,15 +305,15 @@ idx_status <- data.frame(
   indexability_status = "Blocked by robots.txt"
 )
 
-# "trap": blocked page keeps its PR (visible in results)
-pr_trap <- pagerank(edges,
+# "show" (default): blocked page is shown with the authority it collects
+pr_show <- pagerank(edges,
   indexability_df = idx_status,
-  robots_blocked_action = "trap",
+  robots_blocked_action = "show",
   clean_edge_urls = FALSE
 )
-print(pr_trap)
+print(pr_show)
 
-# "vanish": blocked page removed from results
+# "vanish": blocked page removed from results (its own mass booked as hidden)
 pr_vanish <- pagerank(edges,
   indexability_df = idx_status,
   robots_blocked_action = "vanish",
@@ -319,6 +321,10 @@ pr_vanish <- pagerank(edges,
 )
 print(pr_vanish)
 ```
+
+The `page_state` column (present whenever `indexability_df` or `status_df` is
+supplied) tags each visible page as `live`, `noindex`, `robots_blocked`, or
+`response_dead`, so the wasted-mass class is attributable per URL.
 
 ## Weighted Edges
 

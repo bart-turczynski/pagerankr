@@ -59,8 +59,8 @@ handling owns dead nodes.}
 
 \item{exclude_nodes}{Character vector of vertex names that must receive
 \strong{zero} teleport in both components (e.g. the synthetic
-\code{"__pr_nofollow_sink__"}). Real pages — including robots-blocked or
-404 self-loop nodes — should \emph{not} be excluded.}
+\code{"__pr_waste_sink__"}). Real pages — including robots-blocked or
+response-dead class members — should \emph{not} be excluded.}
 
 \item{verbose}{Logical, whether to emit coverage diagnostics via
 \code{message()} (vertices receiving authority, unmatched prior URLs and
@@ -100,25 +100,25 @@ for interpretability and to make \code{alpha} and \code{exclude_nodes} behave
 predictably.
 }
 \examples{
-v <- c("https://x/a", "https://x/b", "https://x/c", "__pr_nofollow_sink__")
+v <- c("https://x/a", "https://x/b", "https://x/c", "__pr_waste_sink__")
 prior <- data.frame(
   url = c("https://x/a", "https://x/b"),
   weight = c(900, 100)
 )
 # Pure linear authority share; sink excluded
 align_prior_to_vertices(v, prior,
-  exclude_nodes = "__pr_nofollow_sink__",
+  exclude_nodes = "__pr_waste_sink__",
   verbose = FALSE
 )
 # Compress the dynamic range
 align_prior_to_vertices(v, prior,
   transform = "log",
-  exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE
+  exclude_nodes = "__pr_waste_sink__", verbose = FALSE
 )
 # Authority-tilted uniform (every real page keeps a baseline)
 align_prior_to_vertices(v, prior,
   alpha = 0.15,
-  exclude_nodes = "__pr_nofollow_sink__", verbose = FALSE
+  exclude_nodes = "__pr_waste_sink__", verbose = FALSE
 )
 }
 \seealso{

@@ -352,17 +352,26 @@ zero destinations. There is no invention-free choice, only three inventions:
 
 | Treatment | What it claims about the site |
 |---|---|
-| **Dangle** (today) | authority flowing into 404s is spread evenly across every page |
+| **Dangle** | authority flowing into 404s is spread evenly across every page |
 | **Self-loop** | the 404 links to itself forever, compounding |
 | **Sink** | authority flows into 404s and stops there |
 
 Only the third is true. Langville & Meyer name the second: a self-absorbing
 dangling node is a **rank sink / absorbing state** that *"keeps accumulating more
 and more PageRank at each iteration."* Measured in `pagerankr`: identical graph,
-page X under `noindex` (evaporate) scores **0.1065**; under robots-blocked
-(trap/self-loop) it scores **0.8875** — 8.3x, holding 89% of the graph.
+page X under `noindex` (evaporate) scores **0.1065**; under the old
+robots-blocked self-loop it scored **0.8875** — 8.3x, holding 89% of the graph.
 
-See fp `PAGE-qzskzcfd` for the resulting policy decisions.
+**Resolved (`PAGE-pvfdijrw`).** The whole "collects PageRank but cannot pass it"
+class — noindex, robots-blocked, and response-dead 4xx/5xx — now routes through
+one shared **waste sink** (exactly one member → sink edge each). The
+robots-blocked self-loop is gone, so the 8.3x self-amplification above no longer
+occurs, and a no-outlink 404 gets the one sink edge that stops it from dangling.
+This is orthogonal to the teleport-exclusion fix for the same class
+(`PAGE-bcpacnfm`), which addresses the "paid for existing" collapse tabulated
+above and ships separately.
+
+See fp `PAGE-qzskzcfd` for the full policy decisions.
 
 ---
 
