@@ -175,6 +175,15 @@
 #'   `indexability_df`. Default `"indexability_status"`. Values are
 #'   comma-separated strings; recognized statuses are `"Blocked by robots.txt"`
 #'   and `"noindex"` (case-insensitive for noindex).
+#' @param status_df Optional data frame mapping URLs to their HTTP response
+#'   status code (e.g., from an SEO crawl export). Lets `pagerank()` recognize
+#'   response-dead pages, which would otherwise be scored as ordinary live
+#'   vertices. See the "HTTP response status" section in Details.
+#' @param status_url_col Name of the URL column in `status_df`. Default
+#'   `"url"`.
+#' @param status_col Name of the HTTP status-code column in `status_df`.
+#'   Default `"status_code"`. Values are HTTP status codes (integer, or
+#'   coercible to integer); codes in `400:599` mark a page response-dead.
 #' @param robots_blocked_action How to present robots.txt-blocked pages in
 #'   results. One of:
 #'   \describe{
@@ -403,6 +412,28 @@
 #' **Priority rule:** robots.txt always takes precedence over noindex. If a
 #' page is both robots-blocked and noindex, it is treated as robots-blocked.
 #'
+#' ## HTTP response status
+#'
+#' When `status_df` is provided, pages whose HTTP status code falls in
+#' `400:599` are recognized as **response-dead**: at crawl time they returned
+#' no content and expose no outgoing links, so they can collect authority
+#' through their inlinks but cannot pass any of it on. They belong to the same
+#' "collects PageRank but cannot pass it" class as noindex pages.
+#'
+#' `pagerankr` does **not** split 4xx from 5xx. The crawl is a snapshot, and at
+#' crawl time a transient `503` and a permanent `404` are indistinguishable:
+#' both return no content and expose no links. Modeling one as recoverable
+#' would require guessing about a future the crawl has no data on — the same
+#' reason `pagerankr` folds a `302` exactly like a `301`. A caller who knows a
+#' given `5xx` was a blip should re-crawl rather than have the tool assume
+#' recovery on its behalf.
+#'
+#' `3xx` redirects are **not** part of this class; they are modeled through
+#' `redirects_df`. Codes below `400`, and rows whose status is missing or
+#' cannot be parsed as an integer, are treated as live. Response-dead pages
+#' that are present in the graph are counted in the returned `transition_audit`
+#' (`config$has_status` and `n_status_dead`).
+#'
 #' ## Reverse / inverse PageRank (`reverse = TRUE`)
 #'
 #' Standard PageRank measures **inflow** importance ("who points to me"). With
@@ -580,6 +611,9 @@ pagerank <- function(
   indexability_df = NULL,
   indexability_url_col = "url",
   indexability_status_col = "indexability_status",
+  status_df = NULL,
+  status_url_col = "url",
+  status_col = "status_code",
   robots_blocked_action = c("trap", "vanish"),
   edge_from_col = "from",
   edge_to_col = "to",
@@ -695,6 +729,9 @@ pagerank <- function(
     indexability_df = indexability_df,
     indexability_url_col = indexability_url_col,
     indexability_status_col = indexability_status_col,
+    status_df = status_df,
+    status_url_col = status_url_col,
+    status_col = status_col,
     prior_df = prior_df,
     prior_url_col = prior_url_col,
     prior_weight_col = prior_weight_col,
@@ -863,6 +900,17 @@ pagerank <- function(
   all_vertex_universe <- .scoped$all_vertex_universe
   folded_prior_df <- .scoped$folded_prior_df
 
+  # Response-dead pages (HTTP 4xx/5xx) among the surviving vertices. Classified
+  # against the post-fold universe so URLs folded away by a redirect/canonical
+  # are not counted. Surfaced in the transition audit; see
+  # .classify_status_dead.
+  status_dead_urls <- .classify_status_dead(
+    status_df = status_df,
+    status_url_col = status_url_col,
+    status_col = status_col,
+    vertex_universe = all_vertex_universe
+  )
+
   # --- Transition audit: account for rows dropped (dedup / NA / self-loops) ---
   # Measured against the post-fold/post-filter edge list, mirroring exactly what
   # get_unique_edges() removes, so the audit reflects the data that actually
@@ -1019,6 +1067,7 @@ pagerank <- function(
     n_rows_duplicate = audit_n_rows_duplicate,
     n_self_loops = audit_n_self_loops,
     robots_blocked_urls = robots_blocked_urls,
+    status_dead_urls = status_dead_urls,
     mass_evaporated = mass_evaporated,
     mass_leaked = mass_leaked,
     mass_hidden = mass_hidden,
@@ -1040,6 +1089,7 @@ pagerank <- function(
     has_redirects = audit_has_redirects,
     has_canonicals = audit_has_canonicals,
     indexability_df = indexability_df,
+    status_df = status_df,
     preset = preset,
     placement = .placement$provenance,
     boilerplate = .boilerplate$provenance,
@@ -1478,6 +1528,9 @@ pagerank <- function(
   indexability_df,
   indexability_url_col,
   indexability_status_col,
+  status_df,
+  status_url_col,
+  status_col,
   prior_df,
   prior_url_col,
   prior_weight_col,
@@ -1505,7 +1558,8 @@ pagerank <- function(
     reverse,
     indexability_df,
     nofollow_col,
-    nofollow_action
+    nofollow_action,
+    status_df
   )
 
   .assert_col_or_null(weight_col, "weight_col", edge_list_df)
@@ -1515,6 +1569,7 @@ pagerank <- function(
     indexability_url_col,
     indexability_status_col
   )
+  .validate_status_df(status_df, status_url_col, status_col)
   .validate_prior_df(prior_df, prior_url_col, prior_weight_col)
   .assert_unit_interval(prior_alpha, "prior_alpha", "number")
   .assert_flag(prior_inject_unmatched, "prior_inject_unmatched")
@@ -1645,7 +1700,8 @@ pagerank <- function(
   reverse,
   indexability_df,
   nofollow_col,
-  nofollow_action
+  nofollow_action,
+  status_df = NULL
 ) {
   if (!isTRUE(reverse)) {
     return(invisible(NULL))
@@ -1655,6 +1711,15 @@ pagerank <- function(
       "`indexability_df` is not supported with `reverse = TRUE`: noindex ",
       "and robots.txt handling encode forward crawl semantics that do not ",
       "transpose. Drop `indexability_df` or set `reverse = FALSE`.",
+      call. = FALSE
+    )
+  }
+  if (!is.null(status_df) && nrow(status_df) > 0) {
+    stop(
+      "`status_df` is not supported with `reverse = TRUE`: a response-dead ",
+      "page collecting authority it cannot pass on encodes forward crawl ",
+      "semantics that do not transpose. Drop `status_df` or set ",
+      "`reverse = FALSE`.",
       call. = FALSE
     )
   }
@@ -1704,6 +1769,69 @@ pagerank <- function(
     }
   }
   invisible(NULL)
+}
+
+#' Validate `status_df` and its url/status column names.
+#'
+#' Mirrors [.validate_indexability_df]: shape check plus presence of the two
+#' named columns. The status column is not coerced here — parsing to integer
+#' and 400:599 class membership happen in [.classify_status_dead]; a column of
+#' non-numeric strings is a data problem surfaced there, not a contract error.
+#' @keywords internal
+#' @noRd
+.validate_status_df <- function(status_df, status_url_col, status_col) {
+  if (is.null(status_df)) {
+    return(invisible(NULL))
+  }
+  if (!is.data.frame(status_df)) {
+    stop("`status_df` must be a data frame or NULL.", call. = FALSE)
+  }
+  if (nrow(status_df) > 0) {
+    if (!(status_url_col %in% names(status_df))) {
+      stop(
+        "`status_url_col` '",
+        status_url_col,
+        "' not found in `status_df`.",
+        call. = FALSE
+      )
+    }
+    if (!(status_col %in% names(status_df))) {
+      stop(
+        "`status_col` '",
+        status_col,
+        "' not found in `status_df`.",
+        call. = FALSE
+      )
+    }
+  }
+  invisible(NULL)
+}
+
+#' Identify response-dead URLs (HTTP 4xx/5xx) present in the graph.
+#'
+#' Parses `status_df[[status_col]]` to integer and returns the subset of
+#' `status_df[[status_url_col]]` whose code is in `400:599` AND that appears as
+#' a vertex in `vertex_universe`. Restricting to actual vertices keeps phantom
+#' rows (URLs listed in the status export but never linked in the graph) out of
+#' the count and out of any downstream flow treatment. 4xx and 5xx are one
+#' class (no split); 3xx and codes below 400 are not dead; codes that cannot be
+#' parsed as an integer are treated as live.
+#' @keywords internal
+#' @noRd
+.classify_status_dead <- function(
+  status_df,
+  status_url_col,
+  status_col,
+  vertex_universe
+) {
+  if (is.null(status_df) || nrow(status_df) == 0) {
+    return(character(0))
+  }
+  codes <- suppressWarnings(as.integer(as.character(status_df[[status_col]])))
+  urls <- as.character(status_df[[status_url_col]])
+  is_dead <- !is.na(codes) & codes >= 400L & codes <= 599L
+  dead_urls <- unique(urls[is_dead])
+  intersect(dead_urls, vertex_universe)
 }
 
 #' Validate the TIPR `prior_df` and its url/weight column names.
@@ -2878,6 +3006,7 @@ pagerank <- function(
   n_rows_duplicate,
   n_self_loops,
   robots_blocked_urls,
+  status_dead_urls = character(0),
   mass_evaporated,
   mass_leaked,
   mass_hidden,
@@ -2899,6 +3028,7 @@ pagerank <- function(
   has_redirects,
   has_canonicals,
   indexability_df,
+  status_df = NULL,
   preset = NULL,
   placement = NULL,
   boilerplate = NULL,
@@ -2916,7 +3046,8 @@ pagerank <- function(
     oos_sources = oos_sources,
     oos_targets = oos_targets,
     oos_signals = oos_signals,
-    robots_blocked_urls = robots_blocked_urls
+    robots_blocked_urls = robots_blocked_urls,
+    status_dead_urls = status_dead_urls
   )
   .assemble_transition_audit(
     metrics = metrics,
@@ -2949,6 +3080,7 @@ pagerank <- function(
     has_redirects = has_redirects,
     has_canonicals = has_canonicals,
     indexability_df = indexability_df,
+    status_df = status_df,
     folded_prior_df = folded_prior_df,
     preset = preset,
     placement = placement,
@@ -2975,7 +3107,8 @@ pagerank <- function(
   oos_sources,
   oos_targets,
   oos_signals,
-  robots_blocked_urls
+  robots_blocked_urls,
+  status_dead_urls = character(0)
 ) {
   # Behavioral-weight coverage: how many scored edges carry a usable weight.
   weighted <- !is.null(effective_weight_col) &&
@@ -3024,6 +3157,7 @@ pagerank <- function(
     oos_fold_df = oos_fold_df,
     n_vertices = nrow(pagerank_results),
     n_robots_blocked = length(robots_blocked_urls),
+    n_status_dead = length(status_dead_urls),
     n_out_of_scope_folds = length(oos_sources)
   )
 }
@@ -3047,6 +3181,7 @@ pagerank <- function(
   has_redirects,
   has_canonicals,
   indexability_df,
+  status_df = NULL,
   folded_prior_df,
   preset = NULL,
   placement = NULL,
@@ -3079,6 +3214,8 @@ pagerank <- function(
     has_canonicals = isTRUE(has_canonicals),
     has_indexability = !is.null(indexability_df) &&
       nrow(indexability_df) > 0,
+    has_status = !is.null(status_df) &&
+      nrow(status_df) > 0,
     has_prior = !is.null(folded_prior_df)
   )
 }
@@ -3121,6 +3258,7 @@ pagerank <- function(
   has_redirects,
   has_canonicals,
   indexability_df,
+  status_df = NULL,
   folded_prior_df,
   preset = NULL,
   placement = NULL,
@@ -3143,6 +3281,7 @@ pagerank <- function(
     n_self_loops = n_self_loops,
     n_prior_unmatched = metrics$n_prior_unmatched,
     n_robots_blocked = metrics$n_robots_blocked,
+    n_status_dead = metrics$n_status_dead,
     pagerank_total = metrics$pagerank_total,
     mass_reported = metrics$pagerank_total,
     mass_evaporated = mass_evaporated,
@@ -3169,6 +3308,7 @@ pagerank <- function(
       has_redirects = has_redirects,
       has_canonicals = has_canonicals,
       indexability_df = indexability_df,
+      status_df = status_df,
       folded_prior_df = folded_prior_df,
       preset = preset,
       placement = placement,

@@ -20,6 +20,7 @@ new_transition_audit(
   n_self_loops = 0L,
   n_prior_unmatched = NA_integer_,
   n_robots_blocked = 0L,
+  n_status_dead = 0L,
   pagerank_total = NA_real_,
   mass_reported = NA_real_,
   mass_evaporated = NA_real_,
@@ -68,6 +69,9 @@ transition weights.}
 vertex.}
 
 \item{n_robots_blocked}{Integer, URLs treated as robots.txt-blocked.}
+
+\item{n_status_dead}{Integer, in-graph URLs whose HTTP status code marked
+them response-dead (4xx/5xx).}
 
 \item{pagerank_total}{Numeric, sum of the returned PageRank scores.}
 
