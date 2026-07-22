@@ -85,7 +85,7 @@ describe("mass accounting", {
     expect_equal(mass$total, 1, tolerance = 1e-8)
   })
 
-  it("attributes hidden mass only to vanished robots-blocked nodes", {
+  it("attributes a vanished robots-blocked node's own mass to hidden", {
     edges <- data.frame(
       from = c("A", "B"),
       to = c("B", "Blocked")
@@ -101,8 +101,11 @@ describe("mass accounting", {
     )
     mass <- attr(pr, "transition_audit")$mass
 
-    expect_equal(mass$sink, 0)
+    # Under the unified sink mechanism, a vanished node's OWN stationary mass is
+    # booked as hidden, while the authority it passes on routes to the shared
+    # waste sink (counted in sink), so both channels are positive.
     expect_gt(mass$hidden, 0)
+    expect_gt(mass$sink, 0)
     expect_equal(mass$total, 1, tolerance = 1e-8)
   })
 

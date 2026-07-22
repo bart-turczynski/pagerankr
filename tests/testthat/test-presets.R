@@ -21,7 +21,7 @@ describe("pr_preset()", {
   it("returns the declared bundle", {
     declared <- pr_preset("declared")
     expect_equal(declared$nofollow_action, "evaporate")
-    expect_equal(declared$robots_blocked_action, "trap")
+    expect_equal(declared$robots_blocked_action, "show")
     expect_true(declared$drop_isolates_flag)
     expect_equal(declared$self_loops, "drop")
     expect_equal(declared$out_of_scope_fold, "relabel")
@@ -172,7 +172,7 @@ describe("preset = on pagerank()", {
     )
     declared <- do.call(pagerank, c(args, list(preset = "declared")))
     baseline <- do.call(pagerank, args)
-    # robots_blocked_action = "trap": the blocked page stays in the results,
+    # robots_blocked_action = "show": the blocked page stays in the results,
     # holding the authority it collects.
     expect_true("C" %in% declared$node_name)
     expect_equal(declared$pagerank, baseline$pagerank)

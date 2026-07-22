@@ -150,7 +150,7 @@ pr_preset <- function(name) {
       self_loops = "drop",
       drop_isolates_flag = TRUE,
       nofollow_action = "evaporate",
-      robots_blocked_action = "trap",
+      robots_blocked_action = "show",
       out_of_scope_fold = "relabel"
     ),
     reversed = list(
