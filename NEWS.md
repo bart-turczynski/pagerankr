@@ -1,5 +1,29 @@
 # pagerankr (development version)
 
+* **Positional decay: `pagerank()` can now weight links by their reading order
+  within the page.** Point the new `position_col` at a numeric per-source
+  position index — `1` for the first link, `2` for the second — and each edge's
+  weight is scaled by a reading-order decay. This is the orthogonal axis of the
+  edge-weighting model: where placement and boilerplate describe *templatedness*
+  and feed one graded axis combined by minimum, position describes *reading
+  order* and composes by **multiplication**, so an above-the-fold boilerplate
+  CTA (`0.5 × 1.0`) outranks a trailing organic link (`1.0 × 0.2`) with no
+  special-casing. The decay reuses the existing `transform_weights()` shapes:
+  `position_transform` is `"zipf"` (default, `1 / rank^position_alpha`) or
+  `"rank_linear"`, applied within each source page's choice set, and
+  `position_floor` (default `0.01`) clamps the result strictly above zero so
+  compounding two axes can never reach an effective drop. Off unless
+  `position_col` is supplied, and crawler-neutral: any crawler that can report a
+  link's order can drive it. Recorded separately in the transition audit's
+  `config$position`, so an edge's weight can be explained as region times
+  reading order.
+* **`screaming_frog_links()` now materializes that index at ingest.** The edge
+  table gains a `position_index` column carrying each link's reading-order rank
+  among its source page's content links — computed from document order for an
+  **All Outlinks** export, and left `NA` for **All Inlinks**, whose row order is
+  destination-alphabetical rather than document order. `pagerank_screaming_frog()`
+  therefore drives the axis with `position_col = "position_index"`; it stays
+  opt-in, so pass that argument to switch it on.
 * **`pagerank_screaming_frog()` gains a `preset` argument, and `preset = "raw"`
   now actually produces the as-crawled graph.** Previously the wrapper fed
   `pagerank()` the bundle's declared canonical, redirect and indexability

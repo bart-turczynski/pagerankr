@@ -68,7 +68,13 @@
 #'     Placement and recurrence are two detectors feeding one graded axis, and
 #'     the strongest applicable discount wins, so both are recorded
 #'     **separately**: the resulting weight alone cannot say which detector
-#'     produced it. The other fields are the
+#'     produced it. `position` records the orthogonal reading-order axis the
+#'     same way when it was used (`position_col`, `position_transform`,
+#'     `position_alpha`, `position_floor`, and the counts `n_edges_scored`,
+#'     `n_sources_scored`, and `min_position_weight`), or `NULL` when it was
+#'     not -- it *multiplies* into the weight rather than competing for the
+#'     minimum, so it too is recorded on its own so an edge weighing `0.02` can
+#'     be explained as region times reading order. The other fields are the
 #'     resolved configuration itself: `self_loops`, `drop_isolates_flag`,
 #'     `reverse`,
 #'     `weight_col`, `nofollow_col`, `nofollow_action`, `robots_blocked_action`,

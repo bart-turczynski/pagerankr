@@ -21,6 +21,10 @@ pagerank(
   boilerplate_threshold = 0.5,
   min_container_pages = 10,
   boilerplate_weight = 0.5,
+  position_col = NULL,
+  position_transform = c("zipf", "rank_linear"),
+  position_alpha = 1,
+  position_floor = 0.01,
   duplicate_edge_policy = c("collapse", "aggregate", "count_instances"),
   nofollow_col = NULL,
   nofollow_action = c("evaporate", "drop", "keep"),
@@ -159,6 +163,44 @@ factors are not multiplied -- that would discount the same link twice for
 the same fact. The strongest applicable discount wins, giving chrome
 `0.1`, repetitive in-content `0.5`, and unique in-content `1`. Both
 factors are recorded separately in the transition audit.}
+
+\item{position_col}{Optional name of a numeric column in `edge_list_df`
+holding each link's **position index** within its source page -- `1` for
+the first link, `2` for the second, and so on in reading order. Supplying
+it switches on the positional-decay axis; `NULL` (default) leaves it off.
+This is the genuinely orthogonal axis of the edge-weighting model: where
+placement and recurrence describe *templatedness* (and feed one graded axis
+combined by minimum), position describes *reading order* and so composes by
+**multiplication** -- an above-the-fold boilerplate CTA (`0.5 * 1.0`)
+outranks a trailing organic link (`1.0 * 0.2`) with no special-casing. Like
+`placement_col` and `container_col` this is crawler-neutral data: the index
+must be materialized from document order **at ingest**, while it is still
+trustworthy, and never inferred from row order here, where a filter, join
+or dedup may already have destroyed it (for Screaming Frog it is read from
+an **All Outlinks** export, whose row order is document order, never All
+Inlinks, whose row order is destination-alphabetical). Edges with no index
+(`NA`) keep position weight `1`, so ranking only the source's main-content
+links -- leaving site chrome to the placement axis -- is expressed by
+indexing only those links. Cannot be combined with `weight_col`, which it
+supersedes by building a weight column of its own.}
+
+\item{position_transform}{The reading-order decay applied to `position_col`,
+one of `"zipf"` (default) or `"rank_linear"`, reusing [transform_weights()]
+within each source page's choice set. `"zipf"` gives
+`weight = 1 / rank^position_alpha` (position 1 keeps weight `1`, later
+positions drop off as a power law); `"rank_linear"` gives
+`weight = (n - rank + 1) / n` across a source's `n` indexed links. Only
+consulted when `position_col` is supplied.}
+
+\item{position_alpha}{The exponent for `position_transform = "zipf"`, a
+single positive number. Default `1`. Higher values make the drop-off
+steeper, so position 1 dominates its page more. Unused by `"rank_linear"`.}
+
+\item{position_floor}{The smallest position weight, in `(0, 1]`. Default
+`0.01`. Decayed weights are clamped up to this floor so that compounding
+the two axes can never reach `0` -- an "effectively dropped" edge must not
+sneak back in through decay (the same downweight-not-drop rule that governs
+placement and boilerplate). Only consulted when `position_col` is supplied.}
 
 \item{duplicate_edge_policy}{How repeated `from -> to` rows are represented
 after URL cleaning, redirect/canonical folding, and domain filtering. One

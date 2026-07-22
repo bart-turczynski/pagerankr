@@ -60,7 +60,13 @@ describe("screaming_frog_links()", {
     outlinks <- screaming_frog_links(sf_links_fixture(), "all_outlinks")
 
     expect_identical(inlinks$observations, outlinks$observations)
-    expect_identical(inlinks$edges, outlinks$edges)
+    # The two exports describe the identical graph; only the reading-order
+    # index differs, because document order lives in All Outlinks alone. All
+    # Inlinks row order is destination-alphabetical, so its index stays NA.
+    graph_cols <- setdiff(names(outlinks$edges), "position_index")
+    expect_identical(inlinks$edges[graph_cols], outlinks$edges[graph_cols])
+    expect_true(all(is.na(inlinks$edges$position_index)))
+    expect_identical(outlinks$edges$position_index, c(NA, 1L, NA, NA, NA))
     expect_identical(inlinks$edges$from[[1L]], "https://example.com/")
     expect_identical(inlinks$edges$to[[1L]], "https://example.com/a")
     expect_identical(inlinks$provenance$export_kind, "all_inlinks")

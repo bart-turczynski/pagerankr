@@ -99,6 +99,40 @@
 #'   the same fact. The strongest applicable discount wins, giving chrome
 #'   `0.1`, repetitive in-content `0.5`, and unique in-content `1`. Both
 #'   factors are recorded separately in the transition audit.
+#' @param position_col Optional name of a numeric column in `edge_list_df`
+#'   holding each link's **position index** within its source page -- `1` for
+#'   the first link, `2` for the second, and so on in reading order. Supplying
+#'   it switches on the positional-decay axis; `NULL` (default) leaves it off.
+#'   This is the genuinely orthogonal axis of the edge-weighting model: where
+#'   placement and recurrence describe *templatedness* (and feed one graded axis
+#'   combined by minimum), position describes *reading order* and so composes by
+#'   **multiplication** -- an above-the-fold boilerplate CTA (`0.5 * 1.0`)
+#'   outranks a trailing organic link (`1.0 * 0.2`) with no special-casing. Like
+#'   `placement_col` and `container_col` this is crawler-neutral data: the index
+#'   must be materialized from document order **at ingest**, while it is still
+#'   trustworthy, and never inferred from row order here, where a filter, join
+#'   or dedup may already have destroyed it (for Screaming Frog it is read from
+#'   an **All Outlinks** export, whose row order is document order, never All
+#'   Inlinks, whose row order is destination-alphabetical). Edges with no index
+#'   (`NA`) keep position weight `1`, so ranking only the source's main-content
+#'   links -- leaving site chrome to the placement axis -- is expressed by
+#'   indexing only those links. Cannot be combined with `weight_col`, which it
+#'   supersedes by building a weight column of its own.
+#' @param position_transform The reading-order decay applied to `position_col`,
+#'   one of `"zipf"` (default) or `"rank_linear"`, reusing [transform_weights()]
+#'   within each source page's choice set. `"zipf"` gives
+#'   `weight = 1 / rank^position_alpha` (position 1 keeps weight `1`, later
+#'   positions drop off as a power law); `"rank_linear"` gives
+#'   `weight = (n - rank + 1) / n` across a source's `n` indexed links. Only
+#'   consulted when `position_col` is supplied.
+#' @param position_alpha The exponent for `position_transform = "zipf"`, a
+#'   single positive number. Default `1`. Higher values make the drop-off
+#'   steeper, so position 1 dominates its page more. Unused by `"rank_linear"`.
+#' @param position_floor The smallest position weight, in `(0, 1]`. Default
+#'   `0.01`. Decayed weights are clamped up to this floor so that compounding
+#'   the two axes can never reach `0` -- an "effectively dropped" edge must not
+#'   sneak back in through decay (the same downweight-not-drop rule that governs
+#'   placement and boilerplate). Only consulted when `position_col` is supplied.
 #' @param duplicate_edge_policy How repeated `from -> to` rows are represented
 #'   after URL cleaning, redirect/canonical folding, and domain filtering. One
 #'   of:
@@ -532,6 +566,10 @@ pagerank <- function(
   boilerplate_threshold = 0.5,
   min_container_pages = 10,
   boilerplate_weight = 0.5,
+  position_col = NULL,
+  position_transform = c("zipf", "rank_linear"),
+  position_alpha = 1,
+  position_floor = 0.01,
   duplicate_edge_policy = c(
     "collapse",
     "aggregate",
@@ -626,12 +664,14 @@ pagerank <- function(
   canonical_conflict_policy <- match.arg(canonical_conflict_policy)
   out_of_scope_fold <- match.arg(out_of_scope_fold)
   prior_transform <- match.arg(prior_transform)
+  position_transform <- match.arg(position_transform)
 
   # Hoisted above the main validation block: `placement_weights` builds a
   # weight column of its own, so pairing it with `weight_col` is a contradiction
   # worth reporting before `weight_col` is checked against the edge list.
   .pr_check_weight_col_exclusivity(weight_col, placement_weights)
   .pr_check_container_weight_exclusivity(weight_col, container_col)
+  .pr_check_position_weight_exclusivity(weight_col, position_col)
 
   # Validate all arguments up front (see .validate_pagerank_args below). Kept in
   # a dedicated helper so this orchestrator stays readable; error messages and
@@ -721,6 +761,26 @@ pagerank <- function(
   )
   current_edge_list <- .boilerplate$edge_list_df
   weight_col <- .boilerplate$weight_col
+
+  # --- 1.6. Position: reading-order decay within the source page -----------
+  # The orthogonal axis. Placement and recurrence feed one graded axis (via
+  # `pmin`); position measures reading order instead and so *multiplies* into
+  # the weight. Runs after boilerplate so it composes on top of whatever the
+  # graded axis produced, and before the fold so the per-source choice sets are
+  # still the ones that were crawled. The per-source position index is data the
+  # caller supplies (materialized at ingest); pagerank() never reads order from
+  # row order here. See .pr_apply_position() in R/position.R.
+  .position <- .pr_apply_position(
+    edge_list_df = current_edge_list,
+    position_col = position_col,
+    from_col = edge_from_col,
+    position_transform = position_transform,
+    position_alpha = position_alpha,
+    position_floor = position_floor,
+    weight_col = weight_col
+  )
+  current_edge_list <- .position$edge_list_df
+  weight_col <- .position$weight_col
 
   current_redirects_list <- .prep$redirects_df
   current_canonicals_list <- .prep$canonicals_df
@@ -982,7 +1042,8 @@ pagerank <- function(
     indexability_df = indexability_df,
     preset = preset,
     placement = .placement$provenance,
-    boilerplate = .boilerplate$provenance
+    boilerplate = .boilerplate$provenance,
+    position = .position$provenance
   )
 
   attr(pagerank_results, "transition_audit") <- transition_audit
@@ -2840,7 +2901,8 @@ pagerank <- function(
   indexability_df,
   preset = NULL,
   placement = NULL,
-  boilerplate = NULL
+  boilerplate = NULL,
+  position = NULL
 ) {
   # Derived scalars, config snapshot, and construction live in helpers below.
   metrics <- .transition_audit_metrics(
@@ -2890,7 +2952,8 @@ pagerank <- function(
     folded_prior_df = folded_prior_df,
     preset = preset,
     placement = placement,
-    boilerplate = boilerplate
+    boilerplate = boilerplate,
+    position = position
   )
 }
 
@@ -2987,7 +3050,8 @@ pagerank <- function(
   folded_prior_df,
   preset = NULL,
   placement = NULL,
-  boilerplate = NULL
+  boilerplate = NULL,
+  position = NULL
 ) {
   config_nofollow_col <- if (identical(nofollow_col, "__pr_nofollow__")) {
     NULL
@@ -2998,6 +3062,7 @@ pagerank <- function(
     preset = .pr_preset_label(preset),
     placement = placement,
     boilerplate = boilerplate,
+    position = position,
     self_loops = self_loops,
     drop_isolates_flag = drop_isolates_flag,
     reverse = reverse,
@@ -3059,7 +3124,8 @@ pagerank <- function(
   folded_prior_df,
   preset = NULL,
   placement = NULL,
-  boilerplate = NULL
+  boilerplate = NULL,
+  position = NULL
 ) {
   new_transition_audit(
     n_input_rows = n_input_rows,
@@ -3106,7 +3172,8 @@ pagerank <- function(
       folded_prior_df = folded_prior_df,
       preset = preset,
       placement = placement,
-      boilerplate = boilerplate
+      boilerplate = boilerplate,
+      position = position
     )
   )
 }
