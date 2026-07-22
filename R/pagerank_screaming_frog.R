@@ -39,6 +39,13 @@
 #' @param ... Additional scoring controls passed to [pagerank()], such as
 #'   `self_loops`, `drop_isolates_flag`, `nofollow_action`,
 #'   `robots_blocked_action`, `rurl_params`, prior settings, and `damping`.
+#'   Positional decay is opt-in here too: the bundle's `edges` carry a
+#'   `position_index` column (each link's reading-order rank among its source
+#'   page's content links, materialized only from an **All Outlinks** export),
+#'   so pass `position_col = "position_index"` -- optionally with
+#'   `position_transform` / `position_alpha` / `position_floor` -- to switch the
+#'   axis on. It stays off by default, per the faithful-default rule, because
+#'   reading-order decay reshuffles ranking as hard as placement weighting does.
 #'
 #' @return The [pagerank()] result data frame. It retains the
 #'   `"transition_audit"` attribute from [pagerank()] and adds a

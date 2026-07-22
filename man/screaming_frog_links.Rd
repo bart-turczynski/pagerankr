@@ -32,7 +32,11 @@ An object of class `screaming_frog_links` with components:
   \describe{
     \item{observations}{Normalized observations in input row order.}
     \item{edges}{Unaggregated, graph-eligible `from` / `to` rows with
-      nofollow, placement, origin, and link provenance.}
+      nofollow, placement, origin, and link provenance. `position_index`
+      carries each link's reading-order rank among its source page's
+      content links (`1` = first), materialized from document order for
+      `all_outlinks` and `NA` otherwise; it feeds [pagerank()]'s
+      `position_col`.}
     \item{diagnostics}{Input, eligibility, endpoint, type, origin,
       Follow/Rel, and schema counts plus row-level issues.}
     \item{provenance}{Export kind, source, policy, retained input-row IDs,
