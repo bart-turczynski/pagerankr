@@ -1,21 +1,38 @@
 #' @title Simulate the PageRank Impact of Link and Redirect Changes
 #' @description Compares PageRank before and after proposed changes to the link
-#'   graph. Useful for SEOs who want to predict the impact of adding or removing
-#'   internal links, or implementing redirects, before making changes in
-#'   production.
+#'   graph, at both the edge level (adding/removing links) and the URL level
+#'   (retiring a page behind a redirect, or repointing an existing redirect).
+#'   The whole graph is recomputed and a before/after table is returned;
+#'   interpretation is left to the caller. This is a faithful recompute
+#'   primitive, not a ranking or target-optimization engine.
 #'
 #' @param edge_list_df A data frame representing the current link edge list.
 #' @param add_links_df Optional data frame of links to add. Must have the same
-#'   from/to column names as \code{edge_list_df}. Default \code{NULL}.
+#'   from/to column names as \code{edge_list_df}. Columns present in
+#'   \code{edge_list_df} but absent here are padded with \code{NA} on the added
+#'   rows, so weighted / annotated edge lists keep their schema.
+#'   Default \code{NULL}.
 #' @param remove_links_df Optional data frame of links to remove. Matching is
 #'   by exact from+to pair. Must have the same from/to column names as
 #'   \code{edge_list_df}. Default \code{NULL}.
-#' @param add_redirects_df Optional data frame of new redirects to add. Must
-#'   have from/to columns (names controlled by \code{pagerank()}'s
-#'   \code{redirect_from_col} / \code{redirect_to_col} defaults).
+#' @param redirect_urls_df Optional two-column \code{from}/\code{to} data frame
+#'   of URL-level redirects to model. Each row retires the \code{from} URL and
+#'   sends its inbound authority to \code{to} at 100\% pass-through. Retire
+#'   semantics: the live source's own outbound links are \strong{stripped}
+#'   before folding (an honest 301 has no body), so the target inherits the
+#'   source's inbound authority only, never its outlinks. A row for source
+#'   \code{A} \strong{overrides} any prior redirect for \code{A} -- whether from
+#'   an earlier row or from the baseline crawl's real 3xx -- so
+#'   "change A into a redirect to C" is a single override. A duplicate source
+#'   mapping to two distinct targets in one changeset is an error (strict).
 #'   Default \code{NULL}.
 #' @param redirects_df Optional data frame of existing redirects (baseline).
 #'   Default \code{NULL}.
+#' @param on_unknown_target How to treat a redirect or link \emph{target} that
+#'   is not a node in the current graph (it may be a legitimate new page,
+#'   modeled as a new node that carries inbound authority with no outlinks yet).
+#'   One of \code{"warn"} (default, warn and proceed), \code{"error"}, or
+#'   \code{"allow"} (proceed silently).
 #' @param ... Additional arguments passed to both \code{pagerank()} calls
 #'   (e.g., \code{clean_edge_urls}, \code{damping}, \code{nofollow_col},
 #'   \code{indexability_df}, etc.).
@@ -23,16 +40,31 @@
 #'   Default \code{"from"}.
 #' @param edge_to_col Name of the to column in edge list data frames.
 #'   Default \code{"to"}.
+#' @param redirect_from_col Name of the source column in \code{redirect_urls_df}
+#'   and \code{redirects_df}. Default \code{"from"}.
+#' @param redirect_to_col Name of the target column in \code{redirect_urls_df}
+#'   and \code{redirects_df}. Default \code{"to"}.
 #' @param label_baseline Label for the baseline model in the comparison output.
 #'   Default \code{"baseline"}.
 #' @param label_proposed Label for the proposed model in the comparison output.
 #'   Default \code{"proposed"}.
 #'
-#' @return The output of \code{\link{compare_pagerank}}: a data frame with
-#'   per-node deltas, percentage changes, and rank changes between baseline and
-#'   proposed. A \code{"summary"} attribute contains aggregate statistics
-#'   (Spearman rho, mean absolute delta, nodes gained/lost).
+#' @return The output of \code{\link{compare_pagerank}} (per-node deltas,
+#'   percentage changes, and rank changes between baseline and proposed) with an
+#'   added \code{node_status} column: \code{"normal"} for a node present in
+#'   both models, or \code{"new-target"} for a node introduced by the changeset
+#'   (present in the proposed model, absent from the baseline). Attributes:
+#'   \describe{
+#'     \item{summary}{Aggregate statistics from \code{compare_pagerank()}.}
+#'     \item{proposed}{The full proposed \code{pagerank()} result, including its
+#'       \code{transition_audit} attribute.}
+#'     \item{manifest}{A named list describing the changeset: redirects applied,
+#'       which sources overrode a prior redirect, link add/remove counts, and
+#'       any unknown targets.}
+#'   }
 #'
+#' @seealso \code{\link{simulate_changes_screaming_frog}} for the Screaming Frog
+#'   bundle entry point.
 #' @export
 #' @examples
 #' # Current site links
@@ -51,39 +83,141 @@
 #' )
 #' print(result)
 #' attr(result, "summary")
+#'
+#' # Retire the About page behind a redirect to Home
+#' retire <- data.frame(from = "About", to = "Home")
+#' simulate_changes(edges, redirect_urls_df = retire, clean_edge_urls = FALSE)
 simulate_changes <- function(edge_list_df,
                              add_links_df = NULL,
                              remove_links_df = NULL,
-                             add_redirects_df = NULL,
+                             redirect_urls_df = NULL,
                              redirects_df = NULL,
+                             on_unknown_target = c("warn", "error", "allow"),
                              ...,
                              edge_from_col = "from",
                              edge_to_col = "to",
+                             redirect_from_col = "from",
+                             redirect_to_col = "to",
                              label_baseline = "baseline",
                              label_proposed = "proposed") {
-  .validate_simulate_inputs(
-    edge_list_df, add_links_df, remove_links_df,
-    add_redirects_df, redirects_df, edge_from_col, edge_to_col
+  on_unknown_target <- match.arg(on_unknown_target)
+
+  if (!is.data.frame(edge_list_df)) {
+    stop("`edge_list_df` must be a data frame.", call. = FALSE)
+  }
+  dots <- list(...)
+  if ("add_redirects_df" %in% names(dots)) {
+    stop("`add_redirects_df` has been removed. Use `redirect_urls_df` ",
+      "(create-or-override, retire semantics) instead.",
+      call. = FALSE
+    )
+  }
+
+  baseline_args <- c(
+    list(
+      edge_list_df = edge_list_df,
+      redirects_df = redirects_df,
+      edge_from_col = edge_from_col,
+      edge_to_col = edge_to_col,
+      redirect_from_col = redirect_from_col,
+      redirect_to_col = redirect_to_col
+    ),
+    dots
   )
 
+  .simulate_changes_engine(
+    baseline_args = baseline_args,
+    add_links_df = add_links_df,
+    remove_links_df = remove_links_df,
+    redirect_urls_df = redirect_urls_df,
+    on_unknown_target = on_unknown_target,
+    edge_from_col = edge_from_col,
+    edge_to_col = edge_to_col,
+    redirect_from_col = redirect_from_col,
+    redirect_to_col = redirect_to_col,
+    label_baseline = label_baseline,
+    label_proposed = label_proposed
+  )
+}
+
+
+#' Shared changeset engine for both `simulate_changes()` entry points
+#'
+#' Takes a fully-built list of baseline `pagerank()` arguments (from the bare
+#' edge-list path or the Screaming Frog bundle adapter), applies the URL- and
+#' edge-level verbs to produce the proposed graph, recomputes both models, and
+#' assembles the comparison output. `baseline_args` must contain at least
+#' `edge_list_df` and `redirects_df`; everything else rides along unchanged into
+#' both `pagerank()` calls so the two models differ only by the changeset.
+#' @noRd
+.simulate_changes_engine <- function(baseline_args,
+                                     add_links_df, remove_links_df,
+                                     redirect_urls_df, on_unknown_target,
+                                     edge_from_col, edge_to_col,
+                                     redirect_from_col, redirect_to_col,
+                                     label_baseline, label_proposed) {
+  edge_list_df <- baseline_args$edge_list_df
+  baseline_redirects <- baseline_args$redirects_df
+
+  # --- Validate the changeset ---
+  required_cols <- c(edge_from_col, edge_to_col)
+  .validate_link_df(
+    add_links_df, "add_links_df", required_cols, edge_from_col, edge_to_col
+  )
+  .validate_link_df(
+    remove_links_df, "remove_links_df", required_cols,
+    edge_from_col, edge_to_col
+  )
+  .validate_redirect_urls_df(
+    redirect_urls_df, redirect_from_col, redirect_to_col
+  )
+
+  redirect_sources <- .redirect_urls_sources(
+    redirect_urls_df, redirect_from_col
+  )
+
+  # --- Unknown-target handling (warn / error / allow) ---
+  known_nodes <- unique(c(
+    as.character(edge_list_df[[edge_from_col]]),
+    as.character(edge_list_df[[edge_to_col]])
+  ))
+  unknown_targets <- .simulate_unknown_targets(
+    known_nodes, redirect_urls_df, add_links_df,
+    redirect_to_col, edge_to_col
+  )
+  .handle_unknown_targets(unknown_targets, on_unknown_target)
+
+  # --- Build the proposed graph (order: redirect -> remove -> add links) ---
   proposed_edges <- .build_proposed_edges(
-    edge_list_df, add_links_df, remove_links_df,
+    edge_list_df, add_links_df, remove_links_df, redirect_sources,
     edge_from_col, edge_to_col
   )
   proposed_redirects <- .build_proposed_redirects(
-    redirects_df, add_redirects_df
+    baseline_redirects, redirect_urls_df, redirect_from_col, redirect_to_col
   )
 
-  pr_baseline <- pagerank(edge_list_df, redirects_df = redirects_df, ...)
-  pr_proposed <- pagerank(proposed_edges,
-    redirects_df = proposed_redirects,
-    ...
-  )
+  # --- Recompute both models ---
+  pr_baseline <- do.call(pagerank, baseline_args)
+  proposed_args <- baseline_args
+  proposed_args$edge_list_df <- proposed_edges
+  proposed_args$redirects_df <- proposed_redirects
+  pr_proposed <- do.call(pagerank, proposed_args)
 
-  compare_pagerank(pr_baseline, pr_proposed,
+  # --- Assemble output ---
+  result <- compare_pagerank(
+    pr_baseline, pr_proposed,
     label_a = label_baseline, label_b = label_proposed
   )
+  result <- .attach_node_status(result, label_baseline, label_proposed)
+
+  attr(result, "proposed") <- pr_proposed
+  attr(result, "manifest") <- .build_change_manifest(
+    redirect_urls_df, baseline_redirects, redirect_sources,
+    add_links_df, remove_links_df, unknown_targets, redirect_from_col
+  )
+  result
 }
+
 
 #' Validate a link data frame argument for simulate_changes()
 #' @noRd
@@ -103,47 +237,108 @@ simulate_changes <- function(edge_list_df,
   invisible(NULL)
 }
 
-#' Validate a redirect data frame argument for simulate_changes()
+
+#' Validate `redirect_urls_df` (shape + strict single-target-per-source)
+#'
+#' A two-column from/to redirect changeset. Enforces the strict rule that a
+#' single changeset must send each URL to exactly one destination (A->B and
+#' A->C is an error), mirroring `resolve_redirects()`'s default
+#' `duplicate_from_policy = "strict"`. Exact-duplicate rows (A->B twice) are
+#' allowed and deduplicated downstream.
 #' @noRd
-.validate_redirect_df <- function(df, arg_name) {
-  if (!is.null(df) && !is.data.frame(df)) {
-    stop("`", arg_name, "` must be a data frame or NULL.", call. = FALSE)
+.validate_redirect_urls_df <- function(df, from_col, to_col) {
+  if (is.null(df)) {
+    return(invisible(NULL))
+  }
+  if (!is.data.frame(df)) {
+    stop("`redirect_urls_df` must be a data frame or NULL.", call. = FALSE)
+  }
+  if (nrow(df) == 0) {
+    return(invisible(NULL))
+  }
+  if (!all(c(from_col, to_col) %in% names(df))) {
+    stop("`redirect_urls_df` must have '", from_col, "' and '",
+      to_col, "' columns.",
+      call. = FALSE
+    )
+  }
+
+  sources <- as.character(df[[from_col]])
+  targets <- as.character(df[[to_col]])
+  distinct_pairs <- !duplicated(paste0(sources, "\t", targets))
+  distinct_sources <- sources[distinct_pairs]
+  conflicting <- unique(distinct_sources[duplicated(distinct_sources)])
+  if (length(conflicting) > 0) {
+    first <- conflicting[1]
+    tgts <- unique(targets[sources == first])
+    stop("Ambiguous redirect in `redirect_urls_df`: URL '", first,
+      "' maps to multiple distinct targets: ", toString(tgts),
+      ". A single changeset must send each URL to one destination.",
+      call. = FALSE
+    )
   }
   invisible(NULL)
 }
 
-#' Validate all inputs to simulate_changes()
+
+#' Unique redirect source URLs (the pages being retired)
 #' @noRd
-.validate_simulate_inputs <- function(edge_list_df, add_links_df,
-                                      remove_links_df, add_redirects_df,
-                                      redirects_df, from_col, to_col) {
-  if (!is.data.frame(edge_list_df)) {
-    stop("`edge_list_df` must be a data frame.", call. = FALSE)
+.redirect_urls_sources <- function(df, from_col) {
+  if (is.null(df) || nrow(df) == 0) {
+    return(character(0))
   }
-  required_cols <- c(from_col, to_col)
-  .validate_link_df(
-    add_links_df, "add_links_df", required_cols, from_col, to_col
+  unique(as.character(df[[from_col]]))
+}
+
+
+#' Redirect / link targets that are not yet nodes in the current graph
+#' @noRd
+.simulate_unknown_targets <- function(known_nodes, redirect_urls_df,
+                                      add_links_df, redirect_to_col,
+                                      edge_to_col) {
+  targets <- character(0)
+  if (!is.null(redirect_urls_df) && nrow(redirect_urls_df) > 0) {
+    targets <- c(targets, as.character(redirect_urls_df[[redirect_to_col]]))
+  }
+  if (!is.null(add_links_df) && nrow(add_links_df) > 0) {
+    targets <- c(targets, as.character(add_links_df[[edge_to_col]]))
+  }
+  targets <- unique(targets[!is.na(targets)])
+  setdiff(targets, known_nodes)
+}
+
+
+#' Apply the `on_unknown_target` policy to unknown targets
+#' @noRd
+.handle_unknown_targets <- function(unknown_targets, on_unknown_target) {
+  if (length(unknown_targets) == 0 || on_unknown_target == "allow") {
+    return(invisible(NULL))
+  }
+  msg <- paste0(
+    "Change targets not present in the current graph ",
+    "(modeled as new nodes): ", toString(unknown_targets), "."
   )
-  .validate_link_df(
-    remove_links_df, "remove_links_df", required_cols, from_col, to_col
-  )
-  .validate_redirect_df(add_redirects_df, "add_redirects_df")
-  .validate_redirect_df(redirects_df, "redirects_df")
+  if (on_unknown_target == "error") {
+    stop(msg, call. = FALSE)
+  }
+  warning(msg, call. = FALSE)
   invisible(NULL)
 }
 
-#' Build the proposed edge list from adds and removes
+
+#' Build the proposed edge list
+#'
+#' Applies, in order: strip retired redirect sources' outedges (retire, not
+#' move), remove exact from+to pairs, then append added links (aligned to the
+#' edge list's full schema so weighted / annotated columns survive).
 #' @noRd
-.build_proposed_edges <- function(edge_list_df, add_links_df,
-                                  remove_links_df, from_col, to_col) {
+.build_proposed_edges <- function(edge_list_df, add_links_df, remove_links_df,
+                                  redirect_sources, from_col, to_col) {
   proposed_edges <- edge_list_df
 
-  if (!is.null(add_links_df) && nrow(add_links_df) > 0) {
-    common_cols <- intersect(names(proposed_edges), names(add_links_df))
-    proposed_edges <- rbind(
-      proposed_edges[, common_cols, drop = FALSE],
-      add_links_df[, common_cols, drop = FALSE]
-    )
+  if (length(redirect_sources) > 0) {
+    keep <- !(as.character(proposed_edges[[from_col]]) %in% redirect_sources)
+    proposed_edges <- proposed_edges[keep, , drop = FALSE]
   }
 
   if (!is.null(remove_links_df) && nrow(remove_links_df) > 0) {
@@ -160,28 +355,98 @@ simulate_changes <- function(edge_list_df,
     ]
   }
 
+  if (!is.null(add_links_df) && nrow(add_links_df) > 0) {
+    proposed_edges <- .rbind_aligned(proposed_edges, add_links_df)
+  }
+
   proposed_edges
 }
 
-#' Build the proposed redirect table from the baseline and additions
-#' @noRd
-.build_proposed_redirects <- function(redirects_df, add_redirects_df) {
-  proposed_redirects <- redirects_df
 
-  if (!is.null(add_redirects_df) && nrow(add_redirects_df) > 0) {
-    if (is.null(proposed_redirects)) {
-      proposed_redirects <- add_redirects_df
-    } else {
-      common_cols <- intersect(
-        names(proposed_redirects),
-        names(add_redirects_df)
-      )
-      proposed_redirects <- rbind(
-        proposed_redirects[, common_cols, drop = FALSE],
-        add_redirects_df[, common_cols, drop = FALSE]
-      )
-    }
+#' Row-bind `add_df` onto `base_df`, keeping `base_df`'s columns
+#'
+#' Columns present in `base_df` but not in `add_df` are padded with `NA` on the
+#' added rows; columns present only in `add_df` are dropped. This keeps a
+#' weighted / Screaming Frog edge schema (nofollow, placement, weight, ...)
+#' intact when a bare two-column set of links is added.
+#' @noRd
+.rbind_aligned <- function(base_df, add_df) {
+  n <- nrow(add_df)
+  cols <- names(base_df)
+  filled <- stats::setNames(vector("list", length(cols)), cols)
+  for (cn in cols) {
+    filled[[cn]] <- if (cn %in% names(add_df)) add_df[[cn]] else rep(NA, n)
+  }
+  new_rows <- data.frame(filled, stringsAsFactors = FALSE, check.names = FALSE)
+  rbind(base_df, new_rows)
+}
+
+
+#' Build the proposed redirect table (baseline overridden by the changeset)
+#'
+#' Any baseline redirect whose source appears in `redirect_urls_df` is dropped,
+#' then the changeset rows are appended, so a changeset row for source A wins
+#' over a prior redirect for A (create-or-override). Only the from/to columns
+#' are carried forward.
+#' @noRd
+.build_proposed_redirects <- function(baseline_redirects, redirect_urls_df,
+                                      from_col, to_col) {
+  if (is.null(redirect_urls_df) || nrow(redirect_urls_df) == 0) {
+    return(baseline_redirects)
   }
 
-  proposed_redirects
+  ru <- redirect_urls_df[, c(from_col, to_col), drop = FALSE]
+  ru <- ru[!duplicated(paste0(
+    as.character(ru[[from_col]]), "\t", as.character(ru[[to_col]])
+  )), , drop = FALSE]
+  sources <- as.character(ru[[from_col]])
+
+  if (is.null(baseline_redirects) || nrow(baseline_redirects) == 0) {
+    return(ru)
+  }
+
+  base_keep <- !(as.character(baseline_redirects[[from_col]]) %in% sources)
+  base_kept <- baseline_redirects[base_keep, c(from_col, to_col), drop = FALSE]
+  rbind(base_kept, ru)
+}
+
+
+#' Add the per-row `node_status` column to the comparison table
+#'
+#' A node absent from the baseline but present in the proposed model is a
+#' `new-target` (a page the changeset introduced, carrying inbound authority it
+#' did not earn in the baseline); every other node is `normal`. The
+#' `removed-dead` status arrives with the `remove_urls` verb (Phase 2).
+#' @noRd
+.attach_node_status <- function(result, label_baseline, label_proposed) {
+  base_col <- paste0("pagerank_", label_baseline)
+  prop_col <- paste0("pagerank_", label_proposed)
+  status <- rep("normal", nrow(result))
+  is_new <- is.na(result[[base_col]]) & !is.na(result[[prop_col]])
+  status[is_new] <- "new-target"
+  result$node_status <- status
+  result
+}
+
+
+#' Build the change manifest attached to the comparison output
+#' @noRd
+.build_change_manifest <- function(redirect_urls_df, baseline_redirects,
+                                   redirect_sources, add_links_df,
+                                   remove_links_df, unknown_targets,
+                                   redirect_from_col) {
+  overrode <- character(0)
+  if (length(redirect_sources) > 0 && !is.null(baseline_redirects) &&
+    nrow(baseline_redirects) > 0 &&
+    redirect_from_col %in% names(baseline_redirects)) {
+    base_src <- as.character(baseline_redirects[[redirect_from_col]])
+    overrode <- intersect(redirect_sources, base_src)
+  }
+  list(
+    redirects_applied = redirect_urls_df,
+    redirects_overrode = overrode,
+    links_added = if (is.null(add_links_df)) 0L else nrow(add_links_df),
+    links_removed = if (is.null(remove_links_df)) 0L else nrow(remove_links_df),
+    unknown_targets = unknown_targets
+  )
 }
