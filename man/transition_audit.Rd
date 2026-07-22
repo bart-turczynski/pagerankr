@@ -45,8 +45,10 @@ fields are **stable**; callers may rely on them being present.
     `n_rows_collapsed` (total input rows that did not survive as distinct
     scored edges = `n_input_rows - n_edges`), `n_prior_unmatched` (authority
     prior URLs that did not fold onto any vertex; `NA_integer_` when no
-    `prior_df` was supplied), and `n_robots_blocked` (URLs treated as
-    robots.txt-blocked).}
+    `prior_df` was supplied), `n_robots_blocked` (URLs treated as
+    robots.txt-blocked), and `n_status_dead` (in-graph URLs whose HTTP
+    status code marked them response-dead; `0` when no `status_df` was
+    supplied).}
   \item{duplicates}{A list describing duplicate-edge handling:
     `policy` (the `duplicate_edge_policy` passed to [pagerank()]),
     `n_duplicate_rows` (post-fold duplicate input rows), `instance_count_col`

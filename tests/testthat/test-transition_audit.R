@@ -41,7 +41,8 @@ describe("transition_audit structure", {
       names(audit$dropped),
       c(
         "n_rows_na", "n_rows_duplicate", "n_self_loops",
-        "n_rows_collapsed", "n_prior_unmatched", "n_robots_blocked"
+        "n_rows_collapsed", "n_prior_unmatched", "n_robots_blocked",
+        "n_status_dead"
       )
     )
     expect_setequal(

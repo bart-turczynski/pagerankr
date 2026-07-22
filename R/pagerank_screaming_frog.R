@@ -89,7 +89,7 @@ pagerank_screaming_frog <- function(bundle,
   attr(result, "screaming_frog_import") <- .sf_build_import_attr(
     bundle, prep$input_edges, prep$edges, accepted_placements,
     prep$link_origins, placement_weights, weight_col, prep$apply_canonicals,
-    prep$apply_redirects, prep$apply_indexability
+    prep$apply_redirects, prep$apply_indexability, prep$apply_status
   )
 
   result
@@ -144,6 +144,11 @@ pagerank_screaming_frog <- function(bundle,
     if (missing_redirects) apply_redirects <- FALSE
   }
   apply_indexability <- !raw_view
+  # Response status is crawl-observed health, not a declared directive, but
+  # recognizing a 404 as response-dead is still an application, so the raw
+  # "graph exactly as crawled" view leaves it off (a 4xx page is scored as an
+  # ordinary vertex), mirroring the indexability flip above.
+  apply_status <- !raw_view
 
   .sf_check_reserved_dots(dots)
   .sf_validate_weight_col(weight_col)
@@ -162,7 +167,8 @@ pagerank_screaming_frog <- function(bundle,
 
   pr_args <- .sf_build_pr_args(
     edges, bundle, apply_redirects, apply_canonicals, apply_indexability,
-    weight_col, accepted_placements, placement_weights, preset, dots
+    apply_status, weight_col, accepted_placements, placement_weights, preset,
+    dots
   )
   list(
     pr_args = pr_args,
@@ -171,6 +177,7 @@ pagerank_screaming_frog <- function(bundle,
     apply_canonicals = apply_canonicals,
     apply_redirects = apply_redirects,
     apply_indexability = apply_indexability,
+    apply_status = apply_status,
     link_origins = link_origins
   )
 }
@@ -180,9 +187,10 @@ pagerank_screaming_frog <- function(bundle,
     names(dots),
     c(
       "edge_list_df", "redirects_df", "canonicals_df", "indexability_df",
-      "edge_from_col", "edge_to_col", "redirect_from_col",
+      "status_df", "edge_from_col", "edge_to_col", "redirect_from_col",
       "redirect_to_col", "canonical_from_col", "canonical_to_col",
-      "indexability_url_col", "indexability_status_col", "nofollow_col"
+      "indexability_url_col", "indexability_status_col",
+      "status_url_col", "status_col", "nofollow_col"
     )
   )
   if (length(reserved) > 0L) {
@@ -251,7 +259,8 @@ pagerank_screaming_frog <- function(bundle,
 }
 
 .sf_build_pr_args <- function(edges, bundle, apply_redirects,
-                              apply_canonicals, apply_indexability, weight_col,
+                              apply_canonicals, apply_indexability,
+                              apply_status, weight_col,
                               accepted_placements, placement_weights,
                               preset, dots) {
   redirects_df <- if (apply_redirects) {
@@ -269,12 +278,18 @@ pagerank_screaming_frog <- function(bundle,
   } else {
     NULL
   }
+  status_df <- if (apply_status) {
+    .sf_status_df_from_bundle(bundle)
+  } else {
+    NULL
+  }
   c(
     list(
       edge_list_df = edges,
       redirects_df = redirects_df,
       canonicals_df = canonicals_df,
       indexability_df = indexability_df,
+      status_df = status_df,
       edge_from_col = "from",
       edge_to_col = "to",
       redirect_from_col = "from",
@@ -283,6 +298,8 @@ pagerank_screaming_frog <- function(bundle,
       canonical_to_col = "to",
       indexability_url_col = "url",
       indexability_status_col = "indexability_status",
+      status_url_col = "url",
+      status_col = "status_code",
       nofollow_col = "nofollow",
       weight_col = weight_col,
       placement_col = "placement",
@@ -294,11 +311,36 @@ pagerank_screaming_frog <- function(bundle,
   )
 }
 
+#' Build a `status_df` (url + status_code) from a bundle's node table.
+#'
+#' The node table carries the parsed integer `http_status` per crawled URL
+#' ([.sf_internal_nodes]); this maps it to the `url` / `status_code` shape
+#' `pagerank()` expects. Returns `NULL` when the bundle has no usable node
+#' status column, so a link-only bundle degrades to "no status supplied"
+#' rather than erroring.
+#' @keywords internal
+#' @noRd
+.sf_status_df_from_bundle <- function(bundle) {
+  nodes <- bundle$nodes
+  if (
+    !is.data.frame(nodes) ||
+      nrow(nodes) == 0L ||
+      !all(c("url", "http_status") %in% names(nodes))
+  ) {
+    return(NULL)
+  }
+  data.frame(
+    url = as.character(nodes$url),
+    status_code = nodes$http_status,
+    stringsAsFactors = FALSE
+  )
+}
+
 .sf_build_import_attr <- function(bundle, input_edges, edges,
                                   accepted_placements, link_origins,
                                   placement_weights, weight_col,
                                   apply_canonicals, apply_redirects,
-                                  apply_indexability) {
+                                  apply_indexability, apply_status = TRUE) {
   structure(
     list(
       diagnostics = bundle$diagnostics,
@@ -316,6 +358,7 @@ pagerank_screaming_frog <- function(bundle,
         apply_canonicals = apply_canonicals,
         apply_redirects = apply_redirects,
         apply_indexability = apply_indexability,
+        apply_status = apply_status,
         canonicals_off_domain =
           bundle$diagnostics$counts$canonicals_off_domain,
         nofollow_col = "nofollow"

@@ -688,3 +688,77 @@ describe("pagerank_screaming_frog()", {
     expect_false(scoring$apply_indexability)
   })
 })
+
+sf_pr_status_internal_fixture <- function() {
+  data.frame(
+    Address = c(
+      "https://example.com/",
+      "https://example.com/a",
+      "https://example.com/dead"
+    ),
+    `Status Code` = c("200", "200", "404"),
+    Indexability = c("Indexable", "Indexable", "Non-Indexable"),
+    `Indexability Status` = c("", "", ""),
+    `Redirect URL` = c("", "", ""),
+    `Canonical Link Element` = c("", "", ""),
+    check.names = FALSE
+  )
+}
+
+sf_pr_status_links_fixture <- function() {
+  data.frame(
+    Type = c("Hyperlink", "Hyperlink"),
+    Source = c("https://example.com/", "https://example.com/a"),
+    Destination = c("https://example.com/a", "https://example.com/dead"),
+    Follow = c("TRUE", "TRUE"),
+    Rel = c("", ""),
+    `Link Position` = c("Content", "Content"),
+    `Link Origin` = c("HTML", "HTML"),
+    check.names = FALSE
+  )
+}
+
+sf_pr_status_bundle_fixture <- function() {
+  screaming_frog_bundle(
+    sf_pr_status_internal_fixture(),
+    sf_pr_status_links_fixture(),
+    "all_outlinks"
+  )
+}
+
+describe("pagerank_screaming_frog() HTTP status pass-through", {
+  it("passes bundle node status through and counts response-dead pages", {
+    bundle <- sf_pr_status_bundle_fixture()
+    result <- pagerank_screaming_frog(bundle)
+    audit <- attr(result, "transition_audit")
+
+    expect_equal(audit$dropped$n_status_dead, 1L)
+    expect_true(audit$config$has_status)
+    expect_true(
+      attr(result, "screaming_frog_import")$scoring$apply_status
+    )
+  })
+
+  it("preset = 'raw' scores a 4xx page as an ordinary vertex", {
+    bundle <- sf_pr_status_bundle_fixture()
+    result <- pagerank_screaming_frog(bundle, preset = "raw")
+    audit <- attr(result, "transition_audit")
+
+    expect_equal(audit$dropped$n_status_dead, 0L)
+    expect_false(audit$config$has_status)
+    expect_false(
+      attr(result, "screaming_frog_import")$scoring$apply_status
+    )
+  })
+
+  it("rejects a caller-supplied status_df (wrapper owns the mapping)", {
+    bundle <- sf_pr_status_bundle_fixture()
+    expect_error(
+      pagerank_screaming_frog(
+        bundle,
+        status_df = data.frame(url = "x", status_code = 404L)
+      ),
+      "status_df"
+    )
+  })
+})

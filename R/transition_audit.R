@@ -41,8 +41,10 @@
 #'     `n_rows_collapsed` (total input rows that did not survive as distinct
 #'     scored edges = `n_input_rows - n_edges`), `n_prior_unmatched` (authority
 #'     prior URLs that did not fold onto any vertex; `NA_integer_` when no
-#'     `prior_df` was supplied), and `n_robots_blocked` (URLs treated as
-#'     robots.txt-blocked).}
+#'     `prior_df` was supplied), `n_robots_blocked` (URLs treated as
+#'     robots.txt-blocked), and `n_status_dead` (in-graph URLs whose HTTP
+#'     status code marked them response-dead; `0` when no `status_df` was
+#'     supplied).}
 #'   \item{duplicates}{A list describing duplicate-edge handling:
 #'     `policy` (the `duplicate_edge_policy` passed to [pagerank()]),
 #'     `n_duplicate_rows` (post-fold duplicate input rows), `instance_count_col`
@@ -154,6 +156,8 @@ NULL
 #' @param n_prior_unmatched Integer or `NA`, prior URLs that did not fold onto a
 #'   vertex.
 #' @param n_robots_blocked Integer, URLs treated as robots.txt-blocked.
+#' @param n_status_dead Integer, in-graph URLs whose HTTP status code marked
+#'   them response-dead (4xx/5xx).
 #' @param pagerank_total Numeric, sum of the returned PageRank scores.
 #' @param mass_reported Numeric, stationary mass on returned/visible pages
 #'   (typically equal to `pagerank_total`).
@@ -217,6 +221,7 @@ new_transition_audit <- function(n_input_rows = 0L,
                                  n_self_loops = 0L,
                                  n_prior_unmatched = NA_integer_,
                                  n_robots_blocked = 0L,
+                                 n_status_dead = 0L,
                                  pagerank_total = NA_real_,
                                  mass_reported = NA_real_,
                                  mass_evaporated = NA_real_,
@@ -251,7 +256,7 @@ new_transition_audit <- function(n_input_rows = 0L,
     ),
     dropped = .ta_dropped(
       n_rows_na, n_rows_duplicate, n_self_loops, n_input_rows, n_edges,
-      n_prior_unmatched, n_robots_blocked
+      n_prior_unmatched, n_robots_blocked, n_status_dead
     ),
     duplicates = list(
       policy = duplicate_edge_policy,
@@ -319,7 +324,7 @@ new_transition_audit <- function(n_input_rows = 0L,
 #' @noRd
 .ta_dropped <- function(n_rows_na, n_rows_duplicate, n_self_loops,
                         n_input_rows, n_edges, n_prior_unmatched,
-                        n_robots_blocked) {
+                        n_robots_blocked, n_status_dead = 0L) {
   list(
     n_rows_na = as.integer(n_rows_na),
     n_rows_duplicate = as.integer(n_rows_duplicate),
@@ -330,7 +335,8 @@ new_transition_audit <- function(n_input_rows = 0L,
     } else {
       as.integer(n_prior_unmatched)
     },
-    n_robots_blocked = as.integer(n_robots_blocked)
+    n_robots_blocked = as.integer(n_robots_blocked),
+    n_status_dead = as.integer(n_status_dead)
   )
 }
 
@@ -402,6 +408,9 @@ new_transition_audit <- function(n_input_rows = 0L,
   }
   if (x$dropped$n_robots_blocked > 0L) {
     cat("  Robots-blocked URLs:", x$dropped$n_robots_blocked, "\n")
+  }
+  if (isTRUE(x$dropped$n_status_dead > 0L)) {
+    cat("  Response-dead URLs: ", x$dropped$n_status_dead, "\n")
   }
   invisible(NULL)
 }
