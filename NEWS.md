@@ -1,5 +1,21 @@
 # pagerankr (development version)
 
+* **`pagerank()` gains `prior_exclude_waste` to keep the "collects but cannot
+  pass" class out of the teleport vector.** With the default `TRUE`, the noindex,
+  robots-blocked, and 4xx/5xx pages identified by `indexability_df` / `status_df`
+  receive zero teleport mass: they still collect the authority their inlinks
+  send, but are no longer paid the uniform teleport share for merely existing, so
+  a page can no longer manufacture authority by pointing at many dead ends (Page
+  & Brin 1998 criticize uniform teleport for "valuing pages simply because they
+  exist"). This is a first-class replacement for the error-prone `prior_df` +
+  `prior_alpha` workaround previously needed to zero teleport entries. Set
+  `FALSE` to restore uniform teleport over every page, matching
+  `igraph::page_rank()` for canonical comparisons. **Scores change whenever a
+  non-empty class is present**; graphs with no such class — and any run without
+  `indexability_df`/`status_df` — are numerically unchanged. The synthetic
+  evaporation and leak sinks are excluded from teleport regardless of this flag,
+  which is recorded in the transition audit as `config$prior_exclude_waste`. No
+  effect under `reverse = TRUE`, where the class inputs are already rejected.
 * **`pagerank()` gains a `status_df` input for HTTP response status.** Supply a
   `url` + `status_code` frame (column names configurable via `status_url_col`
   and `status_col`) and pages that returned a 4xx or 5xx code are identified as

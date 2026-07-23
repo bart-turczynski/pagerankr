@@ -455,10 +455,24 @@ describe("pagerank indexability handling", {
     # evaporates (sum < 1) instead of dangling back via teleport (sum == 1).
     expect_true(all(c("A", "B", "C") %in% pr$node_name))
     expect_lt(sum(pr$pagerank), 1)
-    # C becomes an isolate (low PR)
+    # A is noindex, so under the default prior_exclude_waste it gets no teleport
+    # share while the live pages keep theirs. A now collects only B's damped
+    # throughput, so a noindex page no longer outranks a live page merely for
+    # existing (PAGE-bcpacnfm). Under prior_exclude_waste = FALSE (uniform
+    # teleport) the ordering flips back — A's teleport share puts it on top.
     pr_c <- pr$pagerank[pr$node_name == "C"]
     pr_a <- pr$pagerank[pr$node_name == "A"]
-    expect_gt(pr_a, pr_c)
+    expect_lt(pr_a, pr_c)
+    pr_uniform <- pagerank(edges,
+      indexability_df = idx_df,
+      nofollow_action = "drop",
+      prior_exclude_waste = FALSE,
+      clean_edge_urls = FALSE, drop_isolates_flag = FALSE
+    )
+    expect_gt(
+      pr_uniform$pagerank[pr_uniform$node_name == "A"],
+      pr_uniform$pagerank[pr_uniform$node_name == "C"]
+    )
   })
 
   it("robots-blocked pages are shown, routing throughput to the sink", {

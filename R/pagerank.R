@@ -319,6 +319,17 @@
 #'   that do not fold onto any existing vertex are added as edge-less isolate
 #'   vertices so they appear in results carrying their teleport prior. Default
 #'   `FALSE` (align-only: such URLs are dropped and logged).
+#' @param prior_exclude_waste Logical. If `TRUE` (default), the
+#'   collect-but-cannot-pass class — noindex, robots-blocked, and 4xx/5xx pages
+#'   (see `indexability_df` / `status_df`) — is excluded from the teleport
+#'   vector: those pages keep the authority that reaches them through inlinks
+#'   but are no longer paid the uniform teleport share for merely existing. This
+#'   stops a page from manufacturing authority by linking to many dead ends
+#'   (Page & Brin 1998 criticize uniform teleport for "valuing pages simply
+#'   because they exist"). Set `FALSE` to give every page uniform teleport,
+#'   matching `igraph::page_rank()` for canonical comparisons. Has no effect
+#'   unless `indexability_df` or `status_df` supplies the class; the synthetic
+#'   evaporation and leak sinks are excluded from teleport regardless.
 #' @param prior_verbose Logical, whether to emit prior-alignment coverage
 #'   diagnostics. Default `TRUE`. Only relevant when `prior_df` is supplied.
 #' @param ... Additional arguments passed to [compute_pagerank()] and
@@ -692,6 +703,7 @@ pagerank <- function(
   ),
   prior_alpha = 0,
   prior_inject_unmatched = FALSE,
+  prior_exclude_waste = TRUE,
   prior_verbose = TRUE,
   damping = 0.85,
   ...,
@@ -756,7 +768,8 @@ pagerank <- function(
     prior_url_col = prior_url_col,
     prior_weight_col = prior_weight_col,
     prior_alpha = prior_alpha,
-    prior_inject_unmatched = prior_inject_unmatched
+    prior_inject_unmatched = prior_inject_unmatched,
+    prior_exclude_waste = prior_exclude_waste
   )
 
   # --- 0. Placement: region filter + region weighting -----------------------
@@ -1000,14 +1013,20 @@ pagerank <- function(
     edge_to_col = edge_to_col
   )
 
-  # The synthetic waste and leak sinks are excluded from teleport; class members
-  # (noindex / robots-blocked / response-dead) are real pages and keep their
-  # authority (excluding them from teleport is PAGE-bcpacnfm, a later change).
+  # The synthetic waste and leak sinks never receive teleport. By default
+  # (`prior_exclude_waste = TRUE`) the collect-but-cannot-pass class
+  # (noindex / robots-blocked / response-dead) is excluded from teleport too:
+  # class members keep the authority that flows to them via inlinks but are no
+  # longer paid the uniform teleport share for merely existing (PAGE-bcpacnfm).
   prior_exclude_nodes <- .prior_exclude_nodes(
     used_waste_sink = used_waste_sink,
     waste_sink_name = waste_sink_name,
     used_leak_sink = used_leak_sink,
-    leak_sink_name = leak_sink_name
+    leak_sink_name = leak_sink_name,
+    prior_exclude_waste = prior_exclude_waste,
+    noindex_urls = noindex_urls,
+    robots_blocked_urls = robots_blocked_urls,
+    status_dead_urls = status_dead_urls
   )
 
   # --- 5. Compute PageRank ---
@@ -1127,6 +1146,7 @@ pagerank <- function(
     prior_alpha = prior_alpha,
     prior_transform = prior_transform,
     prior_inject_unmatched = prior_inject_unmatched,
+    prior_exclude_waste = prior_exclude_waste,
     has_redirects = audit_has_redirects,
     has_canonicals = audit_has_canonicals,
     indexability_df = indexability_df,
@@ -1610,7 +1630,8 @@ pagerank <- function(
   prior_url_col,
   prior_weight_col,
   prior_alpha,
-  prior_inject_unmatched
+  prior_inject_unmatched,
+  prior_exclude_waste
 ) {
   if (!is.data.frame(edge_list_df)) {
     stop("`edge_list_df` must be a data frame.", call. = FALSE)
@@ -1648,6 +1669,7 @@ pagerank <- function(
   .validate_prior_df(prior_df, prior_url_col, prior_weight_col)
   .assert_unit_interval(prior_alpha, "prior_alpha", "number")
   .assert_flag(prior_inject_unmatched, "prior_inject_unmatched")
+  .assert_flag(prior_exclude_waste, "prior_exclude_waste", allow_na = FALSE)
 
   invisible(NULL)
 }
@@ -3095,6 +3117,7 @@ pagerank <- function(
   prior_alpha,
   prior_transform,
   prior_inject_unmatched,
+  prior_exclude_waste,
   has_redirects,
   has_canonicals,
   indexability_df,
@@ -3147,6 +3170,7 @@ pagerank <- function(
     prior_alpha = prior_alpha,
     prior_transform = prior_transform,
     prior_inject_unmatched = prior_inject_unmatched,
+    prior_exclude_waste = prior_exclude_waste,
     has_redirects = has_redirects,
     has_canonicals = has_canonicals,
     indexability_df = indexability_df,
@@ -3248,6 +3272,7 @@ pagerank <- function(
   prior_alpha,
   prior_transform,
   prior_inject_unmatched,
+  prior_exclude_waste,
   has_redirects,
   has_canonicals,
   indexability_df,
@@ -3278,6 +3303,7 @@ pagerank <- function(
     prior_alpha = prior_alpha,
     prior_transform = prior_transform,
     prior_inject_unmatched = prior_inject_unmatched,
+    prior_exclude_waste = isTRUE(prior_exclude_waste),
     has_redirects = isTRUE(has_redirects),
     has_canonicals = isTRUE(has_canonicals),
     has_indexability = !is.null(indexability_df) &&
@@ -3323,6 +3349,7 @@ pagerank <- function(
   prior_alpha,
   prior_transform,
   prior_inject_unmatched,
+  prior_exclude_waste,
   has_redirects,
   has_canonicals,
   indexability_df,
@@ -3373,6 +3400,7 @@ pagerank <- function(
       prior_alpha = prior_alpha,
       prior_transform = prior_transform,
       prior_inject_unmatched = prior_inject_unmatched,
+      prior_exclude_waste = prior_exclude_waste,
       has_redirects = has_redirects,
       has_canonicals = has_canonicals,
       indexability_df = indexability_df,
@@ -3484,8 +3512,18 @@ pagerank <- function(
   used_waste_sink,
   waste_sink_name,
   used_leak_sink,
-  leak_sink_name
+  leak_sink_name,
+  prior_exclude_waste = FALSE,
+  noindex_urls = character(0),
+  robots_blocked_urls = character(0),
+  status_dead_urls = character(0)
 ) {
+  # The synthetic sinks never receive teleport: they are not real pages, so
+  # paying them the uniform teleport share would inflate the accounting sink.
+  # When `prior_exclude_waste` is on, the collect-but-cannot-pass class
+  # (noindex / robots-blocked / 4xx-5xx) is zeroed too, so a hub cannot
+  # manufacture authority by linking to dead ends (PAGE-bcpacnfm). Class members
+  # keep the rank that reaches them via inlinks; only their teleport is removed.
   nodes <- character(0)
   if (used_waste_sink) {
     nodes <- c(nodes, waste_sink_name)
@@ -3493,5 +3531,8 @@ pagerank <- function(
   if (used_leak_sink) {
     nodes <- c(nodes, leak_sink_name)
   }
-  nodes
+  if (isTRUE(prior_exclude_waste)) {
+    nodes <- c(nodes, noindex_urls, robots_blocked_urls, status_dead_urls)
+  }
+  unique(nodes)
 }

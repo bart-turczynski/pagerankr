@@ -48,9 +48,11 @@
 #'   smoothing knob, \emph{not} a dead-node mechanism — isolate/self-loop
 #'   handling owns dead nodes.
 #' @param exclude_nodes Character vector of vertex names that must receive
-#'   \strong{zero} teleport in both components (e.g. the synthetic
-#'   \code{"__pr_waste_sink__"}). Real pages — including robots-blocked or
-#'   response-dead class members — should \emph{not} be excluded.
+#'   \strong{zero} teleport in both components: the synthetic sinks
+#'   (e.g. \code{"__pr_waste_sink__"}) and, when [pagerank()] runs with
+#'   \code{prior_exclude_waste = TRUE}, the collect-but-cannot-pass class
+#'   (noindex / robots-blocked / response-dead). Excluded vertices still receive
+#'   rank through their inlinks; only their teleport share is removed.
 #' @param verbose Logical, whether to emit coverage diagnostics via
 #'   \code{message()} (vertices receiving authority, unmatched prior URLs and
 #'   their dropped weight, and the realized uniform mass fraction). Default
