@@ -10,10 +10,14 @@
 #'   bundle's real crawled redirects (a changeset redirect for a source wins).
 #'
 #' @param bundle A `screaming_frog_bundle` object.
-#' @param add_links_df,remove_links_df,redirect_urls_df,on_unknown_target The
+#' @param add_links_df,remove_links_df,redirect_urls_df,remove_urls The
 #'   changeset verbs. See [simulate_changes()] for their semantics. Link and
-#'   redirect endpoints match the bundle's raw crawled URLs (the `from`/`to`
-#'   node identities before any folding), using `from`/`to` columns.
+#'   redirect endpoints (and `remove_urls`) match the bundle's raw crawled URLs
+#'   (the `from`/`to` node identities before any folding), using `from`/`to`
+#'   columns. A modeled `remove_urls` 404 composes on top of the bundle's real
+#'   crawled status.
+#' @param on_unknown_target How to treat a redirect or link target absent from
+#'   the current graph. See [simulate_changes()].
 #' @param accepted_placements,link_origins,placement_weights,weight_col Bundle
 #'   scoring controls forwarded to the shared adapter, identical to
 #'   [pagerank_screaming_frog()].
@@ -56,10 +60,17 @@
 #'   from = "https://example.com/a", to = "https://example.com/b"
 #' )
 #' simulate_changes_screaming_frog(bundle, redirect_urls_df = retire)
+#'
+#' # Model /a 404-ing (its inbound authority evaporates to the waste sink)
+#' simulate_changes_screaming_frog(
+#'   bundle,
+#'   remove_urls = "https://example.com/a"
+#' )
 simulate_changes_screaming_frog <- function(bundle,
                                             add_links_df = NULL,
                                             remove_links_df = NULL,
                                             redirect_urls_df = NULL,
+                                            remove_urls = NULL,
                                             on_unknown_target = c(
                                               "warn", "error", "allow"
                                             ),
@@ -86,6 +97,7 @@ simulate_changes_screaming_frog <- function(bundle,
     add_links_df = add_links_df,
     remove_links_df = remove_links_df,
     redirect_urls_df = redirect_urls_df,
+    remove_urls = remove_urls,
     on_unknown_target = on_unknown_target,
     edge_from_col = "from",
     edge_to_col = "to",

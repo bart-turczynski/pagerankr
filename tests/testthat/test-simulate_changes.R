@@ -376,3 +376,139 @@ describe("simulate_changes passthrough args", {
     expect_true("pagerank_after" %in% names(result))
   })
 })
+
+describe("simulate_changes remove_urls (404 / evaporate)", {
+  # A -> B -> C -> A triangle; plus D -> B so B has two inbound sources.
+  base_edges <- data.frame(
+    from = c("A", "B", "C", "D"),
+    to = c("B", "C", "A", "B")
+  )
+
+  it("flags a removed URL removed-dead and keeps it in the output", {
+    result <- simulate_changes(
+      base_edges,
+      remove_urls = "B",
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
+    expect_true("B" %in% result$node_name)
+    b_row <- result[result$node_name == "B", ]
+    expect_equal(b_row$node_status, "removed-dead")
+    # Every other surviving node stays normal.
+    others <- result[result$node_name != "B", ]
+    expect_true(all(others$node_status == "normal"))
+  })
+
+  it("drops the removed page's outlinks so its target loses authority", {
+    result <- simulate_changes(
+      base_edges,
+      remove_urls = "B",
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
+    # C's only inbound was B -> C, now stripped: C must lose PageRank.
+    c_row <- result[result$node_name == "C", ]
+    expect_lt(c_row$delta, 0)
+  })
+
+  it("evaporates absorbed mass to the waste sink (not dangle, not self-loop)", {
+    result <- simulate_changes(
+      base_edges,
+      remove_urls = "B",
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
+    audit <- attr(attr(result, "proposed"), "transition_audit")
+    expect_true(audit$config$has_status)
+    expect_gte(audit$dropped$n_status_dead, 1L)
+    # Mass parked on the sink is the evaporation signature.
+    expect_gt(audit$mass$sink, 0)
+  })
+
+  it("records removed URLs in the manifest", {
+    result <- simulate_changes(
+      base_edges,
+      remove_urls = c("B", "B"),
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
+    expect_equal(attr(result, "manifest")$urls_removed, "B")
+  })
+
+  it("treats an unknown removed URL as a no-op but still records it", {
+    result <- simulate_changes(
+      base_edges,
+      remove_urls = "Ghost",
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
+    expect_false("Ghost" %in% result$node_name)
+    expect_true(all(result$node_status == "normal"))
+    expect_true("Ghost" %in% attr(result, "manifest")$urls_removed)
+  })
+
+  it("errors when a URL is both removed and redirected", {
+    redir <- data.frame(from = "B", to = "C")
+    expect_error(
+      simulate_changes(
+        base_edges,
+        remove_urls = "B",
+        redirect_urls_df = redir,
+        clean_edge_urls = FALSE,
+        clean_redirect_urls = FALSE
+      ),
+      "both `remove_urls` and `redirect_urls_df`"
+    )
+  })
+
+  it("errors on a non-character remove_urls", {
+    expect_error(
+      simulate_changes(
+        base_edges,
+        remove_urls = 42,
+        clean_edge_urls = FALSE
+      ),
+      "must be a character vector"
+    )
+  })
+
+  it("composes with a redirect on a different URL", {
+    # Retire A behind a redirect to C, and 404 B, in one changeset.
+    redir <- data.frame(from = "A", to = "C")
+    result <- simulate_changes(
+      base_edges,
+      redirect_urls_df = redir,
+      remove_urls = "B",
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
+    b_row <- result[result$node_name == "B", ]
+    expect_equal(b_row$node_status, "removed-dead")
+    # A was folded into C by the redirect: it leaves the proposed set.
+    a_row <- result[result$node_name == "A", ]
+    expect_true(is.na(a_row[["pagerank_proposed"]]))
+    m <- attr(result, "manifest")
+    expect_equal(m$urls_removed, "B")
+    expect_equal(nrow(m$redirects_applied), 1L)
+  })
+
+  it("forces removal even on top of a supplied status_df", {
+    # B is live (200) in the crawl status; remove_urls must override to 404.
+    status <- data.frame(
+      url = c("A", "B", "C", "D"),
+      status_code = c(200L, 200L, 200L, 200L)
+    )
+    result <- simulate_changes(
+      base_edges,
+      remove_urls = "B",
+      status_df = status,
+      clean_edge_urls = FALSE,
+      clean_redirect_urls = FALSE
+    )
+    b_row <- result[result$node_name == "B", ]
+    expect_equal(b_row$node_status, "removed-dead")
+    audit <- attr(attr(result, "proposed"), "transition_audit")
+    # Exactly B flips dead; A/C/D keep their supplied 200s.
+    expect_equal(audit$dropped$n_status_dead, 1L)
+  })
+})

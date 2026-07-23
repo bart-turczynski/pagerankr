@@ -117,3 +117,22 @@ describe("simulate_changes_screaming_frog", {
     )
   })
 })
+
+describe("simulate_changes_screaming_frog remove_urls", {
+  it("flags a removed URL removed-dead on the bundle path", {
+    bundle <- sim_sf_bundle()
+    result <- simulate_changes_screaming_frog(
+      bundle,
+      remove_urls = "https://example.com/a"
+    )
+    a_row <- result[result$node_name == "https://example.com/a", ]
+    expect_equal(a_row$node_status, "removed-dead")
+    expect_equal(
+      attr(result, "manifest")$urls_removed,
+      "https://example.com/a"
+    )
+    # The forced 404 overrides the bundle's real 200 crawled status.
+    audit <- attr(attr(result, "proposed"), "transition_audit")
+    expect_gte(audit$dropped$n_status_dead, 1L)
+  })
+})
