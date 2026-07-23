@@ -15,7 +15,13 @@ trustrank(
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, typically with
-columns like "from" and "to".}
+columns like "from" and "to". Edges are expected to be page-to-page
+hyperlinks: `pagerank()` is graph-agnostic and treats every endpoint as a
+node, so resource links (images, CSS, JS, and other non-HTML references)
+must be filtered upstream or they collect authority as ordinary vertices.
+`pagerank_screaming_frog()` does this at the crawl boundary via
+[sf_graph_eligible()] (`Hyperlink` only); a hand-built or non-SF edge list
+should apply the same hyperlink-only filter before scoring.}
 
 \item{seeds}{The trusted seed set. Either a character vector of trusted URLs
 (each gets equal seed weight unless `seed_weight` is given), or a data

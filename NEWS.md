@@ -15,6 +15,23 @@
   Frog path via `simulate_changes_screaming_frog(remove_urls = ...)`, where the
   forced 404 composes on top of the bundle's real crawled status.
 
+* **Page-state modeling — one faithful policy for pages that collect PageRank
+  but cannot pass it (epic `PAGE-qzskzcfd`).** The three changes immediately
+  below — `status_df`, the unified waste sink, and `prior_exclude_waste` —
+  together replace three *accidental, inconsistent* behaviors for the noindex /
+  robots-blocked / 4xx-5xx class with a single model: authority flows in, is
+  booked, and stops. Before, the same class behaved three ways: a robots-blocked
+  page self-looped and **self-amplified up to 8.3×** (scoring 0.8875 trapped vs
+  0.1065 evaporating — holding 89% of a graph), 4xx/5xx pages were scored as
+  ordinary live vertices, and uniform teleport let **1,000 fake dead URLs
+  capture 95.2% of a site's PageRank** for merely existing. The class now routes
+  to a shared waste sink, is excluded from the teleport vector, and is labeled
+  per-row in `page_state` so absorbed mass is never read as earned authority.
+  `robots_blocked_action` survives only as a presentation toggle
+  (`"show"` / `"vanish"`); the self-looping `"trap"` is gone. **Any graph
+  containing a class member changes score** — accepted pre-CRAN (experimental,
+  single consumer). Reproducible experiment and full rationale:
+  `notes/pagerank-behavior-field-notes.md` §11.
 * **`pagerank()` gains `prior_exclude_waste` to keep the "collects but cannot
   pass" class out of the teleport vector.** With the default `TRUE`, the noindex,
   robots-blocked, and 4xx/5xx pages identified by `indexability_df` / `status_df`
