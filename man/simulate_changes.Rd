@@ -9,6 +9,7 @@ simulate_changes(
   add_links_df = NULL,
   remove_links_df = NULL,
   redirect_urls_df = NULL,
+  remove_urls = NULL,
   redirects_df = NULL,
   on_unknown_target = c("warn", "error", "allow"),
   ...,
@@ -45,6 +46,21 @@ an earlier row or from the baseline crawl's real 3xx -- so
 mapping to two distinct targets in one changeset is an error (strict).
 Default \code{NULL}.}
 
+\item{remove_urls}{Optional character vector of URLs to model as removed
+(turned into HTTP 404s). Each removed URL keeps its inbound links -- other
+pages still point at it -- but now they flow into a dead page: authority
+arrives and \strong{evaporates} to the shared waste sink rather than
+redistributing across the site (dangle) or self-amplifying (self-loop). The
+page's own outbound links are dropped. The node stays in the output holding
+the mass it absorbed once, flagged \code{"removed-dead"} in
+\code{node_status} so its residual score is never misread as earned
+authority. Under the hood this forces a \code{status_df} entry (HTTP
+\code{404}) into the proposed model only; 4xx and 5xx are one class (no
+split). A URL appearing in both \code{remove_urls} and
+\code{redirect_urls_df} is an error (a page cannot be both a 301 and a
+404). To also model cleaning up the inbound links, compose with
+\code{remove_links_df}. Default \code{NULL}.}
+
 \item{redirects_df}{Optional data frame of existing redirects (baseline).
 Default \code{NULL}.}
 
@@ -79,16 +95,20 @@ Default \code{"proposed"}.}
 \value{
 The output of \code{\link{compare_pagerank}} (per-node deltas,
   percentage changes, and rank changes between baseline and proposed) with an
-  added \code{node_status} column: \code{"normal"} for a node present in
-  both models, or \code{"new-target"} for a node introduced by the changeset
-  (present in the proposed model, absent from the baseline). Attributes:
+  added \code{node_status} column: \code{"normal"} for a node present and
+  live in both models, \code{"new-target"} for a node introduced by the
+  changeset (present in the proposed model, absent from the baseline), or
+  \code{"removed-dead"} for a node retired via \code{remove_urls} (its
+  proposed score is residual absorbed mass on the way to the waste sink, not
+  earned authority). Attributes:
   \describe{
     \item{summary}{Aggregate statistics from \code{compare_pagerank()}.}
     \item{proposed}{The full proposed \code{pagerank()} result, including its
-      \code{transition_audit} attribute.}
+      \code{transition_audit} attribute, so the evaporated-mass cost of a
+      removal is surfaced by default.}
     \item{manifest}{A named list describing the changeset: redirects applied,
-      which sources overrode a prior redirect, link add/remove counts, and
-      any unknown targets.}
+      which sources overrode a prior redirect, URLs removed, link add/remove
+      counts, and any unknown targets.}
   }
 }
 \description{
@@ -120,6 +140,9 @@ attr(result, "summary")
 # Retire the About page behind a redirect to Home
 retire <- data.frame(from = "About", to = "Home")
 simulate_changes(edges, redirect_urls_df = retire, clean_edge_urls = FALSE)
+
+# Model the About page 404-ing: inbound authority flows in and evaporates
+simulate_changes(edges, remove_urls = "About", clean_edge_urls = FALSE)
 }
 \seealso{
 \code{\link{simulate_changes_screaming_frog}} for the Screaming Frog
