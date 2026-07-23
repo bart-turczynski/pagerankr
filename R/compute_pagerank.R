@@ -72,7 +72,9 @@
 #'   `"url"` / `"weight"`.
 #' @param prior_transform,prior_alpha,prior_exclude_nodes,prior_verbose Passed
 #'   to [align_prior_to_vertices()] as `transform`, `alpha`, `exclude_nodes`,
-#'   `verbose`. See that function for semantics.
+#'   `verbose`. See that function for semantics. When `prior_df` is `NULL`,
+#'   `prior_exclude_nodes` still applies: the teleport is uniform over the
+#'   vertices it does not name (empty vector => plain uniform teleport).
 #' @param ... Additional arguments passed to `igraph::page_rank()`.
 #'
 #' @return A data frame with two columns: one for node names (named by
@@ -284,7 +286,8 @@ compute_pagerank <- function(edge_list_df,
   }
 
   pagerank_df <- .format_pagerank_output(
-    pr_igraph_output, pr_node_col, pr_value_col, personalized_vec, graph
+    pr_igraph_output, pr_node_col, pr_value_col, personalized_vec, graph,
+    attach_prior_weight = !is.null(prior_df)
   )
 
   attr(pagerank_df, "convergence") <- .build_convergence_attr(
@@ -654,7 +657,14 @@ compute_pagerank <- function(edge_list_df,
                                      prior_exclude_nodes,
                                      prior_verbose) {
   if (is.null(prior_df)) {
-    return(NULL)
+    # No external-authority prior: teleport is uniform. When some nodes must be
+    # excluded (the synthetic sinks always; the waste class under
+    # `prior_exclude_waste`), spread the uniform teleport over the eligible
+    # nodes only; with nothing to exclude, return NULL so igraph uses its
+    # built-in uniform 1/n fast path (and no prior_weight column is attached).
+    return(.uniform_excluding_teleport(
+      igraph::V(graph)$name, prior_exclude_nodes
+    ))
   }
   align_prior_to_vertices(
     vertex_names = igraph::V(graph)$name,
@@ -666,6 +676,31 @@ compute_pagerank <- function(edge_list_df,
     exclude_nodes = prior_exclude_nodes,
     verbose = prior_verbose
   )
+}
+
+#' Uniform teleport that skips excluded nodes.
+#'
+#' Returns a personalization vector placing equal mass on every eligible vertex
+#' and zero on the excluded ones (the synthetic sinks, and the waste class under
+#' `prior_exclude_waste`). Excluded vertices still receive rank via inlinks;
+#' only their uniform teleport share is removed. Returns `NULL` when nothing in
+#' the graph is excluded — the caller then lets igraph use its built-in uniform
+#' `1/n` teleport — and also in the degenerate case where every vertex would be
+#' excluded, for which uniform-over-all is the only sensible fallback.
+#' @keywords internal
+#' @noRd
+.uniform_excluding_teleport <- function(vertex_names, exclude_nodes) {
+  exclude_nodes <- as.character(exclude_nodes)
+  if (length(exclude_nodes) == 0) {
+    return(NULL)
+  }
+  eligible <- !(vertex_names %in% exclude_nodes)
+  n_eligible <- sum(eligible)
+  # No vertex actually excluded, or every vertex excluded: uniform-over-all.
+  if (n_eligible == 0 || n_eligible == length(vertex_names)) {
+    return(NULL)
+  }
+  ifelse(eligible, 1 / n_eligible, 0)
 }
 
 #' TRUE when a page_rank output cannot be formatted (NULL or empty vector).
@@ -688,7 +723,8 @@ compute_pagerank <- function(edge_list_df,
                                     pr_node_col,
                                     pr_value_col,
                                     personalized_vec,
-                                    graph) {
+                                    graph,
+                                    attach_prior_weight = TRUE) {
   pagerank_df <- data.frame(
     node = names(pr_igraph_output$vector),
     pagerank_val = pr_igraph_output$vector,
@@ -696,7 +732,11 @@ compute_pagerank <- function(edge_list_df,
   )
   names(pagerank_df) <- c(pr_node_col, pr_value_col)
 
-  if (!is.null(personalized_vec)) {
+  # The prior_weight column reports the external-authority teleport share, so it
+  # is attached only when a real prior_df was supplied. A personalization vector
+  # built purely to exclude nodes from an otherwise-uniform teleport carries no
+  # such prior and must not surface a column.
+  if (!is.null(personalized_vec) && attach_prior_weight) {
     pw <- stats::setNames(personalized_vec, igraph::V(graph)$name)
     pagerank_df[["prior_weight"]] <- unname(pw[pagerank_df[[pr_node_col]]])
   }

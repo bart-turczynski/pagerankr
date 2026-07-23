@@ -61,6 +61,7 @@ pagerank(
   prior_transform = c("none", "log", "percentile", "minmax", "zipf", "rank_linear"),
   prior_alpha = 0,
   prior_inject_unmatched = FALSE,
+  prior_exclude_waste = TRUE,
   prior_verbose = TRUE,
   damping = 0.85,
   ...,
@@ -420,6 +421,18 @@ uniform PageRank. See [align_prior_to_vertices()].}
 that do not fold onto any existing vertex are added as edge-less isolate
 vertices so they appear in results carrying their teleport prior. Default
 `FALSE` (align-only: such URLs are dropped and logged).}
+
+\item{prior_exclude_waste}{Logical. If `TRUE` (default), the
+collect-but-cannot-pass class — noindex, robots-blocked, and 4xx/5xx pages
+(see `indexability_df` / `status_df`) — is excluded from the teleport
+vector: those pages keep the authority that reaches them through inlinks
+but are no longer paid the uniform teleport share for merely existing. This
+stops a page from manufacturing authority by linking to many dead ends
+(Page & Brin 1998 criticize uniform teleport for "valuing pages simply
+because they exist"). Set `FALSE` to give every page uniform teleport,
+matching `igraph::page_rank()` for canonical comparisons. Has no effect
+unless `indexability_df` or `status_df` supplies the class; the synthetic
+evaporation and leak sinks are excluded from teleport regardless.}
 
 \item{prior_verbose}{Logical, whether to emit prior-alignment coverage
 diagnostics. Default `TRUE`. Only relevant when `prior_df` is supplied.}

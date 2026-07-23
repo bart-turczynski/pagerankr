@@ -120,7 +120,9 @@ that. Default `NULL` (uniform teleport).}
 
 \item{prior_transform, prior_alpha, prior_exclude_nodes, prior_verbose}{Passed
 to [align_prior_to_vertices()] as `transform`, `alpha`, `exclude_nodes`,
-`verbose`. See that function for semantics.}
+`verbose`. See that function for semantics. When `prior_df` is `NULL`,
+`prior_exclude_nodes` still applies: the teleport is uniform over the
+vertices it does not name (empty vector => plain uniform teleport).}
 
 \item{...}{Additional arguments passed to `igraph::page_rank()`.}
 }
