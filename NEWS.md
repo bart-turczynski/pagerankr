@@ -1,5 +1,28 @@
 # pagerankr (development version)
 
+* **`pagerank()` surfaces a per-URL `wasted_mass` figure alongside `page_state`.**
+  When `indexability_df` or `status_df` is supplied, the result now carries a
+  `wasted_mass` column next to `page_state`: the authority each page collected
+  and black-holed, i.e. its share of the shared waste sink's stationary mass.
+  `page_state` labels the "collects but cannot pass" class per row; `wasted_mass`
+  quantifies the amount, answering the other half of "a 404 page amassed *X*
+  PageRank and it ends up in a black hole." Because a waste-class page routes its
+  whole throughput through one edge to the absorbing sink, the value is
+  `damping / (1 - damping)` times the page's own reported score — larger than,
+  and deliberately distinct from, that score. Summed over the class it equals the
+  evaporated mass in the transition audit (`mass$sink`); a `"live"` page routes
+  nothing to the sink, so its `wasted_mass` is `0`. Like `page_state`, the column
+  appears only when one of those inputs is present, mirroring how `prior_weight`
+  appears only with `prior_df`.
+* **Documented that `page_state` and `simulate_changes()`'s `node_status` are
+  distinct axes, not two names for one thing.** `page_state` (live / noindex /
+  robots_blocked / response_dead) is a page's health/index state; `node_status`
+  (normal / new-target / removed-dead) is a node's role in a before/after
+  comparison. They are kept separate on purpose: `new-target` has no health
+  analogue, and `removed-dead` is the single value bridging both axes (a node
+  removed *because* its proposed health state is a forced 404). The two `@return`
+  sections now cross-reference each other.
+
 * **`simulate_changes()` gains a `remove_urls` verb for URL-level what-ifs.**
   Pass a character vector of URLs to model them 404-ing: each keeps its inbound
   links (other pages still point at it) but their authority now flows into a
