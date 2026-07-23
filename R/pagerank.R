@@ -552,12 +552,29 @@
 #'   leaked / hidden / total (= 1) — is recorded in the `mass` field of the
 #'   transition audit (see below).
 #'
-#'   When `indexability_df` or `status_df` is supplied, the result gains a
-#'   `page_state` column tagging each visible page as `"live"`, `"noindex"`,
-#'   `"robots_blocked"`, or `"response_dead"` (robots-blocked > response-dead >
-#'   noindex > live when a page carries more than one signal). It appears only
-#'   with those inputs, mirroring how `prior_weight` appears only with
-#'   `prior_df`, so the two-column result is otherwise unchanged.
+#'   When `indexability_df` or `status_df` is supplied, the result gains two
+#'   per-URL waste-attribution columns, present only with those inputs
+#'   (mirroring how `prior_weight` appears only with `prior_df`), so the result
+#'   is otherwise unchanged:
+#'   \describe{
+#'     \item{`page_state`}{The page's health/indexability state: `"live"`,
+#'       `"noindex"`, `"robots_blocked"`, or `"response_dead"` (robots-blocked
+#'       > response-dead > noindex > live when a page carries more than one
+#'       signal).}
+#'     \item{`wasted_mass`}{The authority the page collected and black-holed —
+#'       its share of the shared waste sink's stationary mass. A waste-class
+#'       page routes its whole throughput to the absorbing sink, so this is
+#'       `damping / (1 - damping)` times its own reported score: larger than,
+#'       and distinct from, that score, which answers the "how much did this
+#'       page amass and evaporate" question `page_state` only labels. It sums
+#'       across the waste class to the evaporated mass reported in the
+#'       transition audit (`mass$sink`). A `"live"` page routes nothing to the
+#'       sink, so its `wasted_mass` is `0`.}
+#'   }
+#'   `page_state` is the page's *health* state; the `node_status` column
+#'   returned by [simulate_changes()] is a distinct axis — a node's *role in a
+#'   before/after comparison* (`normal` / `new-target` / `removed-dead`) — not a
+#'   second name for the same thing.
 #'
 #'   The data frame additionally carries a `"transition_audit"` attribute (a
 #'   [transition_audit] object) recording how the transition graph was built:
@@ -1094,7 +1111,8 @@ pagerank <- function(
   mass_hidden <- .stripped$mass_hidden
 
   # Per-URL waste attribution: tag every reported page with its page_state
-  # (live / noindex / robots_blocked / response_dead). Present only when
+  # (live / noindex / robots_blocked / response_dead) and wasted_mass (the
+  # authority it collected and routed to the black-hole sink). Present only when
   # indexability_df or status_df was supplied, mirroring how prior_weight
   # appears only with prior_df. Added after the internal nodes are stripped so
   # the sink and vanished robots pages are never tagged.
@@ -1104,7 +1122,8 @@ pagerank <- function(
     status_df = status_df,
     noindex_urls = noindex_urls,
     robots_blocked_urls = robots_blocked_urls,
-    status_dead_urls = status_dead_urls
+    status_dead_urls = status_dead_urls,
+    damping = damping
   )
 
   # --- 7. Transition audit / provenance object ---
@@ -2275,14 +2294,27 @@ pagerank <- function(
   )
 }
 
-#' Tag each reported page with its page_state (per-URL waste attribution).
+#' Tag each reported page with its page_state and wasted_mass (per-URL waste
+#' attribution).
 #'
-#' Appends a `page_state` column ∈ {`live`, `noindex`, `robots_blocked`,
-#' `response_dead`} to the visible results, present only when `indexability_df`
-#' or `status_df` was supplied (mirroring how `prior_weight` appears only with
-#' `prior_df`). Precedence, highest first: robots_blocked > response_dead >
-#' noindex > live. Called after the internal / vanished nodes are stripped, so
-#' the sink and any vanished robots pages are never tagged.
+#' Appends two columns to the visible results, present only when
+#' `indexability_df` or `status_df` was supplied (mirroring how `prior_weight`
+#' appears only with `prior_df`):
+#'
+#' * `page_state` ∈ {`live`, `noindex`, `robots_blocked`, `response_dead`} —
+#'   the page's health/indexability state. Precedence, highest first:
+#'   robots_blocked > response_dead > noindex > live.
+#' * `wasted_mass` — the share of the shared waste sink's stationary mass this
+#'   page is responsible for: the authority it collected and black-holed. A
+#'   waste-class member routes its entire throughput through one edge to the
+#'   absorbing sink, so at convergence the mass it evaporates is
+#'   `damping / (1 - damping)` times its own reported score — larger than, and
+#'   distinct from, that score. Summed over the class this equals the evaporated
+#'   mass in the transition audit (`mass$sink`). A live page routes nothing to
+#'   the sink, so its `wasted_mass` is `0`.
+#'
+#' Called after the internal / vanished nodes are stripped, so the sink and any
+#' vanished robots pages are never tagged.
 #' @keywords internal
 #' @noRd
 .attach_page_state <- function(
@@ -2291,7 +2323,8 @@ pagerank <- function(
   status_df,
   noindex_urls,
   robots_blocked_urls,
-  status_dead_urls
+  status_dead_urls,
+  damping
 ) {
   has_idx <- !is.null(indexability_df) && nrow(indexability_df) > 0
   has_status <- !is.null(status_df) && nrow(status_df) > 0
@@ -2299,12 +2332,22 @@ pagerank <- function(
     return(pagerank_results)
   }
   nodes <- pagerank_results[[1]]
+  score <- pagerank_results[[2]]
   state <- rep("live", length(nodes))
   # Lowest precedence first so higher-precedence assignments win.
   state[nodes %in% noindex_urls] <- "noindex"
   state[nodes %in% status_dead_urls] <- "response_dead"
   state[nodes %in% robots_blocked_urls] <- "robots_blocked"
   pagerank_results[["page_state"]] <- state
+
+  # Per-URL wasted mass. `damping == 1` is degenerate (no teleport); the
+  # attribution factor is undefined there, so the class is reported as NA.
+  waste_factor <- if (damping < 1) damping / (1 - damping) else NA_real_
+  is_waste <- state %in% c("noindex", "robots_blocked", "response_dead")
+  wasted <- rep(0, length(nodes))
+  wasted[is_waste] <- waste_factor * score[is_waste]
+  pagerank_results[["wasted_mass"]] <- wasted
+
   pagerank_results
 }
 

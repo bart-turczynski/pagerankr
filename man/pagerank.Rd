@@ -482,12 +482,29 @@ A data frame with node names and their PageRank scores. When
   leaked / hidden / total (= 1) — is recorded in the `mass` field of the
   transition audit (see below).
 
-  When `indexability_df` or `status_df` is supplied, the result gains a
-  `page_state` column tagging each visible page as `"live"`, `"noindex"`,
-  `"robots_blocked"`, or `"response_dead"` (robots-blocked > response-dead >
-  noindex > live when a page carries more than one signal). It appears only
-  with those inputs, mirroring how `prior_weight` appears only with
-  `prior_df`, so the two-column result is otherwise unchanged.
+  When `indexability_df` or `status_df` is supplied, the result gains two
+  per-URL waste-attribution columns, present only with those inputs
+  (mirroring how `prior_weight` appears only with `prior_df`), so the result
+  is otherwise unchanged:
+  \describe{
+    \item{`page_state`}{The page's health/indexability state: `"live"`,
+      `"noindex"`, `"robots_blocked"`, or `"response_dead"` (robots-blocked
+      > response-dead > noindex > live when a page carries more than one
+      signal).}
+    \item{`wasted_mass`}{The authority the page collected and black-holed —
+      its share of the shared waste sink's stationary mass. A waste-class
+      page routes its whole throughput to the absorbing sink, so this is
+      `damping / (1 - damping)` times its own reported score: larger than,
+      and distinct from, that score, which answers the "how much did this
+      page amass and evaporate" question `page_state` only labels. It sums
+      across the waste class to the evaporated mass reported in the
+      transition audit (`mass$sink`). A `"live"` page routes nothing to the
+      sink, so its `wasted_mass` is `0`.}
+  }
+  `page_state` is the page's *health* state; the `node_status` column
+  returned by [simulate_changes()] is a distinct axis — a node's *role in a
+  before/after comparison* (`normal` / `new-target` / `removed-dead`) — not a
+  second name for the same thing.
 
   The data frame additionally carries a `"transition_audit"` attribute (a
   [transition_audit] object) recording how the transition graph was built:

@@ -100,7 +100,17 @@ The output of \code{\link{compare_pagerank}} (per-node deltas,
   changeset (present in the proposed model, absent from the baseline), or
   \code{"removed-dead"} for a node retired via \code{remove_urls} (its
   proposed score is residual absorbed mass on the way to the waste sink, not
-  earned authority). Attributes:
+  earned authority).
+
+  \code{node_status} describes a node's \emph{role in this before/after
+  comparison}, which is a different axis from the \code{page_state} column
+  \code{\link{pagerank}} attaches to describe a page's \emph{health/index
+  state} (\code{live} / \code{noindex} / \code{robots_blocked} /
+  \code{response_dead}). The two are deliberately not merged into one
+  vocabulary: \code{new-target} has no health analogue, and
+  \code{removed-dead} is the single value bridging both axes — a node whose
+  comparison role is "removed" \emph{because} its proposed health state is
+  \code{response_dead} (a forced 404). Attributes:
   \describe{
     \item{summary}{Aggregate statistics from \code{compare_pagerank()}.}
     \item{proposed}{The full proposed \code{pagerank()} result, including its
