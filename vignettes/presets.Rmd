@@ -139,6 +139,52 @@ Two properties worth stating explicitly:
   dangling pages, at which point you are measuring your own sink policy rather
   than the site.
 
+## Layers vs. presets: raw, real, and annotated
+
+A preset bundles **policy** — the graph-hygiene and weighting knobs above. It
+never touches **data**: the `redirects_df`, `canonicals_df`, `indexability_df`
+and `status_df` tables you supply (or leave `NULL`). Those tables decide a
+second, orthogonal thing — how much of the crawl is *folded away* before
+scoring — and that is its own view model, layered on top of whichever preset you
+pick. Three layers, from the crawl as collected to the crawl fully interpreted:
+
+**(a) Raw — every crawled URL is its own node.** Nothing is folded: a
+redirecting URL keeps the PageRank it receives instead of passing it on, a
+canonicalized page stays separate from its canonical, and a 404 scores like any
+live page. You get this by *not supplying* the fold tables — they all default
+`NULL`, so the raw layer is the *absence of data*. This is exactly why the
+`"raw"` preset alone cannot guarantee it: a preset sets policy, and no policy can
+un-supply a `redirects_df` you passed. On the bare `pagerank()` path the raw
+layer is the default (you supply no tables), and `preset = "raw"` additionally
+relaxes the hygiene policy so nothing at all is applied. On the Screaming Frog
+path, where the wrapper builds those tables from the bundle for you,
+`preset = "raw"` is special-cased to switch the folding back off — so it delivers
+the raw layer there too.
+
+**(b) Real — redirects and canonicals are followed; dead pages collect but
+cannot pass.** Supply the fold tables and the graph reflects the *live, canonical*
+corpus a search engine would score: redirect and canonical sources fold into
+their terminal target (an alias, not a separate page), and the "collects
+PageRank but cannot pass it" class — `noindex`, robots-blocked, and 4xx/5xx
+response-dead pages — routes its throughput to a shared waste sink instead of
+recirculating it (see `?pagerank` and `vignette("pagerankr-usage")` for why the
+sink is the only faithful choice for a dead page). This is the view most
+internal-link audits want; `pagerank_screaming_frog()` assembles it from the
+crawl by default.
+
+**(c) Annotated — the `page_state` indicator.** Layer (b) hands a folded score
+to a page that may be a black hole: a 404 can *amass* PageRank from every page
+still linking to it, then evaporate it to the sink. That score is real mass but
+not earned authority, and nothing else on the row distinguishes it from a strong
+live page. So whenever `indexability_df` or `status_df` is supplied, the result
+gains a `page_state` column tagging each row `live`, `noindex`, `robots_blocked`,
+or `response_dead` (the highest-precedence signal wins). The annotation is the
+package's answer to "why is this dead URL ranking?" — and the reason such rows
+can be *kept* in the output instead of silently dropped.
+
+Layers and presets compose freely: a layer is which data you fold, a preset is
+which policy you bundle, and you choose them independently.
+
 ## Precedence: explicit argument > preset > default
 
 A preset never silently overrides something you typed.
