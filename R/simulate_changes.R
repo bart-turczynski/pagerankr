@@ -26,6 +26,20 @@
 #'   "change A into a redirect to C" is a single override. A duplicate source
 #'   mapping to two distinct targets in one changeset is an error (strict).
 #'   Default \code{NULL}.
+#' @param remove_urls Optional character vector of URLs to model as removed
+#'   (turned into HTTP 404s). Each removed URL keeps its inbound links -- other
+#'   pages still point at it -- but now they flow into a dead page: authority
+#'   arrives and \strong{evaporates} to the shared waste sink rather than
+#'   redistributing across the site (dangle) or self-amplifying (self-loop). The
+#'   page's own outbound links are dropped. The node stays in the output holding
+#'   the mass it absorbed once, flagged \code{"removed-dead"} in
+#'   \code{node_status} so its residual score is never misread as earned
+#'   authority. Under the hood this forces a \code{status_df} entry (HTTP
+#'   \code{404}) into the proposed model only; 4xx and 5xx are one class (no
+#'   split). A URL appearing in both \code{remove_urls} and
+#'   \code{redirect_urls_df} is an error (a page cannot be both a 301 and a
+#'   404). To also model cleaning up the inbound links, compose with
+#'   \code{remove_links_df}. Default \code{NULL}.
 #' @param redirects_df Optional data frame of existing redirects (baseline).
 #'   Default \code{NULL}.
 #' @param on_unknown_target How to treat a redirect or link \emph{target} that
@@ -51,16 +65,20 @@
 #'
 #' @return The output of \code{\link{compare_pagerank}} (per-node deltas,
 #'   percentage changes, and rank changes between baseline and proposed) with an
-#'   added \code{node_status} column: \code{"normal"} for a node present in
-#'   both models, or \code{"new-target"} for a node introduced by the changeset
-#'   (present in the proposed model, absent from the baseline). Attributes:
+#'   added \code{node_status} column: \code{"normal"} for a node present and
+#'   live in both models, \code{"new-target"} for a node introduced by the
+#'   changeset (present in the proposed model, absent from the baseline), or
+#'   \code{"removed-dead"} for a node retired via \code{remove_urls} (its
+#'   proposed score is residual absorbed mass on the way to the waste sink, not
+#'   earned authority). Attributes:
 #'   \describe{
 #'     \item{summary}{Aggregate statistics from \code{compare_pagerank()}.}
 #'     \item{proposed}{The full proposed \code{pagerank()} result, including its
-#'       \code{transition_audit} attribute.}
+#'       \code{transition_audit} attribute, so the evaporated-mass cost of a
+#'       removal is surfaced by default.}
 #'     \item{manifest}{A named list describing the changeset: redirects applied,
-#'       which sources overrode a prior redirect, link add/remove counts, and
-#'       any unknown targets.}
+#'       which sources overrode a prior redirect, URLs removed, link add/remove
+#'       counts, and any unknown targets.}
 #'   }
 #'
 #' @seealso \code{\link{simulate_changes_screaming_frog}} for the Screaming Frog
@@ -87,10 +105,14 @@
 #' # Retire the About page behind a redirect to Home
 #' retire <- data.frame(from = "About", to = "Home")
 #' simulate_changes(edges, redirect_urls_df = retire, clean_edge_urls = FALSE)
+#'
+#' # Model the About page 404-ing: inbound authority flows in and evaporates
+#' simulate_changes(edges, remove_urls = "About", clean_edge_urls = FALSE)
 simulate_changes <- function(edge_list_df,
                              add_links_df = NULL,
                              remove_links_df = NULL,
                              redirect_urls_df = NULL,
+                             remove_urls = NULL,
                              redirects_df = NULL,
                              on_unknown_target = c("warn", "error", "allow"),
                              ...,
@@ -130,6 +152,7 @@ simulate_changes <- function(edge_list_df,
     add_links_df = add_links_df,
     remove_links_df = remove_links_df,
     redirect_urls_df = redirect_urls_df,
+    remove_urls = remove_urls,
     on_unknown_target = on_unknown_target,
     edge_from_col = edge_from_col,
     edge_to_col = edge_to_col,
@@ -152,7 +175,8 @@ simulate_changes <- function(edge_list_df,
 #' @noRd
 .simulate_changes_engine <- function(baseline_args,
                                      add_links_df, remove_links_df,
-                                     redirect_urls_df, on_unknown_target,
+                                     redirect_urls_df, remove_urls = NULL,
+                                     on_unknown_target,
                                      edge_from_col, edge_to_col,
                                      redirect_from_col, redirect_to_col,
                                      label_baseline, label_proposed) {
@@ -171,10 +195,21 @@ simulate_changes <- function(edge_list_df,
   .validate_redirect_urls_df(
     redirect_urls_df, redirect_from_col, redirect_to_col
   )
+  remove_urls <- .validate_remove_urls(remove_urls)
 
   redirect_sources <- .redirect_urls_sources(
     redirect_urls_df, redirect_from_col
   )
+
+  # A URL cannot be both a 301 (redirect_urls_df) and a 404 (remove_urls): a
+  # genuine contradiction, not a precedence question -- error rather than guess.
+  both <- intersect(remove_urls, redirect_sources)
+  if (length(both) > 0) {
+    stop("URL(s) in both `remove_urls` and `redirect_urls_df` ",
+      "(a page cannot be both a 301 and a 404): ", toString(both), ".",
+      call. = FALSE
+    )
+  }
 
   # --- Unknown-target handling (warn / error / allow) ---
   known_nodes <- unique(c(
@@ -197,10 +232,15 @@ simulate_changes <- function(edge_list_df,
   )
 
   # --- Recompute both models ---
+  # The baseline keeps each page's real status; the proposed model forces the
+  # removed URLs to 404 so pagerank()'s waste-sink mechanism strips their
+  # outedges and evaporates their inbound authority (the first consumer of the
+  # PAGE-qzskzcfd dead-class mechanism). Removal affects the proposed model.
   pr_baseline <- do.call(pagerank, baseline_args)
   proposed_args <- baseline_args
   proposed_args$edge_list_df <- proposed_edges
   proposed_args$redirects_df <- proposed_redirects
+  proposed_args <- .apply_removed_status(proposed_args, remove_urls)
   pr_proposed <- do.call(pagerank, proposed_args)
 
   # --- Assemble output ---
@@ -208,12 +248,15 @@ simulate_changes <- function(edge_list_df,
     pr_baseline, pr_proposed,
     label_a = label_baseline, label_b = label_proposed
   )
-  result <- .attach_node_status(result, label_baseline, label_proposed)
+  result <- .attach_node_status(
+    result, label_baseline, label_proposed, remove_urls
+  )
 
   attr(result, "proposed") <- pr_proposed
   attr(result, "manifest") <- .build_change_manifest(
     redirect_urls_df, baseline_redirects, redirect_sources,
-    add_links_df, remove_links_df, unknown_targets, redirect_from_col
+    remove_urls, add_links_df, remove_links_df, unknown_targets,
+    redirect_from_col
   )
   result
 }
@@ -288,6 +331,72 @@ simulate_changes <- function(edge_list_df,
     return(character(0))
   }
   unique(as.character(df[[from_col]]))
+}
+
+
+#' Validate and normalize `remove_urls` to a unique character vector
+#'
+#' URLs are singletons, so the argument is a character vector (mirroring
+#' `keep_domains` / `exclude_domains`), not a data frame. Returns
+#' `character(0)` for `NULL` / empty input; otherwise a de-duplicated,
+#' `NA`-dropped character vector.
+#' @noRd
+.validate_remove_urls <- function(remove_urls) {
+  if (is.null(remove_urls) || length(remove_urls) == 0) {
+    return(character(0))
+  }
+  if (!is.character(remove_urls) && !is.factor(remove_urls)) {
+    stop("`remove_urls` must be a character vector of URLs or NULL.",
+      call. = FALSE
+    )
+  }
+  out <- as.character(remove_urls)
+  unique(out[!is.na(out)])
+}
+
+
+#' Force removed URLs to HTTP 404 in the proposed pagerank() arguments
+#'
+#' Builds (or extends) the proposed model's `status_df` so every removed URL is
+#' marked `404`, overriding any real crawled status it carried. Rows for
+#' non-removed URLs are preserved. Uses the caller's resolved `status_url_col` /
+#' `status_col` (defaulting to `"url"` / `"status_code"`, matching `pagerank()`)
+#' so a supplied status table and the synthetic dead rows share a schema. This
+#' mutates the proposed arguments only; the baseline keeps each page live.
+#' @noRd
+.apply_removed_status <- function(proposed_args, remove_urls) {
+  if (length(remove_urls) == 0) {
+    return(proposed_args)
+  }
+  url_col <- if (is.null(proposed_args$status_url_col)) {
+    "url"
+  } else {
+    proposed_args$status_url_col
+  }
+  code_col <- if (is.null(proposed_args$status_col)) {
+    "status_code"
+  } else {
+    proposed_args$status_col
+  }
+
+  synth <- stats::setNames(
+    list(as.character(remove_urls), rep(404L, length(remove_urls))),
+    c(url_col, code_col)
+  )
+  synth <- data.frame(synth, stringsAsFactors = FALSE, check.names = FALSE)
+
+  existing <- proposed_args$status_df
+  if (is.null(existing) || nrow(existing) == 0) {
+    proposed_args$status_df <- synth
+  } else {
+    keep <- !(as.character(existing[[url_col]]) %in% remove_urls)
+    proposed_args$status_df <- .rbind_aligned(
+      existing[keep, , drop = FALSE], synth
+    )
+  }
+  proposed_args$status_url_col <- url_col
+  proposed_args$status_col <- code_col
+  proposed_args
 }
 
 
@@ -413,17 +522,24 @@ simulate_changes <- function(edge_list_df,
 
 #' Add the per-row `node_status` column to the comparison table
 #'
-#' A node absent from the baseline but present in the proposed model is a
+#' A node retired via `remove_urls` is `removed-dead` (its proposed score is
+#' residual absorbed mass en route to the waste sink, not earned authority). A
+#' node absent from the baseline but present in the proposed model is a
 #' `new-target` (a page the changeset introduced, carrying inbound authority it
-#' did not earn in the baseline); every other node is `normal`. The
-#' `removed-dead` status arrives with the `remove_urls` verb (Phase 2).
+#' did not earn in the baseline); every other node is `normal`. `removed-dead`
+#' is assigned last so it wins for a URL that is somehow both.
 #' @noRd
-.attach_node_status <- function(result, label_baseline, label_proposed) {
+.attach_node_status <- function(result, label_baseline, label_proposed,
+                                remove_urls = character(0)) {
   base_col <- paste0("pagerank_", label_baseline)
   prop_col <- paste0("pagerank_", label_proposed)
   status <- rep("normal", nrow(result))
   is_new <- is.na(result[[base_col]]) & !is.na(result[[prop_col]])
   status[is_new] <- "new-target"
+  if (length(remove_urls) > 0) {
+    status[as.character(result[["node_name"]]) %in% remove_urls] <-
+      "removed-dead"
+  }
   result$node_status <- status
   result
 }
@@ -432,7 +548,7 @@ simulate_changes <- function(edge_list_df,
 #' Build the change manifest attached to the comparison output
 #' @noRd
 .build_change_manifest <- function(redirect_urls_df, baseline_redirects,
-                                   redirect_sources, add_links_df,
+                                   redirect_sources, remove_urls, add_links_df,
                                    remove_links_df, unknown_targets,
                                    redirect_from_col) {
   overrode <- character(0)
@@ -445,6 +561,7 @@ simulate_changes <- function(edge_list_df,
   list(
     redirects_applied = redirect_urls_df,
     redirects_overrode = overrode,
+    urls_removed = remove_urls,
     links_added = if (is.null(add_links_df)) 0L else nrow(add_links_df),
     links_removed = if (is.null(remove_links_df)) 0L else nrow(remove_links_df),
     unknown_targets = unknown_targets

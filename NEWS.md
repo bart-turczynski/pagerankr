@@ -1,5 +1,20 @@
 # pagerankr (development version)
 
+* **`simulate_changes()` gains a `remove_urls` verb for URL-level what-ifs.**
+  Pass a character vector of URLs to model them 404-ing: each keeps its inbound
+  links (other pages still point at it) but their authority now flows into a
+  dead page and *evaporates* to the shared waste sink, rather than
+  redistributing across the site via teleport (dangle) or self-amplifying via a
+  self-loop. The page's outbound links are dropped and the node stays in the
+  output flagged `"removed-dead"` in `node_status`, so its residual absorbed
+  mass is never misread as earned authority. This is the first consumer of the
+  `status_df` / waste-sink dead-class mechanism: `remove_urls` forces a `404`
+  into the proposed model only, leaving the baseline live. A URL appearing in
+  both `remove_urls` and `redirect_urls_df` is an error (a page cannot be both a
+  301 and a 404); the manifest gains `urls_removed`. Available on the Screaming
+  Frog path via `simulate_changes_screaming_frog(remove_urls = ...)`, where the
+  forced 404 composes on top of the bundle's real crawled status.
+
 * **`pagerank()` gains `prior_exclude_waste` to keep the "collects but cannot
   pass" class out of the teleport vector.** With the default `TRUE`, the noindex,
   robots-blocked, and 4xx/5xx pages identified by `indexability_df` / `status_df`
