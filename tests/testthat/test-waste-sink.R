@@ -137,6 +137,69 @@ describe("page_state per-URL attribution", {
   })
 })
 
+describe("wasted_mass per-URL attribution", {
+  it("is absent when neither indexability_df nor status_df is supplied", {
+    pr <- pagerank(
+      data.frame(from = c("A", "B"), to = c("B", "A")),
+      clean_edge_urls = FALSE
+    )
+    expect_false("wasted_mass" %in% names(pr))
+  })
+
+  it("is 0 for live pages and d/(1-d)*score for the waste class", {
+    # Live hub feeds each waste page directly so the class carries real inflow.
+    edges <- data.frame(
+      from = c("H", "A", "B", "A", "B", "H"),
+      to = c("A", "H", "H", "NI", "RB", "Dead")
+    )
+    idx <- data.frame(
+      url = c("NI", "RB"),
+      indexability_status = c("noindex", "Blocked by robots.txt")
+    )
+    st <- data.frame(url = "Dead", status_code = 404L)
+    d <- 0.85
+    pr <- pagerank(
+      edges, indexability_df = idx, status_df = st,
+      clean_edge_urls = FALSE, drop_isolates_flag = FALSE, damping = d
+    )
+    expect_true("wasted_mass" %in% names(pr))
+    expect_type(pr$wasted_mass, "double")
+    live_mask <- pr$page_state == "live"
+    expect_true(all(pr$wasted_mass[live_mask] == 0))
+    expect_true(all(pr$wasted_mass[!live_mask] > 0))
+    expected <- ifelse(live_mask, 0, d / (1 - d) * pr$pagerank)
+    expect_equal(pr$wasted_mass, expected, tolerance = 1e-8)
+  })
+
+  it("equals damping / (1 - damping) times the page's own score", {
+    edges <- data.frame(from = c("A", "P"), to = c("P", "A"))
+    st <- data.frame(url = "P", status_code = 404L)
+    d <- 0.85
+    pr <- pagerank(
+      edges, status_df = st, clean_edge_urls = FALSE, damping = d
+    )
+    row <- pr[pr$node_name == "P", ]
+    expect_equal(row$wasted_mass, d / (1 - d) * row$pagerank, tolerance = 1e-8)
+  })
+
+  it("sums across the waste class to the evaporated (sink) mass", {
+    # With no nofollow evaporation, the sink is fed only by the waste class,
+    # so the per-URL shares reconcile exactly with the aggregate mass$sink.
+    edges <- data.frame(
+      from = c("hub", "hub", "p1", "p2", "p1", "p2", "hub"),
+      to = c("p1", "p2", "hub", "hub", "N", "N", "D")
+    )
+    idx <- data.frame(url = "N", indexability_status = "noindex")
+    st <- data.frame(url = "D", status_code = 404L)
+    pr <- pagerank(
+      edges, indexability_df = idx, status_df = st,
+      clean_edge_urls = FALSE, drop_isolates_flag = FALSE
+    )
+    sink_mass <- attr(pr, "transition_audit")$mass$sink
+    expect_equal(sum(pr$wasted_mass), sink_mass, tolerance = 1e-8)
+  })
+})
+
 describe("robots_blocked_action argument", {
   it("rejects the removed 'trap' value", {
     expect_error(
