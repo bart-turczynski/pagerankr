@@ -12,6 +12,19 @@
 #' @name pagerankr-package
 #' @aliases pagerankr
 #' @keywords internal
+#' @examples
+#' # A quick tour: score a tiny link graph ...
+#' edges <- data.frame(
+#'   from = c("/", "/", "/a", "/b"),
+#'   to = c("/a", "/b", "/b", "/")
+#' )
+#' result <- pagerank(edges)
+#' result
+#'
+#' # ... then inspect how that graph was built and how it was solved. Every
+#' # run carries its own provenance and convergence records.
+#' attr(result, "transition_audit")$counts
+#' attr(result, "convergence")$algo
 #' @importFrom igraph arpack_defaults
 #' @importFrom igraph as_adj_list
 #' @importFrom igraph as_edgelist

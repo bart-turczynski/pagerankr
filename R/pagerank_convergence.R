@@ -53,6 +53,29 @@
 #' toward 1.
 #'
 #' @seealso [compute_pagerank()], [pagerank()], [transition_audit]
+#' @examples
+#' edges <- data.frame(
+#'   from = c("A", "B", "C", "A"),
+#'   to = c("B", "C", "A", "C")
+#' )
+#'
+#' # The default PRPACK back-end is direct, so it reports no iteration count.
+#' # The residual is still computed post hoc, so it stays comparable.
+#' conv <- attr(compute_pagerank(edges), "convergence")
+#' conv
+#' conv$algo
+#' conv$iters # NA: PRPACK does not expose iterations
+#' conv$tol_met
+#'
+#' # Supplying eps / niter transparently selects the iterative ARPACK
+#' # back-end (with a message), which honors the tolerance and reports the
+#' # iterations it used. Pass algo = "arpack" explicitly to silence it.
+#' conv_arpack <- attr(
+#'   compute_pagerank(edges, eps = 1e-10, niter = 1000), "convergence"
+#' )
+#' conv_arpack$algo
+#' conv_arpack$iters
+#' conv_arpack$tol
 NULL
 
 #' Construct a pagerank_convergence object
