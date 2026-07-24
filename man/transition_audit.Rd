@@ -133,6 +133,31 @@ The constructor [new_transition_audit()] is internal plumbing for
 [pagerank()]; the object is normally obtained via
 `attr(result, "transition_audit")` (see [pagerank()]).
 }
+\examples{
+# A transition_audit is attached to every pagerank() result, and explains
+# what happened between the raw edge list and the graph actually scored.
+edges <- data.frame(
+  from = c("/a", "/a", "/b", "/b", "/c", NA),
+  to = c("/b", "/b", "/c", "/b", "/a", "/a")
+)
+result <- pagerank(edges, self_loops = "drop")
+audit <- attr(result, "transition_audit")
+audit
+
+# The documented top-level fields are stable, so callers can rely on them.
+audit$counts$n_input_rows # 6 raw rows in ...
+audit$counts$n_edges # ... 3 distinct edges scored
+
+# Each collapsed row is accounted for individually.
+audit$dropped$n_rows_na # the NA-endpoint row
+audit$dropped$n_rows_duplicate # the repeated /a -> /b row
+audit$dropped$n_self_loops # the /b -> /b self-loop
+
+# Mass accounting: the internal stationary vector always sums to 1, split
+# into reported (visible) mass plus whatever evaporated / leaked / hid.
+audit$mass$reported
+audit$mass$total
+}
 \seealso{
 [pagerank()], [audit_redirects()], [audit_canonicals()]
 }
