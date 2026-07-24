@@ -43,17 +43,32 @@ The canonical node key is **scheme + host + path**, with the path
   one profile drives both and the two paths stay symmetrical.
 
   **Knobs deliberately left unpinned.** `rurl::get_clean_url()` has grown
-  options that govern components the node key does not carry:
-  `query_handling` (default `"drop"`) and its parameter sub-options,
-  `port_handling` (default `"exclude"`), and the `url_standard` selector
-  (default `NULL` -- no standard profile, added in `rurl` 2.2.0). Under the
-  scheme+host+path key these have no visible effect at their defaults, so
-  pinning them would add noise without changing identity. They are
-  intentionally **not** part of this profile;
-  instead the behavioral guard in `test-canonicalization.R` asserts that a
-  canonical key really does drop the port, query, and fragment, so a future
-  `rurl` default flip on one of these unpinned knobs is caught on the
-  pagerankr side rather than silently changing node identity.
+  options that govern components the node key does not carry, or that select
+  a parsing route rather than a key component:
+  * `source` (default `"all"`) -- the public-suffix source, reachable only
+    through `www_handling`/`subdomain_levels_to_keep`, both pinned to values
+    that do not consult it.
+  * `query_handling` (default `"drop"`) and its parameter sub-options
+    (`params_keep`, `params_drop`, `params_case_sensitive`, `sort_params`,
+    `empty_param_handling`, `decode_plus`) -- the key drops the query.
+  * `port_handling` (default `"exclude"`) -- the key drops the port.
+  * `url_standard` (default `NULL` -- no standard profile, added in `rurl`
+    2.2.0) and, added in `rurl` 2.7.0, `scheme_policy` (default `"infer"`),
+    `scheme_acceptance` (default `"web"`), `engine` (default `NULL`) and
+    `profile` (default `NULL`, an unrelated `rurl` concept that merely shares
+    a name with this function).
+
+  Under the scheme+host+path key these have no visible effect at their
+  defaults, so pinning them would add noise without changing identity. They
+  are intentionally **not** part of this profile; instead
+  `test-canonicalization.R` guards them from two sides, so a `rurl` change
+  is caught on the pagerankr side rather than silently changing node
+  identity: a behavioral guard asserts that a canonical key really does drop
+  the port, query and fragment (catching a default *flip*), and a surface
+  guard reads `rurl`'s own formals and fails on any argument this profile
+  has neither pinned nor listed above (catching an *addition*). A committed
+  node-key probe covering the cross-platform parse-determinism risk surface
+  pins the keys themselves.
 
   The cross-repo contract requires **semantic** to pin the identical profile;
   change both repos together.
