@@ -1,5 +1,3 @@
-context("audit_canonicals / audit_fold")
-
 describe("audit_canonicals mirrors audit_redirects structure", {
   canonicals <- data.frame(
     from = c("A", "B", "C", "D", "D", "E"),

@@ -331,8 +331,7 @@ pagerank_screaming_frog <- function(bundle,
   }
   data.frame(
     url = as.character(nodes$url),
-    status_code = nodes$http_status,
-    stringsAsFactors = FALSE
+    status_code = nodes$http_status
   )
 }
 

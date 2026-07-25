@@ -1,5 +1,3 @@
-context("aggregate_edges")
-
 describe("aggregate_edges backward compatibility (unweighted)", {
   it("matches get_unique_edges for a plain from/to edge list (drop)", {
     edges <- data.frame(

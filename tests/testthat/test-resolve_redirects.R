@@ -1,5 +1,3 @@
-context("resolve_redirects")
-
 describe("resolve_redirects basic functionality", {
   it("resolves direct redirects", {
     edges <- data.frame(from = "A", to = "B")

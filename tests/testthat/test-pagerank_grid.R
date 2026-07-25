@@ -1,5 +1,3 @@
-context("pagerank_grid")
-
 describe("pagerank_grid basic functionality", {
   it("runs multiple parameter sets and returns combined results", {
     edges <- data.frame(

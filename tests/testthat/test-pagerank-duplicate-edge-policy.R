@@ -1,5 +1,3 @@
-context("pagerank duplicate_edge_policy")
-
 pr_value <- function(result, node) {
   result$pagerank[result$node_name == node]
 }

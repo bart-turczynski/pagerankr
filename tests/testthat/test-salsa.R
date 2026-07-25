@@ -1,5 +1,3 @@
-context("SALSA hub / authority scores")
-
 describe("compute_salsa", {
   it("returns node_name, hub and authority columns", {
     edges <- data.frame(from = c("A", "B"), to = c("B", "C"))

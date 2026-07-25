@@ -1,5 +1,3 @@
-context("compute_pagerank")
-
 describe("compute_pagerank basic functionality", {
   it("computes PageRank for a simple graph", {
     edges <- data.frame(

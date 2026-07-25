@@ -1,5 +1,3 @@
-context("canonicalization profile")
-
 describe("canonical_profile", {
   it("pins every node-identity rurl::get_clean_url knob explicitly", {
     profile <- canonical_profile()
@@ -184,7 +182,7 @@ describe("canonical node key across the parse-determinism risk surface", {
     )
 
     keys <- clean_url_columns(
-      data.frame(url = inputs, stringsAsFactors = FALSE),
+      data.frame(url = inputs),
       columns = "url"
     )$url
 
@@ -198,7 +196,7 @@ describe("canonical node key across the parse-determinism risk surface", {
     idn <- "http://B\u{fc}cher.example/a"
     puny <- "http://xn--bcher-kva.example/a"
     keys <- clean_url_columns(
-      data.frame(url = c(idn, puny), stringsAsFactors = FALSE),
+      data.frame(url = c(idn, puny)),
       columns = "url"
     )$url
     expect_false(identical(keys[[1]], keys[[2]]))

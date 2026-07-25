@@ -1,5 +1,3 @@
-context("coverage gaps: error / validation / print / defensive branches")
-
 # ---------------------------------------------------------------------------
 # screaming_frog_contract.R
 # ---------------------------------------------------------------------------

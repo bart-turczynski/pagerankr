@@ -159,7 +159,7 @@ different target on each page. Default `0.5`. Only consulted when
 on before any of its edges may be classified. Default `10`. Small
 containers are excluded because their ratios are quantized -- a container
 on three pages can only score `0.33`, `0.67` or `1` -- so a high ratio
-there is thin evidence rather than a strong signal. A judgement call, not
+there is thin evidence rather than a strong signal. A judgment call, not
 a measured cut.}
 
 \item{boilerplate_weight}{The multiplier applied to an edge **classified**

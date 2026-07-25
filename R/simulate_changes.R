@@ -393,7 +393,7 @@ simulate_changes <- function(edge_list_df,
     list(as.character(remove_urls), rep(404L, length(remove_urls))),
     c(url_col, code_col)
   )
-  synth <- data.frame(synth, stringsAsFactors = FALSE, check.names = FALSE)
+  synth <- data.frame(synth, check.names = FALSE)
 
   existing <- proposed_args$status_df
   if (is.null(existing) || nrow(existing) == 0) {
@@ -496,7 +496,7 @@ simulate_changes <- function(edge_list_df,
   for (cn in cols) {
     filled[[cn]] <- if (cn %in% names(add_df)) add_df[[cn]] else rep(NA, n)
   }
-  new_rows <- data.frame(filled, stringsAsFactors = FALSE, check.names = FALSE)
+  new_rows <- data.frame(filled, check.names = FALSE)
   rbind(base_df, new_rows)
 }
 

@@ -1,5 +1,3 @@
-context("pagerank_metrics")
-
 describe("pr_gini", {
   it("returns 0 for perfectly equal distribution", {
     # All values equal -> Gini = 0

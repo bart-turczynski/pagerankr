@@ -1,5 +1,3 @@
-context("compare_pagerank")
-
 describe("compare_pagerank basic functionality", {
   it("performs full outer join and computes deltas", {
     pr_a <- data.frame(

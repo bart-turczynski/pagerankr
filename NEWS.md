@@ -24,9 +24,9 @@
   sections now cross-reference each other.
 
 * **`simulate_changes()` gains a `remove_urls` verb for URL-level what-ifs.**
-  Pass a character vector of URLs to model them 404-ing: each keeps its inbound
-  links (other pages still point at it) but their authority now flows into a
-  dead page and *evaporates* to the shared waste sink, rather than
+  Pass a character vector of URLs to model them returning 404: each keeps its
+  inbound links (other pages still point at it) but their authority now flows
+  into a dead page and *evaporates* to the shared waste sink, rather than
   redistributing across the site via teleport (dangle) or self-amplifying via a
   self-loop. The page's outbound links are dropped and the node stays in the
   output flagged `"removed-dead"` in `node_status`, so its residual absorbed

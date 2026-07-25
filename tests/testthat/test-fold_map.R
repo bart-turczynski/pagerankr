@@ -1,5 +1,3 @@
-context("build_fold_map / composed redirect + canonical folding")
-
 describe("build_fold_map basic signals", {
   it("folds a cross-canonical (A canonical C) with signal 'canonical'", {
     fm <- build_fold_map(canonicals_df = data.frame(from = "A", to = "C"))
