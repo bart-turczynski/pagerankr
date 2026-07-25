@@ -776,23 +776,123 @@ that were themselves crawled.
    attached rather than a philosophical one. The homogeneous-group share is a candidate
    **diagnostic**: it tells a user what fraction of their reversed run is effectively unweighted.
 
+### Measurement (2026-07-25): what the shares actually predict
+
+Probes `_scratch/probe-direction-invariance.R` and `-2.R` (not committed; aggregates only). Recipe
+as above — All Inlinks, `Type == "Hyperlink"`, region via `sf_region_from_path()` with
+`sf_normalize_position()` fallback, destinations restricted to crawled sources.
+
+Two choices make the magnitude numbers mean something. The unweighted baseline is `w ≡ 1` under the
+**same** `duplicate_edge_policy = "aggregate"`, so multiplicity is held fixed and every difference
+is attributable to placement weighting alone. And `clean_edge_urls = FALSE`: the two runs share a
+node set, so canonicalization cannot affect the contrast, and switching it off keeps the stale local
+rurl (2.2.1, `PAGE-sbiymgtg`) out of the result rather than trusting it.
+
+The heterogeneity table above reproduced **to the digit** on both sites, which is what makes the
+rest attributable rather than merely new.
+
+> **Denominator note.** The region-mix percentages quoted in this section — vendor-a header 56.6%,
+> vendor-b.example.com content 66.1% — are computed over **all** hyperlink rows, while the heterogeneity table
+> is **internal-only**. Both are correct on their own denominator (internal-only gives header 63.38%
+> and content 62.96%), but they are not comparable, and reading them side by side is part of what
+> made region mix look like a candidate driver.
+
+#### Q3 — region mix is not the driver, and it predicts the wrong sign
+
+| | content edges (internal) | chrome edges | targets reached by chrome | reversed het. groups |
+|---|---:|---:|---:|---:|
+| vendor-a | 11.98% | 88.02% | **67.74%** | 63.56% |
+| vendor-b.example.com | 62.96% | 37.04% | **23.67%** | 21.96% |
+
+vendor-b.example.com carries **five times** vendor-a's content-link share and has **three times fewer**
+heterogeneous inlink groups. More content links coincide with *less* inlink heterogeneity, so the
+region-mix hypothesis fails on **direction**, not merely on magnitude.
+
+The mechanism is **chrome reach**. A target is reversed-heterogeneous only if it receives both a
+content link and a chrome link — and on both sites nearly every target already receives a content
+link (95.8% on vendor-a, 98.3% on vendor-b.example.com). What varies is the share that *also* receives a chrome
+link, and that tracks the heterogeneity share almost exactly (67.7% against 63.6%; 23.7% against
+22.0%, the gap being chrome-only targets).
+
+So the question is not how much chrome a site has, but **how many distinct pages its chrome
+touches**. vendor-a's chrome is 88% of edges and blankets the crawl. vendor-b.example.com's is 37% and
+concentrated, leaving **76.3% of its targets content-only**, hence homogeneous. A flat mega-menu
+linking every page makes almost every target mixed; a small footer nav does not.
+
+#### Q4 — the heterogeneity share does not predict magnitude
+
+Weighted against unweighted, within each direction:
+
+| run | het. edges | Spearman | L1 | max abs Δscore | top-100 kept |
+|---|---:|---:|---:|---:|---:|
+| vendor-a forward | 99.14% | 0.9494 | 0.3695 | 2.58e-02 | 91% |
+| vendor-a reversed | 93.91% | 0.9649 | 0.1641 | 3.06e-03 | 87% |
+| vendor-b.example.com forward | 99.73% | 0.9611 | 0.4838 | 1.02e-02 | 65% |
+| vendor-b.example.com reversed | 52.45% | 0.9910 | 0.0324 | 2.26e-04 | 97% |
+
+vendor-a's reversed heterogeneity (93.91%) is nearly as saturated as its forward (99.14%), yet
+weighting moves the reversed ranking less than half as far by L1 and **8.4× less** by maximum score
+change. Near-saturation of the necessary condition in both directions coexists with effect sizes
+differing severalfold, so the share **cannot be read as an effect-size proxy**.
+
+#### The "failure rate" framing does not survive a degree control
+
+This section calls the homogeneous-group share the *failure rate* of the reversed view. Measured,
+that reading does not hold.
+
+Unstratified, homogeneous-group nodes do move about half as far (vendor-a reversed, mean |Δrank|
+69.8 against 147.8). But homogeneous nodes are overwhelmingly **low-degree** — a page with one
+in-edge is trivially homogeneous — and that confound carries most of the gap:
+
+| run | homogeneous median degree | heterogeneous median degree |
+|---|---:|---:|
+| vendor-a forward | 10 | 238 |
+| vendor-a reversed | 1 | 48 |
+| vendor-b.example.com reversed | 50 | 89 |
+
+Within degree quintiles the relationship is **not robust, and it reverses by site**. Ratio of median
+|Δrank|, heterogeneous ÷ homogeneous, over bands holding at least 20 of each:
+
+| run | band ratios (low → high degree) | coverage |
+|---|---|---:|
+| vendor-a reversed | 2.02, 0.85, 3.71, 4.86, 2.55 | 100% of nodes |
+| vendor-b.example.com reversed | 0.28, 0.41, 0.29, 1.59, 0.74 | 100% of nodes |
+
+On vendor-a heterogeneous nodes move more, as predicted, in four bands of five. On vendor-b.example.com the
+prediction **inverts** in four of five: the nodes whose weights supposedly normalized away move
+*more* than the weighted ones. At the aggregate median the two groups are indistinguishable (148
+against 144), and the mean gap is entirely tail-driven.
+
+The reason is that **PageRank is global**. A page whose own inlink weights are homogeneous still
+inherits every rank change its inlinkers underwent, so "effectively unweighted" describes the *local
+normalization step*, not the score. On vendor-b.example.com, where 78% of groups are homogeneous, that dragging
+dominates.
+
+Forward runs cannot arbitrate this: homogeneous sources are too rare (116 and 61 nodes) for a
+stratified comparison, and they concentrate in the lowest degree band, where median |Δrank| is 0.
+
+⚠️ **Consequence for the diagnostic.** The homogeneous-group share should **not** ship as "the
+fraction of your run that is effectively unweighted". That claim is contradicted on vendor-b.example.com —
+precisely the site whose large share would have motivated showing it. What survives is narrower and
+less marketable: the share describes how much of the *weight vector does no local work*, which is
+not the same as how much of the *ranking* is unaffected.
+
 ### Open, in rough order
 
 - ~~Does the reversed reading admit any defensible editorial interpretation?~~ **Resolved: yes**
   — operator A is credit allocation among a target's inlinkers. `content` + `reverse = TRUE`
   should **not** warn; it works, with a documented blind spot.
+- ~~What drives the vendor-a/vendor-b.example.com spread (94% vs 52%)?~~ **Resolved: chrome reach**, not region
+  mix, which predicts the wrong sign. See Q3 above.
+- ~~Does the heterogeneity share predict how much the ranking actually *moves*?~~ **Resolved: no.**
+  It is a necessary condition and nothing more; magnitude varies severalfold at fixed share.
 - Is operator **B** (normalize forward, then transpose) constructible, and what re-normalization
-  does it need? Is the result still PageRank?
-- Should the homogeneous-group share ship as a diagnostic on reversed weighted runs, so a user
-  learns that half their vendor-b.example.com run was effectively unweighted?
-- What drives the vendor-a/vendor-b.example.com spread (94% vs 52%)? Region mix is a candidate: vendor-a is
-  header-heavy (56.6% of edges) where vendor-b.example.com is content-heavy (66.1%).
-- Does the heterogeneity share predict how much the ranking actually *moves*? Heterogeneity is
-  only a necessary condition — magnitude is unmeasured.
-
-Measurement script: `_scratch/` (not committed); regenerate from the recipe above —
-region via `sf_region_from_path()` with `sf_normalize_position()` fallback, `Type == "Hyperlink"`,
-destinations restricted to crawled sources.
+  does it need? Is the result still PageRank? **The only substantive question left in this section.**
+- Should the *narrowed* homogeneous-group share (weight vector doing no local work) ship as a
+  diagnostic at all, now that the "failure rate" reading is retired?
+- Is **chrome reach** worth surfacing in its own right? It is a one-line crawl statistic that
+  predicts reversed heterogeneity almost exactly, and unlike the heterogeneity share it is
+  interpretable without reference to the weighting internals.
 
 ---
 
