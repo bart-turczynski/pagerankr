@@ -212,6 +212,7 @@
 #' @param loop_handling How to handle redirect cycles. Passed through to
 #'   [resolve_redirects()]. Default `"error"`. See [resolve_redirects()] for
 #'   all available policies.
+#' @inheritParams build_fold_map
 #' @param canonicals_df An optional data frame of declared `rel=canonical`
 #'   links, with `from`/`to` columns (or as set by `canonical_from_col` /
 #'   `canonical_to_col`) pairing a source URL with the canonical it declares.
@@ -220,16 +221,12 @@
 #'   `redirects_df`: they are tracked separately and audited via
 #'   [audit_canonicals()] / [audit_fold()], then folded into the same composed
 #'   map as redirects (see [build_fold_map()]). Self-canonicals drop as no-ops.
-#' @param canonical_from_col,canonical_to_col From/to columns in
-#'   `canonicals_df`. Default `"from"` / `"to"`.
 #' @param clean_canonical_urls Logical, whether to clean URLs in `canonicals_df`
 #'   using the same resolved `rurl_params` profile as edge and redirect
 #'   cleaning. Default `TRUE`. Only effective when `canonicals_df` is provided.
 #' @param canonical_duplicate_from_policy How to handle a canonical source that
 #'   declares multiple distinct canonicals. Reuses the `duplicate_from_policy`
 #'   enum (see [resolve_redirects()]). Default `"strict"`.
-#' @param canonical_loop_handling How to handle cycles among declared
-#'   canonicals. Reuses the `loop_handling` enum. Default `"error"`.
 #' @param canonical_conflict_policy How to resolve a redirect-vs-canonical
 #'   disagreement on the **same source** URL. One of `"redirect_wins"` (default;
 #'   the 3xx wins and the canonical on a redirecting source is ignored and

@@ -36,6 +36,7 @@
 #' `prior_weight_col` to `trustrank()` is an error — supply `seeds`.
 #'
 #' @inheritParams pagerank
+#' @inheritParams seed_prior
 #' @param seeds The trusted seed set. Either a character vector of trusted URLs
 #'   (each gets equal seed weight unless `seed_weight` is given), or a data
 #'   frame with a URL column and a numeric weight column (see `seed_url_col` /
@@ -45,8 +46,6 @@
 #'   Ignored when `seeds` is a data frame. Default `NULL` (every seed weight
 #'   `1`, i.e. a uniform distribution over the trusted set, as in the original
 #'   TrustRank).
-#' @param seed_url_col,seed_weight_col Column names used when `seeds` is a data
-#'   frame. Defaults `"url"` / `"weight"`. Ignored for a character vector.
 #' @param ... Additional arguments forwarded to [pagerank()] (e.g.
 #'   `redirects_df`, `rurl_params`, `prior_transform`, `prior_alpha`,
 #'   `damping`). Passing `prior_df`, `prior_url_col`, or `prior_weight_col` is

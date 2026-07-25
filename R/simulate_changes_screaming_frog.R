@@ -9,7 +9,7 @@
 #'   what-if capability. The what-if's modeled redirects compose on top of the
 #'   bundle's real crawled redirects (a changeset redirect for a source wins).
 #'
-#' @param bundle A `screaming_frog_bundle` object.
+#' @inheritParams pagerank_screaming_frog
 #' @param add_links_df,remove_links_df,redirect_urls_df,remove_urls The
 #'   changeset verbs. See [simulate_changes()] for their semantics. Link and
 #'   redirect endpoints (and `remove_urls`) match the bundle's raw crawled URLs
