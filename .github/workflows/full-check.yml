@@ -1,8 +1,10 @@
-# Full cross-platform R CMD check matrix (macOS = 10x, Windows = 2x Actions
-# minute multipliers). Runs ONLY on demand (workflow_dispatch) or when preparing
-# a CRAN submission (release tags matching 'v*'). Routine merges to main and PRs
-# do NOT trigger it. Fast per-PR feedback (lint + one Ubuntu check) lives in
-# verify.yml.
+# Full cross-platform R CMD check matrix. Runs ONLY on demand
+# (workflow_dispatch) or when preparing a CRAN submission (release tags matching
+# 'v*'). Routine merges to main and PRs do NOT trigger it because the matrix is
+# slow (the R-devel job alone runs ~20 min), NOT because it is expensive: this
+# repo is public, so GitHub-hosted runners are free and the macOS/Windows minute
+# multipliers do not bill. Fast per-PR feedback (lint + one Ubuntu check) lives
+# in verify.yml.
 name: Full platform check
 
 on:
