@@ -1,5 +1,20 @@
 # pagerankr (development version)
 
+* **A two-crawl case-study fixture ships in `inst/extdata/`.** Two Screaming
+  Frog exports of the same small site, taken either side of a deliberate
+  internal-linking intervention, are now available as package data:
+  `system.file("extdata", "reviews-microsite-before", package = "pagerankr")`
+  and its `-after` counterpart, each holding `all_inlinks.csv` and
+  `internal_all.csv`. Because the same site is measured twice, a change in
+  PageRank is attributable to the intervention rather than to a difference
+  between sites — which is what makes the pair usable for validating the
+  placement and boilerplate models. Both exports are trimmed to the columns
+  `sf_contract()` declares (18 and 24, down from Screaming Frog's 103), and
+  `Link Path` is retained deliberately as the boilerplate detector's signal.
+  The whole fixture is roughly 70 KB gzipped. The underlying site is
+  pseudonymous: hosts, paths, anchors, alt text and page free-text are replaced
+  rather than redacted, and `inst/extdata/README.md` documents exactly what is
+  synthetic and what is preserved verbatim.
 * **`pagerank()` surfaces a per-URL `wasted_mass` figure alongside `page_state`.**
   When `indexability_df` or `status_df` is supplied, the result now carries a
   `wasted_mass` column next to `page_state`: the authority each page collected
