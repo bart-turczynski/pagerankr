@@ -4,7 +4,7 @@
 #'   redirects, and terminal destinations. Useful as a pre-flight check before
 #'   running \code{\link{resolve_redirects}} or \code{\link{pagerank}}.
 #'
-#' @param redirects_df A data frame containing redirect rules.
+#' @inheritParams resolve_redirect_urls
 #' @param edge_list_df Optional data frame of edges. If provided, orphaned
 #'   redirects (rules whose source URL does not appear in the edge list) are
 #'   identified.

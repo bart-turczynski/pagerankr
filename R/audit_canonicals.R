@@ -11,12 +11,11 @@
 #'   and which canonicals are ignored because their source also redirects -- use
 #'   [audit_fold()].
 #'
+#' @inheritParams build_fold_map
 #' @param canonicals_df A data frame of declared canonical links, pairing a
 #'   source URL with the canonical it declares.
 #' @param edge_list_df Optional data frame of edges. If provided, orphaned
 #'   canonicals (sources not present in the edge list) are identified.
-#' @param canonical_from_col,canonical_to_col From/to columns in
-#'   `canonicals_df`. Default `"from"` / `"to"`.
 #' @param edge_from_col,edge_to_col From/to columns in `edge_list_df`. Default
 #'   `"from"` / `"to"`.
 #'
