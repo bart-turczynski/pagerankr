@@ -3,13 +3,12 @@
 ## Verification gate (local pre-push hook)
 
 The GitHub-hosted CI workflows (`Verify` = lint + R CMD check, and
-`news-version` = NEWS/DESCRIPTION consistency) are **temporarily gated to
-CRAN-submission prep only** — they run on `workflow_dispatch` and release tags
-(`v*`), not on routine pushes or PRs, because GitHub-hosted runners are disabled
-on this account.
+`news-version` = NEWS/DESCRIPTION consistency) run on **every push to `main` and
+every pull request**.
 
-So the routine gate runs **locally**, as a committed pre-push hook in
-`.githooks/pre-push`. It runs three checks, cheapest first:
+The same checks also run **locally**, as a committed pre-push hook in
+`.githooks/pre-push`, so a red result costs seconds instead of a round trip
+through Actions. It runs three checks, cheapest first:
 
 1. top `NEWS.md` heading matches `DESCRIPTION` `Version:` (or is `(development version)`)
 2. `lintr::lint_package()` reports no lints
@@ -40,10 +39,5 @@ onto `main` while remote CI was billing-disabled; see PR #50).
 
 The cross-platform matrix (`full-check.yml`) and R-hub (`rhub.yaml`) remain the
 **"remote testing when submitting to CRAN"** path — they run on demand / at
-release-tag time.
-
-### Restoring per-push/PR remote CI
-
-When GitHub-hosted runners are available again, re-enable remote feedback by
-uncommenting the `push.branches` / `pull_request` triggers in
-`.github/workflows/verify.yml` and `.github/workflows/news-version.yaml`.
+release-tag time, because that matrix is slow, not because it is expensive (this
+repo is public, so GitHub-hosted runners are free).

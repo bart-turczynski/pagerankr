@@ -32,6 +32,8 @@ coverage](https://codecov.io/gh/bart-turczynski/pagerankr/branch/main/graph/badg
 [![Full platform
 check](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml)
 [![R-hub](https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml)
+[![OSV
+audit](https://github.com/bart-turczynski/pagerankr/actions/workflows/osv-audit.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/osv-audit.yml)
 [![OpenSSF Best
 Practices](https://www.bestpractices.dev/projects/13553/badge)](https://www.bestpractices.dev/projects/13553)
 <!-- badges: end -->
