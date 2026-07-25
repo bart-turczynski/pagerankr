@@ -204,34 +204,34 @@ describe("transition_audit fold section", {
 })
 
 describe("folded-away domain filter warning (PAGE-owdnylqo)", {
-  # Repro: a crawl on tidioreviews.pages.dev whose canonicals fold every node
-  # onto the never-crawled tidioreviews.com. Filtering on the crawled domain
-  # (which runs AFTER folding) then matches nothing.
-  crawled <- "tidioreviews.pages.dev"
-  folded <- "tidioreviews.com"
+  # Repro: a crawl on reviews-microsite.example.net whose canonicals fold
+  # every node onto the never-crawled reviews-microsite.example.com. Filtering
+  # on the crawled domain (which runs AFTER folding) then matches nothing.
+  crawled <- "reviews-microsite.example.net"
+  folded <- "reviews-microsite.example.com"
   edges <- data.frame(
     from = c(
-      "https://tidioreviews.pages.dev/",
-      "https://tidioreviews.pages.dev/a",
-      "https://tidioreviews.pages.dev/b"
+      "https://reviews-microsite.example.net/",
+      "https://reviews-microsite.example.net/a",
+      "https://reviews-microsite.example.net/b"
     ),
     to = c(
-      "https://tidioreviews.pages.dev/a",
-      "https://tidioreviews.pages.dev/b",
-      "https://tidioreviews.pages.dev/"
+      "https://reviews-microsite.example.net/a",
+      "https://reviews-microsite.example.net/b",
+      "https://reviews-microsite.example.net/"
     )
   )
-  # Every crawled node declares a canonical onto tidioreviews.com.
+  # Every crawled node declares a canonical onto reviews-microsite.example.com.
   can <- data.frame(
     from = c(
-      "https://tidioreviews.pages.dev/",
-      "https://tidioreviews.pages.dev/a",
-      "https://tidioreviews.pages.dev/b"
+      "https://reviews-microsite.example.net/",
+      "https://reviews-microsite.example.net/a",
+      "https://reviews-microsite.example.net/b"
     ),
     to = c(
-      "https://tidioreviews.com/",
-      "https://tidioreviews.com/a",
-      "https://tidioreviews.com/b"
+      "https://reviews-microsite.example.com/",
+      "https://reviews-microsite.example.com/a",
+      "https://reviews-microsite.example.com/b"
     )
   )
 
@@ -260,8 +260,8 @@ describe("folded-away domain filter warning (PAGE-owdnylqo)", {
   it("does not warn for a normal same-domain crawl (post-fold match)", {
     # Canonicals fold within the crawled domain, so keep_domains still matches.
     can_in <- data.frame(
-      from = "https://tidioreviews.pages.dev/a",
-      to = "https://tidioreviews.pages.dev/"
+      from = "https://reviews-microsite.example.net/a",
+      to = "https://reviews-microsite.example.net/"
     )
     expect_no_warning(
       pagerank(

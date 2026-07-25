@@ -3,7 +3,7 @@
 # a link's normalized position within its source page should order the page
 # regions the way a reader meets them -- header/nav first, footer last.
 suppressMessages(library(data.table))
-d <- fread("_scratch/crawls/tidio/all_outlinks.csv",
+d <- fread("_scratch/crawls/vendor-a/all_outlinks.csv",
            select = c("Type", "Source", "Destination", "Link Position"),
            showProgress = FALSE)
 setnames(d, c("type", "src", "dst", "lpos"))

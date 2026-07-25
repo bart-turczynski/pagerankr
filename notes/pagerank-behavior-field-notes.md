@@ -6,15 +6,15 @@ These notes are raw material for a promotional / applied paper (see the
 "Paper: pagerankr" fp issue) and for future vignettes. Numbers below come from a
 live case study unless stated otherwise.
 
-## Case study: `tidioreviews` (a 67-page reviews microsite)
+## Case study: `reviews-microsite` (a 67-page reviews microsite)
 
 - Input: Screaming Frog **Internal: All** (92 rows) + **All Inlinks** (~4,440
-  rows), crawled on the staging host `tidioreviews.pages.dev`.
+  rows), crawled on the staging host `reviews-microsite.example.net`.
 - After the bundle adapters: 3,820 hyperlink edges, ~2,900 scored edges over
   67 internal pages.
 - The crawl carried a wrinkle that turned into the most instructive finding:
   every page's `rel=canonical` pointed to the **production** host
-  `tidioreviews.com`, which was never crawled.
+  `reviews-microsite.example.com`, which was never crawled.
 - **Two crawls now exist**, straddling a shipped internal-linking intervention:
   a **pre-intervention** crawl (the one the numbers throughout §1–§9 were
   computed from) and a **post-intervention** crawl taken after a de-sink /
@@ -32,15 +32,15 @@ live case study unless stated otherwise.
 through the *same* fold-map engine (`.compose_fold_map` →
 `.apply_map_to_edge_list`): a canonical is a URL rewrite applied to *both*
 endpoints of every edge. The 67 canonicals formed a clean 1:1
-`pages.dev → .com` bijection with matching paths, so folding was a graph
-**isomorphism**: PageRank was computed on the `pages.dev` topology and every
+`example.net → example.com` bijection with matching paths, so folding was a graph
+**isomorphism**: PageRank was computed on the `example.net` topology and every
 vertex was *renamed* to its `.com` twin.
 
 **The proof it was happenstance.** Replacing the real cross-domain canonicals
-with self-canonicals (`pages.dev → pages.dev`) yields **bit-identical**
+with self-canonicals (`example.net → example.net`) yields **bit-identical**
 PageRank (max |Δ| = 0.000e+00, identical ranking); only the host label changes.
 Nothing about `.com` was measured — no `.com` page was crawled or had its link
-graph observed. The reported `.com` PageRank was the `pages.dev` structure
+graph observed. The reported `.com` PageRank was the `example.net` structure
 wearing a `.com` nametag.
 
 **Why it matters (design gap).** The fold engine is **scope-blind**: it folds
@@ -53,13 +53,14 @@ rather than establishes.
 
 **Verified failure modes** (repro in the `SF-scope` fp issues):
 - **Crawled-domain erasure.** After folding, filtering on the domain you
-  actually crawled (`keep_domains = "tidioreviews.pages.dev"`) returns **0
+  actually crawled (`keep_domains = "reviews-microsite.example.net"`) returns **0
   nodes**; you must filter on a domain never present in the input.
 - **Collision → real corruption.** If the crawl contains any genuine link to
   the canonical *target* domain, that external link **merges into** the
   relabeled internal node (no new node created). Forced repro: 5 real links to
   prod `/website/` raised the *internal* node's PR **+9.3%**. Did not bite this
-  crawl only because it links to `www.tidio.com`, never `tidioreviews.com`.
+  crawl only because it links to `www.vendor-a.example.com`, never
+  `reviews-microsite.example.com`.
 - **Ruled out:** partial canonicalization does *not* duplicate a page into two
   nodes — the fold is a consistent per-URL rewrite, so each page keeps one
   identity (mixed hostnames only).
@@ -73,7 +74,7 @@ about — not silent.
 
 ## 2. On a real crawl, PageRank mostly measures the navigation template
 
-The full-graph PageRank of `tidioreviews` was nearly **flat**: the top ~55
+The full-graph PageRank of `reviews-microsite` was nearly **flat**: the top ~55
 pages all sat at ~2.22% with a Gini of 0.31 and an entropy ratio of 0.94
 (near-uniform). The cause is structural, not editorial:
 
@@ -94,8 +95,8 @@ the boilerplate dominates.
 
 Downweighting nav (`placement_weights = c(content=1, nav=0.1, header=0.1)`)
 reshuffles the ranking hard. Pages strong in body copy but absent from the nav
-climb (e.g. `/alternatives/zendesk/` #40 → #9); pages propped only by the menu
-fall (`/alternatives/tawk/` #9 → #38).
+climb (e.g. `/alternatives/competitor-a/` #40 → #9); pages propped only by the menu
+fall (`/alternatives/competitor-b/` #9 → #38).
 
 Counterintuitively, **Gini drops** (0.305 → 0.264). The nav was *manufacturing*
 artificial concentration on its ~46 favored pages; editorial linking is spread
@@ -125,7 +126,7 @@ discretionary link graph.
 ## 5. CheiRank surfaces disconnected hubs — but high CheiRank ≠ valuable
 
 CheiRank (PageRank on the reversed graph, `reverse = TRUE`) ranks pages by
-*outflow*. On `tidioreviews` the top CheiRank pages were also the **lowest**
+*outflow*. On `reviews-microsite` the top CheiRank pages were also the **lowest**
 PageRank pages: `/website/`, `/company/headquarters/`, `/download/app/` — pages
 that link out generously but receive almost nothing.
 
@@ -143,7 +144,7 @@ CheiRank.
 **Seeded feeders need a clean graph.** `topic_feeder_pagerank()` (seeded reverse
 PageRank, "what feeds this cluster") returned the *global* hubs when run on all
 edges — the nav is so uniform that every page feeds every cluster. Only on
-**content-only** edges did the genuine topical feeders appear (for the AI-Agent
+**content-only** edges did the genuine topical feeders appear (for the feature-a
 cluster: the product overview, pricing, and sibling feature pages). Topic-feeder
 analysis is only meaningful after boilerplate is removed.
 
@@ -189,7 +190,7 @@ says it should do:
 
 `simulate_changes()` (add/remove edges, add redirects) lets you model an
 architecture change on the stored graph before touching the site. Example: on
-`tidioreviews`, adding **3 body-content links** to each of the 4 most-orphaned
+`reviews-microsite`, adding **3 body-content links** to each of the 4 most-orphaned
 pages raised their PR by **+28% to +40%** while costing the donor hubs
 **−0.38% each** — near-free authority redistribution. This is the honest way to
 justify (or reject) an internal-linking recommendation: show the redistribution,
@@ -240,7 +241,7 @@ re-derivation.
 | `/about/faq/`                  | 0.042 → 0.010 | −75.9% | #4 → #26 |
 | `/pricing/`                    | 0.015 → 0.064 | **+325%**  | #6 → #2 |
 | `/pricing/free-plan/`          | 0.005 → 0.061 | +1096% | #17 → #3 |
-| `/features/ai-agent/`          | 0.006 → 0.045 | +705%  | #13 → #5 |
+| `/features/feature-a/`         | 0.006 → 0.045 | +705%  | #13 → #5 |
 | `/pricing/free-trial/`         | 0.004 → 0.041 | +996%  | #26 → #7 |
 | homepage `/en-us/`             | 0.003 → 0.011 | +270%  | #48 → #23 |
 
@@ -269,7 +270,7 @@ the lens you choose decides whether you can even see the change.
 **Honest confounds (state these in any writeup).** This is a two-crawl natural
 experiment, not a controlled `simulate_changes()` on one fixed graph, so:
 - The node set changed — 4 pages were retired/merged during the epic
-  (`/submit/`, `/company/funding/`, `/company/headquarters/`, `/tidio/`), and
+  (`/submit/`, `/company/funding/`, `/company/headquarters/`, `/vendor-a/`), and
   total editorial edges fell (339 → 232). **Absolute editorial PR levels are
   therefore not directly comparable across crawls; read rank shifts,
   concentration metrics (Gini / top-share / entropy), and relative deltas** — the
@@ -412,6 +413,6 @@ Tracked in fp `PAGE-vqfytgam`.
   the standard treatments state only for strictly positive `v`; (d) a
   **comparative tool audit** — what do commercial internal-link authority scores
   actually compute, and do their vendors say? Unlike the applied angles, this one
-  does not depend on the `tidioreviews` case study, so it sidesteps the
+  does not depend on the `reviews-microsite` case study, so it sidesteps the
   publishability/anonymization gate. Could stand alone or serve as the methods
   spine the applied angles hang off.
