@@ -1,5 +1,3 @@
-context("position")
-
 # Crawler-neutral throughout: position is a plain numeric per-source index, so
 # these tests prove the axis works on any edge list rather than asserting it.
 

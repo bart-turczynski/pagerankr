@@ -1,5 +1,3 @@
-context("unified waste-sink mechanism (PAGE-pvfdijrw)")
-
 describe("one sink, applied uniformly to the whole class", {
   it("scores a robots-blocked page identically to a noindex page", {
     # Same graph, same member: with the self-loop trap removed, robots-blocked

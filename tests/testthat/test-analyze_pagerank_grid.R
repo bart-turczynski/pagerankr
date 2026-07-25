@@ -1,5 +1,3 @@
-context("analyze_pagerank_grid")
-
 describe("analyze_pagerank_grid", {
   it("computes metrics for each model in a grid result", {
     edges <- data.frame(

@@ -1,5 +1,3 @@
-context("drop_isolates")
-
 describe("drop_isolates basic functionality", {
   it("drop = FALSE: returns all unique non-NA nodes from edge list", {
     edges <- data.frame(

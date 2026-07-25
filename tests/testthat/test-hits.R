@@ -1,5 +1,3 @@
-context("HITS hub / authority scores")
-
 describe("compute_hits", {
   it("matches igraph::hits_scores on a hand-built graph", {
     edges <- data.frame(

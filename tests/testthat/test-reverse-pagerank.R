@@ -1,5 +1,3 @@
-context("reverse / inverse PageRank (CheiRank)")
-
 describe("compute_pagerank reverse = TRUE", {
   it("matches igraph::page_rank on a manually reversed edge list", {
     # Hand-built graph: A funnels outward (A->B, A->C), B->C.

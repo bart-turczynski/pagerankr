@@ -152,7 +152,7 @@ and author byline links (0.53–0.69).
 
 `min_container_pages` is an evidence floor. A container appearing on three
 pages can only score `0.33`, `0.67` or `1.0`, so a high ratio there is
-quantization rather than signal. Ten is a judgement call, not a measured cut —
+quantization rather than signal. Ten is a judgment call, not a measured cut —
 raise it if your containers are large, lower it if your site is small.
 
 The CTA above is exactly the case the threshold decides. At the default it is
@@ -238,7 +238,7 @@ terms and privacy pages, cart and account links, promotional CTAs. If a page's
 rank drops sharply when you enable the detector, that is a measurement of how
 much of its rank came from a template.
 
-If you disagree in a specific case, the judgement is yours to make: raise
+If you disagree in a specific case, the judgment is yours to make: raise
 `boilerplate_threshold`, raise `boilerplate_weight` toward 1, or curate the
 container column so the component in question is not scored. The detector is a
 convenience, not an oracle, and "boilerplate but in main content" is ultimately

@@ -1,5 +1,3 @@
-context("clean_url_columns")
-
 describe("clean_url_columns basic functionality", {
   it("cleans URLs in specified columns", {
     df <- data.frame(

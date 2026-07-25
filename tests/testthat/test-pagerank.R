@@ -1,5 +1,3 @@
-context("pagerank wrapper function")
-
 describe("pagerank main wrapper basic functionality", {
   it("runs end-to-end with sensible defaults", {
     edges <- data.frame(

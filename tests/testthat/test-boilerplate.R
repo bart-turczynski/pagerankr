@@ -1,5 +1,3 @@
-context("boilerplate")
-
 # A plain, non-Screaming-Frog edge list throughout: the detector is
 # crawler-neutral, so the tests prove that rather than asserting it.
 

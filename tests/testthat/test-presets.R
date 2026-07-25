@@ -1,5 +1,3 @@
-context("presets")
-
 nf_edges <- function() {
   data.frame(
     from = c("A", "A", "B", "C"),
