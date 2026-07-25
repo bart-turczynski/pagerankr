@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Pre-push verify gate — the routine local stand-in for the GitHub-hosted
-# `Verify (lint)` and `news-version` workflows, which are TEMPORARILY gated to
-# CRAN-submission prep only (workflow_dispatch + release tags 'v*') because
-# GitHub-hosted runners are disabled on this account.
+# Pre-push verify gate — a local mirror of the GitHub-hosted `Verify` and
+# `news-version` workflows, both of which run remotely on every push to main and
+# every pull request. This is defense-in-depth, not a stand-in: catching a red
+# result here costs seconds instead of a round trip through Actions, and it also
+# covers a push made with remote CI unavailable.
 #
 # Checks, cheapest first:
 #   1. news-version.yaml : top NEWS.md heading vs DESCRIPTION Version
