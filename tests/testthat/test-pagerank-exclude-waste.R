@@ -1,5 +1,3 @@
-context("prior_exclude_waste: excluding the waste class from teleport")
-
 # A hub linking to a ring of real pages, plus K "dead" pages (HTTP 404) each
 # discovered by exactly one hub link and carrying no outlinks. This is the
 # field-notes section 11 experiment (notes/experiments/teleport-dead-pages.R)
@@ -11,9 +9,9 @@ context("prior_exclude_waste: excluding the waste class from teleport")
 .real <- sprintf("https://ex.com/p%02d", 1:10)
 .ring_to <- c(.real[-1], .real[1])
 .base_edges <- rbind(
-  data.frame(from = .hub, to = .real, stringsAsFactors = FALSE),
-  data.frame(from = .real, to = .ring_to, stringsAsFactors = FALSE),
-  data.frame(from = .real, to = .hub, stringsAsFactors = FALSE)
+  data.frame(from = .hub, to = .real),
+  data.frame(from = .real, to = .ring_to),
+  data.frame(from = .real, to = .hub)
 )
 .dead_urls <- function(k) {
   if (k == 0) character(0) else sprintf("https://ex.com/dead%04d", seq_len(k))
@@ -24,7 +22,7 @@ context("prior_exclude_waste: excluding the waste class from teleport")
   }
   rbind(
     .base_edges,
-    data.frame(from = .hub, to = .dead_urls(k), stringsAsFactors = FALSE)
+    data.frame(from = .hub, to = .dead_urls(k))
   )
 }
 .run <- function(k, prior_exclude_waste) {
@@ -114,8 +112,7 @@ describe("mass still reconciles to 1 with teleport exclusion in play", {
     # overlap. All four buckets are exercised here.
     edges <- data.frame(
       from = c("https://in.test/a", "https://in.test/a", "https://in.test/b"),
-      to = c("https://in.test/dead", "https://out.test/x", "https://in.test/a"),
-      stringsAsFactors = FALSE
+      to = c("https://in.test/dead", "https://out.test/x", "https://in.test/a")
     )
     pr <- pagerank(
       edges,
@@ -156,8 +153,7 @@ describe("interaction with an authority prior", {
   it("gives the excluded class exactly zero teleport prior", {
     edges <- data.frame(
       from = c("https://s.test/a", "https://s.test/a", "https://s.test/b"),
-      to = c("https://s.test/b", "https://s.test/dead", "https://s.test/a"),
-      stringsAsFactors = FALSE
+      to = c("https://s.test/b", "https://s.test/dead", "https://s.test/a")
     )
     prior <- data.frame(
       url = c("https://s.test/a", "https://s.test/dead"),

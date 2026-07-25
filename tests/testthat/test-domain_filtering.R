@@ -1,5 +1,3 @@
-context("filter_links_by_domain")
-
 describe("filter_links_by_domain basic functionality", {
   it("keeps all rows when no filters are specified", {
     links <- data.frame(

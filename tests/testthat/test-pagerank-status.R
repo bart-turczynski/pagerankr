@@ -1,12 +1,9 @@
-context("pagerank status_df input contract")
-
 # A small graph where X is a candidate response-dead page: it receives an
 # inlink from A and (unusually) also has an outlink to B.
 status_edges <- function() {
   data.frame(
     from = c("A", "B", "X", "A"),
-    to = c("X", "A", "B", "B"),
-    stringsAsFactors = FALSE
+    to = c("X", "A", "B", "B")
   )
 }
 
@@ -29,8 +26,7 @@ describe("status_df classification", {
 
   it("treats 4xx and 5xx identically (no transient/permanent split)", {
     edges <- data.frame(
-      from = c("A", "B", "X", "Y"), to = c("X", "A", "B", "B"),
-      stringsAsFactors = FALSE
+      from = c("A", "B", "X", "Y"), to = c("X", "A", "B", "B")
     )
     st <- data.frame(
       url = c("A", "B", "X", "Y"),
@@ -55,8 +51,7 @@ describe("status_df classification", {
   it("ignores missing or unparseable status codes (treated as live)", {
     st <- data.frame(
       url = c("A", "B", "X"),
-      status_code = c("200", "n/a", NA),
-      stringsAsFactors = FALSE
+      status_code = c("200", "n/a", NA)
     )
     res <- pagerank(status_edges(), status_df = st, clean_edge_urls = FALSE)
     expect_equal(dead_count(res), 0L)
@@ -65,8 +60,7 @@ describe("status_df classification", {
   it("coerces character status codes", {
     st <- data.frame(
       url = c("A", "B", "X"),
-      status_code = c("200", "200", "404"),
-      stringsAsFactors = FALSE
+      status_code = c("200", "200", "404")
     )
     res <- pagerank(status_edges(), status_df = st, clean_edge_urls = FALSE)
     expect_equal(dead_count(res), 1L)

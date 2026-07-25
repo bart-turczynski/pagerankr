@@ -1,5 +1,3 @@
-context("topic_feeder_pagerank (seeded reverse-graph PageRank)")
-
 describe("seed_prior", {
   it("builds an equal-weight prior from a character vector", {
     p <- seed_prior(c("/ai", "/ai-demo"))

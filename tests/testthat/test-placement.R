@@ -1,5 +1,3 @@
-context("placement")
-
 # A deliberately crawler-agnostic edge list: no Screaming Frog anywhere, just a
 # categorical column in the shared vocabulary. This is the whole point of
 # promoting placement out of the SF wrapper.
@@ -7,8 +5,7 @@ placement_edges <- function() {
   data.frame(
     from = c("A", "A", "A", "B", "B", "C"),
     to = c("B", "C", "D", "C", "D", "A"),
-    region = c("content", "nav", "footer", "content", "aside", "header"),
-    stringsAsFactors = FALSE
+    region = c("content", "nav", "footer", "content", "aside", "header")
   )
 }
 

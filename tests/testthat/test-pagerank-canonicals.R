@@ -1,5 +1,3 @@
-context("pagerank() first-class canonical support")
-
 describe("pagerank canonical folding integration", {
   edges <- data.frame(
     from = c("http://x/", "http://y/", "http://a/"),

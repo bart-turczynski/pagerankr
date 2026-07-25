@@ -1,5 +1,3 @@
-context("get_unique_edges")
-
 describe("get_unique_edges basic functionality", {
   it("removes exact duplicate edges", {
     edges <- data.frame(

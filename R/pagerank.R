@@ -92,7 +92,7 @@
 #'   on before any of its edges may be classified. Default `10`. Small
 #'   containers are excluded because their ratios are quantized -- a container
 #'   on three pages can only score `0.33`, `0.67` or `1` -- so a high ratio
-#'   there is thin evidence rather than a strong signal. A judgement call, not
+#'   there is thin evidence rather than a strong signal. A judgment call, not
 #'   a measured cut.
 #' @param boilerplate_weight The multiplier applied to an edge **classified**
 #'   boilerplate, in `(0, 1]`. Default `0.5`. Note this is a different quantity
@@ -1490,8 +1490,7 @@ pagerank <- function(
   }
   probe_df <- data.frame(
     from = nodes,
-    to = nodes,
-    stringsAsFactors = FALSE
+    to = nodes
   )
   args <- list(
     edge_list_df = probe_df,
@@ -2020,7 +2019,7 @@ pagerank <- function(
 .make_synthetic_rows <- function(edge_list_df, from_col, to_col,
                                  from_nodes, to_nodes) {
   rows <- stats::setNames(
-    data.frame(from_nodes, to_nodes, stringsAsFactors = FALSE),
+    data.frame(from_nodes, to_nodes),
     c(from_col, to_col)
   )
   extra_cols <- setdiff(names(edge_list_df), c(from_col, to_col))
@@ -2120,8 +2119,7 @@ pagerank <- function(
   data.frame(
     target = coll$targets,
     n_independent_refs = coll$nrefs,
-    source = coll$sources,
-    stringsAsFactors = FALSE
+    source = coll$sources
   )
 }
 
@@ -2139,7 +2137,7 @@ pagerank <- function(
 ) {
   crawl_urls <- as.character(indexability_df[[indexability_url_col]])
   if (clean_edge_urls) {
-    idx_tmp <- data.frame(u = crawl_urls, stringsAsFactors = FALSE)
+    idx_tmp <- data.frame(u = crawl_urls)
     idx_tmp <- do.call(
       clean_url_columns,
       c(list(data_frame = idx_tmp, columns = "u"), effective_rurl_params)
@@ -3284,8 +3282,7 @@ pagerank <- function(
     data.frame(
       source = oos_sources,
       target = oos_targets,
-      signal = oos_signals,
-      stringsAsFactors = FALSE
+      signal = oos_signals
     )
   } else {
     NULL

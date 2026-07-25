@@ -1,5 +1,3 @@
-context("auto_grid")
-
 describe("auto_grid", {
   it("generates all combinations of parameters", {
     grid <- auto_grid(damping = c(0.85, 0.95), self_loops = c("drop", "keep"))
