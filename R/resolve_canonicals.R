@@ -5,7 +5,7 @@
 #' syntax canonicalization such as lower-casing hosts or removing tracking
 #' parameters.
 #'
-#' @param edge_list_df A data frame representing the edge list.
+#' @inheritParams resolve_redirects
 #' @param canonicals_df A data frame of declared canonical links.
 #' @param edge_from_col,edge_to_col Source/target columns in `edge_list_df`.
 #' @param canonical_from_col,canonical_to_col From/to columns in
@@ -79,7 +79,7 @@ resolve_canonicals <- function(edge_list_df,
 #' distinct from URL syntax canonicalization; inputs are expected to already be
 #' in the same URL namespace as the canonical table.
 #'
-#' @param urls Character vector of URLs to resolve.
+#' @inheritParams resolve_redirect_urls
 #' @inheritParams resolve_canonicals
 #'
 #' @return A data frame with `original`, `resolved`, `changed`, and `signal`
@@ -139,11 +139,11 @@ resolve_canonical_urls <- function(urls,
 #' This helper performs signal folding only; it does not perform URL syntax
 #' canonicalization.
 #'
-#' @param urls Character vector of URLs to resolve.
 #' @param redirects_df Optional data frame of redirect rules, or `NULL`.
 #' @param canonicals_df Optional data frame of declared canonical links, or
 #'   `NULL`.
 #' @inheritParams build_fold_map
+#' @inheritParams resolve_redirect_urls
 #'
 #' @return A data frame with `original`, `resolved`, `changed`, and `signal`
 #'   columns. The exported fold map is attached as attribute `"fold_map"` and

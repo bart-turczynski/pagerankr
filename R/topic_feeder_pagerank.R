@@ -79,6 +79,7 @@
 #' are likewise unavailable here.
 #'
 #' @inheritParams pagerank
+#' @inheritParams seed_prior
 #' @param seeds The target cluster. Either a character vector of cluster URLs
 #'   (each gets equal seed weight unless `seed_weight` is given), or a data
 #'   frame with a URL column and a numeric weight column (see `seed_url_col` /
@@ -87,8 +88,6 @@
 #'   either one value per seed or a single value recycled to all seeds. Ignored
 #'   when `seeds` is a data frame. Default `NULL` (every cluster page weight
 #'   `1`, a uniform distribution over the cluster).
-#' @param seed_url_col,seed_weight_col Column names used when `seeds` is a data
-#'   frame. Defaults `"url"` / `"weight"`. Ignored for a character vector.
 #' @param ... Additional arguments forwarded to [pagerank()] (e.g.
 #'   `redirects_df`, `canonicals_df`, `rurl_params`, `weight_col`,
 #'   `prior_transform`, `prior_alpha`, `damping`). Passing `prior_df`,
