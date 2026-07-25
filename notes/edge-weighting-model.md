@@ -98,7 +98,7 @@ rather than filtering nav edges out. This was originally an intuition; it has tw
 justifications.
 
 **1. Topology.** Dropping edges changes the graph's shape; downweighting only changes
-transition probabilities. On the `tidioreviews` crawl nav was 86% of edges. Hard-filter
+transition probabilities. On the `reviews-microsite` crawl nav was 86% of edges. Hard-filter
 those and pages whose only inbound links were nav become unreachable (teleport mass only),
 while pages whose only outbound links were nav become dangling nodes subject to the sink
 policy. At that point you have stopped measuring the site and started measuring your own
@@ -167,7 +167,7 @@ normalizer, where it is inspectable and swappable, instead of leaking into the w
 ### Derive the region from the DOM path, not from `Link Position`
 
 **SF's `Link Position` discards the enclosing region when a `<nav>` is nested inside it.**
-Measured on tidioreviews, cross-tabbing DOM path against `Link Position`:
+Measured on reviews-microsite, cross-tabbing DOM path against `Link Position`:
 
 | path region | SF: Navigation | SF: Header | SF: Footer |
 |---|---:|---:|---:|
@@ -305,7 +305,7 @@ at `p[5]` on a post with four preceding paragraphs and `p[3]` on a shorter one �
 
 **Skeleton rule: strip numeric `[n]`, keep `[@class='…']`.**
 
-Measured compression (§10): 256 → 29 skeletons on tidioreviews (88.7%), 22,022 → 1,630 on
+Measured compression (§10): 256 → 29 skeletons on reviews-microsite (88.7%), 22,022 → 1,630 on
 natu.care (92.6%). Load-bearing — without it the detector under-detects in-content components
 while working fine on nav, which is backwards, since nav is already covered by placement.
 
@@ -320,23 +320,23 @@ mis-emphasised — `/cart` sits in Header position and was already handled. Only
 edges are at stake, because that is the only place placement cannot help.
 
 **At 0.9 the detector misses two whole families of real boilerplate**, consistent across
-tidio.com and natu.care:
+vendor-a.example.com and natu.care:
 
 | family | examples | ratio |
 |---|---|---|
 | recurring in-content CTAs | `/panel/register` (×3 containers), `/blog/`, `/integrations/`, `/collections` | 0.54 – 0.82 |
-| author byline links | `/bart-turczynski`, `/ludwik-jelonek`, `/nina-wawryszuk-1`, `/people/gosia-szaniawska-schiavo/` | 0.53 – 0.69 |
+| author byline links | `/author-a`, `/author-b`, `/author-c`, `/people/author-d/` | 0.53 – 0.69 |
 
 Bylines are the persuasive case, and the better documentation example than `/cart`: on natu.care
 a single author page is linked from 4,116 of 7,563 pages by an identical template element. That
 is the §4 pattern exactly — uniform in-degree inflation with no editorial judgment behind any
 individual link — and placement can never catch it, because the byline sits in content.
 
-Moving 0.9 → 0.5 adds 37 content pairs on tidio (against 42 already caught) and 19 on natu.care
+Moving 0.9 → 0.5 adds 37 content pairs on vendor-a (against 42 already caught) and 19 on natu.care
 (against 77). Meaningful, not floodgates.
 
 **`min_container_pages` is the weaker default.** Small containers dominate the high-ratio counts
-(78 pairs at ratio ≥ 0.9 from 3–10-page containers on tidio, 147 on natu.care), and "3 out of 3"
+(78 pairs at ratio ≥ 0.9 from 3–10-page containers on vendor-a, 147 on natu.care), and "3 out of 3"
 is thin evidence — a 3-page container can only produce ratios of 0.33, 0.67 or 1.0, so band
 membership is partly quantization rather than genuine ambiguity. Excluding them is cheap because
 they carry few edges. But 10 is a judgement call, not a measured cut.
@@ -392,7 +392,7 @@ feeds it (§5). Constant 6 is the orthogonal axis.
 
 ### Worked example, end to end
 
-A byline link to `/bart-turczynski`, in a container appearing on 7,563 pages and pointing there
+A byline link to `/author-a`, in a container appearing on 7,563 pages and pointing there
 on 5,112 of them:
 
 ```
@@ -474,7 +474,7 @@ If it is composable, `editorial` becomes more defensible as the name for the com
 
 **Field-notes §4 is an observation, not a result.**
 
-Two things were happening on the `tidioreviews` demo site simultaneously: the site was being
+Two things were happening on the `reviews-microsite` demo site simultaneously: the site was being
 built and improved, *and* the PageRank calculations were being tested against it. The
 in-content boilerplate finding (`/about/methodology/` and `/about/affiliate-disclosure/`
 holding 54% of editorial authority) came from a site being edited in response to the very
@@ -522,10 +522,10 @@ finding and a paper angle.
    threshold would miss. Ship a documented default, let it be overridden, and do not claim
    empirical separation.
 2. ~~**Natural cut**: is there a natural break in the ratio distribution?~~ **Answered (§10): no,
-   and the earlier "yes" was wrong.** tidioreviews showed a strikingly clean bimodal gap
+   and the earlier "yes" was wrong.** reviews-microsite showed a strikingly clean bimodal gap
    (literally zero pairs in 0.5–0.95). That is a **small-site artifact**: on a 62-page site a
    component either appears on essentially every page or on a handful. natu.care (9,655 pages)
-   populates the band. Do not re-derive this from tidioreviews and reach the old conclusion.
+   populates the band. Do not re-derive this from reviews-microsite and reach the old conclusion.
 3. **Graceful degradation**: `link_path` may be absent from a non-SF crawl. Does boilerplate
    detection hard-require it, or fall back to something clearly labeled weaker? Same "column may
    or may not exist" shape as placement.
@@ -540,7 +540,7 @@ finding and a paper angle.
 5. ~~**Position decay shape**: linear, exponential, or rank-bucketed?~~ **Live again (§13.4).** No
    longer moot — All Outlinks gives a total order over each page's links, so there is a real rank to
    decay over. Settle the shape against data: content links per source page run median 22 / p75 58
-   / p90 77 on tidio, so a decay has room to act.
+   / p90 77 on vendor-a, so a decay has room to act.
 6. **Unnamed placements currently get weight 1** (`R/pagerank_screaming_frog.R:183`). Under the
    field-notes recipe that makes `footer` and `aside` outweigh `nav` tenfold — almost certainly
    not intended. Fix by having the preset name all five placements explicitly rather than adding
@@ -556,23 +556,23 @@ export is 1.3 GB / 3.86M rows.
 
 | crawl | pages | hyperlinks | note |
 |---|---:|---:|---|
-| `~/Projects/tidioreviews/old/` | 67 | 3,820 | pre-intervention |
-| `~/Projects/tidioreviews/` | 62 | 3,599 | post-intervention |
+| `reviews-microsite/old/` | 67 | 3,820 | pre-intervention |
+| `reviews-microsite/` | 62 | 3,599 | post-intervention |
 | `_scratch/crawls/natu.care/` | 9,655 | 2,344,199 | large, uncleaned, multilingual e-commerce |
-| `_scratch/crawls/tidio/` | 2,767 | 611,108 | large SaaS marketing site, different stack |
+| `_scratch/crawls/vendor-a/` | 2,767 | 611,108 | large SaaS marketing site, different stack |
 
 ### 1. Skeleton normalization — confirmed
 
 | crawl | raw paths | skeletons | compression |
 |---|---:|---:|---:|
-| tidioreviews | 256 | 29 | 88.7% |
+| reviews-microsite | 256 | 29 | 88.7% |
 | natu.care | 22,022 | 1,630 | 92.6% |
 
 Strip numeric `[n]`, keep `[@class='…']`. Groups as designed at both scales.
 
 ### 2. Ratio distribution — the "natural cut" was a small-site artifact
 
-tidioreviews (62 pages) is strikingly bimodal — **zero** pairs between 0.5 and 0.95 on the
+reviews-microsite (62 pages) is strikingly bimodal — **zero** pairs between 0.5 and 0.95 on the
 pre-intervention crawl. That does **not** generalize. natu.care, on 104,738 pairs:
 
 | band | pairs |
@@ -608,7 +608,7 @@ Internal catches are the §4 pattern at scale: `/cart`, `/collections/all`, `/pl
 (terms), `/pl/o-nas` (about), promo-terms pages, `/policies/privacy-policy` — each on 634–986
 pages. External catches are consent-banner and third-party privacy links.
 
-**Both results are consistent.** Axis 2 found nothing on the cleaned tidioreviews site and 132
+**Both results are consistent.** Axis 2 found nothing on the cleaned reviews-microsite site and 132
 internal targets on an uncleaned one. It matters exactly when a site has not already been fixed
 by hand, which is the normal case.
 
@@ -616,7 +616,7 @@ by hand, which is the normal case.
 
 - **`Link Position` hides nested regions** — see §4. This is what motivated deriving the region
   from the DOM path.
-- **`Head` is not a gap.** SF emits a `Head` position (254 rows on tidioreviews) that
+- **`Head` is not a gap.** SF emits a `Head` position (254 rows on reviews-microsite) that
   `sf_normalize_position()` does not map. It is the HTML `<head>` — paths are `//head/link[…]`,
   types are CSS / HTML Canonical / HTML Hreflang. None are graph-eligible, so `sf_graph_eligible()`
   filters them before placement is consulted. Investigated and dismissed; not a bug.
@@ -628,7 +628,7 @@ by hand, which is the normal case.
 Isolating **Content-position** pairs — the only ones where the threshold has consequences, since
 everything else is already discounted by placement:
 
-**tidio.com**
+**vendor-a.example.com**
 
 | container pages | <0.5 | 0.5–0.7 | 0.7–0.9 | ≥0.9 |
 |---|---:|---:|---:|---:|
@@ -648,7 +648,7 @@ The band is not noise. It contains two recognisable families — recurring in-co
 author byline links — that recur across both sites and that placement cannot reach. This settles
 `boilerplate_threshold = 0.5` and motivates `min_container_pages`; see §5.
 
-Whether tidioreviews' sibling crawl (once colocated) shifts anything: unlikely on this evidence,
+Whether reviews-microsite's sibling crawl (once colocated) shifts anything: unlikely on this evidence,
 since the small site contributes 0 band pairs pre-intervention and 3 after, two of which come
 from ≤10-page containers.
 
@@ -706,7 +706,7 @@ The discount is normalized *within a target*: a page linked only from footers sp
 among its footer-linkers, because there is nothing to compare them against. So reversed weighting
 fails precisely on **chrome hubs** — the pages it most needs to catch. The share of edges sitting
 in homogeneous groups is therefore not a curiosity; it is the **failure rate** of the reversed
-view on a given site (6% on tidio, 48% on natu.care — see below).
+view on a given site (6% on vendor-a, 48% on natu.care — see below).
 
 ### Two operators, only one implemented
 
@@ -747,7 +747,7 @@ to matter at all), internal graph only:
 
 | Crawl | Forward, edges | Forward, groups | Reversed, edges | Reversed, groups |
 |---|---:|---:|---:|---:|
-| tidio (2,526 nodes, 517k edges) | 99.14% | 95.41% | 93.91% | 63.56% |
+| vendor-a (2,526 nodes, 517k edges) | 99.14% | 95.41% | 93.91% | 63.56% |
 | natu.care (9,655 nodes, 1.43M edges) | 99.73% | 99.37% | 52.45% | 21.96% |
 
 Reversed weighting is **not** degenerate — it bites on most edges. But it is strikingly
@@ -785,7 +785,7 @@ that were themselves crawled.
   does it need? Is the result still PageRank?
 - Should the homogeneous-group share ship as a diagnostic on reversed weighted runs, so a user
   learns that half their natu.care run was effectively unweighted?
-- What drives the tidio/natu.care spread (94% vs 52%)? Region mix is a candidate: tidio is
+- What drives the vendor-a/natu.care spread (94% vs 52%)? Region mix is a candidate: vendor-a is
   header-heavy (56.6% of edges) where natu.care is content-heavy (66.1%).
 - Does the heterogeneity share predict how much the ranking actually *moves*? Heterogeneity is
   only a necessary condition — magnitude is unmeasured.
@@ -819,18 +819,18 @@ into an explicit per-source index at ingest, while it is still trustworthy.
 transit. It is **absent at ingest**. Materializing an index at ingest would materialize noise, and
 would do it in the one place where the result looks authoritative.
 
-Measured on all three crawls: `tidioreviews` (62 pages), `tidio.com` (2,767), `natu.care` (9,655).
+Measured on all three crawls: `reviews-microsite` (62 pages), `vendor-a.example.com` (2,767), `natu.care` (9,655).
 
 ### 13.1 Carrier A — All Inlinks CSV row order: does not exist
 
-The All Inlinks export is **grouped by destination**, not by source. On tidioreviews, 185 distinct
+The All Inlinks export is **grouped by destination**, not by source. On reviews-microsite, 185 distinct
 destinations occupy exactly **185 contiguous blocks**, while 69 distinct sources are scattered
 across **3,150 blocks**. Rows are 97.9% monotone in `Destination` and 67.7% in `Source`.
 
 Row order within a source page is therefore a *destination* ordering. It has no relationship to
 document order, and the sibling test confirms it: taking links that share a source, a parent path
 and a leaf tag — so they differ only in a numeric DOM index — row order is monotone in that index
-for **13.9%** of groups on tidioreviews and **55.7%** on tidio. The second number is chance, not
+for **13.9%** of groups on reviews-microsite and **55.7%** on vendor-a. The second number is chance, not
 signal; the first is worse than chance because destination ordering actively anti-correlates.
 
 This is a property of the export format, not of a particular crawl. Any consumer reading order out
@@ -853,8 +853,8 @@ order over their content links:
 
 | crawl | content links | pairs | orderable | pages fully ordered |
 |---|---:|---:|---:|---:|
-| tidioreviews | 369 | 2,639 | 42.0% | 0.0% |
-| tidio.com | 93,673 | 335,156 | 58.2% | 5.5% |
+| reviews-microsite | 369 | 2,639 | 42.0% | 0.0% |
+| vendor-a.example.com | 93,673 | 335,156 | 58.2% | 5.5% |
 | natu.care | 1,549,256 | 1,131,015 | 38.8% | 1.3% |
 
 Roughly 40–58% of pairs, and **essentially no page** can rank its content links end to end. The
@@ -867,7 +867,7 @@ links on the same page is not a position axis.
 
 ### 13.3 All Outlinks: row order *is* document order
 
-Measured on `_scratch/crawls/tidio/all_outlinks.csv` (741 MB, 1,611,765 rows, 611,108 hyperlinks).
+Measured on `_scratch/crawls/vendor-a/all_outlinks.csv` (741 MB, 1,611,765 rows, 611,108 hyperlinks).
 
 **Grouped by source, exactly.** 9,385 distinct sources occupy **9,385 contiguous blocks**; rows are
 99.7% monotone in `Source`. That is the necessary condition. It is not sufficient — SF must also
@@ -893,7 +893,7 @@ link's normalized position within its page should recover the order a reader mee
 
 `0` is the first link on the page and `1` the last. Footer lands decisively at the bottom, which is
 what document order predicts and what no other ordering would produce. (`Header` at 0.554 is the §4
-artifact, not a contradiction: on tidio nearly all header links report as `Navigation`, so what
+artifact, not a contradiction: on vendor-a nearly all header links report as `Navigation`, so what
 remains in the `Header` bucket is unrepresentative.)
 
 **Row order is also strictly better than the DOM-path carrier**, not merely a substitute for it. It
@@ -933,7 +933,7 @@ position and the other does not. Switching the position axis to All Outlinks cha
   that would have materialized noise. On All Outlinks it is exactly right, and it is *required*,
   because the order genuinely is fragile in transit — see the method note below.
 - **Decay shape is live again** (§9 Q5), and now has data to be settled against rather than
-  argued from first principles. Content links per source page on tidio: median 22, p75 58, p90 77.
+  argued from first principles. Content links per source page on vendor-a: median 22, p75 58, p90 77.
   A decay has real room to act, and the content-link deciles are far from uniform.
 
 The two fallbacks from the first version of this section — require a position-reporting crawler, or

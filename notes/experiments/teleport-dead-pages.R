@@ -1,4 +1,6 @@
-suppressMessages(devtools::load_all("/Users/bartturczynski/Projects/pagerankr", quiet = TRUE))
+# Run from the repository root (field notes §11 cites this script by its
+# repo-relative path).
+suppressMessages(devtools::load_all(".", quiet = TRUE))
 
 # A small "real" site: a hub plus 20 real pages, interlinked in a ring.
 real <- sprintf("https://ex.com/p%02d", 1:20)

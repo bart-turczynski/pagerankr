@@ -9,10 +9,10 @@ rd <- function(p) {
   setnames(d, c("type", "src", "dst", "lpath", "lpos"))
   d[type == "Hyperlink"]
 }
-i <- rd("_scratch/crawls/tidio/all_inlinks.csv")
-o <- rd("_scratch/crawls/tidio/all_outlinks.csv")
+i <- rd("_scratch/crawls/vendor-a/all_inlinks.csv")
+o <- rd("_scratch/crawls/vendor-a/all_outlinks.csv")
 
-cat("\n==== edge-set comparison: tidio inlinks vs outlinks ====\n")
+cat("\n==== edge-set comparison: vendor-a inlinks vs outlinks ====\n")
 cat("hyperlink rows  in :", nrow(i), " out:", nrow(o), "\n")
 cat("distinct sources in:", uniqueN(i$src), " out:", uniqueN(o$src), "\n")
 cat("distinct targets in:", uniqueN(i$dst), " out:", uniqueN(o$dst), "\n")
