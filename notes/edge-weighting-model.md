@@ -325,7 +325,7 @@ vendor-a.example.com and vendor-b.example.com:
 | family | examples | ratio |
 |---|---|---|
 | recurring in-content CTAs | `/panel/register` (×3 containers), `/blog/`, `/integrations/`, `/collections` | 0.54 – 0.82 |
-| author byline links | `/bart-turczynski`, `/ludwik-jelonek`, `/nina-wawryszuk-1`, `/people/gosia-szaniawska-schiavo/` | 0.53 – 0.69 |
+| author byline links | `/author-a`, `/author-b`, `/author-c`, `/people/author-d/` | 0.53 – 0.69 |
 
 Bylines are the persuasive case, and the better documentation example than `/cart`: on vendor-b.example.com
 a single author page is linked from 4,116 of 7,563 pages by an identical template element. That
@@ -392,7 +392,7 @@ feeds it (§5). Constant 6 is the orthogonal axis.
 
 ### Worked example, end to end
 
-A byline link to `/bart-turczynski`, in a container appearing on 7,563 pages and pointing there
+A byline link to `/author-a`, in a container appearing on 7,563 pages and pointing there
 on 5,112 of them:
 
 ```
@@ -556,8 +556,8 @@ export is 1.3 GB / 3.86M rows.
 
 | crawl | pages | hyperlinks | note |
 |---|---:|---:|---|
-| `~/Projects/reviews-microsite/old/` | 67 | 3,820 | pre-intervention |
-| `~/Projects/reviews-microsite/` | 62 | 3,599 | post-intervention |
+| `reviews-microsite/old/` | 67 | 3,820 | pre-intervention |
+| `reviews-microsite/` | 62 | 3,599 | post-intervention |
 | `_scratch/crawls/vendor-b.example.com/` | 9,655 | 2,344,199 | large, uncleaned, multilingual e-commerce |
 | `_scratch/crawls/vendor-a/` | 2,767 | 611,108 | large SaaS marketing site, different stack |
 
@@ -648,7 +648,7 @@ The band is not noise. It contains two recognisable families — recurring in-co
 author byline links — that recur across both sites and that placement cannot reach. This settles
 `boilerplate_threshold = 0.5` and motivates `min_container_pages`; see §5.
 
-Whether reviews-microsite' sibling crawl (once colocated) shifts anything: unlikely on this evidence,
+Whether reviews-microsite's sibling crawl (once colocated) shifts anything: unlikely on this evidence,
 since the small site contributes 0 band pairs pre-intervention and 3 after, two of which come
 from ≤10-page containers.
 

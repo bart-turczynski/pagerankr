@@ -204,9 +204,9 @@ describe("transition_audit fold section", {
 })
 
 describe("folded-away domain filter warning (PAGE-owdnylqo)", {
-  # Repro: a crawl on reviews-microsite.example.net whose canonicals fold every node
-  # onto the never-crawled reviews-microsite.example.com. Filtering on the crawled domain
-  # (which runs AFTER folding) then matches nothing.
+  # Repro: a crawl on reviews-microsite.example.net whose canonicals fold
+  # every node onto the never-crawled reviews-microsite.example.com. Filtering
+  # on the crawled domain (which runs AFTER folding) then matches nothing.
   crawled <- "reviews-microsite.example.net"
   folded <- "reviews-microsite.example.com"
   edges <- data.frame(

@@ -32,15 +32,15 @@ live case study unless stated otherwise.
 through the *same* fold-map engine (`.compose_fold_map` →
 `.apply_map_to_edge_list`): a canonical is a URL rewrite applied to *both*
 endpoints of every edge. The 67 canonicals formed a clean 1:1
-`pages.dev → .com` bijection with matching paths, so folding was a graph
-**isomorphism**: PageRank was computed on the `pages.dev` topology and every
+`example.net → example.com` bijection with matching paths, so folding was a graph
+**isomorphism**: PageRank was computed on the `example.net` topology and every
 vertex was *renamed* to its `.com` twin.
 
 **The proof it was happenstance.** Replacing the real cross-domain canonicals
-with self-canonicals (`pages.dev → pages.dev`) yields **bit-identical**
+with self-canonicals (`example.net → example.net`) yields **bit-identical**
 PageRank (max |Δ| = 0.000e+00, identical ranking); only the host label changes.
 Nothing about `.com` was measured — no `.com` page was crawled or had its link
-graph observed. The reported `.com` PageRank was the `pages.dev` structure
+graph observed. The reported `.com` PageRank was the `example.net` structure
 wearing a `.com` nametag.
 
 **Why it matters (design gap).** The fold engine is **scope-blind**: it folds
@@ -59,7 +59,8 @@ rather than establishes.
   the canonical *target* domain, that external link **merges into** the
   relabeled internal node (no new node created). Forced repro: 5 real links to
   prod `/website/` raised the *internal* node's PR **+9.3%**. Did not bite this
-  crawl only because it links to `www.vendor-a.example.com`, never `reviews-microsite.example.com`.
+  crawl only because it links to `www.vendor-a.example.com`, never
+  `reviews-microsite.example.com`.
 - **Ruled out:** partial canonicalization does *not* duplicate a page into two
   nodes — the fold is a consistent per-URL rewrite, so each page keeps one
   identity (mixed hostnames only).
@@ -94,8 +95,8 @@ the boilerplate dominates.
 
 Downweighting nav (`placement_weights = c(content=1, nav=0.1, header=0.1)`)
 reshuffles the ranking hard. Pages strong in body copy but absent from the nav
-climb (e.g. `/alternatives/zendesk/` #40 → #9); pages propped only by the menu
-fall (`/alternatives/tawk/` #9 → #38).
+climb (e.g. `/alternatives/competitor-a/` #40 → #9); pages propped only by the menu
+fall (`/alternatives/competitor-b/` #9 → #38).
 
 Counterintuitively, **Gini drops** (0.305 → 0.264). The nav was *manufacturing*
 artificial concentration on its ~46 favored pages; editorial linking is spread
@@ -143,7 +144,7 @@ CheiRank.
 **Seeded feeders need a clean graph.** `topic_feeder_pagerank()` (seeded reverse
 PageRank, "what feeds this cluster") returned the *global* hubs when run on all
 edges — the nav is so uniform that every page feeds every cluster. Only on
-**content-only** edges did the genuine topical feeders appear (for the AI-Agent
+**content-only** edges did the genuine topical feeders appear (for the feature-a
 cluster: the product overview, pricing, and sibling feature pages). Topic-feeder
 analysis is only meaningful after boilerplate is removed.
 
@@ -240,7 +241,7 @@ re-derivation.
 | `/about/faq/`                  | 0.042 → 0.010 | −75.9% | #4 → #26 |
 | `/pricing/`                    | 0.015 → 0.064 | **+325%**  | #6 → #2 |
 | `/pricing/free-plan/`          | 0.005 → 0.061 | +1096% | #17 → #3 |
-| `/features/ai-agent/`          | 0.006 → 0.045 | +705%  | #13 → #5 |
+| `/features/feature-a/`         | 0.006 → 0.045 | +705%  | #13 → #5 |
 | `/pricing/free-trial/`         | 0.004 → 0.041 | +996%  | #26 → #7 |
 | homepage `/en-us/`             | 0.003 → 0.011 | +270%  | #48 → #23 |
 
