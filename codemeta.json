@@ -231,7 +231,7 @@
     },
     "SystemRequirements": null
   },
-  "fileSize": "1297.962KB",
+  "fileSize": "1630.468KB",
   "citation": [
     {
       "@type": "SoftwareSourceCode",
@@ -251,6 +251,7 @@
   ],
   "releaseNotes": "https://github.com/bart-turczynski/pagerankr/blob/main/NEWS.md",
   "readme": "https://github.com/bart-turczynski/pagerankr/blob/main/README.md",
-  "contIntegration": ["https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml", "https://app.codecov.io/gh/bart-turczynski/pagerankr", "https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml", "https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml"],
-  "developmentStatus": "https://lifecycle.r-lib.org/articles/stages.html#experimental"
+  "contIntegration": ["https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml", "https://app.codecov.io/gh/bart-turczynski/pagerankr", "https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml", "https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml", "https://github.com/bart-turczynski/pagerankr/actions/workflows/osv-audit.yml"],
+  "developmentStatus": "https://lifecycle.r-lib.org/articles/stages.html#experimental",
+  "keywords": ["centrality", "crawl-analysis", "graph-algorithms", "igraph", "internal-linking", "link-graph", "network-analysis", "pagerank", "r", "r-lang", "r-package", "redirects", "rstats", "screaming-frog", "seo", "site-architecture", "technical-seo", "url-canonicalization", "web-graph", "link-equity"]
 }
