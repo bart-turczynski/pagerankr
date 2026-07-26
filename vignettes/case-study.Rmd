@@ -61,7 +61,7 @@ c(before = nrow(before$edges), after = nrow(after$edges))
 ```
 
 The site is pseudonymous: hosts, paths, anchors and titles were replaced by a
-deterministic relabelling, while everything structural — status codes, crawl
+deterministic relabeling, while everything structural — status codes, crawl
 depth, link counts, `Link Position` and `Link Path` — is verbatim. Paths like
 `/s2/p06/p05/` preserve depth and sibling grouping and carry no meaning.
 `inst/extdata/README.md` documents the scheme in full.
@@ -223,7 +223,7 @@ The gainers sit in `/s2/p06/` and `/s2/p08/` — the commercial branches the
 feeder links were pointed at. That is the shape a de-sink is supposed to have:
 authority
 leaving one hoarding branch and landing across many pages, not moving to a new
-favourite.
+favorite.
 
 ## The mechanism was reclassification, not new links
 
