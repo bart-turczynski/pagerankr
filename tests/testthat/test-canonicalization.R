@@ -1,3 +1,36 @@
+# The single list of record for get_clean_url arguments that canonical_profile()
+# deliberately does NOT pin. Kept at file scope so the surface guard and its own
+# regression tests share one definition rather than two parallel lists.
+triaged_unpinned_args <- c(
+  "url", # the input, not a knob
+  "source", # PSL source; unreachable at the pinned www/subdomain values
+  # The key drops the query, so query_handling and its sub-options are inert.
+  "query_handling", "params_keep", "params_drop", "params_case_sensitive",
+  "sort_params", "empty_param_handling", "decode_plus",
+  "port_handling", # the key drops the port
+  "url_standard", # standard selector (rurl 2.2.0)
+  # rurl 2.7.0: parse-route selectors, not key components. `profile` is an
+  # unrelated rurl concept that merely shares a name with canonical_profile.
+  "scheme_policy", "scheme_acceptance", "engine", "profile"
+)
+
+# Compare rurl's actual argument surface against the surface pagerankr has
+# accounted for (pinned in canonical_profile() + triaged as unpinned above).
+# Takes the rurl names as an argument so removals can be exercised with a stub
+# instead of an actual rurl downgrade.
+canonicalization_surface_diff <- function(
+    rurl_arg_names,
+    profile_names = names(canonical_profile()),
+    triaged = triaged_unpinned_args) {
+  accounted <- c(profile_names, triaged)
+  list(
+    # rurl grew an argument pagerankr has never considered.
+    added = setdiff(rurl_arg_names, accounted),
+    # rurl dropped an argument pagerankr still accounts for.
+    removed = setdiff(accounted, rurl_arg_names)
+  )
+}
+
 describe("canonical_profile", {
   it("pins every node-identity rurl::get_clean_url knob explicitly", {
     profile <- canonical_profile()
@@ -40,32 +73,82 @@ describe("canonical_profile", {
     # `names(profile)`, so an argument rurl grows but pagerankr has never
     # considered is invisible to them (rurl 2.7.0 added four). Read rurl's own
     # formals instead: a new argument fails here until it is deliberately
-    # pinned in canonical_profile() or listed below as triaged-unpinned.
-    triaged_unpinned <- c(
-      "url", # the input, not a knob
-      "source", # PSL source; unreachable at the pinned www/subdomain values
-      # The key drops the query, so query_handling and its sub-options are
-      # inert.
-      "query_handling", "params_keep", "params_drop", "params_case_sensitive",
-      "sort_params", "empty_param_handling", "decode_plus",
-      "port_handling", # the key drops the port
-      "url_standard", # standard selector (rurl 2.2.0)
-      # rurl 2.7.0: parse-route selectors, not key components. `profile` is an
-      # unrelated rurl concept that merely shares a name with canonical_profile.
-      "scheme_policy", "scheme_acceptance", "engine", "profile"
-    )
-    untriaged <- setdiff(
-      names(formals(rurl::get_clean_url)),
-      c(names(canonical_profile()), triaged_unpinned)
-    )
+    # pinned in canonical_profile() or listed in triaged_unpinned_args.
+    diff <- canonicalization_surface_diff(names(formals(rurl::get_clean_url)))
     expect_identical(
-      untriaged, character(0),
+      diff$added, character(0),
       info = paste(
         "rurl grew get_clean_url argument(s) pagerankr has not triaged:",
-        toString(untriaged),
-        "- pin them in canonical_profile() or add them to triaged_unpinned."
+        toString(diff$added),
+        "- pin them in canonical_profile() or add them to",
+        "triaged_unpinned_args."
       )
     )
+  })
+
+  it("flags any argument rurl has dropped since pagerankr triaged it", {
+    # Surface guard against REMOVALS -- the direction the additions-only
+    # `setdiff` above is blind to. A shrinking surface is the realistic case:
+    # the `Imports: rurl` floor is satisfied by releases that predate the
+    # 2.7.0 arguments, so any pin, vendor, or CRAN-resolved install can
+    # resolve to a rurl that lacks them.
+    diff <- canonicalization_surface_diff(names(formals(rurl::get_clean_url)))
+
+    # Severe: canonical_profile() passes these by name, so their removal makes
+    # every do.call(rurl::get_clean_url, canonical_profile()) an error.
+    pinned_removed <- intersect(diff$removed, names(canonical_profile()))
+    expect_identical(
+      pinned_removed, character(0),
+      info = paste(
+        "rurl dropped get_clean_url argument(s) canonical_profile() PINS:",
+        toString(pinned_removed),
+        "- the installed rurl cannot reproduce the canonical key."
+      )
+    )
+
+    # Benign-but-report: pagerankr never set these, so their removal cannot
+    # change the key. It does mean the triage list has gone stale, and it is
+    # a reliable signal that rurl was downgraded.
+    triaged_removed <- setdiff(diff$removed, names(canonical_profile()))
+    expect_identical(
+      triaged_removed, character(0),
+      info = paste(
+        "rurl dropped get_clean_url argument(s) pagerankr triaged as unpinned:",
+        toString(triaged_removed),
+        "- the key is unaffected, but confirm this is an intended rurl",
+        "version change and prune triaged_unpinned_args."
+      )
+    )
+  })
+
+  it("surface diff detects removals as well as additions", {
+    # Regression test for the guard itself: the original one-directional
+    # `setdiff` returned character(0) for both "nothing changed" and
+    # "arguments disappeared". Stub the formal names rather than downgrading
+    # rurl for real.
+    actual <- names(formals(rurl::get_clean_url))
+
+    # Baseline: the real surface is fully accounted for in both directions.
+    clean <- canonicalization_surface_diff(actual)
+    expect_identical(clean$added, character(0))
+    expect_identical(clean$removed, character(0))
+
+    # A rurl that LOST the 2.7.0 parse-route selectors (i.e. any 2.2.x).
+    route_args <- c("scheme_policy", "scheme_acceptance", "engine", "profile")
+    downgraded <- canonicalization_surface_diff(setdiff(actual, route_args))
+    expect_identical(downgraded$added, character(0))
+    expect_setequal(downgraded$removed, route_args)
+
+    # A rurl that LOST a knob canonical_profile() actually pins.
+    pinned_loss <- canonicalization_surface_diff(
+      setdiff(actual, "case_handling")
+    )
+    expect_identical(pinned_loss$removed, "case_handling")
+
+    # The addition case still fires.
+    grown <- canonicalization_surface_diff(c(actual, "brand_new_knob"))
+    expect_identical(grown$added, "brand_new_knob")
+    expect_identical(grown$removed, character(0))
   })
 
   it("drops port, query, and fragment from the canonical key", {
