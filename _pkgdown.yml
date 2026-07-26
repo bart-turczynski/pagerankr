@@ -37,6 +37,29 @@ footer:
       <a href="https://bart-turczynski.github.io/rurl/">rurl</a> ·
       <a href="https://igraph.org/r/">igraph</a>
 
+articles:
+  - title: "Getting started"
+    desc: "Read this first: the full pipeline from an edge list to a scored graph."
+    contents:
+      - pagerankr-usage
+
+  - title: "Worked example"
+    desc: "A real internal-linking intervention, measured before and after from the crawls shipped with the package."
+    contents:
+      - case-study
+
+  - title: "Weighting links by what they are"
+    desc: "Discount site chrome by placement, and template links that live inside the content."
+    contents:
+      - presets
+      - boilerplate
+
+  - title: "Biased and directional variants"
+    desc: "Seed PageRank toward trusted pages, or follow authority backwards to feeders."
+    contents:
+      - trustrank
+      - topic_feeder_pagerank
+
 reference:
   - title: "Core PageRank"
     desc: "Calculate, compare, tune, and inspect PageRank scores."
