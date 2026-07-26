@@ -25,6 +25,7 @@ Suggests:
     pkgdown,
     covr,
     lintr,
+    spelling,
     goodpractice,
     shiny,
     DT,
