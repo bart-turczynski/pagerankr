@@ -1,8 +1,9 @@
 # Screaming Frog Representative Crawl Acceptance
 
-Recorded on 2026-06-18 from read-only local inputs under
-`/home/user/Projects/semantic/_scratch`. The source CSV files are
-not part of this repository and must not be committed.
+Recorded on 2026-06-18 from read-only local inputs held outside this
+repository. The source CSV files are not part of this repository and must not
+be committed. URLs below are pseudonymized: the crawled host appears as
+`vendor-a.example.com`, the same pseudonym `notes/` uses for this crawl.
 
 ## Inputs
 
@@ -79,13 +80,13 @@ Top ten URLs by PageRank in this acceptance run:
 | URL | PageRank |
 | --- | ---: |
 | `https://www.vendor-a.example.com/` | 0.004935325 |
-| `https://www.vendor-a.example.com/privacy-policy/` | 0.003027118 |
-| `https://www.vendor-a.example.com/terms/` | 0.002763665 |
-| `https://updates.vendor-a.example.com/en` | 0.002337998 |
-| `https://updates.vendor-a.example.com/roadmap/en` | 0.002277789 |
-| `https://www.vendor-a.example.com/blog/` | 0.002230975 |
-| `https://www.vendor-a.example.com/live-chat/` | 0.002148721 |
-| `https://www.vendor-a.example.com/integrations/` | 0.002096044 |
+| `https://www.vendor-a.example.com/s1/` | 0.003027118 |
+| `https://www.vendor-a.example.com/s2/` | 0.002763665 |
+| `https://updates.vendor-a.example.com/s3` | 0.002337998 |
+| `https://updates.vendor-a.example.com/s4/s3` | 0.002277789 |
+| `https://www.vendor-a.example.com/s5/` | 0.002230975 |
+| `https://www.vendor-a.example.com/s6/` | 0.002148721 |
+| `https://www.vendor-a.example.com/s7/` | 0.002096044 |
 | `https://status.vendor-a.example.com/` | 0.002071174 |
 | `https://developers.vendor-a.example.com/` | 0.002068699 |
 
