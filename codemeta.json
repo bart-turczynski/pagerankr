@@ -215,7 +215,7 @@
       "@type": "SoftwareApplication",
       "identifier": "rurl",
       "name": "rurl",
-      "version": ">= 2.1.0",
+      "version": ">= 2.2.0",
       "provider": {
         "@id": "https://cran.r-project.org",
         "@type": "Organization",
@@ -231,7 +231,7 @@
     },
     "SystemRequirements": null
   },
-  "fileSize": "1630.468KB",
+  "fileSize": "4003.91KB",
   "citation": [
     {
       "@type": "SoftwareSourceCode",
