@@ -1,0 +1,323 @@
+---
+title: "Case study: measuring an internal-linking intervention"
+author: "Bart Turczynski"
+date: "`r Sys.Date()`"
+output:
+  rmarkdown::html_vignette:
+    toc: true
+vignette: >
+  %\VignetteIndexEntry{Case study: measuring an internal-linking intervention}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+library(pagerankr)
+```
+
+## Diagnose, model, ship, re-measure
+
+Most link-graph analysis stops at the diagnosis. This vignette runs the whole
+loop on one small site: a problem was found in a crawl, a fix was modeled, the
+fix shipped, and the site was crawled again. Both crawls ship with the package,
+so every number below is computed as you read it rather than quoted from a
+report.
+
+The site is a 67-page reviews microsite. The diagnosis was that four sitewide
+in-content links — methodology and disclosure bylines repeated under every
+article — were hoarding editorial authority and returning none of it. The fix
+had two parts: move those bylines into a semantic `<nav>` so they stop counting
+as content, and add genuine body links into the most-orphaned commercial pages.
+
+The interesting result is not that it worked. It is that **whether you can see
+it working at all depends entirely on which graph you score.**
+
+## Loading the two crawls
+
+The fixture is two Screaming Frog exports per phase — `internal_all.csv` for the
+page inventory and `all_inlinks.csv` for the links.
+
+```{r load}
+crawl <- function(phase) {
+  dir <- system.file(
+    "extdata", paste0("reviews-microsite-", phase),
+    package = "pagerankr"
+  )
+  screaming_frog_bundle(
+    internal = file.path(dir, "internal_all.csv"),
+    links    = file.path(dir, "all_inlinks.csv"),
+    link_export_kind = "all_inlinks"
+  )
+}
+
+before <- crawl("before")
+after  <- crawl("after")
+
+c(before = nrow(before$edges), after = nrow(after$edges))
+```
+
+The site is pseudonymous: hosts, paths, anchors and titles were replaced by a
+deterministic relabelling, while everything structural — status codes, crawl
+depth, link counts, `Link Position` and `Link Path` — is verbatim. Paths like
+`/s2/p06/p05/` preserve depth and sibling grouping and carry no meaning.
+`inst/extdata/README.md` documents the scheme in full.
+
+## Two lenses on the same crawl
+
+`pagerank_screaming_frog()` scores the whole graph by default. Passing
+`accepted_placements = "Content"` restricts it to links Screaming Frog placed in
+the body — the **editorial** graph, the subset a human actually chose per page.
+
+```{r views}
+score <- function(bundle, ...) pagerank_screaming_frog(bundle, ...)
+
+ed_before <- score(before, accepted_placements = "Content")
+ed_after  <- score(after,  accepted_placements = "Content")
+
+full_before <- score(before)
+full_after  <- score(after)
+```
+
+External hosts get scored too. For site-level reporting we want internal pages
+only, but note that **rank positions below are taken over the full scored set**,
+externals included — that is the ranking the pipeline actually produces, and
+trimming it first would quietly renumber everything.
+
+```{r internal}
+internal <- function(x) {
+  x[grepl("reviews-microsite", x$node_name, fixed = TRUE), ]
+}
+
+c(
+  editorial_before = nrow(internal(ed_before)),
+  editorial_after  = nrow(internal(ed_after)),
+  full_before      = nrow(internal(full_before)),
+  full_after       = nrow(internal(full_after))
+)
+```
+
+Sixty-seven pages before, sixty-two after. Five pages were retired during the
+work. Hold that number — it is the main reason the naive comparison is a trap.
+
+### PageRank does not sum to 1 here
+
+Worth stating before any share is computed, because it silently breaks the
+obvious arithmetic:
+
+```{r mass}
+c(
+  editorial_before = sum(internal(ed_before)$pagerank),
+  editorial_after  = sum(internal(ed_after)$pagerank)
+)
+```
+
+Mass that reaches a page with no onward links leaves the distribution rather
+than being recycled; `pagerankr` accounts for it separately as wasted mass
+instead of quietly redistributing it. So **every share must be taken against
+`sum(pagerank)`**, never assumed to be 1.
+
+That the total *rose* is itself part of the result: draining the sinks meant
+less mass ended up stranded.
+
+## The headline: concentration collapsed
+
+A de-sink makes one specific prediction — authority stops piling onto a few
+hoarding nodes and spreads across the rest. Concentration metrics test exactly
+that, and they are robust to the node set changing underneath them.
+
+```{r concentration}
+top_n_share <- function(x, n = 5) {
+  sum(sort(x, decreasing = TRUE)[seq_len(n)]) / sum(x)
+}
+
+concentration <- function(x) {
+  pr <- internal(x)$pagerank
+  c(
+    n           = length(pr),
+    gini        = round(pr_gini(pr), 3),
+    entropy     = round(pr_entropy(pr), 2),
+    top5_share  = round(100 * top_n_share(pr), 1)
+  )
+}
+
+rbind(
+  before = concentration(ed_before),
+  after  = concentration(ed_after)
+)
+```
+
+Gini fell from 0.715 to 0.589, entropy rose, and the top five pages went from
+holding about 71% of editorial authority to about 48%.
+
+Note `top_n_share()` is written by hand above. `pr_top_k_share()` exists, but its
+`k` is a **fraction of nodes**, not a count — `pr_top_k_share(x, 0.1)` is the top
+10%. Passing `5` is an error, not a top-5.
+
+## Where the authority went
+
+Now the per-page view. Two pieces of discipline are load-bearing here.
+
+**Match on the full URL, not the path.** External hosts share path strings with
+internal ones, so keying on the path merges distinct nodes and silently
+duplicates rows.
+
+**Compare relative change, not absolute level.** The node set changed, so a raw
+difference in PageRank mixes the intervention with the arithmetic of a smaller
+graph.
+
+```{r deltas}
+ranked <- function(x) {
+  d <- data.frame(
+    url  = x$node_name,
+    pr   = x$pagerank,
+    stringsAsFactors = FALSE
+  )
+  d$rank <- rank(-d$pr, ties.method = "min")
+  d
+}
+
+moves <- merge(
+  ranked(ed_before), ranked(ed_after),
+  by = "url", suffixes = c("_before", "_after")
+)
+moves$change <- round(100 * (moves$pr_after / moves$pr_before - 1))
+
+# Rank over everything scored; report internal pages only.
+moves <- moves[grepl("reviews-microsite", moves$url, fixed = TRUE), ]
+nrow(moves)
+```
+
+Sixty-two pages appear in both crawls. The four biggest losses:
+
+```{r losers}
+show <- function(d) {
+  d$page <- sub("^https://[^/]+", "", d$url)
+  cols <- c(
+    "page", "pr_before", "pr_after", "change",
+    "rank_before", "rank_after"
+  )
+  out <- d[, cols]
+  out$pr_before <- round(out$pr_before, 3)
+  out$pr_after  <- round(out$pr_after, 3)
+  print(out, row.names = FALSE)
+}
+
+show(head(moves[order(moves$change), ], 4))
+```
+
+All four are children of `/s2/p01/` — the branch the sitewide bylines pointed
+into. The top-ranked page in the site lost 98% of its editorial score and fell
+from #1 to #38.
+
+The other side:
+
+```{r gainers}
+show(head(moves[order(-moves$change), ], 6))
+```
+
+The gainers sit in `/s2/p06/` and `/s2/p08/` — the commercial branches the
+feeder links were pointed at. That is the shape a de-sink is supposed to have:
+authority
+leaving one hoarding branch and landing across many pages, not moving to a new
+favourite.
+
+## The mechanism was reclassification, not new links
+
+The largest single lever was not the links that were added. It was the links
+that stopped counting.
+
+Moving the bylines into `<nav aria-label="Editorial standards">` makes Screaming
+Frog record their `Link Position` as `Navigation` instead of `Content`. They do
+not lose weight — they **leave the editorial graph entirely**.
+
+```{r reclassification}
+content_edges <- function(bundle) {
+  e <- bundle$edges
+  e <- e[!is.na(e$link_position) & e$link_position == "Content", ]
+  keep <- grepl("reviews-microsite", e$from, fixed = TRUE) &
+    grepl("reviews-microsite", e$to, fixed = TRUE)
+  nrow(unique(e[keep, c("from", "to")]))
+}
+
+c(before = content_edges(before), after = content_edges(after))
+```
+
+Ninety-nine internal content edges disappeared, and almost none of the HTML
+changed. This is the practical corollary of the boilerplate problem — see
+`vignette("boilerplate")` — in-content template links are a second navigation,
+and the cheapest correct fix is to make the markup say so.
+
+## The full graph barely noticed
+
+Now score both crawls without the placement filter.
+
+```{r fullgraph}
+full <- merge(
+  ranked(full_before), ranked(full_after),
+  by = "url", suffixes = c("_before", "_after")
+)
+full <- full[grepl("reviews-microsite", full$url, fixed = TRUE), ]
+
+c(
+  pages       = nrow(full),
+  gini_before = round(pr_gini(internal(full_before)$pagerank), 3),
+  gini_after  = round(pr_gini(internal(full_after)$pagerank), 3),
+  pearson     = round(cor(full$pr_before, full$pr_after), 4)
+)
+```
+
+Pearson correlation of **0.9999** across the pages present in both crawls. To
+four decimal places, the full-graph ranking is the same vector before and after.
+
+An intervention that moved a page from #1 to #38 on one lens is invisible on the
+other. The site has roughly 3,300 navigation edges against 400 content ones, so
+the template dominates the full graph and swamps any editorial change. **The
+lens decides whether the change exists at all** — which is the argument for
+running the editorial view as a matter of course, not as a special case.
+
+## Confounds — read this before reusing the method
+
+This is a two-crawl natural experiment, not a controlled simulation on a fixed
+graph. Three limits apply, and stating them is part of the method:
+
+1. **The node set changed.** Five pages were retired between crawls. Absolute
+   editorial PageRank is therefore not comparable across the pair — read rank
+   shifts, concentration metrics, and relative deltas instead.
+
+2. **Full-graph absolute levels drift for a mechanical reason.** Individual
+   pages rise 1–23% in the full graph purely because those five pages left and
+   their mass redistributed. That spread is a node-set artifact, not a response
+   to the intervention. The correlation is the honest statistic; the per-page
+   percentages there are not.
+
+3. **Two changes shipped together.** The byline reclassification and the new
+   feeder links landed in the same release, so what is measured is the net
+   effect. Separating them requires modeling each on a fixed graph — which is
+   what `simulate_changes()` is for.
+
+On that last point: the pre-ship `simulate_changes()` projection agreed with
+this re-crawl in direction and rough magnitude. That agreement, on a real site,
+is the strongest claim available — the diagnosis was not merely internally
+consistent, it predicted something that then happened.
+
+## Running this on your own crawls
+
+The whole method is four decisions:
+
+- Export `Internal > All` and `Bulk Export > Links > All Inlinks` at both time
+  points, and keep `Link Position` and `Link Path`.
+- Score twice per crawl — once with `accepted_placements = "Content"`, once
+  without. Differences between the two lenses are the finding, not noise.
+- Report concentration (Gini, entropy, top-N share) and rank movement. Do not
+  report absolute PageRank across crawls whose node sets differ.
+- Check `sum(pagerank)` rather than assuming it is 1, and match pages on the
+  full URL.
+
+For the modeling half of the loop — projecting a change before shipping it — see
+`vignette("pagerankr-usage")` and `simulate_changes()`. For the placement
+weighting used to soften rather than exclude template links, see
+`vignette("presets")`.

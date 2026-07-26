@@ -1,5 +1,17 @@
 # pagerankr (development version)
 
+* **New vignette, `vignette("case-study")`, works the two-crawl fixture
+  end to end.** A worked example that scores the same site before and after an
+  internal-linking change on two lenses — the editorial (content-only) graph and
+  the full graph — and shows that a change which moves the top page from rank #1
+  to #38 on the first is invisible on the second (Pearson 0.9999). Every figure
+  is computed from `inst/extdata/` at build time rather than quoted, so the
+  vignette doubles as a regression check on the fixture. It also documents the
+  three traps the comparison sets: scores do not sum to 1, so shares must be
+  taken against `sum(pagerank)`; the two crawls have different node sets, so
+  absolute PageRank is not comparable across them; and pages must be matched on
+  the full URL, since external hosts share path strings with internal ones.
+  `_pkgdown.yml` gains an `articles:` index grouping all six vignettes.
 * **A two-crawl case-study fixture ships in `inst/extdata/`.** Two Screaming
   Frog exports of the same small site, taken either side of a deliberate
   internal-linking intervention, are now available as package data:
