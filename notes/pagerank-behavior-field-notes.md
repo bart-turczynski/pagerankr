@@ -58,7 +58,7 @@ rather than establishes.
 - **Collision → real corruption.** If the crawl contains any genuine link to
   the canonical *target* domain, that external link **merges into** the
   relabeled internal node (no new node created). Forced repro: 5 real links to
-  prod `/website/` raised the *internal* node's PR **+9.3%**. Did not bite this
+  a prod URL raised the *internal* node's PR **+9.3%**. Did not bite this
   crawl only because it links to `www.vendor-a.example.com`, never
   `reviews-microsite.example.com`.
 - **Ruled out:** partial canonicalization does *not* duplicate a page into two
@@ -95,10 +95,10 @@ the boilerplate dominates.
 
 Downweighting nav (`placement_weights = c(content=1, nav=0.1, header=0.1)`)
 reshuffles the ranking hard. Pages strong in body copy but absent from the nav
-climb (e.g. `/alternatives/competitor-a/` #40 → #9); pages propped only by the menu
-fall (`/alternatives/competitor-b/` #9 → #38).
+climb (e.g. `/s2/p01/p03/` #35 → #9); pages propped only by the menu fall
+(`/s2/p06/p04/` #19 → #42).
 
-Counterintuitively, **Gini drops** (0.305 → 0.264). The nav was *manufacturing*
+Counterintuitively, **Gini drops** (0.297 → 0.252). The nav was *manufacturing*
 artificial concentration on its ~46 favored pages; editorial linking is spread
 more evenly. Lesson: the template can make a site look more (or less)
 "focused" than its actual content architecture is.
@@ -108,8 +108,8 @@ more evenly. Lesson: the template can make a site look more (or less)
 ## 4. Editorial (content-only) PageRank is hyper-concentrated — because in-content boilerplate is a second nav
 
 Recomputing PageRank on **content edges only** inverts the flatness into extreme
-concentration: two pages, `/about/methodology/` (30.7%) and
-`/about/affiliate-disclosure/` (23.7%), hold **54%** of all editorial authority.
+concentration: two pages, `/s2/p01/p05/` (29.4%) and `/s2/p01/p01/` (22.6%),
+hold **52%** of all editorial authority.
 
 The reason is a *second* layer of boilerplate hiding inside article bodies: on a
 reviews site, every review links to "our methodology" and the affiliate
@@ -127,7 +127,8 @@ discretionary link graph.
 
 CheiRank (PageRank on the reversed graph, `reverse = TRUE`) ranks pages by
 *outflow*. On `reviews-microsite` the top CheiRank pages were also the **lowest**
-PageRank pages: `/website/`, `/company/headquarters/`, `/download/app/` — pages
+PageRank pages — `/s2/p12/` is CheiRank #2 and forward PageRank **#67 of 67**,
+and its siblings `/s2/p12/p02/` and `/s2/p12/p03/` sit at #59 and #48. Pages
 that link out generously but receive almost nothing.
 
 The trap: CheiRank rewards outbound *volume*, and every page ships the same
@@ -135,8 +136,8 @@ footer, so a big chunk of every page's CheiRank is boilerplate it carries by
 template. High CheiRank on a thin utility page is close to noise.
 
 **The right metric for "should this page exist" is editorial in-degree** — how
-many pages *chose*, in body content, to link to it. `/company/headquarters/`
-had editorial in-degree **2** (near-floor PR, out-degree 11): it references
+many pages *chose*, in body content, to link to it. `/s2/p12/`
+had editorial in-degree **1** (near-floor PR, out-degree 8): it references
 others generously but almost nothing references it. That is the signal that a
 page earns no editorial interest — not its PageRank, and certainly not its
 CheiRank.
@@ -144,8 +145,9 @@ CheiRank.
 **Seeded feeders need a clean graph.** `topic_feeder_pagerank()` (seeded reverse
 PageRank, "what feeds this cluster") returned the *global* hubs when run on all
 edges — the nav is so uniform that every page feeds every cluster. Only on
-**content-only** edges did the genuine topical feeders appear (for the feature-a
-cluster: the product overview, pricing, and sibling feature pages). Topic-feeder
+**content-only** edges did the genuine topical feeders appear (for a product
+cluster: its section index, the commercial pages, and sibling pages in the same
+branch). Topic-feeder
 analysis is only meaningful after boilerplate is removed.
 
 ---
@@ -153,7 +155,7 @@ analysis is only meaningful after boilerplate is removed.
 ## 6. Sinks hoard; conduits recirculate; nofollow no longer redistributes
 
 A page hoards PageRank when it has many inlinks and few outlinks (high in/out
-ratio). `/about/affiliate-disclosure/`: in=67, out=2, ratio 33.5. The fix for a
+ratio). `/s2/p01/p01/`: in=67, out=2, ratio 33.5. The fix for a
 hoarder is to turn the sink into a conduit (add relevant outlinks), *not* to cut
 inlinks — and often you *can't* cut them (compliance). **This recommendation was
 later shipped and re-measured — see §10.**
@@ -170,8 +172,8 @@ transfer.
 ## 7. Low PageRank on a low-value page is the system working, not a leak
 
 An important framing correction. It is tempting to call every low-PR page an
-"under-linked" problem, but conversion/utility pages (`/website/signup/`,
-`/website/login/`, `/download/*`) *should* have low PageRank — you do not want
+"under-linked" problem, but conversion/utility pages (signup, login, app
+download) *should* have low PageRank — you do not want
 them ranking. The graph declining to spend equity on them is correct.
 
 The actionable cases are the **gap** between what the graph does and what intent
@@ -203,8 +205,8 @@ intervention move the metrics the way the model predicted? — is §10.**
 
 Every finding above is scoped to a *view* of the graph (full, content-only,
 reversed, weighted). None of them is what Google computes — Google sees the full
-graph plus external signals. The `/about/affiliate-disclosure/` "dominance"
-(23.7% of editorial PR) shrinks to full-graph **#40** in reality. And on a
+graph plus external signals. The `/s2/p01/p01/` "dominance" (22.6% of editorial
+PR) shrinks to full-graph **#16** in reality. And on a
 67-page site, internal PageRank sculpting is low-leverage regardless.
 
 Use PageRank views as **diagnostics that pose questions** ("why is this
@@ -225,28 +227,33 @@ compliance sinks into conduits) plus the starved-page feeding modeled in §8
 is the rare closed loop — diagnose → model → ship → **re-measure on a real
 crawl** — that separates a method from an anecdote.
 
-**The recovered baseline reproduces the notes exactly.** The pre-intervention
-crawl scored `/about/methodology/` at editorial PR **0.307** and
-`/about/affiliate-disclosure/` at **0.237** — bit-for-bit the §4 figures. So the
-before/after below is measured on the same instrument that produced §1–§9, not a
-re-derivation.
+**Every figure below is reproducible from the shipped fixture.** Both crawls are
+published, pseudonymized, under `inst/extdata/reviews-microsite-{before,after}/`,
+and the numbers here are computed from them by the recipe in the method note at
+the end of this section — so this table can be regenerated by anyone with the
+package rather than taken on trust.
 
 **Editorial (content-only) graph — the sinks drained, the money pages filled.**
 
 | page | editorial PR: before → after | Δ | rank |
 |------|------------------------------:|----:|------|
-| `/about/methodology/`          | 0.307 → 0.007 | **−97.7%** | #1 → #40 |
-| `/about/affiliate-disclosure/` | 0.237 → 0.010 | −95.9% | #2 → #27 |
-| `/about/contact/`              | 0.138 → 0.006 | −95.4% | #3 → #48 |
-| `/about/faq/`                  | 0.042 → 0.010 | −75.9% | #4 → #26 |
-| `/pricing/`                    | 0.015 → 0.064 | **+325%**  | #6 → #2 |
-| `/pricing/free-plan/`          | 0.005 → 0.061 | +1096% | #17 → #3 |
-| `/features/feature-a/`         | 0.006 → 0.045 | +705%  | #13 → #5 |
-| `/pricing/free-trial/`         | 0.004 → 0.041 | +996%  | #26 → #7 |
-| homepage `/en-us/`             | 0.003 → 0.011 | +270%  | #48 → #23 |
+| `/s2/p01/p05/` | 0.242 → 0.005 | **−98%** | #1 → #38 |
+| `/s2/p01/p01/` | 0.186 → 0.009 | −95% | #2 → #20 |
+| `/s2/p01/p02/` | 0.108 → 0.004 | −96% | #3 → #49 |
+| `/s2/p01/p04/` | 0.024 → 0.005 | −81% | #5 → #46 |
+| `/s2/p06/p05/` | 0.003 → 0.046 | **+1580%** | #59 → #4 |
+| `/s2/p06/p04/` | 0.003 → 0.022 | +615% | #46 → #9 |
+| `/s2/p02/p05/` | 0.003 → 0.018 | +479% | #43 → #10 |
+| `/s2/p11/p02/` | 0.002 → 0.005 | +94% | #71 → #41 |
+| `/s2/p02/p01/` | 0.003 → 0.005 | +88% | #61 → #39 |
+
+The four decliners are all children of `/s2/p01/`; the gainers are spread across
+`/s2/p02/`, `/s2/p06/` and `/s2/p11/`. That is the shape of the intervention:
+authority leaving one hoarding branch and landing across the discretionary
+graph.
 
 Concentration collapsed exactly as a de-sink predicts: editorial **Gini
-0.763 → 0.472**, **top-5 share 76.2% → 31.1%**, entropy 2.53 → 3.75. Authority
+0.715 → 0.589**, **top-5 share 71.0% → 47.7%**, entropy 2.70 → 3.39. Authority
 that four sitewide in-content hubs were hoarding got spread across the discretionary
 graph, landing disproportionately on commercial pages. Every money page gained;
 none regressed.
@@ -256,22 +263,27 @@ line).** The single biggest lever was *not* new links but **re-placement**: the
 sitewide methodology/disclosure byline links were moved into a semantic
 `<nav aria-label="Editorial standards">`, so Screaming Frog reclassifies them
 from `Content` to `Navigation`. They simply **leave the editorial graph**
-(content edges fell 339 → 232). Corollary to §4: in-content boilerplate is a
+(internal content edges fell 406 → 307). Corollary to §4: in-content boilerplate is a
 second nav — and the fix can be to *make the HTML say so*, which is both correct
 semantics and the cheapest possible de-sink.
 
 **Full graph — insensitive, as §2/§9 warned.** The full graph barely twitched:
-Gini 0.305 → 0.273, Pearson(before, after) = 0.9999, every commercial page
-within **+0.69% to +0.76%** (numerical noise on a near-uniform vector). The
-entire intervention is an *editorial-graph* phenomenon, invisible to the
+Gini 0.297 → 0.257 and **Pearson(before, after) = 0.9999** over the 62 pages
+present in both crawls — the ranking is, to four decimal places, the same
+vector. Absolute levels drift upward (+1.1% to +23.1%) purely because five pages
+left the graph and their mass redistributed; that spread is a node-set artifact,
+not a response to the intervention, which is why the *correlation* is the
+honest statistic here and the per-page percentages are not. The entire
+intervention is an *editorial-graph* phenomenon, invisible to the
 boilerplate-dominated full graph. This is the clearest single confirmation of §9:
 the lens you choose decides whether you can even see the change.
 
 **Honest confounds (state these in any writeup).** This is a two-crawl natural
 experiment, not a controlled `simulate_changes()` on one fixed graph, so:
-- The node set changed — 4 pages were retired/merged during the epic
-  (`/submit/`, `/company/funding/`, `/company/headquarters/`, `/vendor-a/`), and
-  total editorial edges fell (339 → 232). **Absolute editorial PR levels are
+- The node set changed — 5 pages were retired/merged during the epic
+  (`/s2/p03/p03/`, `/s2/p03/p04/`, `/s2/p03/p05/`, `/s2/p09/`, `/s2/p10/`),
+  taking the editorial graph from 67 pages to 62, and internal content edges
+  fell (406 → 307). **Absolute editorial PR levels are
   therefore not directly comparable across crawls; read rank shifts,
   concentration metrics (Gini / top-share / entropy), and relative deltas** — the
   same "relative before/after lens" discipline §9 argues for.
@@ -285,6 +297,38 @@ experiment, not a controlled `simulate_changes()` on one fixed graph, so:
 decorative. That agreement, on a real site, is the strongest claim the toolkit
 can make: **the views are diagnostic, the models are predictive, and the loop
 closes.**
+
+**Method note — how to regenerate every number in this section.** Both crawls
+ship with the package. The editorial view is the default pipeline restricted to
+content-placed links; the full view is the same call without that restriction.
+
+```r
+library(pagerankr)
+
+view <- function(crawl, ...) {
+  dir <- system.file("extdata", crawl, package = "pagerankr")
+  bundle <- screaming_frog_bundle(
+    internal = file.path(dir, "internal_all.csv"),
+    links    = file.path(dir, "all_inlinks.csv"),
+    link_export_kind = "all_inlinks"
+  )
+  scores <- pagerank_screaming_frog(bundle, ...)
+  # External hosts are scored too; this section reports internal pages only.
+  scores[grepl("reviews-microsite", scores$node_name, fixed = TRUE), ]
+}
+
+before <- view("reviews-microsite-before", accepted_placements = "Content")
+after  <- view("reviews-microsite-after",  accepted_placements = "Content")
+
+pr_gini(before$pagerank)     # 0.715
+pr_entropy(before$pagerank)  # 2.70
+```
+
+Two gotchas that change the answer if missed. **Scores do not sum to 1** — mass
+leaks to sinks and is accounted separately (§12), so shares must be taken
+against `sum(pagerank)`, not assumed. And the two crawls have **different node
+sets**, so a page must be matched on its full URL across the pair; matching on
+path alone silently merges pages that share a path across hosts.
 
 ---
 
