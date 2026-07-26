@@ -1,5 +1,14 @@
 # pagerankr (development version)
 
+* **The declared `rurl` minimum is corrected to `>= 2.2.0`.** `Imports:`
+  previously required `rurl (>= 2.1.0)`, a version that was never released —
+  `rurl` has no `2.1.0` tag, and its 2.x line begins at 2.2.0 — so the stated
+  minimum named an artifact no user could install. The effective minimum was
+  already 2.2.0 in practice; the constraint now says so. Verified by running the
+  test suite against `rurl` 2.2.0, 2.2.1 and 2.8.0 in isolated libraries: all
+  three pass identically, and canonical URL keys are byte-identical across them,
+  so this corrects the declaration without changing behavior or node identity.
+
 * **New vignette, `vignette("case-study")`, works the two-crawl fixture
   end to end.** A worked example that scores the same site before and after an
   internal-linking change on two lenses — the editorial (content-only) graph and

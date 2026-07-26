@@ -13,7 +13,7 @@ Depends:
     R (>= 4.0.0)
 Imports:
     igraph,
-    rurl (>= 2.1.0),
+    rurl (>= 2.2.0),
     utils
 Remotes:
     bart-turczynski/rurl
