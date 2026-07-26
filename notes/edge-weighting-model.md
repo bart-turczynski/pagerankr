@@ -276,7 +276,7 @@ on a single target, not component reuse as such.
 
 ### Why the denominator is the container and not the site
 
-Validated on natu.care (§10). Third-party consent-banner links appear on 983 of 9,655 pages:
+Validated on vendor-b (§10). Third-party consent-banner links appear on 983 of 9,655 pages:
 
 | denominator | ratio | verdict | outcome |
 |---|---:|---|---|
@@ -306,7 +306,7 @@ at `p[5]` on a post with four preceding paragraphs and `p[3]` on a shorter one �
 **Skeleton rule: strip numeric `[n]`, keep `[@class='…']`.**
 
 Measured compression (§10): 256 → 29 skeletons on reviews-microsite (88.7%), 22,022 → 1,630 on
-natu.care (92.6%). Load-bearing — without it the detector under-detects in-content components
+vendor-b (92.6%). Load-bearing — without it the detector under-detects in-content components
 while working fine on nav, which is backwards, since nav is already covered by placement.
 
 ### `boilerplate_threshold = 0.5`, `min_container_pages = 10`
@@ -320,23 +320,23 @@ mis-emphasised — `/cart` sits in Header position and was already handled. Only
 edges are at stake, because that is the only place placement cannot help.
 
 **At 0.9 the detector misses two whole families of real boilerplate**, consistent across
-vendor-a.example.com and natu.care:
+vendor-a.example.com and vendor-b.example.com:
 
 | family | examples | ratio |
 |---|---|---|
 | recurring in-content CTAs | `/panel/register` (×3 containers), `/blog/`, `/integrations/`, `/collections` | 0.54 – 0.82 |
 | author byline links | `/author-a`, `/author-b`, `/author-c`, `/people/author-d/` | 0.53 – 0.69 |
 
-Bylines are the persuasive case, and the better documentation example than `/cart`: on natu.care
+Bylines are the persuasive case, and the better documentation example than `/cart`: on vendor-b
 a single author page is linked from 4,116 of 7,563 pages by an identical template element. That
 is the §4 pattern exactly — uniform in-degree inflation with no editorial judgment behind any
 individual link — and placement can never catch it, because the byline sits in content.
 
-Moving 0.9 → 0.5 adds 37 content pairs on vendor-a (against 42 already caught) and 19 on natu.care
+Moving 0.9 → 0.5 adds 37 content pairs on vendor-a (against 42 already caught) and 19 on vendor-b
 (against 77). Meaningful, not floodgates.
 
 **`min_container_pages` is the weaker default.** Small containers dominate the high-ratio counts
-(78 pairs at ratio ≥ 0.9 from 3–10-page containers on vendor-a, 147 on natu.care), and "3 out of 3"
+(78 pairs at ratio ≥ 0.9 from 3–10-page containers on vendor-a, 147 on vendor-b), and "3 out of 3"
 is thin evidence — a 3-page container can only produce ratios of 0.33, 0.67 or 1.0, so band
 membership is partly quantization rather than genuine ambiguity. Excluding them is cheap because
 they carry few edges. But 10 is a judgement call, not a measured cut.
@@ -524,7 +524,7 @@ finding and a paper angle.
 2. ~~**Natural cut**: is there a natural break in the ratio distribution?~~ **Answered (§10): no,
    and the earlier "yes" was wrong.** reviews-microsite showed a strikingly clean bimodal gap
    (literally zero pairs in 0.5–0.95). That is a **small-site artifact**: on a 62-page site a
-   component either appears on essentially every page or on a handful. natu.care (9,655 pages)
+   component either appears on essentially every page or on a handful. vendor-b (9,655 pages)
    populates the band. Do not re-derive this from reviews-microsite and reach the old conclusion.
 3. **Graceful degradation**: `link_path` may be absent from a non-SF crawl. Does boilerplate
    detection hard-require it, or fall back to something clearly labeled weaker? Same "column may
@@ -551,14 +551,14 @@ finding and a paper angle.
 ## 10. Validation results (2026-07-20)
 
 Run against real All Inlinks exports. **Never read these files into an agent context** — process
-them in a script with `data.table::fread(select = …)` and return only aggregates. The natu.care
+them in a script with `data.table::fread(select = …)` and return only aggregates. The vendor-b
 export is 1.3 GB / 3.86M rows.
 
 | crawl | pages | hyperlinks | note |
 |---|---:|---:|---|
 | `reviews-microsite/old/` | 67 | 3,820 | pre-intervention |
 | `reviews-microsite/` | 62 | 3,599 | post-intervention |
-| `_scratch/crawls/natu.care/` | 9,655 | 2,344,199 | large, uncleaned, multilingual e-commerce |
+| `_scratch/crawls/vendor-b/` | 9,655 | 2,344,199 | large, uncleaned, multilingual e-commerce |
 | `_scratch/crawls/vendor-a/` | 2,767 | 611,108 | large SaaS marketing site, different stack |
 
 ### 1. Skeleton normalization — confirmed
@@ -566,14 +566,14 @@ export is 1.3 GB / 3.86M rows.
 | crawl | raw paths | skeletons | compression |
 |---|---:|---:|---:|
 | reviews-microsite | 256 | 29 | 88.7% |
-| natu.care | 22,022 | 1,630 | 92.6% |
+| vendor-b | 22,022 | 1,630 | 92.6% |
 
 Strip numeric `[n]`, keep `[@class='…']`. Groups as designed at both scales.
 
 ### 2. Ratio distribution — the "natural cut" was a small-site artifact
 
 reviews-microsite (62 pages) is strikingly bimodal — **zero** pairs between 0.5 and 0.95 on the
-pre-intervention crawl. That does **not** generalize. natu.care, on 104,738 pairs:
+pre-intervention crawl. That does **not** generalize. vendor-b, on 104,738 pairs:
 
 | band | pairs |
 |---|---:|
@@ -594,7 +594,7 @@ two distinct components) — precisely the pages §4 names. See §8.
 
 ### 4. At scale, axis 2 finds what placement cannot
 
-natu.care, content-position with ratio ≥ 0.9: **398 pairs, 244 distinct targets, 71,224 edges**
+vendor-b, content-position with ratio ≥ 0.9: **398 pairs, 244 distinct targets, 71,224 edges**
 — 3.5% of content edges. Targeted, not a blunt instrument.
 
 Split by scope, since roughly half would be excluded by internal-only scoping anyway:
@@ -620,7 +620,7 @@ by hand, which is the normal case.
   `sf_normalize_position()` does not map. It is the HTML `<head>` — paths are `//head/link[…]`,
   types are CSS / HTML Canonical / HTML Hreflang. None are graph-eligible, so `sf_graph_eligible()`
   filters them before placement is consulted. Investigated and dismissed; not a bug.
-- **Non-HTML is ~35% of natu.care rows** (Image 472,239; Misc 397,390; JavaScript 299,640;
+- **Non-HTML is ~35% of vendor-b rows** (Image 472,239; Misc 397,390; JavaScript 299,640;
   Font 154,252). Feeds `PAGE-ztmtdzzu`.
 
 ### 6. The ambiguous band, resolved
@@ -636,7 +636,7 @@ everything else is already discounted by placement:
 | 11–50 | 2,298 | 17 | 8 | 204 |
 | 50+ | 16,762 | 29 | 8 | 42 |
 
-**natu.care**
+**vendor-b.example.com**
 
 | container pages | <0.5 | 0.5–0.7 | 0.7–0.9 | ≥0.9 |
 |---|---:|---:|---:|---:|
@@ -706,7 +706,7 @@ The discount is normalized *within a target*: a page linked only from footers sp
 among its footer-linkers, because there is nothing to compare them against. So reversed weighting
 fails precisely on **chrome hubs** — the pages it most needs to catch. The share of edges sitting
 in homogeneous groups is therefore not a curiosity; it is the **failure rate** of the reversed
-view on a given site (6% on vendor-a, 48% on natu.care — see below).
+view on a given site (6% on vendor-a, 48% on vendor-b — see below).
 
 ### Two operators, only one implemented
 
@@ -748,7 +748,7 @@ to matter at all), internal graph only:
 | Crawl | Forward, edges | Forward, groups | Reversed, edges | Reversed, groups |
 |---|---:|---:|---:|---:|
 | vendor-a (2,526 nodes, 517k edges) | 99.14% | 95.41% | 93.91% | 63.56% |
-| natu.care (9,655 nodes, 1.43M edges) | 99.73% | 99.37% | 52.45% | 21.96% |
+| vendor-b (9,655 nodes, 1.43M edges) | 99.73% | 99.37% | 52.45% | 21.96% |
 
 Reversed weighting is **not** degenerate — it bites on most edges. But it is strikingly
 **asymmetric and site-dependent**: forward is near-universal on both sites (>99% of edges, >95%
@@ -792,7 +792,7 @@ The heterogeneity table above reproduced **to the digit** on both sites, which i
 rest attributable rather than merely new.
 
 > **Denominator note.** The region-mix percentages quoted in this section — vendor-a header 56.6%,
-> natu.care content 66.1% — are computed over **all** hyperlink rows, while the heterogeneity table
+> vendor-b content 66.1% — are computed over **all** hyperlink rows, while the heterogeneity table
 > is **internal-only**. Both are correct on their own denominator (internal-only gives header 63.38%
 > and content 62.96%), but they are not comparable, and reading them side by side is part of what
 > made region mix look like a candidate driver.
@@ -802,20 +802,20 @@ rest attributable rather than merely new.
 | | content edges (internal) | chrome edges | targets reached by chrome | reversed het. groups |
 |---|---:|---:|---:|---:|
 | vendor-a | 11.98% | 88.02% | **67.74%** | 63.56% |
-| natu.care | 62.96% | 37.04% | **23.67%** | 21.96% |
+| vendor-b | 62.96% | 37.04% | **23.67%** | 21.96% |
 
-natu.care carries **five times** vendor-a's content-link share and has **three times fewer**
+vendor-b carries **five times** vendor-a's content-link share and has **three times fewer**
 heterogeneous inlink groups. More content links coincide with *less* inlink heterogeneity, so the
 region-mix hypothesis fails on **direction**, not merely on magnitude.
 
 The mechanism is **chrome reach**. A target is reversed-heterogeneous only if it receives both a
 content link and a chrome link — and on both sites nearly every target already receives a content
-link (95.8% on vendor-a, 98.3% on natu.care). What varies is the share that *also* receives a chrome
+link (95.8% on vendor-a, 98.3% on vendor-b). What varies is the share that *also* receives a chrome
 link, and that tracks the heterogeneity share almost exactly (67.7% against 63.6%; 23.7% against
 22.0%, the gap being chrome-only targets).
 
 So the question is not how much chrome a site has, but **how many distinct pages its chrome
-touches**. vendor-a's chrome is 88% of edges and blankets the crawl. natu.care's is 37% and
+touches**. vendor-a's chrome is 88% of edges and blankets the crawl. vendor-b's is 37% and
 concentrated, leaving **76.3% of its targets content-only**, hence homogeneous. A flat mega-menu
 linking every page makes almost every target mixed; a small footer nav does not.
 
@@ -827,8 +827,8 @@ Weighted against unweighted, within each direction:
 |---|---:|---:|---:|---:|---:|
 | vendor-a forward | 99.14% | 0.9494 | 0.3695 | 2.58e-02 | 91% |
 | vendor-a reversed | 93.91% | 0.9649 | 0.1641 | 3.06e-03 | 87% |
-| natu.care forward | 99.73% | 0.9611 | 0.4838 | 1.02e-02 | 65% |
-| natu.care reversed | 52.45% | 0.9910 | 0.0324 | 2.26e-04 | 97% |
+| vendor-b forward | 99.73% | 0.9611 | 0.4838 | 1.02e-02 | 65% |
+| vendor-b reversed | 52.45% | 0.9910 | 0.0324 | 2.26e-04 | 97% |
 
 vendor-a's reversed heterogeneity (93.91%) is nearly as saturated as its forward (99.14%), yet
 weighting moves the reversed ranking less than half as far by L1 and **8.4× less** by maximum score
@@ -848,7 +848,7 @@ in-edge is trivially homogeneous — and that confound carries most of the gap:
 |---|---:|---:|
 | vendor-a forward | 10 | 238 |
 | vendor-a reversed | 1 | 48 |
-| natu.care reversed | 50 | 89 |
+| vendor-b reversed | 50 | 89 |
 
 Within degree quintiles the relationship is **not robust, and it reverses by site**. Ratio of median
 |Δrank|, heterogeneous ÷ homogeneous, over bands holding at least 20 of each:
@@ -856,23 +856,23 @@ Within degree quintiles the relationship is **not robust, and it reverses by sit
 | run | band ratios (low → high degree) | coverage |
 |---|---|---:|
 | vendor-a reversed | 2.02, 0.85, 3.71, 4.86, 2.55 | 100% of nodes |
-| natu.care reversed | 0.28, 0.41, 0.29, 1.59, 0.74 | 100% of nodes |
+| vendor-b reversed | 0.28, 0.41, 0.29, 1.59, 0.74 | 100% of nodes |
 
-On vendor-a heterogeneous nodes move more, as predicted, in four bands of five. On natu.care the
+On vendor-a heterogeneous nodes move more, as predicted, in four bands of five. On vendor-b the
 prediction **inverts** in four of five: the nodes whose weights supposedly normalized away move
 *more* than the weighted ones. At the aggregate median the two groups are indistinguishable (148
 against 144), and the mean gap is entirely tail-driven.
 
 The reason is that **PageRank is global**. A page whose own inlink weights are homogeneous still
 inherits every rank change its inlinkers underwent, so "effectively unweighted" describes the *local
-normalization step*, not the score. On natu.care, where 78% of groups are homogeneous, that dragging
+normalization step*, not the score. On vendor-b, where 78% of groups are homogeneous, that dragging
 dominates.
 
 Forward runs cannot arbitrate this: homogeneous sources are too rare (116 and 61 nodes) for a
 stratified comparison, and they concentrate in the lowest degree band, where median |Δrank| is 0.
 
 ⚠️ **Consequence for the diagnostic.** The homogeneous-group share should **not** ship as "the
-fraction of your run that is effectively unweighted". That claim is contradicted on natu.care —
+fraction of your run that is effectively unweighted". That claim is contradicted on vendor-b —
 precisely the site whose large share would have motivated showing it. What survives is narrower and
 less marketable: the share describes how much of the *weight vector does no local work*, which is
 not the same as how much of the *ranking* is unaffected.
@@ -882,7 +882,7 @@ not the same as how much of the *ranking* is unaffected.
 - ~~Does the reversed reading admit any defensible editorial interpretation?~~ **Resolved: yes**
   — operator A is credit allocation among a target's inlinkers. `content` + `reverse = TRUE`
   should **not** warn; it works, with a documented blind spot.
-- ~~What drives the vendor-a/natu.care spread (94% vs 52%)?~~ **Resolved: chrome reach**, not region
+- ~~What drives the vendor-a/vendor-b spread (94% vs 52%)?~~ **Resolved: chrome reach**, not region
   mix, which predicts the wrong sign. See Q3 above.
 - ~~Does the heterogeneity share predict how much the ranking actually *moves*?~~ **Resolved: no.**
   It is a necessary condition and nothing more; magnitude varies severalfold at fixed share.
@@ -919,7 +919,7 @@ into an explicit per-source index at ingest, while it is still trustworthy.
 transit. It is **absent at ingest**. Materializing an index at ingest would materialize noise, and
 would do it in the one place where the result looks authoritative.
 
-Measured on all three crawls: `reviews-microsite` (62 pages), `vendor-a.example.com` (2,767), `natu.care` (9,655).
+Measured on all three crawls: `reviews-microsite` (62 pages), `vendor-a.example.com` (2,767), `vendor-b.example.com` (9,655).
 
 ### 13.1 Carrier A — All Inlinks CSV row order: does not exist
 
@@ -955,7 +955,7 @@ order over their content links:
 |---|---:|---:|---:|---:|
 | reviews-microsite | 369 | 2,639 | 42.0% | 0.0% |
 | vendor-a.example.com | 93,673 | 335,156 | 58.2% | 5.5% |
-| natu.care | 1,549,256 | 1,131,015 | 38.8% | 1.3% |
+| vendor-b | 1,549,256 | 1,131,015 | 38.8% | 1.3% |
 
 Roughly 40–58% of pairs, and **essentially no page** can rank its content links end to end. The
 three crawls span two orders of magnitude in size and three stacks, and they agree.
