@@ -8,7 +8,13 @@
 # Usage:
 #   Rscript data-raw/build-fixture.R \
 #     --before=<dir> --after=<dir> \
-#     --primary-host=<crawled host> --secondary-host=<canonical-target host>
+#     --primary-host=<crawled host> --secondary-host=<canonical-target host> \
+#     [--notes-crosswalk=<label>=<real path>[,<label>=<real path>...]]
+#
+# --notes-crosswalk resolves real paths through the dictionary and prints ONLY
+# the resulting label -> fixture-path pairs, so notes/ can cite the published
+# fixture without a real path ever being written down. Both sides of what it
+# prints are synthetic. It writes nothing to disk.
 #
 # Both directories must contain all_inlinks.csv and internal_all.csv exported by
 # Screaming Frog. Nothing derived from the real hostnames or paths is written to
@@ -37,6 +43,7 @@ dir_before    <- path.expand(arg_val("before"))
 dir_after     <- path.expand(arg_val("after"))
 host_primary  <- arg_val("primary-host")
 host_secondary <- arg_val("secondary-host")
+crosswalk_arg  <- arg_val("notes-crosswalk", default = "")
 
 out_root <- file.path("inst", "extdata")
 out_before <- file.path(out_root, "reviews-microsite-before")
@@ -363,3 +370,60 @@ for (d in c(out_before, out_after)) {
 }
 cat("distinct URLs mapped: ", nrow(parts), "\n", sep = "")
 cat("hosts mapped:         ", length(host_map), "\n", sep = "")
+
+# ---- notes/ crosswalk -----------------------------------------------------
+
+# notes/ names pages editorially ("/pdps/feature-a/"); the fixture names them
+# positionally ("/s2/p01/p03/"). Without a bridge between the two, the published
+# before/after table cannot be checked against the published data. Emitting the
+# bridge here keeps it DERIVED from the dictionary rather than hand-maintained,
+# and both columns are synthetic, so the result is safe to commit.
+if (nzchar(crosswalk_arg)) {
+  pairs <- strsplit(crosswalk_arg, ",", fixed = TRUE)[[1]]
+  pairs <- trimws(pairs[nzchar(trimws(pairs))])
+  if (!all(grepl("=", pairs, fixed = TRUE))) {
+    stop("--notes-crosswalk entries must be <label>=<real path>", call. = FALSE)
+  }
+  labels <- sub("=.*$", "", pairs)
+  reals  <- sub("^[^=]*=", "", pairs)
+
+  # A path is only resolvable if every one of its segments was crawled. Try both
+  # trailing-slash forms, directory form first, so that a page typed without its
+  # slash still resolves to the slashed path the fixture actually contains — the
+  # crosswalk is only useful if its right-hand column matches the data verbatim.
+  # A leaf carrying a file extension is an asset, never a directory, so it keeps
+  # the form it was given.
+  resolve <- function(p) {
+    cands <- if (grepl("\\.[A-Za-z0-9]{1,5}$", p)) {
+      p
+    } else {
+      c(sub("/?$", "/", p), sub("/$", "", p))
+    }
+    for (cand in unique(cands)) {
+      if (!nzchar(cand)) cand <- "/"
+      ok <- tryCatch({
+        map_path(host_primary, cand)
+      }, error = function(e) NULL)
+      if (!is.null(ok)) return(ok)
+    }
+    NULL
+  }
+
+  cat("\nnotes/ crosswalk (paste into notes/; both columns synthetic)\n\n")
+  cat("| notes/ label | fixture path |\n|---|---|\n")
+  missing <- character()
+  for (i in seq_along(labels)) {
+    got <- resolve(reals[[i]])
+    if (is.null(got)) {
+      missing <- c(missing, labels[[i]])
+      cat(sprintf("| `%s` | NOT FOUND IN CRAWL |\n", labels[[i]]))
+    } else {
+      cat(sprintf("| `%s` | `%s` |\n", labels[[i]], got))
+    }
+  }
+  if (length(missing) > 0L) {
+    cat("\nunresolved: ", toString(missing),
+        "\n  (path absent from both crawls, or a segment is misspelled)\n",
+        sep = "")
+  }
+}
