@@ -1,5 +1,6 @@
-# Verification gate: lint + a single Ubuntu R CMD check. Full cross-platform
-# coverage lives in full-check.yml (on-demand / release tags only).
+# Verification gate: lint + spelling + a single Ubuntu R CMD check. Full
+# cross-platform coverage lives in full-check.yml (on-demand / release tags
+# only).
 #
 # This is the routine remote gate: it runs on every push to main and on every
 # pull request. The .githooks/pre-push hook mirrors these same checks locally as
@@ -32,9 +33,26 @@ jobs:
           use-public-rspm: true
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::lintr
+          extra-packages: any::lintr, any::spelling
       - name: Lint
         run: lintr::lint_package()
+        shell: Rscript {0}
+      # Guards DESCRIPTION `Language: en-US` across Rd, vignettes, README and
+      # NEWS. Added because prose drifted in unnoticed after the WORDLIST was
+      # built: the case-study vignette introduced two en-GB spellings and two
+      # untracked terms, and no gate caught them (PAGE-xevimisi). Fix real
+      # misspellings in the text; add genuine terms to inst/WORDLIST.
+      - name: Spelling
+        run: |
+          bad <- spelling::spell_check_package()
+          if (nrow(bad)) {
+            print(bad)
+            stop(
+              "Spelling errors found. Correct the prose, or add genuine ",
+              "terms to inst/WORDLIST (see `spelling::update_wordlist()`).",
+              call. = FALSE
+            )
+          }
         shell: Rscript {0}
 
   check:
