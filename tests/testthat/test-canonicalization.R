@@ -272,6 +272,87 @@ describe("canonical node key across the parse-determinism risk surface", {
     expect_equal(unname(keys), expected)
   })
 
+  it("pins the key for percent-encoded dot segments", {
+    # The class the fixture above missed, and the one rurl 3.0.0 moves by
+    # running decode after dot-segment removal instead of before. Every row
+    # here is pinned to the answer the URL standard requires -- `%2e` is a
+    # dot segment wherever a literal `.` would be one -- so a release that
+    # stops removing them fails here rather than silently re-keying the graph.
+    inputs <- c(
+      "http://example.com/%2e%2e/a",
+      "http://example.com/%2E/a",
+      "http://example.com/a/.%2e/b", # partly encoded
+      "http://example.com/a/%2e./b", # partly encoded, other half
+      "http://example.com/a%2e%2eb", # NOT a segment: dots are interior
+      "http://example.com/%252e%252e/a", # double-encoded: decodes once only
+      "http://example.com/a/%2e%2e", # trailing, pops to root
+      "http://example.com/a/b/%2e%2e/" # trailing with slash
+    )
+    expected <- c(
+      "http://example.com/a",
+      "http://example.com/a",
+      "http://example.com/b",
+      "http://example.com/b",
+      "http://example.com/a..b",
+      "http://example.com/%2e%2e/a",
+      "http://example.com/",
+      "http://example.com/a/"
+    )
+
+    keys <- clean_url_columns(
+      data.frame(url = inputs),
+      columns = "url"
+    )$url
+
+    expect_equal(unname(keys), expected)
+  })
+
+  it("pins the key for constructs where rurl deviates from the URL standard", {
+    # These rows are pinned to what rurl returns TODAY, which is not what the
+    # URL standard prescribes. They are here as drift alarms and as a record
+    # of the deviation -- not as an endorsement of it. Pinning the standard's
+    # answer instead would fail on every current run and tell us nothing new.
+    inputs <- c(
+      # `%2F` is not a path separator: `..%2fa` is one segment, so nothing
+      # should be popped. Decoding it first merges two distinct nodes.
+      "http://example.com/..%2fa",
+      "http://example.com/a%2Findex.html",
+      # The standard strips tab and newline before parsing. rurl keeps them,
+      # so they survive into the node key. This is the class that moves if
+      # the profile ever pins url_standard = "whatwg".
+      "http://example.com/a\tb",
+      "http://example.com/a\nb",
+      # Root-dot host: kept distinct from example.com, so an FQDN-form link
+      # and its bare form are two nodes rather than one.
+      "http://example.com./a"
+    )
+    expected <- c(
+      "http://example.com/a",
+      "http://example.com/a/index.html",
+      "http://example.com/a\tb",
+      "http://example.com/a\nb",
+      "http://example.com./a"
+    )
+
+    keys <- clean_url_columns(
+      data.frame(url = inputs),
+      columns = "url"
+    )$url
+
+    expect_equal(unname(keys), expected)
+  })
+
+  it("merges nodes that %2F should have kept apart", {
+    # Stated as an explicit merge assertion so the defect is visible on its
+    # own terms: if a rurl release stops over-decoding %2F, this fails and
+    # the fix is to split the pair, not to re-pin a string.
+    keys <- clean_url_columns(
+      data.frame(url = c("http://example.com/a%2Fb", "http://example.com/a/b")),
+      columns = "url"
+    )$url
+    expect_identical(keys[[1]], keys[[2]])
+  })
+
   it("keeps the IDN host and its punycode form as distinct nodes", {
     # host_encoding = "keep" means neither form is folded into the other, so
     # they are two nodes. Asserted explicitly because a rurl change to IDN

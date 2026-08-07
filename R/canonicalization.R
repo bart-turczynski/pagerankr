@@ -93,10 +93,13 @@ canonical_profile <- function() {
     www_handling = "none",
     trailing_slash_handling = "none",
     index_page_handling = "keep",
-    # rurl 2.1.0 redefined "none"/"keep" to keep the path verbatim; pin the
+    # rurl 2.0.0 redefined "none"/"keep" to keep the path verbatim; pin the
     # explicit values that reproduce the committed key (decode + dot-segment
     # removal) so node identities stay stable across the rurl upgrade and in
-    # parity with semantic. See @details.
+    # parity with semantic. Note this pin did not prevent the rurl 3.0.0
+    # re-key, which moved decode after dot-segment removal without touching
+    # any argument -- the golden-key fixtures in test-canonicalization.R are
+    # what catch that class. See @details.
     path_normalization = "dot_segments",
     scheme_relative_handling = "keep",
     subdomain_levels_to_keep = NULL,
