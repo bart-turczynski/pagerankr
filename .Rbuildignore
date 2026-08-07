@@ -35,3 +35,4 @@
 ^codemeta\.json$
 ^CITATION\.cff$
 ^\.zenodo\.json$
+^tmp$
