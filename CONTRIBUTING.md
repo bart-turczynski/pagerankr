@@ -54,3 +54,33 @@ The cross-platform matrix (`full-check.yml`) and R-hub (`rhub.yaml`) remain the
 **"remote testing when submitting to CRAN"** path — they run on demand / at
 release-tag time, because that matrix is slow, not because it is expensive (this
 repo is public, so GitHub-hosted runners are free).
+
+## The rurl floor job (`rurl-floor.yml`)
+
+Every workflow above resolves `Remotes: bart-turczynski/rurl` to **main HEAD**.
+That is deliberate — it gives continuous reverse-dependency coverage against
+upstream — but it means none of them installs the version `Imports:` actually
+requires, so the declared floor is never exercised. That is how
+`rurl (>= 2.1.0)` survived while `rurl` had no `v2.1.0` tag at all: a minimum
+no user could install, and a green board (PAGE-tsbkxhoz).
+
+`rurl-floor.yml` closes that gap. It reads the floor and the source repo out of
+`DESCRIPTION`, fails if the version names a tag that does not exist, installs
+that tag into a job-local library, and runs the suite with it prepended. It runs
+**monthly, on demand, and on any pull request touching `DESCRIPTION`** — the
+path filter catches a bad floor when it is proposed, the schedule catches
+upstream retagging or deleting a release underneath a floor that was fine when
+it was written.
+
+Two properties to preserve when editing it:
+
+- **It must stay additive.** Making an existing job pin the floor would trade
+  away the main-HEAD revdep coverage, which is relied on deliberately
+  (PAGE-fjqyruaf).
+- **It must not write the floor into the shared library.** rurl is installed
+  into `.rurl-floor-lib` and prepended via `R_LIBS` for the test step only.
+  Installing over the top would let the cached dependency library the other
+  workflows share come back holding the floor instead of main HEAD.
+
+If it goes red, the floor is wrong, not the suite: correct `Imports:` to the
+lowest released version that passes.
