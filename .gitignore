@@ -109,6 +109,7 @@ _scratch/
 
 # Local orchestration / worklog notes (internal, not part of package or repo)
 worklog/
+tmp/
 
 # Fiberplane local issue tracking
 .fp/*
