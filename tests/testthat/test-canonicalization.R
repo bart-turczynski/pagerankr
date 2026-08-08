@@ -4,13 +4,9 @@
 triaged_unpinned_args <- c(
   "url", # the input, not a knob
   "source", # PSL source; unreachable at the pinned www/subdomain values
-  # The key drops the query, so query_handling and its sub-options are inert.
-  "query_handling", "params_keep", "params_drop", "params_case_sensitive",
-  "sort_params", "empty_param_handling", "decode_plus",
-  "port_handling", # the key drops the port
-  "url_standard", # standard selector (rurl 2.2.0)
   # rurl 2.7.0: parse-route selectors, not key components. `profile` is an
   # unrelated rurl concept that merely shares a name with canonical_profile.
+  # Note `profile = "seo"` is deliberately NOT used -- see canonical_profile().
   "scheme_policy", "scheme_acceptance", "engine", "profile"
 )
 
@@ -40,7 +36,10 @@ describe("canonical_profile", {
         "protocol_handling", "case_handling", "www_handling",
         "trailing_slash_handling", "index_page_handling", "path_normalization",
         "scheme_relative_handling", "subdomain_levels_to_keep",
-        "host_encoding", "path_encoding"
+        "host_encoding", "path_encoding", "url_standard", "port_handling",
+        "query_handling", "params_keep", "params_drop",
+        "params_case_sensitive", "sort_params", "empty_param_handling",
+        "decode_plus"
       )
     )
     # The contract anchors: keep scheme, lower the host.
@@ -48,21 +47,34 @@ describe("canonical_profile", {
     expect_equal(profile$case_handling, "lower_host")
   })
 
-  it("overrides only the redefined path knobs; mirrors defaults otherwise", {
+  it("overrides only the identity knobs; mirrors defaults otherwise", {
     profile <- canonical_profile()
-    # Intentional overrides: rurl 2.1.0 redefined "none"/"keep" to keep the path
-    # verbatim, so we pin the values that reproduce the committed canonical key
-    # (decode + dot-segment removal). See canonical_profile() @details.
+    # Intentional overrides. `url_standard` is where identity semantics live;
+    # `path_encoding = "keep"` holds the presentation dial at its only
+    # identity-preserving value. See canonical_profile() @details.
     expect_identical(profile$path_normalization, "dot_segments")
-    expect_identical(profile$path_encoding, "decode")
+    expect_identical(profile$path_encoding, "keep")
+    expect_identical(profile$url_standard, "whatwg")
+    # A non-default port is a different origin; an IDN host and its punycode
+    # form are the same request; a contentful param is part of the resource.
+    expect_identical(profile$port_handling, "strip_default")
+    expect_identical(profile$host_encoding, "idna")
+    expect_identical(profile$query_handling, "filter")
 
     # Every other knob still equals rurl's current default (so those stay
     # drift-guarded; a future default change surfaces here).
     defaults <- formals(rurl::get_clean_url)
-    overridden <- c("path_normalization", "path_encoding")
+    overridden <- c(
+      "path_normalization", "path_encoding", "url_standard",
+      "port_handling", "host_encoding", "query_handling"
+    )
     for (k in setdiff(names(profile), overridden)) {
+      # For a match.arg formal the effective default is the first element of
+      # the choice vector, not the whole vector.
+      effective <- eval(defaults[[k]])
+      if (length(effective) > 1L) effective <- effective[[1L]]
       expect_identical(
-        profile[[k]], eval(defaults[[k]]),
+        profile[[k]], effective,
         info = paste("profile diverges from rurl default for", k)
       )
     }
@@ -151,47 +163,108 @@ describe("canonical_profile", {
     expect_identical(grown$removed, character(0))
   })
 
-  it("drops port, query, and fragment from the canonical key", {
-    # Behavioral guard against a default FLIP on the knobs the profile
-    # deliberately leaves unpinned (see canonical_profile() @details for the
-    # full list). The node key is scheme+host+path; assert those components
-    # really are dropped so a future rurl default flip on an unpinned knob is
-    # caught here rather than silently changing node identity.
+  it("keeps what identifies the resource and drops what does not", {
+    # Behavioral guard on the shape of the key itself. Under "parse, do not
+    # fold" the key is scheme + host + non-default port + path + contentful
+    # query; the fragment and userinfo identify no resource and go.
     key <- do.call(
       rurl::get_clean_url,
       c(
-        list(url = "http://Example.COM:8080/a/../b?utm_source=x#frag"),
+        list(url = "http://Example.COM:8080/a/../b?utm_source=x&c=1#frag"),
         canonical_profile()
       )
     )
-    expect_false(grepl("8080", key, fixed = TRUE))
+    # Kept: a non-default port is a different origin; `c=1` is contentful.
+    expect_true(grepl(":8080", key, fixed = TRUE))
+    expect_true(grepl("c=1", key, fixed = TRUE))
+    # Dropped: a tracking param names no distinct page, a fragment no resource.
     expect_false(grepl("utm_source", key, fixed = TRUE))
     expect_false(grepl("frag", key, fixed = TRUE))
-    # Positive control: host lowered, dot-segment removed, scheme kept.
-    expect_identical(unname(key), "http://example.com/b")
+    # Host lowered, dot-segment removed, scheme kept.
+    expect_identical(unname(key), "http://example.com:8080/b?c=1")
+  })
+
+  it("strips only the ports the standard makes redundant", {
+    keys <- do.call(
+      rurl::get_clean_url,
+      c(
+        list(url = c(
+          "http://example.com:80/a", "https://example.com:443/a",
+          "http://example.com/a", "https://example.com/a",
+          "http://example.com:8080/a"
+        )),
+        canonical_profile()
+      )
+    )
+    # :80 on http and :443 on https are redundant, so they fold into the
+    # port-less form. :8080 is a different origin and must not.
+    expect_identical(unname(keys[[1]]), unname(keys[[3]]))
+    expect_identical(unname(keys[[2]]), unname(keys[[4]]))
+    expect_identical(unname(keys[[5]]), "http://example.com:8080/a")
+  })
+
+  it("separates contentful params from tracking noise", {
+    keys <- do.call(
+      rurl::get_clean_url,
+      c(
+        list(url = c(
+          "https://example.com/a?color=red", "https://example.com/a?color=blue",
+          "https://example.com/a?utm_source=x", "https://example.com/a"
+        )),
+        canonical_profile()
+      )
+    )
+    # Faceted values are different pages; no redirect or canonical need exist
+    # between them, so the graph has to keep them apart.
+    expect_false(identical(keys[[1]], keys[[2]]))
+    # A tracking param names no distinct page.
+    expect_identical(unname(keys[[3]]), unname(keys[[4]]))
   })
 })
 
 describe("resolve_rurl_params (via clean_url_columns)", {
   it("applies the canonical profile by default (no overrides)", {
-    urls <- c("HTTP://EXAMPLE.COM/Path/", "https://Sub.Example.CO.UK/a")
+    # Compared against the PROFILE, not against rurl's bare defaults: the
+    # profile deliberately diverges from six of them (see canonical_profile()).
+    # What this pins is that clean_url_columns() applies that profile and adds
+    # nothing of its own.
+    urls <- c(
+      "HTTP://EXAMPLE.COM/Path/", "https://Sub.Example.CO.UK/a",
+      "http://example.com:8080/a?utm_source=x&c=1"
+    )
     df <- data.frame(url = urls)
     cleaned <- clean_url_columns(df, columns = "url")
     expect_equal(
       cleaned$url,
-      unname(rurl::get_clean_url(urls))
+      unname(do.call(
+        rurl::get_clean_url, c(list(url = urls), canonical_profile())
+      ))
     )
   })
 
-  it("applies a case_handling override when supplied", {
-    df <- data.frame(url = "HTTP://EXAMPLE.COM/path")
+  it("applies a user override when supplied", {
+    df <- data.frame(url = "http://www.example.com/path")
     default_result <- clean_url_columns(df, columns = "url")
-    expect_true(grepl("example.com", default_result$url, fixed = TRUE))
+    expect_true(grepl("www.example.com", default_result$url, fixed = TRUE))
 
     override_result <- clean_url_columns(
-      df, columns = "url", case_handling = "keep"
+      df, columns = "url", www_handling = "strip"
     )
-    expect_true(grepl("EXAMPLE.COM", override_result$url, fixed = TRUE))
+    expect_false(grepl("www.", override_result$url, fixed = TRUE))
+  })
+
+  it("rejects an override of a knob url_standard governs", {
+    # Since the profile pins url_standard = "whatwg", rurl refuses a
+    # conflicting value for the axes that selector governs (case_handling,
+    # path_normalization). This is a deliberate narrowing of `rurl_params`:
+    # those two axes ARE node identity, and a caller who could move them could
+    # silently re-key the graph. Pinned so the restriction is documented
+    # behavior rather than a surprise from a dependency.
+    df <- data.frame(url = "HTTP://EXAMPLE.COM/path")
+    expect_error(
+      clean_url_columns(df, columns = "url", case_handling = "keep"),
+      "governs `case_handling`"
+    )
   })
 })
 
@@ -236,31 +309,36 @@ describe("canonical node key across the parse-determinism risk surface", {
       "http://example.com",
       "https://user:pw@example.com/a",
       "http://example.com/a%20b",
-      "  http://example.com/a  ", # surrounding whitespace (raw)
+      "  http://example.com/a  ", # surrounding whitespace
       "http://sub.example.co.uk/a"
     )
     expected <- c(
       "http://example.com/a",
-      "https://example.com/b",
+      # Non-default port kept (different origin); `q=1` is contentful.
+      "https://example.com:8080/b?q=1",
       "/a",
       "B",
       "http://example.com/a",
       "http://example.org/index.html",
-      "http://b\u{fc}cher.example/\u{fc}ber",
+      # host_encoding = "idna" renders the punycode form for both spellings.
+      "http://xn--bcher-kva.example/\u{fc}ber",
       "http://xn--bcher-kva.example/a",
       "ftp://example.com/a",
       "mailto:a@example.com",
       "tel:+123456",
       "file:///tmp/x",
       "javascript:void(0)",
-      "http://example.com/~user/a",
+      # whatwg preserves percent spellings, so %7E is NOT folded to `~`.
+      "http://example.com/%7Euser/a",
       "http://example.com/a/c",
       NA_character_,
       "http://www.example.com/",
       "http://example.com/",
       "https://example.com/a",
-      "http://example.com/a b",
-      "  http://example.com/a  ",
+      "http://example.com/a%20b",
+      # whatwg strips leading/trailing C0-or-space, so this now parses rather
+      # than falling through to clean_url_columns()'s raw-token fallback.
+      "http://example.com/a",
       "http://sub.example.co.uk/a"
     )
 
@@ -273,11 +351,14 @@ describe("canonical node key across the parse-determinism risk surface", {
   })
 
   it("pins the key for percent-encoded dot segments", {
-    # The class the fixture above missed, and the one rurl 3.0.0 moves by
-    # running decode after dot-segment removal instead of before. Every row
-    # here is pinned to the answer the URL standard requires -- `%2e` is a
-    # dot segment wherever a literal `.` would be one -- so a release that
-    # stops removing them fails here rather than silently re-keying the graph.
+    # Every row here is pinned to the answer the URL standard requires --
+    # `%2e` is a dot segment wherever a literal `.` would be one -- so a
+    # release that stops removing them fails here rather than silently
+    # re-keying the graph. rurl 3.0.0 DID stop, under the old
+    # path_encoding = "decode" pin, by running decode after dot-segment
+    # removal; url_standard = "whatwg" is what restores conformance, because
+    # the standard recognizes the encoded form directly rather than relying on
+    # a presentation dial to decode it first.
     inputs <- c(
       "http://example.com/%2e%2e/a",
       "http://example.com/%2E/a",
@@ -293,8 +374,12 @@ describe("canonical node key across the parse-determinism risk surface", {
       "http://example.com/a",
       "http://example.com/b",
       "http://example.com/b",
-      "http://example.com/a..b",
-      "http://example.com/%2e%2e/a",
+      # Interior dots, not a segment. whatwg preserves the spelling.
+      "http://example.com/a%2e%2eb",
+      # Double-encoded: whatwg decodes nothing, so it stays fully encoded and
+      # never becomes a dot segment. (Under the old decode pin this decoded
+      # once, to /%2e%2e/a.)
+      "http://example.com/%252e%252e/a",
       "http://example.com/",
       "http://example.com/a/"
     )
@@ -307,30 +392,30 @@ describe("canonical node key across the parse-determinism risk surface", {
     expect_equal(unname(keys), expected)
   })
 
-  it("pins the key for constructs where rurl deviates from the URL standard", {
-    # These rows are pinned to what rurl returns TODAY, which is not what the
-    # URL standard prescribes. They are here as drift alarms and as a record
-    # of the deviation -- not as an endorsement of it. Pinning the standard's
-    # answer instead would fail on every current run and tell us nothing new.
+  it("pins the key for the classes the profile used to get wrong", {
+    # This block used to record DEVIATIONS from the URL standard, pinned to
+    # what rurl returned rather than to what the standard prescribes. Under
+    # url_standard = "whatwg" the first four are now conformant, and the rows
+    # stay here as the regression guard for exactly that.
     inputs <- c(
-      # `%2F` is not a path separator: `..%2fa` is one segment, so nothing
-      # should be popped. Decoding it first merges two distinct nodes.
+      # `%2F` is not a path separator: `..%2fa` is one segment, so nothing may
+      # be popped, and `a%2Findex.html` is one segment, not two. The old
+      # path_encoding = "decode" pin merged both pairs.
       "http://example.com/..%2fa",
       "http://example.com/a%2Findex.html",
-      # The standard strips tab and newline before parsing. rurl keeps them,
-      # so they survive into the node key. This is the class that moves if
-      # the profile ever pins url_standard = "whatwg".
+      # The standard strips tab and newline before parsing.
       "http://example.com/a\tb",
       "http://example.com/a\nb",
-      # Root-dot host: kept distinct from example.com, so an FQDN-form link
-      # and its bare form are two nodes rather than one.
+      # NOT a deviation: rurl keeps a root-dot host distinct from its bare
+      # form deliberately (rurl RURL-eikgtrqf), and get_url_key() holds them
+      # apart too. Two nodes, on purpose.
       "http://example.com./a"
     )
     expected <- c(
-      "http://example.com/a",
-      "http://example.com/a/index.html",
-      "http://example.com/a\tb",
-      "http://example.com/a\nb",
+      "http://example.com/..%2fa",
+      "http://example.com/a%2Findex.html",
+      "http://example.com/ab",
+      "http://example.com/ab",
       "http://example.com./a"
     )
 
@@ -342,39 +427,51 @@ describe("canonical node key across the parse-determinism risk surface", {
     expect_equal(unname(keys), expected)
   })
 
-  it("merges nodes that %2F should have kept apart", {
-    # Stated as an explicit merge assertion so the defect is visible on its
-    # own terms: if a rurl release stops over-decoding %2F, this fails and
-    # the fix is to split the pair, not to re-pin a string.
+  it("keeps an encoded slash distinct from a path separator", {
+    # The inverse of what this test used to assert. `%2F` is data inside one
+    # segment; `/` is structure. Merging them made two resources one node.
+    # Stated as an explicit split assertion rather than as string equality so
+    # a regression names the defect instead of just moving a fixture row.
     keys <- clean_url_columns(
       data.frame(url = c("http://example.com/a%2Fb", "http://example.com/a/b")),
       columns = "url"
     )$url
-    expect_identical(keys[[1]], keys[[2]])
+    expect_false(identical(keys[[1]], keys[[2]]))
   })
 
-  it("keeps the IDN host and its punycode form as distinct nodes", {
-    # host_encoding = "keep" means neither form is folded into the other, so
-    # they are two nodes. Asserted explicitly because a rurl change to IDN
-    # rendering would merge or split nodes without changing any key above.
+  it("folds an IDN host into its punycode form", {
+    # The inverse of what this test used to assert. The two spellings resolve
+    # to the same bytes on the wire, so no redirect and no canonical can ever
+    # exist between them -- if the graph does not fold them, nothing will.
+    # host_encoding = "idna" normalizes both to the punycode form.
     idn <- "http://B\u{fc}cher.example/a"
     puny <- "http://xn--bcher-kva.example/a"
     keys <- clean_url_columns(
       data.frame(url = c(idn, puny)),
       columns = "url"
     )$url
-    expect_false(identical(keys[[1]], keys[[2]]))
+    expect_identical(keys[[1]], keys[[2]])
+    expect_identical(unname(keys[[1]]), "http://xn--bcher-kva.example/a")
   })
 })
 
-describe("profile is behavior-preserving end to end", {
-  it("clean_url_columns matches rurl defaults when no overrides are given", {
+describe("profile is applied end to end", {
+  it("clean_url_columns adds nothing beyond the profile", {
+    # Not a comparison against rurl's bare defaults -- the profile diverges
+    # from six of those on purpose. This pins that the wrapper is a faithful
+    # pass-through of canonical_profile() and introduces no behavior of its
+    # own, on a column that exercises host case, port, query and fragment.
     urls <- c(
       "HTTP://WWW.Example.COM/Path/", "https://sub.example.co.uk/a?b=1#f",
-      "example.org/index.html"
+      "example.org/index.html", "http://example.com:8080/a?utm_source=x"
     )
     df <- data.frame(from = urls, to = urls)
     cleaned <- clean_url_columns(df, columns = "from")
-    expect_equal(unname(cleaned$from), unname(rurl::get_clean_url(urls)))
+    expect_equal(
+      unname(cleaned$from),
+      unname(do.call(
+        rurl::get_clean_url, c(list(url = urls), canonical_profile())
+      ))
+    )
   })
 })

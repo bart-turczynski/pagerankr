@@ -74,9 +74,12 @@ describe("pagerank canonical folding integration", {
   })
 
   it("cleans canonical URLs through the same rurl profile as edges", {
-    # The query string on the canonical source/target must be stripped so it
-    # lands on the same node identity as the cleaned edges.
-    can <- data.frame(from = "http://a/?utm=1", to = "http://c/?ref=x")
+    # A canonical carrying only tracking params must land on the same node
+    # identity as the cleaned edges. (A CONTENTFUL param would not, and must
+    # not: under the profile it names a different page.)
+    can <- data.frame(
+      from = "http://a/?utm_source=1", to = "http://c/?fbclid=x"
+    )
     pr <- pagerank(edges, canonicals_df = can, drop_isolates_flag = FALSE)
     nodes <- pr[[1]]
     expect_true("http://c/" %in% nodes)

@@ -21,22 +21,57 @@ The explicit set of `rurl` canonicalization arguments that
   @details.
 }
 \details{
-The canonical node key is **scheme + host + path**, with the path
-  percent-decoded and RFC 3986 dot-segments removed (port, query, fragment
-  and userinfo are dropped by `get_clean_url`). These ten arguments fix
-  exactly how that key is derived.
+The canonical node key is **scheme + host + non-default port +
+  path + contentful query**, with the path normalized under the WHATWG URL
+  standard and percent-encoding preserved byte-for-byte. Fragment and
+  userinfo are dropped by `get_clean_url` and identify no resource.
 
-  The pinned values are chosen to reproduce that committed canonical key, not
-  to match `rurl`'s defaults. As of `rurl` 2.1.0 they intentionally
-  **override** two defaults: `path_normalization = "dot_segments"` (default
-  `"none"`) and `path_encoding = "decode"` (default `"keep"`). `rurl` 2.1.0
-  redefined its `"none"`/`"keep"` path defaults to keep the path verbatim,
-  which silently changed the key and desynced the pagerankr <-> semantic
-  join for paths containing dot-segments or percent-encoding; pinning the
-  explicit values above restores the original keys. The remaining knobs still
-  equal `rurl`'s current defaults. (The anti-drift guarantee ultimately lives
-  in semantic's byte-parity oracle test, which caught this; the pin is a
-  convenience that must be re-pinned when a dependency redefines a value.)
+  **The governing principle: parse, do not fold.** pagerankr has redirects
+  and canonical tags as first-class inputs, and those are the site's own
+  statement about which URLs are the same page. Canonicalization therefore
+  normalizes only what the *standard* says is the same resource, and asserts
+  nothing about site configuration. If `www.example.com/a` and
+  `example.com/a` have no redirect and no canonical between them, they are
+  two nodes -- and that is a finding, not a defect to be papered over. The
+  knobs that would fold them (`www_handling`, `trailing_slash_handling`,
+  `index_page_handling`, `protocol_handling`) are all pinned to their
+  non-folding values for exactly this reason.
+
+  Two corollaries that are easy to get backwards:
+  * A **non-default port is a different origin**, so it stays in the key.
+    `rurl`'s default `port_handling = "exclude"` drops every port and would
+    merge `host:8080` with `host`. `"strip_default"` removes only `:80` on
+    http and `:443` on https, which the standard makes redundant.
+  * An **IDN host and its punycode form are the same request on the wire**,
+    so no redirect or canonical can ever fold them -- the graph has to.
+    `host_encoding = "idna"` normalizes both to the punycode form.
+
+  **Why `whatwg`, and why `path_encoding = "keep"`.** These two are the only
+  knobs here that do not simply mirror a `rurl` default, and they are the
+  load-bearing pair. `path_encoding` is a *presentation* dial -- `rurl`'s own
+  documentation says only `"keep"` preserves a profile's canonical identity
+  path verbatim, and that `"encode"`/`"decode"` "may re-encode or decode
+  reserved octets (so `%2F` may fold to a path-separating `/`)". pagerankr
+  pinned `"decode"` for several releases and thereby merged `/a%2Fb` with
+  `/a/b`: two different resources, one node. Identity semantics live on
+  `url_standard` instead, which reaches a profile-internal path-identity axis
+  no presentation dial can touch.
+
+  `"whatwg"` rather than `"rfc3986"` because pagerankr models what a search
+  engine sees. Measured over the node-key fixture, `whatwg` additionally
+  resolves percent-encoded dot segments (`%2e%2e` behaves as `..`), strips
+  tab/newline from paths instead of failing the parse, percent-encodes
+  literal spaces instead of failing the parse, and keeps `http://host` and
+  `http://host/` as one node. `rfc3986` splits that last pair and returns
+  `NA` for the whitespace classes, both of which are common in crawl
+  exports. The cost is that `whatwg` preserves percent spellings, so
+  `/a%7Eb` and `/a~b` are two nodes, as they are to a crawler.
+
+  The remaining knobs equal `rurl`'s current defaults and are pinned only to
+  freeze them. (The anti-drift guarantee ultimately lives in the golden-key
+  fixtures in `test-canonicalization.R`: `rurl` 3.0.0 re-keyed six of them by
+  reordering decode after dot-segment removal *without touching any
+  argument*, which the surface guard cannot see.)
 
   The same ten arguments are accepted by both `rurl::get_clean_url()` (the
   cleaning path) and `rurl::safe_parse_url()` (the domain-filtering path), so
@@ -48,15 +83,15 @@ The canonical node key is **scheme + host + path**, with the path
   * `source` (default `"all"`) -- the public-suffix source, reachable only
     through `www_handling`/`subdomain_levels_to_keep`, both pinned to values
     that do not consult it.
-  * `query_handling` (default `"drop"`) and its parameter sub-options
-    (`params_keep`, `params_drop`, `params_case_sensitive`, `sort_params`,
-    `empty_param_handling`, `decode_plus`) -- the key drops the query.
-  * `port_handling` (default `"exclude"`) -- the key drops the port.
-  * `url_standard` (default `NULL` -- no standard profile, added in `rurl`
-    2.2.0) and, added in `rurl` 2.7.0, `scheme_policy` (default `"infer"`),
+  * Added in `rurl` 2.7.0: `scheme_policy` (default `"infer"`),
     `scheme_acceptance` (default `"web"`), `engine` (default `NULL`) and
     `profile` (default `NULL`, an unrelated `rurl` concept that merely shares
-    a name with this function).
+    a name with this function). In particular `profile = "seo"` is **not**
+    used and must not be: it bundles `protocol_handling = "https"`,
+    `www_handling = "strip"`, `trailing_slash_handling = "strip"` and
+    `index_page_handling = "strip"`, every one of which is a redirect class
+    pagerankr models as an *edge*. Folding those at canonicalization time
+    turns the redirect into a self-loop and erases the signal.
 
   Under the scheme+host+path key these have no visible effect at their
   defaults, so pinning them would add noise without changing identity. They
@@ -95,5 +130,6 @@ str(profile)
 # Key knobs that shape the scheme + host + path node key.
 profile$case_handling      # "lower_host"
 profile$path_normalization # "dot_segments"
-profile$path_encoding      # "decode"
+profile$path_encoding      # "keep"    (presentation dial, held at identity)
+profile$url_standard       # "whatwg"  (where identity semantics live)
 }

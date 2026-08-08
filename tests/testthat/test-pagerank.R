@@ -60,13 +60,13 @@ describe("pagerank main wrapper basic functionality", {
 
   it("controls URL cleaning flags", {
     edges_dirty <- data.frame(
-      from = "HTTP://Example.COM/path?q=1#frag",
+      from = "HTTP://Example.COM/path?utm_source=1#frag",
       to = "Sub.example.NET"
     )
 
     pr_clean <- pagerank(edges_dirty, clean_edge_urls = TRUE)
-    # rurl normalizes scheme, lowercases the host, strips query/fragment
-    # (case_handling = "lower_host"); the path keeps its case.
+    # rurl normalizes scheme, lowercases the host, strips the fragment and
+    # tracking params (case_handling = "lower_host"); the path keeps its case.
     expect_true(
       "http://example.com/path" %in% pr_clean$node_name
     )
@@ -83,7 +83,7 @@ describe("pagerank main wrapper basic functionality", {
       regexp = "URLs in `edge_list_df` may contain"
     )
     expect_true(
-      "HTTP://Example.COM/path?q=1#frag" %in%
+      "HTTP://Example.COM/path?utm_source=1#frag" %in%
         pr_no_clean$node_name
     )
     expect_true(
@@ -949,7 +949,11 @@ describe("pagerank() host-level filtering", {
     )
     expect_equal(nrow(folded), 2)
     # Without folding, the Punycode endpoint does not match -> dropped.
-    unfolded <- pagerank(idn, keep_hosts = "münchen.de")
+    # host_encoding = "keep" must now be requested explicitly: the profile
+    # folds by default, because the two spellings are one request on the wire.
+    unfolded <- pagerank(
+      idn, keep_hosts = "münchen.de", rurl_params = list(host_encoding = "keep")
+    )
     expect_equal(nrow(unfolded), 0)
   })
 })
@@ -960,15 +964,15 @@ describe("pagerank() IDN host_encoding", {
     to = c("http://example.com/x", "http://example.com/y")
   )
 
-  it("keeps IDN spellings distinct by default (host_encoding = keep)", {
-    pr <- pagerank(edges)
+  it("keeps IDN spellings distinct under an explicit host_encoding = keep", {
+    pr <- pagerank(edges, rurl_params = list(host_encoding = "keep"))
     expect_true(all(c(
       "http://münchen.de/a", "http://xn--mnchen-3ya.de/a"
     ) %in% pr$node_name))
   })
 
-  it("folds IDN spellings to one node under host_encoding = idna", {
-    pr <- pagerank(edges, rurl_params = list(host_encoding = "idna"))
+  it("folds IDN spellings to one node by default (host_encoding = idna)", {
+    pr <- pagerank(edges)
     expect_false("http://münchen.de/a" %in% pr$node_name)
     expect_true("http://xn--mnchen-3ya.de/a" %in% pr$node_name)
     # München folded into one node; example.com/x and /y remain distinct

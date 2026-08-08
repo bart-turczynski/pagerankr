@@ -7,14 +7,15 @@ describe("clean_url_columns basic functionality", {
     cleaned <- clean_url_columns(df, columns = c("from", "to"))
     expect_equal(nrow(cleaned), 2)
     # rurl normalizes scheme, lowercases the host, preserves path case, adds a
-    # trailing slash, and drops query/fragments by default.
+    # trailing slash, and drops the fragment. Contentful params stay in the
+    # key under the profile's `query_handling = "filter"`.
     expect_equal(
       cleaned$from,
       c("http://example.com/path", "https://example.com/PATH")
     )
     expect_equal(
       cleaned$to,
-      c("http://www.another.com/", "http://another.com/")
+      c("http://www.another.com/?q=1", "http://another.com/?q=1&b=2")
     )
   })
 
@@ -45,10 +46,10 @@ describe("clean_url_columns basic functionality", {
     cleaned_default <- clean_url_columns(df, columns = "link")
     expect_equal(nrow(cleaned_default), 2)
     # Default: lowercase host, preserve path case, normalize scheme, drop
-    # fragment and query, add trailing slash
+    # the fragment, keep contentful params, add trailing slash
     expect_equal(
       cleaned_default$link,
-      c("http://www.example.com/path", "https://google.com/")
+      c("http://www.example.com/path", "https://google.com/?q=test")
     )
   })
 
@@ -59,9 +60,10 @@ describe("clean_url_columns basic functionality", {
     )
     cleaned <- clean_url_columns(df, columns = c("source_url", "target_url"))
     expect_equal(nrow(cleaned), 1)
-    # Lowercase host, preserve path case, normalize scheme, drop query
+    # Lowercase host, preserve path case, normalize scheme, keep a
+    # contentful param
     expect_equal(cleaned$source_url, "http://mysite.com/One")
-    expect_equal(cleaned$target_url, "https://theirsite.com/TWO")
+    expect_equal(cleaned$target_url, "https://theirsite.com/TWO?param=foo")
   })
 
   it("processes only specified columns", {
@@ -131,7 +133,7 @@ describe("clean_url_columns memoization (conceptual)", {
     df_repeated <- data.frame(
       urls = rep(
         c(
-          "HTTPS://Example.Com/Page?param=1#Frag",
+          "HTTPS://Example.Com/Page?utm_source=1#Frag",
           "http://sub.example.com/another%20path"
         ),
         2
@@ -139,11 +141,12 @@ describe("clean_url_columns memoization (conceptual)", {
     )
     # Test with default behavior (no extra params)
     cleaned_1 <- clean_url_columns(df_repeated, columns = "urls")
-    # Fragment and query dropped, host lowercased, path case preserved
+    # Fragment and tracking param dropped, host lowercased, path case kept
     expect_equal(cleaned_1$urls[1], "https://example.com/Page")
-    # Path case preserved; under the pinned profile (`path_encoding = "decode"`)
-    # the percent-encoded space is decoded, per the committed canonical key.
-    expect_equal(cleaned_1$urls[2], "http://sub.example.com/another path")
+    # Path case preserved; under the pinned profile (`path_encoding = "keep"`,
+    # `url_standard = "whatwg"`) the percent-encoded space is preserved as
+    # written rather than decoded into a literal space.
+    expect_equal(cleaned_1$urls[2], "http://sub.example.com/another%20path")
     expect_equal(cleaned_1$urls[3], cleaned_1$urls[1])
     expect_equal(cleaned_1$urls[4], cleaned_1$urls[2])
 
