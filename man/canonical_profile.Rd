@@ -73,9 +73,10 @@ The canonical node key is **scheme + host + non-default port +
   reordering decode after dot-segment removal *without touching any
   argument*, which the surface guard cannot see.)
 
-  The same ten arguments are accepted by both `rurl::get_clean_url()` (the
-  cleaning path) and `rurl::safe_parse_url()` (the domain-filtering path), so
-  one profile drives both and the two paths stay symmetrical.
+  All nineteen of these arguments are accepted by both
+  `rurl::get_clean_url()` (the cleaning path) and `rurl::safe_parse_url()`
+  (the domain-filtering path), so one profile drives both and the two paths
+  stay symmetrical.
 
   **Knobs deliberately left unpinned.** `rurl::get_clean_url()` has grown
   options that govern components the node key does not carry, or that select
@@ -90,8 +91,11 @@ The canonical node key is **scheme + host + non-default port +
     used and must not be: it bundles `protocol_handling = "https"`,
     `www_handling = "strip"`, `trailing_slash_handling = "strip"` and
     `index_page_handling = "strip"`, every one of which is a redirect class
-    pagerankr models as an *edge*. Folding those at canonicalization time
-    turns the redirect into a self-loop and erases the signal.
+    pagerankr resolves through its own auditable fold map
+    ([build_fold_map()], applied by [pagerank()]). Folding those at
+    canonicalization time makes the redirect row self-referential, which
+    the fold map drops as a no-op -- the hop is erased before anything can
+    audit or report it.
 
   Under the scheme+host+path key these have no visible effect at their
   defaults, so pinning them would add noise without changing identity. They
