@@ -1,13 +1,83 @@
 # pagerankr (development version)
 
-* **The declared `rurl` minimum is corrected to `>= 2.2.0`.** `Imports:`
-  previously required `rurl (>= 2.1.0)`, a version that was never released —
-  `rurl` has no `2.1.0` tag, and its 2.x line begins at 2.2.0 — so the stated
-  minimum named an artifact no user could install. The effective minimum was
-  already 2.2.0 in practice; the constraint now says so. Verified by running the
-  test suite against `rurl` 2.2.0, 2.2.1 and 2.8.0 in isolated libraries: all
-  three pass identically, and canonical URL keys are byte-identical across them,
-  so this corrects the declaration without changing behavior or node identity.
+* **Node identity moves off a presentation dial: `canonical_profile()` now pins
+  `url_standard = "whatwg"` and `path_encoding = "keep"`.** This changes node
+  keys. `path_encoding` is documented by `rurl` as a *presentation* knob whose
+  `"decode"` value "may re-encode or decode reserved octets (so `%2F` may fold
+  to a path-separating `/`)"; pagerankr had been using it as its identity
+  function. Two consequences, both defects, are fixed:
+
+  * An encoded slash is no longer folded into a path separator, so
+    `http://example.com/a%2Fb` and `http://example.com/a/b` are two nodes
+    rather than one. Same for `http://example.com/..%2fa`, which previously
+    popped a segment it should not have.
+  * Percent-encoded dot segments resolve again. `rurl` 3.0.0 stopped resolving
+    them under the old pin by reordering decode after dot-segment removal, so
+    `/%2e%2e/a` keyed to `/../a` instead of `/a`. Under `"whatwg"` the standard
+    recognizes the encoded form directly and no presentation dial is involved.
+
+  Three further classes improve for crawl data: paths containing a tab or
+  newline, and URLs with surrounding whitespace, now parse (they previously
+  returned `NA` and fell through to the raw-token fallback), and a literal
+  space is percent-encoded rather than failing the parse. The cost is that
+  `"whatwg"` preserves percent spellings, so `/a%7Eb` and `/a~b` are now two
+  nodes, as they are to a crawler.
+
+  **`rurl_params` is narrowed.** Because the profile now pins a standard
+  selector, `rurl` rejects a conflicting override of the axes that selector
+  governs — `case_handling` and `path_normalization`. Those two are node
+  identity, so a caller who could move them could silently re-key the graph.
+  Every other knob still overrides as before.
+
+  Note `rurl`'s `profile = "seo"` is deliberately **not** used and is not a
+  substitute: it bundles `protocol_handling = "https"`, `www_handling =
+  "strip"`, `trailing_slash_handling = "strip"` and `index_page_handling =
+  "strip"`, each of which is a redirect class pagerankr models as an edge.
+  Folding those at canonicalization time turns the redirect into a self-loop.
+
+* **`canonical_profile()` now follows "parse, do not fold".** pagerankr has
+  redirects and canonical tags as first-class inputs, and those are the site's
+  own statement about which URLs are the same page. Canonicalization therefore
+  normalizes only what the *standard* makes the same resource and asserts
+  nothing about site configuration. Three knobs move to match:
+
+  * **`port_handling = "strip_default"`** (was the rurl default `"exclude"`). A
+    non-default port is a different origin, so `http://host:8080/a` and
+    `http://host/a` are now two nodes. `:80` on http and `:443` on https are
+    redundant per spec and still fold.
+  * **`host_encoding = "idna"`** (was `"keep"`). An IDN host and its punycode
+    form are the same request on the wire, so no redirect or canonical can
+    ever fold them -- the graph has to. `http://münchen.de/a` and
+    `http://xn--mnchen-3ya.de/a` are now one node, keyed on the punycode form.
+    Pass `rurl_params = list(host_encoding = "keep")` to restore the split.
+  * **`query_handling = "filter"`** (was the rurl default `"drop"`). A contentful
+    parameter is part of the resource: `?color=red` and `?color=blue` are two
+    pages, and no redirect or canonical need exist between them. Tracking
+    parameters are not, and are still dropped via the built-in rurl denylist
+    (`utm_*`, `fbclid`, `gclid`). **This is the largest behavior change here** --
+    on a faceted site, node counts will rise. The six query sub-options
+    (`params_keep`, `params_drop`, `params_case_sensitive`, `sort_params`,
+    `empty_param_handling`, `decode_plus`) are now key-shaping and so are
+    pinned explicitly too, all at the rurl defaults. `sort_params = FALSE`
+    matches the rurl key contract, under which query order and duplicates
+    are significant.
+
+  The knobs that *would* fold a redirect class -- `www_handling`,
+  `trailing_slash_handling`, `index_page_handling`, `protocol_handling` -- were
+  already pinned to their non-folding values and are unchanged.
+
+* **The declared `rurl` minimum is `>= 3.0.0`.** Two corrections landed in this
+  cycle. `Imports:` previously required `rurl (>= 2.1.0)`, a version that was
+  never released — `rurl` has no `2.1.0` tag, and its 2.x line begins at 2.2.0 —
+  so the stated minimum named an artifact no user could install; that was
+  corrected to `>= 2.2.0`, verified against `rurl` 2.2.0, 2.2.1 and 2.8.0 in
+  isolated libraries with byte-identical canonical keys across all three. The
+  floor then moved to `>= 3.0.0`, which is where the path-identity axis the
+  profile now depends on lives. Note the 2.2.0 floor had also become impossible to test
+  in practice: `rurl` inserted `scheme_policy` and `scheme_acceptance`
+  *before* `url_standard` rather than appending them, so a positional
+  `url_standard` argument silently binds to the wrong argument on eight functions across that
+  range.
 
 * **New vignette, `vignette("case-study")`, works the two-crawl fixture
   end to end.** A worked example that scores the same site before and after an

@@ -176,20 +176,20 @@ describe("filter_links_by_domain report and edge cases", {
       from = c("http://münchen.de/a", "http://xn--mnchen-3ya.de/b"),
       to = c("http://xn--mnchen-3ya.de/b", "http://münchen.de/a")
     )
-    # keep (default): the two spellings are compared as written and differ, so
-    # a single-spelling keep_hosts cannot keep an edge whose other endpoint
-    # uses the alternate spelling.
-    expect_equal(
-      nrow(filter_links_by_domain(links, keep_hosts = "münchen.de")),
-      0
-    )
-    # idna: both spellings (and the filter value) fold to Punycode, so all
-    # edges match.
+    # keep: the two spellings are compared as written and differ, so a
+    # single-spelling keep_hosts cannot keep an edge whose other endpoint uses
+    # the alternate spelling. Must be requested explicitly now.
     expect_equal(
       nrow(filter_links_by_domain(
         links,
-        keep_hosts = "münchen.de", rurl_params = list(host_encoding = "idna")
+        keep_hosts = "münchen.de", rurl_params = list(host_encoding = "keep")
       )),
+      0
+    )
+    # idna (the profile default): both spellings (and the filter value) fold
+    # to Punycode, so all edges match.
+    expect_equal(
+      nrow(filter_links_by_domain(links, keep_hosts = "münchen.de")),
       2
     )
     # unicode: both fold to Unicode; a Punycode filter value folds too.

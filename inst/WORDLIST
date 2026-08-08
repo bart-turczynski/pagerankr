@@ -68,6 +68,7 @@ TrustRank's
 Unaggregated
 Unparseable
 Vigna
+WHATWG
 XPath
 Yossef
 Zipf's
@@ -88,6 +89,7 @@ canonicals
 centralities
 changeset
 composable
+contentful
 crawlable
 de
 dedup
@@ -95,6 +97,7 @@ deduplicate
 deduplicated
 deduplication
 dedups
+denylist
 destabilises
 desync
 desynced
@@ -166,6 +169,7 @@ pre
 preset's
 prpack
 pseudocount
+punycode
 quantized
 registrable
 renormalized
@@ -174,11 +178,13 @@ repoint
 repointing
 resolvers
 reweighting
+rfc
 rurl
 schema's
 schemas
 seedable
 semantic's
+seo
 sitewide
 spearman
 spliceable
@@ -202,6 +208,7 @@ untrusted
 userinfo
 visNetwork
 walkthrough
+whatwg
 www
 xn
 xx's
