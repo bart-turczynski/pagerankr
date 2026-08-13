@@ -1,6 +1,7 @@
 # Exercises the `rurl` lower bound that DESCRIPTION declares.
 #
-# Every other workflow resolves `Remotes: bart-turczynski/rurl` to main HEAD, so
+# Every other workflow resolves `Remotes: gitlab::bart-turczynski/rurl` to main
+# HEAD, so
 # nothing here has ever installed the version `Imports:` actually requires. That
 # gap is how `rurl (>= 2.1.0)` survived unnoticed while no `v2.1.0` tag existed
 # (PAGE-tsbkxhoz): the floor was a number someone reasoned to, not a release
@@ -77,11 +78,28 @@ jobs:
             stop("Expected exactly one `rurl` entry in Remotes, found ",
                  length(repo), ".", call. = FALSE)
           }
+          # The host prefix is part of the declaration, not decoration: a bare
+          # `owner/repo` means GitHub by remotes' own default. Carry it through
+          # instead of dropping it, so the clone URL below follows a forge move
+          # rather than silently querying the forge we used to be on.
+          host <- if (grepl("::", repo, fixed = TRUE)) {
+            tolower(sub("::.*$", "", repo))
+          } else {
+            "github"
+          }
+          bases <- c(github = "https://github.com", gitlab = "https://gitlab.com")
+          if (!host %in% names(bases)) {
+            stop("Unsupported `Remotes:` host prefix '", host,
+                 "'; this job knows ", paste(names(bases), collapse = ", "),
+                 ".", call. = FALSE)
+          }
           repo <- sub("@.*$", "", sub("^[[:alpha:]]+::", "", repo))
-          cat(sprintf("floor=%s\nrepo=%s\ntag=v%s\n", version, repo, version),
+          url <- sprintf("%s/%s.git", bases[[host]], repo)
+          cat(sprintf("floor=%s\nrepo=%s\nurl=%s\ntag=v%s\n",
+                      version, repo, url, version),
               file = Sys.getenv("GITHUB_OUTPUT"), append = TRUE)
-          cat(sprintf("DESCRIPTION declares %s (>= %s); testing against tag v%s.\n",
-                      repo, version, version))
+          cat(sprintf("DESCRIPTION declares %s (>= %s) on %s; testing against tag v%s.\n",
+                      repo, version, host, version))
 
       # The failure this repo actually shipped: a floor naming a version that
       # was never released. Checked separately from the install so the error
@@ -89,11 +107,11 @@ jobs:
       - name: Verify the floor names a tag that exists
         env:
           REPO: ${{ steps.floor.outputs.repo }}
+          URL: ${{ steps.floor.outputs.url }}
           TAG: ${{ steps.floor.outputs.tag }}
         run: |
           set +e
-          git ls-remote --exit-code --tags \
-            "https://github.com/${REPO}.git" "refs/tags/${TAG}" >/dev/null
+          git ls-remote --exit-code --tags "${URL}" "refs/tags/${TAG}" >/dev/null
           status=$?
           set -e
           # `--exit-code` reserves 2 for "queried fine, no such ref". Anything
@@ -115,14 +133,17 @@ jobs:
       - name: Install rurl at the declared floor
         shell: Rscript {0}
         env:
-          REPO: ${{ steps.floor.outputs.repo }}
+          URL: ${{ steps.floor.outputs.url }}
           TAG: ${{ steps.floor.outputs.tag }}
           FLOOR: ${{ steps.floor.outputs.floor }}
         run: |
           lib <- Sys.getenv("RURL_FLOOR_LIB")
           dir.create(lib, recursive = TRUE, showWarnings = FALSE)
-          remotes::install_github(
-            Sys.getenv("REPO"),
+          # Installed from the same URL the tag check just queried, so what runs
+          # is provably what was verified. `install_git` also spares this job a
+          # per-forge installer branch: `install_gitlab` takes no `ref`.
+          remotes::install_git(
+            Sys.getenv("URL"),
             ref = Sys.getenv("TAG"),
             lib = lib,
             dependencies = FALSE,

@@ -57,15 +57,18 @@ repo is public, so GitHub-hosted runners are free).
 
 ## The rurl floor job (`rurl-floor.yml`)
 
-Every workflow above resolves `Remotes: bart-turczynski/rurl` to **main HEAD**.
+Every workflow above resolves `Remotes: gitlab::bart-turczynski/rurl` to **main
+HEAD**.
 That is deliberate — it gives continuous reverse-dependency coverage against
 upstream — but it means none of them installs the version `Imports:` actually
 requires, so the declared floor is never exercised. That is how
 `rurl (>= 2.1.0)` survived while `rurl` had no `v2.1.0` tag at all: a minimum
 no user could install, and a green board (PAGE-tsbkxhoz).
 
-`rurl-floor.yml` closes that gap. It reads the floor and the source repo out of
-`DESCRIPTION`, fails if the version names a tag that does not exist, installs
+`rurl-floor.yml` closes that gap. It reads the floor, the source repo and its
+forge out of `DESCRIPTION` — a bare `owner/repo` means GitHub, matching
+`remotes`' own default, and a `gitlab::` prefix sends every query to GitLab
+instead — then fails if the version names a tag that does not exist, installs
 that tag into a job-local library, and runs the suite with it prepended. It runs
 **monthly, on demand, and on any pull request touching `DESCRIPTION`** — the
 path filter catches a bad floor when it is proposed, the schedule catches

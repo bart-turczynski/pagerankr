@@ -74,23 +74,35 @@ rurl_spec="$(awk '
   inblock && /^[[:space:]]/ { print; next }
   inblock { exit }
 ' DESCRIPTION | tr ',' '\n' |
-  grep -oE '[A-Za-z0-9_.-]+/rurl(@[A-Za-z0-9_./-]+)?' | head -n1 || true)"
-rurl_repo="${rurl_spec%%@*}"
+  grep -oE '([A-Za-z]+::)?[A-Za-z0-9_.-]+/rurl(@[A-Za-z0-9_./-]+)?' | head -n1 || true)"
+# `Remotes:` may carry a host prefix (`gitlab::owner/repo`). A BARE spec means
+# GitHub, which is remotes' own default — not an assumption this hook adds.
+rurl_host="github"
+case "$rurl_spec" in *::*) rurl_host="$(echo "${rurl_spec%%::*}" | tr '[:upper:]' '[:lower:]')" ;; esac
+rurl_repo="${rurl_spec##*::}"
+rurl_repo="${rurl_repo%%@*}"
 rurl_ref="HEAD"
 case "$rurl_spec" in *@*) rurl_ref="${rurl_spec#*@}" ;; esac
+
+case "$rurl_host" in
+  github) rurl_url="https://raw.githubusercontent.com/$rurl_repo/$rurl_ref/DESCRIPTION" ;;
+  gitlab) rurl_url="https://gitlab.com/$rurl_repo/-/raw/$rurl_ref/DESCRIPTION" ;;
+  *)      rurl_url="" ;;
+esac
 
 rurl_target=""
 if [ -z "$rurl_spec" ]; then
   echo "pre-push:   no rurl entry in DESCRIPTION Remotes — nothing to compare." >&2
+elif [ -z "$rurl_url" ]; then
+  echo "pre-push:   unknown Remotes host '$rurl_host' — skipping the skew notice." >&2
 elif ! command -v curl >/dev/null 2>&1; then
   echo "pre-push:   curl unavailable — skipping the skew notice." >&2
 else
-  rurl_target="$(curl -fsL --max-time 5 \
-    "https://raw.githubusercontent.com/$rurl_repo/$rurl_ref/DESCRIPTION" 2>/dev/null |
+  rurl_target="$(curl -fsL --max-time 5 "$rurl_url" 2>/dev/null |
     grep -m1 -E '^Version:' | sed -E 's/^Version:[[:space:]]*//' || true)"
   if [ -z "$rurl_target" ]; then
-    echo "pre-push:   could not read $rurl_repo@$rurl_ref (offline?) — skipping the" >&2
-    echo "            skew notice." >&2
+    echo "pre-push:   could not read $rurl_host:$rurl_repo@$rurl_ref (offline?) —" >&2
+    echo "            skipping the skew notice." >&2
   fi
 fi
 
@@ -99,7 +111,7 @@ if [ -n "$rurl_target" ]; then
   if [ -n "$rurl_behind" ]; then
     echo "pre-push: ------------------------- WARNING -------------------------" >&2
     echo "pre-push: installed rurl $rurl_behind is BEHIND the Remotes target" >&2
-    echo "          $rurl_repo@$rurl_ref ($rurl_target), which is what CI and every" >&2
+    echo "          $rurl_host:$rurl_repo@$rurl_ref ($rurl_target), which is what CI and every" >&2
     echo "          fresh install resolve. The checks below run against the OLD" >&2
     echo "          copy, so passing here does NOT imply passing on CI (see the" >&2
     echo "          PR #50 note in this file's header). Refresh with:" >&2

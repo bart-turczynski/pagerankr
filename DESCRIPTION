@@ -16,7 +16,7 @@ Imports:
     rurl (>= 3.0.0),
     utils
 Remotes:
-    bart-turczynski/rurl
+    gitlab::bart-turczynski/rurl
 Suggests:
     testthat (>= 3.0.0),
     withr,
