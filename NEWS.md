@@ -1,5 +1,29 @@
 # pagerankr (development version)
 
+* **Convergence controls and `damping` now fail as documented instead of
+  silently changing the request or raising an internal R error.** Three fixes,
+  all at the public boundary of both `pagerank()` and `compute_pagerank()`:
+
+  * A fractional `niter` is rejected. It was passed through `as.integer()`,
+    so `niter = 2.7` became an iteration cap of `2` with nothing said. Values
+    above `.Machine$integer.max` are rejected for the same reason: the
+    coercion produced `NA` and reached the solver as a missing cap.
+  * `damping = NA_real_` (and `NA_integer_`, `NaN`, `Inf`, `-Inf`) reports
+    ``` `damping` must be a single numeric value between 0 and 1. ```
+    `compute_pagerank()` tested `damping < 0` on an `NA`, so the `if` received
+    `NA` and R raised "missing value where TRUE/FALSE needed". Bare `NA` is
+    logical and already produced the named error; only the typed missings and
+    the infinities slipped through. Both entry points now share one validator.
+  * A non-finite `eps` is rejected. `Inf` passed the `eps <= 0` test, and an
+    infinite tolerance is not a tolerance.
+
+* Added deterministic fixtures for graph shapes whose convergence and mass
+  diagnostics were unpinned: disconnected components (a closed component holds
+  exactly its share of the teleport vector; a dangling node moves mass across
+  the component boundary), zero-weight edges (equivalent to no edge, with the
+  target left on teleport mass alone), and the all-zero-weight graph (a named
+  weight error).
+
 * **Node identity moves off a presentation dial: `canonical_profile()` now pins
   `url_standard = "whatwg"` and `path_encoding = "keep"`.** This changes node
   keys. `path_encoding` is documented by `rurl` as a *presentation* knob whose

@@ -79,6 +79,46 @@ test_that("convergence controls validate their inputs", {
   expect_error(pagerank(edges, niter = -5), "`niter` must be")
 })
 
+test_that("a fractional `niter` is rejected, not truncated", {
+  # `as.integer(2.7)` is 2 -- an iteration cap the caller never asked for, and
+  # silently three times smaller than the request.
+  edges <- data.frame(from = "A", to = "B")
+
+  expect_error(pagerank(edges, niter = 2.7), "`niter` must be")
+  expect_error(compute_pagerank(edges, niter = 2.7), "`niter` must be")
+  # A whole number stored as a double is still a valid integer count.
+  expect_silent(compute_pagerank(edges, algo = "arpack", niter = 100))
+})
+
+test_that("non-finite and out-of-range convergence controls are named errors", {
+  edges <- data.frame(from = "A", to = "B")
+
+  for (bad in list(Inf, -Inf, NaN, NA_real_, NA_integer_)) {
+    expect_error(pagerank(edges, niter = bad), "`niter` must be")
+    expect_error(compute_pagerank(edges, niter = bad), "`niter` must be")
+  }
+  # Above the integer range `as.integer()` yields NA plus a coercion warning,
+  # which would reach ARPACK as a missing cap.
+  expect_error(pagerank(edges, niter = 1e10), "`niter` must be")
+
+  for (bad in list(Inf, NaN, NA_real_)) {
+    expect_error(pagerank(edges, eps = bad), "`eps` must be")
+    expect_error(compute_pagerank(edges, eps = bad), "`eps` must be")
+  }
+})
+
+test_that("both entry points name the error for non-finite `damping`", {
+  # `NA_real_ < 0` is NA, so the old `||` chain handed the `if` an NA and R
+  # raised "missing value where TRUE/FALSE needed" instead of this message.
+  edges <- data.frame(from = "A", to = "B")
+  msg <- "`damping` must be a single numeric value between 0 and 1."
+
+  for (bad in list(NA_real_, NA_integer_, NaN, Inf, -Inf, NA)) {
+    expect_error(pagerank(edges, damping = bad), msg, fixed = TRUE)
+    expect_error(compute_pagerank(edges, damping = bad), msg, fixed = TRUE)
+  }
+})
+
 test_that("empty graphs carry no convergence attribute", {
   empty <- data.frame(
     from = character(0), to = character(0)
