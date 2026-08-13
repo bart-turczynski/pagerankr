@@ -13,7 +13,8 @@
 #'   nodes
 #'   present in `edge_list_df` (after NA removal from edges) are used.
 #'   The column name is specified by `vertex_col_name`.
-#' @param damping The damping factor for PageRank. Default is 0.85.
+#' @param damping The damping factor for PageRank. A single number in `[0, 1]`,
+#'   default `0.85`. `NA`, `NaN` and the infinities are rejected.
 #' @param algo Solver back-end passed to `igraph::page_rank()`. Either
 #'   `"prpack"` (default; a fast, exact direct solver with no tunable
 #'   convergence controls) or `"arpack"` (an iterative eigensolver that honors
@@ -23,13 +24,15 @@
 #'   for the trade-offs.
 #' @param eps Optional convergence tolerance (L1, the ARPACK `options$tol`).
 #'   When supplied, the solver switches to `"arpack"` and iterates until the
-#'   residual is at or below `eps`. `NULL` (default) uses the solver's own
-#'   default.
+#'   residual is at or below `eps`. A single finite positive number, or `NULL`
+#'   (default) to use the solver's own default.
 #' @param niter Optional maximum iteration count (the ARPACK `options$maxiter`).
-#'   When supplied, the solver switches to `"arpack"`. `NULL` (default) uses the
-#'   solver's own default. As a rule of thumb, power-iteration PageRank needs
-#'   about `log10(eps) / log10(damping)` iterations, so raise `niter` when you
-#'   raise `damping` toward 1. `NULL` (default) uses the solver's own default.
+#'   When supplied, the solver switches to `"arpack"`. A single whole number
+#'   from `1` to `.Machine$integer.max`, or `NULL` (default) to use the
+#'   solver's own default. A fractional value is an error rather than being
+#'   truncated. As a rule of thumb, power-iteration PageRank needs about
+#'   `log10(eps) / log10(damping)` iterations, so raise `niter` when you raise
+#'   `damping` toward 1.
 #' @param from_col Name of the source node column in `edge_list_df`. Default
 #'   "from".
 #' @param to_col Name of the target node column in `edge_list_df`. Default "to".
@@ -366,8 +369,10 @@ compute_pagerank <- function(edge_list_df,
   list(eps = eps, niter = niter, algo = algo)
 }
 
-#' Error unless `eps` is NULL or a single positive number.
+#' Error unless `eps` is NULL or a single finite positive number.
 #' Sequential checks keep the short-circuit order and message identical.
+#' `!is.finite()` covers `NA`, `NaN` and both infinities in one test: an
+#' infinite tolerance is not a tolerance, and ARPACK would take it silently.
 #' @keywords internal
 #' @noRd
 .assert_positive_number_or_null <- function(eps) {
@@ -379,12 +384,16 @@ compute_pagerank <- function(edge_list_df,
   }
   if (!is.numeric(eps)) bad()
   if (length(eps) != 1) bad()
-  if (is.na(eps)) bad()
+  if (!is.finite(eps)) bad()
   if (eps <= 0) bad()
   invisible(NULL)
 }
 
 #' Validate `niter` (NULL or a single positive integer) and coerce to integer.
+#'
+#' A fractional `niter` is REJECTED rather than truncated: `as.integer(2.7)`
+#' silently gives an iteration cap of 2, which is not what the caller asked for
+#' and not what the documented contract promises.
 #' @return `NULL`, or `as.integer(niter)`.
 #' @keywords internal
 #' @noRd
@@ -397,15 +406,21 @@ compute_pagerank <- function(edge_list_df,
   }
   if (!is.numeric(niter)) bad()
   if (length(niter) != 1) bad()
-  if (is.na(niter)) bad()
+  if (!is.finite(niter)) bad()
   if (niter < 1) bad()
+  if (niter != trunc(niter)) bad()
+  # Beyond the integer range `as.integer()` returns NA with a coercion warning,
+  # which reaches ARPACK as a missing iteration cap.
+  if (niter > .Machine$integer.max) bad()
   as.integer(niter)
 }
 
 #' Validate `compute_pagerank()` arguments (delegates to smaller validators).
 #'
-#' Preserves every error message and short-circuit order (including the
-#' historical absence of an NA check on `damping`). Returns `invisible(NULL)`.
+#' Preserves every error message and short-circuit order. `damping` is checked
+#' by the same [.assert_unit_interval()] `pagerank()` uses, so both entry points
+#' reject the typed NAs and the infinities identically.
+#' Returns `invisible(NULL)`.
 #' @keywords internal
 #' @noRd
 .validate_compute_pagerank_args <- function(edge_list_df,
@@ -420,13 +435,7 @@ compute_pagerank <- function(edge_list_df,
                                             vertex_col_name) {
   .validate_edge_df(edge_list_df, from_col, to_col)
   .validate_vertices_df(vertices_df, vertex_col_name)
-  if (!is.numeric(damping) || length(damping) != 1 ||
-        damping < 0 || damping > 1) {
-    stop(
-      "`damping` must be a single numeric value between 0 and 1.",
-      call. = FALSE
-    )
-  }
+  .assert_unit_interval(damping, "damping", "numeric value")
   .assert_flag(reverse, "reverse", allow_na = FALSE)
   .assert_nonempty_string(pr_node_col, "pr_node_col")
   .assert_nonempty_string(pr_value_col, "pr_value_col")

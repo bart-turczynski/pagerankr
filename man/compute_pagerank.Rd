@@ -45,7 +45,8 @@ nodes
 present in `edge_list_df` (after NA removal from edges) are used.
 The column name is specified by `vertex_col_name`.}
 
-\item{damping}{The damping factor for PageRank. Default is 0.85.}
+\item{damping}{The damping factor for PageRank. A single number in `[0, 1]`,
+default `0.85`. `NA`, `NaN` and the infinities are rejected.}
 
 \item{algo}{Solver back-end passed to `igraph::page_rank()`. Either
 `"prpack"` (default; a fast, exact direct solver with no tunable
@@ -57,14 +58,16 @@ for the trade-offs.}
 
 \item{eps}{Optional convergence tolerance (L1, the ARPACK `options$tol`).
 When supplied, the solver switches to `"arpack"` and iterates until the
-residual is at or below `eps`. `NULL` (default) uses the solver's own
-default.}
+residual is at or below `eps`. A single finite positive number, or `NULL`
+(default) to use the solver's own default.}
 
 \item{niter}{Optional maximum iteration count (the ARPACK `options$maxiter`).
-When supplied, the solver switches to `"arpack"`. `NULL` (default) uses the
-solver's own default. As a rule of thumb, power-iteration PageRank needs
-about `log10(eps) / log10(damping)` iterations, so raise `niter` when you
-raise `damping` toward 1. `NULL` (default) uses the solver's own default.}
+When supplied, the solver switches to `"arpack"`. A single whole number
+from `1` to `.Machine$integer.max`, or `NULL` (default) to use the
+solver's own default. A fractional value is an error rather than being
+truncated. As a rule of thumb, power-iteration PageRank needs about
+`log10(eps) / log10(damping)` iterations, so raise `niter` when you raise
+`damping` toward 1.}
 
 \item{from_col}{Name of the source node column in `edge_list_df`. Default
 "from".}
