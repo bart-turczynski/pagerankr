@@ -14,8 +14,8 @@ authors:
   - family-names: Turczynski
     given-names: Bart
     orcid: "https://orcid.org/0000-0002-8788-7980"
-repository-code: "https://github.com/bart-turczynski/pagerankr"
-url: "https://bart-turczynski.github.io/pagerankr/"
+repository-code: "https://gitlab.com/bart-turczynski/pagerankr"
+url: "https://gitlab.com/bart-turczynski/pagerankr"
 license: MIT
 keywords:
   - PageRank

@@ -31,9 +31,8 @@ attr(result, "convergence")$algo
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://bart-turczynski.github.io/pagerankr/}
-  \item \url{https://github.com/bart-turczynski/pagerankr}
-  \item Report bugs at \url{https://github.com/bart-turczynski/pagerankr/issues}
+  \item \url{https://gitlab.com/bart-turczynski/pagerankr}
+  \item Report bugs at \url{https://gitlab.com/bart-turczynski/pagerankr/-/issues}
 }
 
 }

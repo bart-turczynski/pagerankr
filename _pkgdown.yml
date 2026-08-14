@@ -1,4 +1,9 @@
-url: https://bart-turczynski.github.io/pagerankr/
+# No canonical site URL while the docs are between hosts: the github.io site
+# died with the account suspension and GitLab Pages is not deployed yet (the
+# project is public but `pages_access_level` is still private). Restore this
+# when a Pages deploy exists, reading the real URL off the API rather than
+# assuming `<user>.gitlab.io/<project>` — GitLab now defaults new Pages sites to
+# unique domains.
 
 template:
   bootstrap: 5
@@ -17,15 +22,15 @@ home:
 navbar:
   structure:
     left: [intro, reference, articles, news, acknowledgments]
-    right: [search, github]
+    right: [search, gitlab]
   components:
     acknowledgments:
       text: Acknowledgments
-      href: https://github.com/bart-turczynski/pagerankr/blob/main/ACKNOWLEDGMENTS.md
-    github:
-      icon: fab fa-github
-      href: https://github.com/bart-turczynski/pagerankr
-      aria-label: GitHub
+      href: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/ACKNOWLEDGMENTS.md
+    gitlab:
+      icon: fab fa-gitlab
+      href: https://gitlab.com/bart-turczynski/pagerankr
+      aria-label: GitLab
 
 footer:
   structure:
@@ -34,7 +39,7 @@ footer:
   components:
     related: >
       Related:
-      <a href="https://bart-turczynski.github.io/rurl/">rurl</a> ·
+      <a href="https://gitlab.com/bart-turczynski/rurl">rurl</a> ·
       <a href="https://igraph.org/r/">igraph</a>
 
 articles:
