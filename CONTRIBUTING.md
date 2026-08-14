@@ -2,9 +2,11 @@
 
 ## Verification gate (local pre-push hook)
 
-The GitHub-hosted CI workflows (`Verify` = lint + spelling + R CMD check, and
-`news-version` = NEWS/DESCRIPTION consistency) run on **every push to `main` and
-every pull request**.
+The CI workflows (`Verify` = lint + spelling + R CMD check, and `news-version` =
+NEWS/DESCRIPTION consistency) are written for GitHub Actions and are currently
+**dormant**: the project's canonical home is GitLab and no pipeline has been
+ported yet. Until it is, the pre-push hook below is the operative gate, not a
+second line of defense — treat a local red as the only signal you will get.
 
 The same checks also run **locally**, as a committed pre-push hook in
 `.githooks/pre-push`, so a red result costs seconds instead of a round trip
@@ -50,10 +52,11 @@ full check — it is what catches correctness regressions such as a dependency
 bump that turns test fixtures red (this class of failure previously slipped
 onto `main` while remote CI was billing-disabled; see PR #50).
 
-The cross-platform matrix (`full-check.yml`) and R-hub (`rhub.yaml`) remain the
-**"remote testing when submitting to CRAN"** path — they run on demand / at
-release-tag time, because that matrix is slow, not because it is expensive (this
-repo is public, so GitHub-hosted runners are free).
+The cross-platform matrix (`full-check.yml`) and R-hub (`rhub.yaml`) are the
+**"remote testing when submitting to CRAN"** path — on demand / at release-tag
+time, because that matrix is slow rather than expensive. Both are dormant with
+the rest of the GitHub Actions set, so a CRAN submission needs them ported to
+GitLab CI (or run by hand) first.
 
 ## The rurl floor job (`rurl-floor.yml`)
 

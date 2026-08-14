@@ -13,17 +13,19 @@ upgrade to the most recent commit or release before reporting.
 
 ## Reporting a vulnerability
 
-**Please do not report security vulnerabilities through public GitHub issues.**
+**Please do not report security vulnerabilities through public issues.**
 
-Preferred channel — **GitHub private vulnerability reporting**:
+Preferred channel — **email the maintainer at bartek@turczynski.pl**. Please
+put `pagerankr security` in the subject line, and include the package version
+and enough detail to reproduce.
 
-1. Go to the repository's **Security** tab.
-2. Click **Report a vulnerability**.
+If you would rather report through the tracker, open a
+[confidential issue](https://gitlab.com/bart-turczynski/pagerankr/-/issues/new)
+and tick **This issue is confidential**, which restricts it to project members.
 
-This opens a private security advisory visible only to the maintainers.
-
-If you cannot use that channel, email the maintainer at
-**bartek@turczynski.pl** instead.
+(Before the move to GitLab this pointed at GitHub private vulnerability
+reporting. GitLab has no equivalent feature — confidential issues are the
+closest thing — so email is now the primary channel.)
 
 Do not include secrets, credentials, tokens, or private customer data in
 issues, pull requests, logs, or scratch files.

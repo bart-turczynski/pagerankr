@@ -26,16 +26,9 @@ pagerankr: SEO-Focused PageRank Modeling Toolkit
 
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
-[![Verify](https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml)
-[![Codecov
-coverage](https://codecov.io/gh/bart-turczynski/pagerankr/branch/main/graph/badge.svg)](https://app.codecov.io/gh/bart-turczynski/pagerankr)
-[![Full platform
-check](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml)
-[![R-hub](https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml)
-[![OSV
-audit](https://github.com/bart-turczynski/pagerankr/actions/workflows/osv-audit.yml/badge.svg)](https://github.com/bart-turczynski/pagerankr/actions/workflows/osv-audit.yml)
 [![OpenSSF Best
 Practices](https://www.bestpractices.dev/projects/13553/badge)](https://www.bestpractices.dev/projects/13553)
+<!-- CI/coverage badges removed with the move to GitLab; re-add once GitLab CI pipelines exist. -->
 <!-- badges: end -->
 
 `pagerankr` is an SEO-focused R toolkit for PageRank modeling on crawl
@@ -66,7 +59,7 @@ The package currently includes:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("bart-turczynski/pagerankr")
+devtools::install_gitlab("bart-turczynski/pagerankr")
 ```
 
 ## 1.2 Quick Start
@@ -276,15 +269,16 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 
 ## 1.5 Further Information
 
-The [package website](https://bart-turczynski.github.io/pagerankr/)
-contains the complete reference and rendered vignettes. To report a bug
-or request an enhancement, use [GitHub
-Issues](https://github.com/bart-turczynski/pagerankr/issues). Please
+The reference and vignettes ship with the package and are reachable
+through `help(package = "pagerankr")` and the `vignette()` calls below;
+the rendered website is being rebuilt after the move to GitLab. To
+report a bug or request an enhancement, use [GitLab
+Issues](https://gitlab.com/bart-turczynski/pagerankr/-/issues). Please
 read
-[CONTRIBUTING.md](https://github.com/bart-turczynski/pagerankr/blob/main/CONTRIBUTING.md)
+[CONTRIBUTING.md](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/CONTRIBUTING.md)
 before proposing a change; it sets out the test, lint, and R CMD check
 requirements. For privately reported security vulnerabilities, follow
-[SECURITY.md](https://github.com/bart-turczynski/pagerankr/blob/main/SECURITY.md).
+[SECURITY.md](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/SECURITY.md).
 
 ``` r
 help(package = "pagerankr")

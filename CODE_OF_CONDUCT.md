@@ -52,8 +52,8 @@ event.
 ## Reporting
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the project maintainers through GitHub private vulnerability
-reporting or by email at **bartek@turczynski.pl**. Security vulnerabilities
+reported to the project maintainers by email at **bartek@turczynski.pl**, or
+through a confidential issue on the tracker. Security vulnerabilities
 must follow the process in [SECURITY.md](SECURITY.md), rather than being
 reported publicly.
 

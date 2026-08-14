@@ -40,7 +40,7 @@ and graph-based redirect resolution. `rurl` handles URL canonicalization.
 
 ```r
 # install.packages("devtools")
-devtools::install_github("bart-turczynski/pagerankr")
+devtools::install_gitlab("bart-turczynski/pagerankr")
 ```
 
 ```{r load_package}
@@ -945,4 +945,4 @@ handling is delegated to the sibling `rurl` package.
 
 The full list of credits — prior art, dependencies, the research this code
 implements, and the data sources it serves — is in
-[`ACKNOWLEDGMENTS.md`](https://github.com/bart-turczynski/pagerankr/blob/main/ACKNOWLEDGMENTS.md).
+[`ACKNOWLEDGMENTS.md`](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/ACKNOWLEDGMENTS.md).

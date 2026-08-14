@@ -1,5 +1,11 @@
 # pagerankr (development version)
 
+* **The package is now hosted on GitLab, and the install command has changed**
+  to `devtools::install_gitlab("bart-turczynski/pagerankr")`. The previous
+  `install_github()` form no longer resolves. Bug reports move to the GitLab
+  tracker, and security reports are now made by email to the maintainer rather
+  than through GitHub private vulnerability reporting (see `SECURITY.md`).
+
 * **Convergence controls and `damping` now fail as documented instead of
   silently changing the request or raising an internal R error.** Three fixes,
   all at the public boundary of both `pagerank()` and `compute_pagerank()`:

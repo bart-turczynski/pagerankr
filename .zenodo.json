@@ -25,15 +25,9 @@
   ],
   "related_identifiers": [
     {
-      "identifier": "https://github.com/bart-turczynski/pagerankr",
+      "identifier": "https://gitlab.com/bart-turczynski/pagerankr",
       "relation": "isSupplementTo",
       "resource_type": "software",
-      "scheme": "url"
-    },
-    {
-      "identifier": "https://bart-turczynski.github.io/pagerankr/",
-      "relation": "isDocumentedBy",
-      "resource_type": "publication-softwaredocumentation",
       "scheme": "url"
     }
   ]
