@@ -8,11 +8,35 @@
 #
 # Scope is deliberately smaller than the GitHub set. There is no `r-lib/actions`
 # equivalent for GitLab CI, so every job here is hand-rolled on a rocker image
-# rather than mechanically translated, and reproducing all nine that way buys
-# less than it costs. Ported: the four-check gate (news-version, lint, spelling,
-# R CMD check), the rurl floor, and the docs site. NOT ported, and still absent:
-# the cross-platform matrix, R-hub, codemeta refresh, OSV/OSS Index audits, and
-# Codecov (a `/gh/` project that needs re-linking under `/gl/`).
+# rather than mechanically translated.
+#
+# Ported: the four-check gate (news-version, lint, spelling, R CMD check), the
+# rurl floor, the docs site, coverage, the OSV audit, a codemeta consistency
+# check, and the R-oldrel slice of the matrix.
+#
+# NOT ported, because they cannot be (PAGE-ppmceqnr) — recorded here so their
+# absence reads as a decision rather than as neglect:
+#
+#   macOS / Windows checks  No runner exists. Shared runners are unusable on
+#                           the free plan, and the self-hosted runner is Docker
+#                           on one Mac, so Linux containers only.
+#   R-hub                   R-hub v2 works by dispatching workflows inside a
+#                           GitHub repository. There is no GitLab equivalent to
+#                           port; `rhub.yaml` is not translatable, only
+#                           replaceable, and nothing here replaces it.
+#   OSS Index audit         Needs OSSINDEX_USER / OSSINDEX_TOKEN as project
+#                           variables, which only the owner can add. `osv-audit`
+#                           below covers the same ground unauthenticated, and
+#                           oysteR 0.1.4 hardcodes the legacy OSS Index endpoint
+#                           that sunsets 2026-12-31.
+#   R-devel check           `rocker/r-devel` publishes no arm64 variant, so it
+#                           would run emulated on this host — the trap the
+#                           `default.image` note below exists to warn about.
+#                           win-builder and R-hub remain the route to R-devel.
+#
+# Codecov is not re-linked and is not wanted: `coverage` below reports through
+# GitLab's own cobertura ingestion, so MR coverage diffs need no third-party
+# account and no CODECOV_TOKEN.
 #
 #   Local mirror of the four checks:  .githooks/pre-push
 #   What is and is not gated:         CONTRIBUTING.md, cran-comments.md
@@ -35,6 +59,10 @@ default:
   # without failing anything. Check with
   # `docker image inspect rocker/r-ver:4.6 --format '{{.Architecture}}'` and
   # correct with `docker pull --platform linux/arm64 rocker/r-ver:4.6`.
+  #
+  # This applies per TAG, not once per host: `check-oldrel` first ran emulated
+  # on an amd64 `r-ver:4.5` even though 4.6 had already been corrected. Every
+  # rocker tag added below needs the same one-off pull on the runner host.
   image: rocker/r-ver:4.6
   # rocker/r-ver points `install.packages()` at the Posit binary repo for this
   # image's Ubuntu release, so R packages arrive prebuilt. Without that, a cold
@@ -110,6 +138,55 @@ news-version:
         exit 1
       fi
 
+# codemeta.json consistency.
+#
+# The GitHub `codemeta.yaml` REGENERATED codemeta.json with codemetar and
+# committed the result unreviewed. That job is deliberately not ported, because
+# regeneration is what damages this file: codemetar 0.3.7 builds a
+# `host::`-prefixed Remotes spec's `sameAs` by prepending https://github.com/ to
+# the raw string, emitting https://github.com/gitlab::bart-turczynski/rurl —
+# wrong host, literal `::` in the path (PAGE-bpwkoofa) — and a local
+# regeneration also silently drops readme, releaseNotes and keywords. So
+# codemeta.json is maintained by hand, and this job checks the two properties
+# the generator was there to keep true, without touching the file.
+#
+# Same shape as news-version: a checkout and some greps, no R.
+codemeta:
+  stage: verify
+  image: alpine:latest
+  cache: []
+  before_script: []
+  script:
+    - |
+      set -eu
+      version="$(grep -E '^Version:' DESCRIPTION | head -n1 | sed -E 's/^Version:[[:space:]]*//')"
+      # Anchored to exactly two spaces of indent so this reads the TOP-LEVEL
+      # version, not the `"version"` inside each of the ~20 nested dependency
+      # objects. If the file is ever reshaped, the count check below fails
+      # loudly rather than silently comparing against the wrong line.
+      hits="$(grep -c '^  "version":' codemeta.json || true)"
+      if [ "$hits" != "1" ]; then
+        echo "Expected exactly one top-level '\"version\":' line in codemeta.json, found $hits."
+        echo "The file's shape changed; this check needs updating before it can be trusted."
+        exit 1
+      fi
+      declared="$(grep '^  "version":' codemeta.json | sed -E 's/.*"version":[[:space:]]*"([^"]*)".*/\1/')"
+      echo "DESCRIPTION Version : '$version'"
+      echo "codemeta.json version: '$declared'"
+      if [ "$version" != "$declared" ]; then
+        echo "codemeta.json is stale. Hand-edit its version to '$version' — do NOT run"
+        echo "codemetar::write_codemeta(), which drops readme/releaseNotes/keywords."
+        exit 1
+      fi
+      # Catches the codemetar mangling directly, whatever produced it: a remote
+      # spec left inside a URL. Nothing legitimate in this file has `::` after a
+      # scheme.
+      if grep -nE 'https?://[^"]*::' codemeta.json; then
+        echo "codemeta.json carries a remote spec inside a URL (see the lines above)."
+        exit 1
+      fi
+      echo "OK: codemeta.json is consistent with DESCRIPTION and carries no mangled URLs."
+
 # 2 + 3. Lint and spelling.
 #
 # Spelling guards DESCRIPTION `Language: en-US` across Rd, vignettes, README and
@@ -159,6 +236,182 @@ check:
     # wanted most.
     - |
       Rscript -e '
+      rcmdcheck::rcmdcheck(
+        args = "--no-manual",
+        build_args = c("--no-manual", "--compact-vignettes=gs+qpdf"),
+        error_on = "warning",
+        check_dir = "check"
+      )'
+  artifacts:
+    when: on_failure
+    paths:
+      - check/
+    expire_in: 1 week
+
+# Test coverage.
+#
+# This was a job inside the GitHub `verify.yml`, not a workflow of its own, and
+# it reported to Codecov. It reports to GitLab instead: `coverage_format:
+# cobertura` drives the per-line coverage annotations in a merge request diff,
+# and the `coverage:` regex below drives the project percentage and its badge.
+# That removes a third-party account and a CODECOV_TOKEN from the critical path
+# rather than re-linking the existing `/gh/` Codecov project under `/gl/`.
+#
+# Not a gate: coverage that FAILS a pipeline turns every honest refactor into a
+# fight with a number. `allow_failure` keeps a covr crash visible without
+# blocking a merge.
+coverage:
+  stage: check
+  needs: [check]
+  allow_failure: true
+  script:
+    - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
+    - Rscript -e 'pak::pkg_install(c("covr", "xml2"))'
+    # `type = "tests"` matches what the GitHub job measured via the covr
+    # default; stated explicitly so a covr default change cannot move the number
+    # without anyone editing this file.
+    - |
+      Rscript -e '
+      cov <- covr::package_coverage(type = "tests", quiet = FALSE)
+      covr::to_cobertura(cov)
+      cat(sprintf("Coverage: %.2f%%\n", covr::percent_coverage(cov)))'
+  coverage: '/^Coverage: ([0-9.]+)%$/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: cobertura.xml
+    expire_in: 1 week
+
+# Dependency vulnerability audit against the OSV database (https://osv.dev).
+#
+# Runs tests/testthat/test-osv.R, which resolves pagerankr's RUNTIME dependency
+# closure at installed versions and queries each one. No account and no token,
+# unlike the OSS Index audit this supersedes.
+#
+# Scheduled, because that is what a vulnerability audit is for: the dependency
+# set can stop being safe on a day nothing in this repo changed. On the default
+# branch it additionally runs when the inputs move, and it is available manually
+# everywhere else.
+osv-audit:
+  stage: verify
+  needs: []
+  variables:
+    # test-osv.R calls skip_on_cran(), and testthat::test_local() does not set
+    # NOT_CRAN. Without this the audit skips and the job goes green having
+    # queried nothing.
+    NOT_CRAN: "true"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      changes:
+        - DESCRIPTION
+        - tests/testthat/test-osv.R
+        - .gitlab-ci.yml
+    - when: manual
+      allow_failure: true
+  script:
+    - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
+    - Rscript -e 'pak::pkg_install(c("rosv", "testthat"))'
+    # pagerankr must be INSTALLED, and this is the second job to need saying so
+    # (see `pages`). The test resolves its closure through
+    # `tools::package_dependencies("pagerankr", db = installed.packages())`,
+    # which returns nothing for a package that is not installed — and the test
+    # then skips on its own empty dependency set. The failure mode is a green
+    # job that audited zero packages, so the count is asserted below.
+    - Rscript -e 'pak::local_install(upgrade = FALSE)'
+    - |
+      Rscript -e '
+      db <- utils::installed.packages()
+      closure <- tools::package_dependencies("pagerankr", db = db,
+                                             which = c("Depends", "Imports"),
+                                             recursive = TRUE)[[1L]]
+      if (!length(closure)) {
+        stop("pagerankr resolves to an empty runtime closure; the audit would skip silently.",
+             call. = FALSE)
+      }
+      cat("Auditing", length(closure), "runtime dependencies.\n")'
+    - Rscript -e 'testthat::test_local(filter = "osv", stop_on_failure = TRUE)'
+
+# R CMD check on the previous R minor release.
+#
+# The one slice of the GitHub cross-platform matrix that this runner can carry
+# natively: `rocker/r-ver:4.5` publishes an arm64 variant, so it runs unemulated
+# on this host, while `rocker/r-devel` is amd64-only and is therefore left to
+# R-hub and win-builder (see the header).
+#
+# DESCRIPTION declares `R (>= 4.0.0)`. This does not prove that floor — one
+# release back is not four — but it is the difference between testing one R
+# version and testing more than one, which is where version-sensitive breakage
+# actually shows up.
+#
+# Manual on branches, automatic on release tags: the cost is a full second check
+# per run, and the moment it has to be right is a CRAN submission.
+check-oldrel:
+  stage: check
+  needs: []
+  image: rocker/r-ver:4.5
+  variables:
+    R_KEEP_PKG_SOURCE: "yes"
+    # A SEPARATE library, and a separate cache key. An R package library is
+    # tied to the R minor version that built it — dropping 4.5 builds into the
+    # 4.6 cache would poison every other job with packages R 4.6 refuses to
+    # load ("installed by an R version with different internals").
+    R_LIBS_USER: "$CI_PROJECT_DIR/.cache/R-4.5"
+    R_LIBS: "$CI_PROJECT_DIR/.cache/R-4.5:/usr/local/lib/R/site-library:/usr/local/lib/R/library"
+  cache:
+    key:
+      prefix: r45
+      files:
+        - DESCRIPTION
+    paths:
+      - .cache/R-4.5
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - when: manual
+      allow_failure: true
+  before_script:
+    # rocker pins `repos` to a FROZEN P3M snapshot in Rprofile.site — for
+    # `r-ver:4.5`, 2026-04-23 — which is the right default for reproducibility
+    # and the wrong one here. rurl imports punycoder and pslr, and the CRAN
+    # releases satisfying its floors postdate that snapshot, so dependency
+    # resolution fails outright:
+    #
+    #   * gitlab::bart-turczynski/rurl:
+    #     * Can't install dependency punycoder (>= 1.2.0) (>= 1.1.0)
+    #     * Can't install dependency pslr (>= 1.1.0)
+    #   * punycoder: Can't find package called punycoder, pslr.
+    #
+    # Not a pak bug and not version-specific: pak 0.9.4 and 0.11.1 both fail on
+    # the frozen snapshot and both succeed on `latest`. `r-ver:4.6` never hit it
+    # because its snapshot is recent enough to carry both packages.
+    #
+    # A user .Rprofile is the override, because Rprofile.site hardcodes the URL
+    # and reads no environment variable. Only the trailing date is replaced, so
+    # the distro path travels with the image instead of being restated here, and
+    # an unrecognised shape stops the job rather than silently leaving the pin in
+    # place. Testing old R against CURRENT packages is also what CRAN does.
+    - |
+      Rscript -e '
+      current <- getOption("repos")[["CRAN"]]
+      if (!grepl("/[0-9]{4}-[0-9]{2}-[0-9]{2}$", current)) {
+        stop("Expected a date-pinned P3M repo in Rprofile.site, found: ", current,
+             "\nThe image changed shape; this override needs rewriting.", call. = FALSE)
+      }
+      latest <- sub("/[0-9]{4}-[0-9]{2}-[0-9]{2}$", "/latest", current)
+      writeLines(sprintf("options(repos = c(CRAN = %s))", dQuote(latest, FALSE)),
+                 file.path(Sys.getenv("HOME"), ".Rprofile"))
+      cat("Image pins:", current, "\n  overridden to:", latest, "\n")'
+    - mkdir -p "$R_LIBS_USER"
+    - Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")'
+  script:
+    - Rscript -e 'cat("Effective repo:", getOption("repos")[["CRAN"]], "\n")'
+    - apt-get update -qq && apt-get install -y --no-install-recommends pandoc qpdf ghostscript
+    - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
+    - Rscript -e 'pak::pkg_install("rcmdcheck")'
+    - |
+      Rscript -e '
+      cat("Checking under R", as.character(getRversion()), "\n")
       rcmdcheck::rcmdcheck(
         args = "--no-manual",
         build_args = c("--no-manual", "--compact-vignettes=gs+qpdf"),
