@@ -3,6 +3,14 @@
 ^\.git$
 ^\.github$
 ^\.gitlab-ci\.yml$
+# The GitLab CI dependency library. Cache paths must live inside
+# CI_PROJECT_DIR, so the library sits in the package directory and `R CMD build`
+# would otherwise sweep it into the tarball — which fails the check with a
+# long-paths WARNING from vendored JS in DT and Rcpp.
+^\.cache$
+# R CMD check output, written into the project directory so a failed CI job can
+# upload it as an artifact.
+^check$
 ^\.githooks$
 ^\.gitignore$
 ^\.Rbuildignore$

@@ -153,17 +153,22 @@ check:
     - apt-get update -qq && apt-get install -y --no-install-recommends pandoc qpdf ghostscript
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install("rcmdcheck")'
+    # `check_dir` is set so the check output lands inside the project directory.
+    # Without it rcmdcheck works in a temp dir, and the failure artifact below
+    # silently uploads nothing ("no matching files") — exactly when the logs are
+    # wanted most.
     - |
       Rscript -e '
       rcmdcheck::rcmdcheck(
         args = "--no-manual",
         build_args = c("--no-manual", "--compact-vignettes=gs+qpdf"),
-        error_on = "warning"
+        error_on = "warning",
+        check_dir = "check"
       )'
   artifacts:
     when: on_failure
     paths:
-      - "*.Rcheck/"
+      - check/
     expire_in: 1 week
 
 # Exercises the rurl lower bound that DESCRIPTION declares.
