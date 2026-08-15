@@ -15,7 +15,11 @@ knitr::opts_chunk$set(echo = TRUE)
 <!-- badges: start -->
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13553/badge)](https://www.bestpractices.dev/projects/13553)
-<!-- CI/coverage badges removed with the move to GitLab; re-add once GitLab CI pipelines exist. -->
+[![Pipeline status](https://gitlab.com/bart-turczynski/pagerankr/badges/main/pipeline.svg)](https://gitlab.com/bart-turczynski/pagerankr/-/pipelines)
+[![Documentation](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://pagerankr-63ad30.gitlab.io/)
+<!-- No coverage badge: the coverage job was not ported to GitLab CI, and
+     Codecov still holds this project under a `/gh/` path. A badge reporting
+     nothing is worse than no badge. -->
 <!-- badges: end -->
 
 `pagerankr` is an SEO-focused R toolkit for PageRank modeling on crawl data.

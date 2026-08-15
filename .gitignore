@@ -52,6 +52,11 @@ Thumbs.db
 
 # CRAN build/check artifacts
 *.Rcheck/
+# GitLab CI writes both of these into the project directory: the dependency
+# library (cache paths must live inside CI_PROJECT_DIR) and R CMD check output
+# (so a failed job can upload it as an artifact).
+.cache/
+check/
 *.tar.gz
 # Note: If you use pkgdown, you might want to add docs/ and pkgdown/ here
 # if they are not tracked and you only want to keep the source files.

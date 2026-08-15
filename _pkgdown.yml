@@ -1,9 +1,8 @@
-# No canonical site URL while the docs are between hosts: the github.io site
-# died with the account suspension and GitLab Pages is not deployed yet (the
-# project is public but `pages_access_level` is still private). Restore this
-# when a Pages deploy exists, reading the real URL off the API rather than
-# assuming `<user>.gitlab.io/<project>` — GitLab now defaults new Pages sites to
-# unique domains.
+# A GitLab Pages UNIQUE DOMAIN, read off `GET /projects/:id/pages` after the
+# first deploy rather than assumed. It is deliberately not
+# `bart-turczynski.gitlab.io/pagerankr`: GitLab defaults new Pages sites to
+# unique domains, and that older-convention path does not exist.
+url: https://pagerankr-63ad30.gitlab.io
 
 template:
   bootstrap: 5
