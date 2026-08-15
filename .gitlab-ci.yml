@@ -26,6 +26,15 @@ default:
   # Pinned to a minor R series rather than `latest`, so an upstream R release
   # cannot turn this gate red on a day nothing in the package changed. Matches
   # the sibling pslr runner's default image.
+  #
+  # This tag is multi-arch. On the self-hosted arm64 runner, which architecture
+  # actually runs is decided by whichever variant is already in the local image
+  # cache, because `pull_policy = if-not-present` never re-resolves the
+  # manifest — and gitlab-runner 19.2.1 exposes no way to pin the platform.
+  # A stale amd64 copy therefore runs every job under emulation, silently and
+  # without failing anything. Check with
+  # `docker image inspect rocker/r-ver:4.6 --format '{{.Architecture}}'` and
+  # correct with `docker pull --platform linux/arm64 rocker/r-ver:4.6`.
   image: rocker/r-ver:4.6
   # rocker/r-ver points `install.packages()` at the Posit binary repo for this
   # image's Ubuntu release, so R packages arrive prebuilt. Without that, a cold
@@ -278,6 +287,12 @@ pages:
     - apt-get update -qq && apt-get install -y --no-install-recommends pandoc
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install("pkgdown")'
+    # pagerankr itself must be INSTALLED, not merely loaded: `build_reference()`
+    # evaluates the examples, and those call `library(pagerankr)`. Building with
+    # `install = FALSE` and no installed copy fails at the first example with
+    # "there is no package called 'pagerankr'". The GitHub workflow got this for
+    # free from `extra-packages: local::.`; on GitLab it has to be explicit.
+    - Rscript -e 'pak::local_install(upgrade = FALSE)'
     - Rscript -e 'pkgdown::build_site(new_process = FALSE, install = FALSE)'
     - mv docs public
   artifacts:
