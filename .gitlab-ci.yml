@@ -174,6 +174,10 @@ rurl-floor:
     - when: manual
       allow_failure: true
   script:
+    # `git` is this job's working tool, not incidental: it queries the tag and
+    # `remotes::install_git()` fetches it. The runner clones through its own
+    # helper image, so the job image is not guaranteed to carry git.
+    - apt-get update -qq && apt-get install -y --no-install-recommends git
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install(c("remotes", "testthat", "pkgload"))'
     # Reads the floor and the source repo out of DESCRIPTION rather than
@@ -205,10 +209,12 @@ rurl-floor:
         stop("Unsupported `Remotes:` host prefix ", host, call. = FALSE)
       }
       repo <- sub("@.*$", "", sub("^[[:alpha:]]+::", "", repo))
-      writeLines(c(sprintf("FLOOR=%s", version),
-                   sprintf("REPO=%s", repo),
-                   sprintf("URL=%s/%s.git", bases[[host]], repo),
-                   sprintf("TAG=v%s", version)), "floor.env")
+      # Written as `export`: the steps below reach these through Sys.getenv(),
+      # and a plain shell variable is not visible to a child process.
+      writeLines(c(sprintf("export FLOOR=%s", version),
+                   sprintf("export REPO=%s", repo),
+                   sprintf("export URL=%s/%s.git", bases[[host]], repo),
+                   sprintf("export TAG=v%s", version)), "floor.env")
       cat(sprintf("DESCRIPTION declares %s (>= %s) on %s; testing against tag v%s.\n",
                   repo, version, host, version))'
     - . ./floor.env
