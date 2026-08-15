@@ -10,12 +10,15 @@ refresh these results so they reflect the exact tarball being submitted.
 - Local: macOS (darwin), R 4.6.0 -- `rcmdcheck::rcmdcheck(args = "--as-cran")`
 - GitLab CI: Ubuntu (rocker/r-ver:4.6), R 4.6.1 -- lint, spelling and
   `R CMD check`, on every merge request and every push to `main`
+- GitLab CI: Ubuntu (rocker/r-ver:4.5), R 4.5.x -- `R CMD check`, on `v*` tags
+  and on demand (`check-oldrel`)
 
-**Only one platform is covered remotely.** The GitLab CI pipeline runs a single
-Ubuntu job on a self-hosted runner; the cross-platform matrix and R-hub
-workflows were written for GitHub Actions and were not ported, so they are
-dormant. win-builder and R-hub have therefore **not** been run, and both must be
-before an actual submission — nothing in the current CI can stand in for them.
+**Still only one platform is covered remotely, on two R versions.** Both GitLab
+CI jobs are Linux, on a self-hosted runner. macOS and Windows have no runner at
+all, and R-hub cannot be ported — it works by dispatching workflows inside a
+GitHub repository, so there is nothing to translate. win-builder and R-hub have
+therefore **not** been run, and both must be before an actual submission;
+nothing in the current CI can stand in for them.
 
 ## R CMD check results
 

@@ -5,7 +5,11 @@
 The four checks run remotely in **GitLab CI** (`.gitlab-ci.yml`): `news-version`
 (NEWS/DESCRIPTION consistency), `lint` (lintr + spelling) and `check`
 (`R CMD check`). They run on every merge request, every push to `main`, and on
-`v*` tags.
+`v*` tags. Alongside them, `codemeta` checks `codemeta.json` against
+`DESCRIPTION`, and `coverage` measures test coverage — reported through GitLab's
+own cobertura ingestion, so merge requests get per-line coverage in the diff
+without a Codecov account. Coverage is `allow_failure`, deliberately: coverage
+that blocks a merge turns every honest refactor into a fight with a number.
 
 Two things about that pipeline are worth knowing before you rely on it.
 
@@ -18,9 +22,10 @@ result is waiting, not passing.
 
 **The nine `.github/workflows/` files are dormant and are NOT the gate.** They
 target a suspended account and have not run since 2026-08-07. They are kept as
-the source material for anything still unported — the cross-platform matrix,
-R-hub, the codemeta refresh, and the OSV / OSS Index audits — not because they
-execute.
+the source material for what GitLab CI cannot carry — the macOS and Windows
+checks, R-hub, and the OSS Index audit — not because they execute. What could be
+ported has been (PAGE-ppmceqnr); `.gitlab-ci.yml`'s header records each
+remaining gap and why it is a gap rather than a to-do.
 
 The same checks also run **locally**, as a committed pre-push hook in
 `.githooks/pre-push`, so a red result costs seconds instead of a round trip
@@ -68,10 +73,24 @@ onto `main` while remote CI was billing-disabled; see PR #50).
 
 The cross-platform matrix (`full-check.yml`) and R-hub (`rhub.yaml`) are the
 **"remote testing when submitting to CRAN"** path — on demand / at release-tag
-time, because that matrix is slow rather than expensive. Neither was ported, so
-both are dormant with the rest of the GitHub Actions set: a CRAN submission
-needs them ported or run by hand first. The single-platform `check` job in
-GitLab CI does not substitute for either.
+time, because that matrix is slow rather than expensive.
+
+One slice of the matrix now runs on GitLab: `check-oldrel` checks the package
+under the previous R minor release, manually on branches and automatically on
+`v*` tags. The rest cannot follow it, and a CRAN submission still has to account
+for that:
+
+- **macOS and Windows** have no runner. The self-hosted runner is Docker on one
+  Mac, so Linux containers only, and shared runners are unusable on the free
+  plan.
+- **R-devel** is left out on purpose: `rocker/r-devel` publishes no arm64
+  variant, so it would run emulated on this host.
+- **R-hub cannot be ported at all.** R-hub v2 works by dispatching workflows
+  inside a GitHub repository; there is no GitLab equivalent to translate.
+
+So **a CRAN submission still needs R-hub and win-builder run by hand.** Nothing
+in GitLab CI substitutes for either, and `check-oldrel` does not narrow that gap
+— it widens R-version coverage, not platform coverage.
 
 ## The rurl floor job (`rurl-floor`)
 
