@@ -23,7 +23,10 @@ stages:
   - deploy
 
 default:
-  image: rocker/r-ver:latest
+  # Pinned to a minor R series rather than `latest`, so an upstream R release
+  # cannot turn this gate red on a day nothing in the package changed. Matches
+  # the sibling pslr runner's default image.
+  image: rocker/r-ver:4.6
   # rocker/r-ver points `install.packages()` at the Posit binary repo for this
   # image's Ubuntu release, so R packages arrive prebuilt. Without that, a cold
   # `check` job compiles the whole Suggests set from source.
