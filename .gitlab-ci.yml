@@ -1,0 +1,285 @@
+# Remote verification gate, on the forge this project actually lives on.
+#
+# The nine `.github/workflows/` files target a suspended account and have not
+# run since 2026-08-07 (PAGE-nsvpurra). Between that date and this file, the
+# only gate was `.githooks/pre-push` — one platform, locally, and only in a
+# clone where `git config core.hooksPath .githooks` had been run. This restores
+# a remote gate.
+#
+# Scope is deliberately smaller than the GitHub set. There is no `r-lib/actions`
+# equivalent for GitLab CI, so every job here is hand-rolled on a rocker image
+# rather than mechanically translated, and reproducing all nine that way buys
+# less than it costs. Ported: the four-check gate (news-version, lint, spelling,
+# R CMD check), the rurl floor, and the docs site. NOT ported, and still absent:
+# the cross-platform matrix, R-hub, codemeta refresh, OSV/OSS Index audits, and
+# Codecov (a `/gh/` project that needs re-linking under `/gl/`).
+#
+#   Local mirror of the four checks:  .githooks/pre-push
+#   What is and is not gated:         CONTRIBUTING.md, cran-comments.md
+
+stages:
+  - verify
+  - check
+  - deploy
+
+default:
+  # Pinned to a minor R series rather than `latest`, so an upstream R release
+  # cannot turn this gate red on a day nothing in the package changed. Matches
+  # the sibling pslr runner's default image.
+  image: rocker/r-ver:4.6
+  # rocker/r-ver points `install.packages()` at the Posit binary repo for this
+  # image's Ubuntu release, so R packages arrive prebuilt. Without that, a cold
+  # `check` job compiles the whole Suggests set from source.
+  before_script:
+    - mkdir -p "$R_LIBS_USER"
+    - Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")'
+  cache:
+    # Keyed on DESCRIPTION: the library only needs rebuilding when the declared
+    # dependencies move. `Remotes:` resolves to rurl main HEAD, which moves
+    # without touching DESCRIPTION — that staleness is intentional and matches
+    # what the GitHub jobs did (PAGE-fjqyruaf relies on the resulting continuous
+    # main-versus-pagerankr revdep coverage), but it does mean a cache hit can
+    # hold an older rurl than main. `rurl-floor` is unaffected: it installs into
+    # its own library, below.
+    key:
+      files:
+        - DESCRIPTION
+    paths:
+      - .cache/R
+
+variables:
+  R_LIBS_USER: "$CI_PROJECT_DIR/.cache/R"
+  # pak resolves Ubuntu system requirements itself; the image runs as root, so
+  # it can act on them. Saves hand-maintaining an apt list per job.
+  PKG_SYSREQS: "true"
+  GIT_DEPTH: "0"
+
+# Workflow rules keep a branch push and its merge request from producing two
+# identical pipelines.
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+# 1. NEWS / DESCRIPTION version consistency.
+#
+# The top NEWS.md heading must be either "(development version)" or exactly the
+# DESCRIPTION Version. Catches a stale "(development version)" heading left in
+# place at release time. A checkout plus two greps — no R, so it runs on a
+# minimal image and finishes in seconds.
+news-version:
+  stage: verify
+  image: alpine:latest
+  cache: []
+  before_script: []
+  script:
+    - |
+      set -eu
+      version="$(grep -E '^Version:' DESCRIPTION | head -n1 | sed -E 's/^Version:[[:space:]]*//')"
+      heading="$(grep -m1 -E '^# ' NEWS.md | sed -E 's/^#[[:space:]]+pagerankr[[:space:]]*//')"
+      echo "DESCRIPTION Version : '$version'"
+      echo "Top NEWS heading    : '$heading'"
+      if [ "$heading" = "(development version)" ] || [ "$heading" = "$version" ]; then
+        echo "OK: NEWS heading and version are consistent."
+      else
+        echo "Top NEWS.md heading ('$heading') is neither '(development version)'"
+        echo "nor the DESCRIPTION Version ('$version'). Update NEWS.md before release."
+        exit 1
+      fi
+
+# 2 + 3. Lint and spelling.
+#
+# Spelling guards DESCRIPTION `Language: en-US` across Rd, vignettes, README and
+# NEWS. It exists because prose drifted in unnoticed after the WORDLIST was
+# built: the case-study vignette introduced two en-GB spellings and two
+# untracked terms, and nothing caught them (PAGE-xevimisi). Fix real
+# misspellings in the text; add genuine terms to inst/WORDLIST.
+lint:
+  stage: verify
+  variables:
+    LINTR_ERROR_ON_LINT: "true"
+  script:
+    - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
+    - Rscript -e 'pak::pkg_install(c("lintr", "spelling"))'
+    - Rscript -e 'l <- lintr::lint_package(); if (length(l)) { print(l); quit(status = 1L) }'
+    - |
+      Rscript -e '
+      bad <- spelling::spell_check_package()
+      if (nrow(bad)) {
+        print(bad)
+        stop("Spelling errors found. Correct the prose, or add genuine terms to inst/WORDLIST (see `spelling::update_wordlist()`).", call. = FALSE)
+      }'
+
+# 4. R CMD check.
+#
+# This is what catches correctness regressions — e.g. a dependency bump that
+# turns fixtures red (rurl 2.1.0 emptied bare-label graphs and slipped in while
+# remote CI was billing-disabled). Fails on errors AND warnings.
+#
+# A standard check, matching the GitHub `Verify` job it replaces; the strict
+# `--as-cran` pass is what `.githooks/pre-push` runs locally, and what the
+# unported release-time matrix used to run.
+check:
+  stage: check
+  needs: [lint]
+  variables:
+    R_KEEP_PKG_SOURCE: "yes"
+  script:
+    # pandoc builds the vignettes; qpdf and ghostscript arm the tarball and PDF
+    # size checks that R CMD check otherwise silently SKIPS.
+    - apt-get update -qq && apt-get install -y --no-install-recommends pandoc qpdf ghostscript
+    - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
+    - Rscript -e 'pak::pkg_install("rcmdcheck")'
+    - |
+      Rscript -e '
+      rcmdcheck::rcmdcheck(
+        args = "--no-manual",
+        build_args = c("--no-manual", "--compact-vignettes=gs+qpdf"),
+        error_on = "warning"
+      )'
+  artifacts:
+    when: on_failure
+    paths:
+      - "*.Rcheck/"
+    expire_in: 1 week
+
+# Exercises the rurl lower bound that DESCRIPTION declares.
+#
+# Every other job resolves `Remotes:` to rurl main HEAD, so nothing else here
+# installs the version `Imports:` actually requires. That gap is how
+# `rurl (>= 2.1.0)` survived while no v2.1.0 tag existed (PAGE-tsbkxhoz): the
+# floor was a number someone reasoned to, not a release anything was tested
+# against.
+#
+# EXPECTED RED until rurl 3.0.0 ships. Measured 2026-08-15: the declared floor
+# of 3.0.0 is the correct number — pagerankr depends on rurl 3.0.0's argument
+# surface after commit fc1caba, and both released candidates fail (v2.2.1: 157
+# errors; v2.2.0: red on canonicalization alone). rurl's newest tag is v2.2.1,
+# so this job cannot pass yet, and it says so precisely rather than being
+# deleted or quietly skipped. It is therefore MANUAL on branches and merge
+# requests — a red floor must not block work that has nothing to do with it —
+# and automatic on scheduled pipelines, which is where the signal is wanted:
+# the moment rurl 3.0.0 is tagged, the next schedule turns this green on its
+# own. Flip it to `when: always` for merge requests then.
+rurl-floor:
+  stage: check
+  needs: []
+  variables:
+    RURL_FLOOR_LIB: "$CI_PROJECT_DIR/.rurl-floor-lib"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: always
+    - when: manual
+      allow_failure: true
+  script:
+    # `git` is this job's working tool, not incidental: it queries the tag and
+    # `remotes::install_git()` fetches it. The runner clones through its own
+    # helper image, so the job image is not guaranteed to carry git.
+    - apt-get update -qq && apt-get install -y --no-install-recommends git
+    - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
+    - Rscript -e 'pak::pkg_install(c("remotes", "testthat", "pkgload"))'
+    # Reads the floor and the source repo out of DESCRIPTION rather than
+    # hardcoding either, so a forge move cannot leave this testing the wrong
+    # fork, and a floor bump cannot leave it testing the old number.
+    - |
+      Rscript -e '
+      d <- read.dcf("DESCRIPTION")
+      imports <- trimws(strsplit(d[1L, "Imports"], ",")[[1L]])
+      hit <- grep("^rurl\\b", imports, value = TRUE)
+      if (length(hit) != 1L) {
+        stop("Expected exactly one `rurl` entry in Imports, found ", length(hit), ".", call. = FALSE)
+      }
+      version <- sub("^rurl[[:space:]]*\\([[:space:]]*>=[[:space:]]*([^)[:space:]]+)[[:space:]]*\\)$", "\\1", hit)
+      if (identical(version, hit)) {
+        stop("`rurl` is declared in Imports without a `(>= x.y.z)` floor: ", hit, call. = FALSE)
+      }
+      remotes_field <- trimws(strsplit(d[1L, "Remotes"], ",")[[1L]])
+      repo <- grep("rurl", remotes_field, value = TRUE)
+      if (length(repo) != 1L) {
+        stop("Expected exactly one `rurl` entry in Remotes, found ", length(repo), ".", call. = FALSE)
+      }
+      # The host prefix is part of the declaration, not decoration: a bare
+      # `owner/repo` means GitHub, by remotes own default. Carry it through, so
+      # this follows a forge move instead of querying the forge we left.
+      host <- if (grepl("::", repo, fixed = TRUE)) tolower(sub("::.*$", "", repo)) else "github"
+      bases <- c(github = "https://github.com", gitlab = "https://gitlab.com")
+      if (!host %in% names(bases)) {
+        stop("Unsupported `Remotes:` host prefix ", host, call. = FALSE)
+      }
+      repo <- sub("@.*$", "", sub("^[[:alpha:]]+::", "", repo))
+      # Written as `export`: the steps below reach these through Sys.getenv(),
+      # and a plain shell variable is not visible to a child process.
+      writeLines(c(sprintf("export FLOOR=%s", version),
+                   sprintf("export REPO=%s", repo),
+                   sprintf("export URL=%s/%s.git", bases[[host]], repo),
+                   sprintf("export TAG=v%s", version)), "floor.env")
+      cat(sprintf("DESCRIPTION declares %s (>= %s) on %s; testing against tag v%s.\n",
+                  repo, version, host, version))'
+    - . ./floor.env
+    # Checked separately from the install so the error names the actual failure
+    # — a floor pointing at a version nobody released — instead of surfacing as
+    # an opaque install error. `--exit-code` reserves 2 for "queried fine, no
+    # such ref"; anything else is the query failing, which must NOT be reported
+    # as a missing tag.
+    - |
+      set +e
+      git ls-remote --exit-code --tags "$URL" "refs/tags/$TAG" >/dev/null
+      status=$?
+      set -e
+      case "$status" in
+        0) echo "Tag $TAG exists on $REPO." ;;
+        2) echo "DESCRIPTION declares a rurl floor of ${TAG#v}, but $REPO has no $TAG tag."
+           echo "The declared minimum names a version nobody can install."
+           exit 1 ;;
+        *) echo "Could not query tags on $REPO (git exit $status); the floor was NOT checked."
+           exit "$status" ;;
+      esac
+    # Installed from the URL the tag check just queried, so what runs is
+    # provably what was verified. Into a job-local library, prepended for the
+    # test run only: the shared cache still holds main HEAD for every other job.
+    - |
+      Rscript -e '
+      lib <- Sys.getenv("RURL_FLOOR_LIB")
+      dir.create(lib, recursive = TRUE, showWarnings = FALSE)
+      remotes::install_git(Sys.getenv("URL"), ref = Sys.getenv("TAG"), lib = lib,
+                           dependencies = FALSE, upgrade = "never", force = TRUE)
+      installed <- as.character(packageVersion("rurl", lib.loc = lib))
+      floor <- Sys.getenv("FLOOR")
+      if (!identical(installed, floor)) {
+        stop(sprintf("Tag %s installs rurl %s, but DESCRIPTION declares the floor as %s.",
+                     Sys.getenv("TAG"), installed, floor), call. = FALSE)
+      }'
+    - |
+      R_LIBS="$RURL_FLOOR_LIB:$R_LIBS_USER" Rscript -e '
+      in_use <- as.character(packageVersion("rurl"))
+      if (!identical(in_use, Sys.getenv("FLOOR"))) {
+        stop(sprintf("Suite would run against rurl %s, not the declared floor %s.",
+                     in_use, Sys.getenv("FLOOR")), call. = FALSE)
+      }
+      cat("Running the suite against rurl", in_use, "\n")
+      testthat::test_local(".", stop_on_failure = TRUE)'
+
+# The docs site. Must be named `pages` and publish `public/` — that pairing is
+# what GitLab Pages deploys, not a convention this file chose.
+#
+# Default branch only: a site rebuilt from every merge request would publish
+# unreviewed docs to the same URL.
+pages:
+  stage: deploy
+  needs: [check]
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+  script:
+    - apt-get update -qq && apt-get install -y --no-install-recommends pandoc
+    - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
+    - Rscript -e 'pak::pkg_install("pkgdown")'
+    - Rscript -e 'pkgdown::build_site(new_process = FALSE, install = FALSE)'
+    - mv docs public
+  artifacts:
+    paths:
+      - public
