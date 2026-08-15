@@ -58,6 +58,15 @@ default:
 
 variables:
   R_LIBS_USER: "$CI_PROJECT_DIR/.cache/R"
+  # `R_LIBS_USER` alone does NOT make the cache work. rocker's Renviron.site
+  # sets `R_LIBS=${R_LIBS-'…site-library:…library'}`, which puts the container's
+  # own site library first in `.libPaths()` and leaves `.cache/R` third — so pak
+  # installed into the container, `.cache/R` was archived EMPTY, and every job
+  # re-downloaded the full dependency set while the log still cheerfully
+  # reported "Successfully extracted cache". Measured before this line: 117
+  # packages downloaded on a warm cache. Setting `R_LIBS` wins because that
+  # Renviron.site default defers to an already-set value.
+  R_LIBS: "$CI_PROJECT_DIR/.cache/R:/usr/local/lib/R/site-library:/usr/local/lib/R/library"
   # pak resolves Ubuntu system requirements itself; the image runs as root, so
   # it can act on them. Saves hand-maintaining an apt list per job.
   PKG_SYSREQS: "true"

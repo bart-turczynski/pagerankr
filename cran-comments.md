@@ -2,17 +2,20 @@
 NOTE: This file is authored ahead of an actual CRAN submission.
 pagerankr is NOT being submitted to CRAN yet. Before any real submission,
 re-run the platform checks below (local, plus win-builder and R-hub runs) and
-refresh these results so they reflect the exact tarball being submitted. The
-repository CI is dormant: the workflows target GitHub Actions and the project's
-canonical home is now GitLab, with no pipeline ported yet.
+refresh these results so they reflect the exact tarball being submitted.
 -->
 
 ## Test environments
 
 - Local: macOS (darwin), R 4.6.0 -- `rcmdcheck::rcmdcheck(args = "--as-cran")`
+- GitLab CI: Ubuntu (rocker/r-ver:4.6), R 4.6.1 -- lint, spelling and
+  `R CMD check`, on every merge request and every push to `main`
 
-win-builder and R-hub have not yet been run; they should be run before an
-actual submission.
+**Only one platform is covered remotely.** The GitLab CI pipeline runs a single
+Ubuntu job on a self-hosted runner; the cross-platform matrix and R-hub
+workflows were written for GitHub Actions and were not ported, so they are
+dormant. win-builder and R-hub have therefore **not** been run, and both must be
+before an actual submission — nothing in the current CI can stand in for them.
 
 ## R CMD check results
 
