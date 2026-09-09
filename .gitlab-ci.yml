@@ -69,6 +69,50 @@ default:
   # `check` job compiles the whole Suggests set from source.
   before_script:
     - mkdir -p "$R_LIBS_USER"
+    # Add CRAN itself BEHIND the image's p3m repo.
+    #
+    # p3m lags CRAN by up to a day for a new release. Note this image is NOT
+    # on a stale pin — measured from the images themselves, `r-ver:4.6` points
+    # at p3m `latest` and only `r-ver:4.5` (check-oldrel) carries a date:
+    #
+    #     rocker/r-ver:4.6 -> https://p3m.dev/cran/__linux__/noble/latest
+    #     rocker/r-ver:4.5 -> https://p3m.dev/cran/__linux__/noble/2026-04-23
+    #
+    # so the jobs that failed were already asking p3m for its newest state and
+    # still could not see the release. The lag is p3m's, not a pin's.
+    # Measured 2026-09-09, the day rurl 3.0.1 was published:
+    #
+    #     p3m snapshot 2026-09-01   rurl 1.2.0
+    #     p3m snapshot 2026-09-09   rurl 1.2.0   <- same day, still behind
+    #     p3m latest                rurl 1.2.0
+    #     cloud.r-project.org       rurl 3.0.1
+    #
+    # so `Imports: rurl (>= 3.0.1)` was unresolvable from p3m at ANY coordinate,
+    # and every dependency-resolving job died with "Can't install dependency
+    # rurl (>= 3.0.1)". There is no date to bump to — `latest` was already the
+    # setting; only a repo that carries the release can fix it.
+    #
+    # p3m stays FIRST so everything else still arrives as a prebuilt binary —
+    # a cold `check` otherwise compiles the whole Suggests set from source.
+    # CRAN is a source-only fallback for the handful of packages p3m has not
+    # synced yet; `available.packages()` unions the two and takes the highest
+    # version, so this changes nothing on any day p3m is current.
+    #
+    # Appended rather than rewritten, so rocker's HTTPUserAgent line — the one
+    # that makes p3m serve binaries instead of source — survives, and the
+    # later options() call wins.
+    - |
+      Rscript -e '
+      current <- getOption("repos")[["CRAN"]]
+      if (is.null(current) || !nzchar(current) || identical(current, "@CRAN@")) {
+        stop("Expected a repo in Rprofile.site, found: ", current, call. = FALSE)
+      }
+      line <- sprintf("options(repos = c(P3M = %s, CRAN = %s))",
+                      dQuote(current, FALSE),
+                      dQuote("https://cloud.r-project.org", FALSE))
+      cat(line, "\n", sep = "", file = file.path(R.home(), "etc", "Rprofile.site"),
+          append = TRUE)'
+    - Rscript -e 'cat("Effective repos:\n"); print(getOption("repos"))'
     - Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")'
   cache:
     # Keyed on DESCRIPTION: the library only needs rebuilding when the declared
@@ -391,6 +435,13 @@ check-oldrel:
     # the distro path travels with the image instead of being restated here, and
     # an unrecognised shape stops the job rather than silently leaving the pin in
     # place. Testing old R against CURRENT packages is also what CRAN does.
+    #
+    # CRAN is appended behind p3m for the same reason the default before_script
+    # does it: p3m `latest` is NOT current — it lagged rurl 3.0.1 by more than a
+    # day. `latest` alone would leave this job unable to resolve the declared
+    # floor while every other job could. This file's user .Rprofile is read
+    # AFTER Rprofile.site, so it must carry the fallback itself rather than
+    # inherit it.
     - |
       Rscript -e '
       current <- getOption("repos")[["CRAN"]]
@@ -399,13 +450,16 @@ check-oldrel:
              "\nThe image changed shape; this override needs rewriting.", call. = FALSE)
       }
       latest <- sub("/[0-9]{4}-[0-9]{2}-[0-9]{2}$", "/latest", current)
-      writeLines(sprintf("options(repos = c(CRAN = %s))", dQuote(latest, FALSE)),
+      writeLines(sprintf("options(repos = c(P3M = %s, CRAN = %s))",
+                         dQuote(latest, FALSE),
+                         dQuote("https://cloud.r-project.org", FALSE)),
                  file.path(Sys.getenv("HOME"), ".Rprofile"))
-      cat("Image pins:", current, "\n  overridden to:", latest, "\n")'
+      cat("Image pins:", current, "\n  overridden to:", latest,
+          "\n  with CRAN appended as fallback\n")'
     - mkdir -p "$R_LIBS_USER"
     - Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")'
   script:
-    - Rscript -e 'cat("Effective repo:", getOption("repos")[["CRAN"]], "\n")'
+    - Rscript -e 'cat("Effective repos:\n"); print(getOption("repos"))'
     - apt-get update -qq && apt-get install -y --no-install-recommends pandoc qpdf ghostscript
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install("rcmdcheck")'

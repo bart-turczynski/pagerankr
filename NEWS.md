@@ -496,6 +496,13 @@
 
 ## Internal
 
+* CI adds CRAN behind the image's Posit Package Manager repo. p3m lags CRAN by
+  up to a day for a new release -- on the day rurl 3.0.1 was published, the
+  2026-09-09 p3m snapshot *and* p3m `latest` both still served 1.2.0 -- so
+  `Imports: rurl (>= 3.0.1)` was unresolvable at any pin and every
+  dependency-resolving job failed. p3m stays first, so packages still arrive as
+  prebuilt binaries; CRAN only supplies what p3m has not synced yet.
+
 * The `rurl-floor` CI job resolves the floor from CRAN (current *or* archived)
   instead of reading the source forge out of `Remotes:` and installing a git
   tag. It now runs on every merge request rather than manually, because it can
