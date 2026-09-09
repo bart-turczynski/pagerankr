@@ -24,7 +24,9 @@ The explicit set of `rurl` canonicalization arguments that
 The canonical node key is **scheme + host + non-default port +
   path + contentful query**, with the path normalized under the WHATWG URL
   standard and percent-encoding preserved byte-for-byte. Fragment and
-  userinfo are dropped by `get_clean_url` and identify no resource.
+  userinfo are dropped by `get_clean_url` and identify no resource --
+  userinfo under `credential_handling = "strip"`, which is pinned because
+  the alternative (`"reject"`) yields `NA` rather than a key.
 
   **The governing principle: parse, do not fold.** pagerankr has redirects
   and canonical tags as first-class inputs, and those are the site's own
@@ -73,7 +75,7 @@ The canonical node key is **scheme + host + non-default port +
   reordering decode after dot-segment removal *without touching any
   argument*, which the surface guard cannot see.)
 
-  All nineteen of these arguments are accepted by both
+  All twenty of these arguments are accepted by both
   `rurl::get_clean_url()` (the cleaning path) and `rurl::safe_parse_url()`
   (the domain-filtering path), so one profile drives both and the two paths
   stay symmetrical.

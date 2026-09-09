@@ -39,7 +39,7 @@ describe("canonical_profile", {
         "host_encoding", "path_encoding", "url_standard", "port_handling",
         "query_handling", "params_keep", "params_drop",
         "params_case_sensitive", "sort_params", "empty_param_handling",
-        "decode_plus"
+        "decode_plus", "credential_handling"
       )
     )
     # The contract anchors: keep scheme, lower the host.

@@ -12,7 +12,9 @@
 #' @details The canonical node key is **scheme + host + non-default port +
 #'   path + contentful query**, with the path normalized under the WHATWG URL
 #'   standard and percent-encoding preserved byte-for-byte. Fragment and
-#'   userinfo are dropped by `get_clean_url` and identify no resource.
+#'   userinfo are dropped by `get_clean_url` and identify no resource --
+#'   userinfo under `credential_handling = "strip"`, which is pinned because
+#'   the alternative (`"reject"`) yields `NA` rather than a key.
 #'
 #'   **The governing principle: parse, do not fold.** pagerankr has redirects
 #'   and canonical tags as first-class inputs, and those are the site's own
@@ -61,7 +63,7 @@
 #'   reordering decode after dot-segment removal *without touching any
 #'   argument*, which the surface guard cannot see.)
 #'
-#'   All nineteen of these arguments are accepted by both
+#'   All twenty of these arguments are accepted by both
 #'   `rurl::get_clean_url()` (the cleaning path) and `rurl::safe_parse_url()`
 #'   (the domain-filtering path), so one profile drives both and the two paths
 #'   stay symmetrical.
@@ -169,7 +171,16 @@ canonical_profile <- function() {
     params_case_sensitive = FALSE,
     sort_params = FALSE,
     empty_param_handling = "keep",
-    decode_plus = FALSE
+    decode_plus = FALSE,
+    # Userinfo names a requester, not a resource, so it is not part of the key
+    # -- but this knob decides whether a credentialed URL yields a key AT ALL.
+    # rurl's default "strip" drops the credentials and keys the URL normally;
+    # "reject" returns NA, which [clean_url_columns()] would keep as its raw
+    # self, turning every credentialed URL into an opaque node. That is a
+    # node-identity consequence, so it is pinned rather than left to a default
+    # that could flip. Added in rurl 3.0.1; "strip" is the current default, so
+    # pinning it changes no key today.
+    credential_handling = "strip"
   )
 }
 

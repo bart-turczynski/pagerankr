@@ -215,14 +215,14 @@
       "@type": "SoftwareApplication",
       "identifier": "rurl",
       "name": "rurl",
-      "version": ">= 3.0.0",
+      "version": ">= 3.0.1",
       "provider": {
         "@id": "https://cran.r-project.org",
         "@type": "Organization",
         "name": "Comprehensive R Archive Network (CRAN)",
         "url": "https://cran.r-project.org"
       },
-      "sameAs": "https://gitlab.com/bart-turczynski/rurl"
+      "sameAs": "https://CRAN.R-project.org/package=rurl"
     },
     "4": {
       "@type": "SoftwareApplication",

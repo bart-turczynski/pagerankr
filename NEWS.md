@@ -1,5 +1,25 @@
 # pagerankr (development version)
 
+* **`rurl` now installs from CRAN; the `Remotes:` field is gone.** `rurl`
+  reached CRAN as 3.0.1 on 2026-09-09, so `DESCRIPTION` no longer needs a
+  `Remotes:` entry -- a field CRAN does not honor and which drew a NOTE on
+  every `--as-cran` run. Every hard dependency now resolves from CRAN
+  (`PAGE-agtgxupt`).
+
+* **The declared `rurl` floor is `>= 3.0.1`, up from `>= 3.0.0`.** `rurl` went
+  1.2.0 straight to 3.0.1 on CRAN and never published a 3.0.0, so the old floor
+  named a version nobody could install -- the second time this package declared
+  a minimum that existed nowhere. 3.0.1 is the lowest `rurl` that exists as a
+  release and that the suite has been run against (`PAGE-tsbkxhoz`).
+
+* **`canonical_profile()` now pins `credential_handling = "strip"`.** `rurl`
+  3.0.1 added the argument. Userinfo is not part of a node key, but this knob
+  decides whether a credentialed URL yields a key at all: the alternative,
+  `"reject"`, returns `NA`, which `clean_url_columns()` keeps as its raw self
+  and so turns every credentialed URL into an opaque node. `"strip"` is
+  `rurl`'s current default, so no node key changes -- the pin freezes a default
+  that could otherwise flip underneath the graph.
+
 * **The package is now hosted on GitLab, and the install command has changed**
   to `devtools::install_gitlab("bart-turczynski/pagerankr")`. The previous
   `install_github()` form no longer resolves. Bug reports move to the GitLab
@@ -473,6 +493,19 @@
   `ga4_entrance_teleport()`. No defaults change: `transform_edge_weights()`
   still defaults to `"zipf"` (now declared explicitly rather than by option
   order) and every other site still defaults to `"none"`.
+
+## Internal
+
+* The `rurl-floor` CI job resolves the floor from CRAN (current *or* archived)
+  instead of reading the source forge out of `Remotes:` and installing a git
+  tag. It now runs on every merge request rather than manually, because it can
+  pass. Its GitHub-hosted twin, which had no live runner and hard-failed on the
+  removed `Remotes:` field, was deleted; the GitLab job supersedes it.
+
+* The pre-push hook's non-gating rurl skew notice compares the installed `rurl`
+  against CRAN rather than against the `Remotes:` target. The skew it warns
+  about is not hypothetical: a local 3.0.0 build sat in front of CRAN 3.0.1
+  here and hid a new `get_clean_url` argument from the suite.
 
 # pagerankr 0.1.0
 

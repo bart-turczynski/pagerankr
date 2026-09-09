@@ -1,9 +1,11 @@
 R package `pagerankr`: SEO-focused PageRank modeling on crawl data — edge lists, redirect
 reports, Screaming Frog exports. Lifecycle experimental; not on CRAN yet.
 
-`rurl` installs from GitHub main via `Remotes`, deliberately unpinned. Its canonicalization
+`rurl` installs from CRAN, at or above the floor `DESCRIPTION` declares. Its canonicalization
 profile decides node identity, so a profile change re-keys the graph and must stay in sync
-with the other rurl consumers.
+with the other rurl consumers. `canonical_profile()` pins every knob that shapes the key;
+a new `get_clean_url` argument fails `test-canonicalization.R` until it is pinned or
+triaged, on purpose.
 
 `page_state` (crawl-derived page condition) and `node_status` (graph role) are separate
 axes; keep them separate.
