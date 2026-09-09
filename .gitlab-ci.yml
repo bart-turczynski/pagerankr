@@ -71,19 +71,26 @@ default:
     - mkdir -p "$R_LIBS_USER"
     # Add CRAN itself BEHIND the image's p3m repo.
     #
-    # rocker bakes a frozen p3m snapshot into Rprofile.site at image build
-    # time, and p3m — snapshot *or* `latest` — lags CRAN by up to a day for a
-    # new release. Measured 2026-09-09, the day rurl 3.0.1 was published:
+    # p3m lags CRAN by up to a day for a new release. Note this image is NOT
+    # on a stale pin — measured from the images themselves, `r-ver:4.6` points
+    # at p3m `latest` and only `r-ver:4.5` (check-oldrel) carries a date:
+    #
+    #     rocker/r-ver:4.6 -> https://p3m.dev/cran/__linux__/noble/latest
+    #     rocker/r-ver:4.5 -> https://p3m.dev/cran/__linux__/noble/2026-04-23
+    #
+    # so the jobs that failed were already asking p3m for its newest state and
+    # still could not see the release. The lag is p3m's, not a pin's.
+    # Measured 2026-09-09, the day rurl 3.0.1 was published:
     #
     #     p3m snapshot 2026-09-01   rurl 1.2.0
     #     p3m snapshot 2026-09-09   rurl 1.2.0   <- same day, still behind
     #     p3m latest                rurl 1.2.0
     #     cloud.r-project.org       rurl 3.0.1
     #
-    # so `Imports: rurl (>= 3.0.1)` was unresolvable from p3m at ANY pin, and
-    # every dependency-resolving job died with "Can't install dependency rurl
-    # (>= 3.0.1)". Bumping the snapshot date cannot fix that; only a repo that
-    # carries the release can.
+    # so `Imports: rurl (>= 3.0.1)` was unresolvable from p3m at ANY coordinate,
+    # and every dependency-resolving job died with "Can't install dependency
+    # rurl (>= 3.0.1)". There is no date to bump to — `latest` was already the
+    # setting; only a repo that carries the release can fix it.
     #
     # p3m stays FIRST so everything else still arrives as a prebuilt binary —
     # a cold `check` otherwise compiles the whole Suggests set from source.
