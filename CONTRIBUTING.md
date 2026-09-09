@@ -36,8 +36,8 @@ through CI. It runs four checks, cheapest first:
 3. `spelling::spell_check_package()` reports no misspellings against
    `DESCRIPTION` `Language: en-US`
 4. `R CMD check --as-cran` — **fails on errors AND warnings** (the package is
-   warning-clean; the only allowed NOTE is the CRAN-incoming dev-version /
-   `Remotes` one)
+   warning-clean; the only allowed NOTE is the CRAN-incoming new-submission
+   one)
 
 Enable it once per clone:
 
@@ -94,42 +94,45 @@ in GitLab CI substitutes for either, and `check-oldrel` does not narrow that gap
 
 ## The rurl floor job (`rurl-floor`)
 
-Every job above resolves `Remotes: gitlab::bart-turczynski/rurl` to **main
-HEAD**.
-That is deliberate — it gives continuous reverse-dependency coverage against
-upstream — but it means none of them installs the version `Imports:` actually
-requires, so the declared floor is never exercised. That is how
-`rurl (>= 2.1.0)` survived while `rurl` had no `v2.1.0` tag at all: a minimum
-no user could install, and a green board (PAGE-tsbkxhoz).
+`Imports:` declares a minimum rurl. Nothing else installs *that* version — the
+other jobs resolve whatever CRAN currently serves — so without this job the
+floor is a number someone reasoned to rather than a release anything ran
+against. That gap is how `rurl (>= 2.1.0)` survived while rurl had no `v2.1.0`
+at all, and how `>= 3.0.0` survived after it: rurl went 1.2.0 straight to 3.0.1
+on CRAN and never published a 3.0.0 (PAGE-tsbkxhoz).
 
-The `rurl-floor` job closes that gap. It reads the floor, the source repo and
-its forge out of `DESCRIPTION` — a bare `owner/repo` means GitHub, matching
-`remotes`' own default, and a `gitlab::` prefix sends every query to GitLab
-instead — then fails if the version names a tag that does not exist, installs
-that tag into a job-local library, and runs the suite with it prepended.
+The job reads the floor out of `DESCRIPTION`, checks CRAN has actually published
+that version — current **or archived**, since a floor is normally superseded —
+installs exactly it into a job-local library, and runs the suite with that
+library prepended.
 
-**It is expected red today, and that is the correct reading.** `Imports:`
-declares `rurl (>= 3.0.0)`; rurl's newest tag is `v2.2.1`, and the code genuinely
-depends on 3.0.0's argument surface after commit `fc1caba` — measured against
-both released candidates, which fail (v2.2.1: 157 errors; v2.2.0: red on
-canonicalization alone). So the floor is the *right* number naming a version
-nobody can install yet.
+It resolves from **CRAN, not a forge tag**. Until 2026-09-09 rurl was off CRAN,
+`DESCRIPTION` carried `Remotes: gitlab::bart-turczynski/rurl`, and this job read
+the repo and its host out of that field to install a git tag. rurl is on CRAN
+now and the field is gone (CRAN does not honor it), so the installable version
+is the one CRAN serves. A tag that never became a release is not a floor a user
+can reach — which is precisely the failure `>= 3.0.0` was.
 
-Because of that it is **manual** on branches and merge requests — a permanently
-red job must not block unrelated work — and **automatic on scheduled
-pipelines**, which is where the signal is wanted: the next schedule after rurl
-3.0.0 is tagged turns it green on its own. Flip it to `when: always` for merge
-requests then.
+It runs on **every merge request**. It was manual while it could not possibly
+pass; it can now, so it gates like any other check.
 
 Two properties to preserve when editing it:
 
 - **It must stay additive.** Making an existing job pin the floor would trade
-  away the main-HEAD revdep coverage, which is relied on deliberately
-  (PAGE-fjqyruaf).
+  away coverage of the version users actually get.
 - **It must not write the floor into the shared library.** rurl is installed
   into `.rurl-floor-lib` and prepended via `R_LIBS` for the test step only.
   Installing over the top would let the cached dependency library the other
-  jobs share come back holding the floor instead of main HEAD.
+  jobs share come back holding the floor instead of the CRAN version users
+  actually get.
 
 If it goes red, the floor is wrong, not the suite: correct `Imports:` to the
 lowest released version that passes.
+
+**What no longer happens.** While `Remotes:` existed, every routine job resolved
+rurl to **main HEAD**, which gave continuous reverse-dependency coverage against
+unreleased upstream work. Removing the field removed that: drift is now bounded
+by rurl *releases* rather than rurl *commits*, so an upstream break reaches
+pagerankr only once it is already on CRAN. Restoring it needs a separate
+additive job (`PAGE-majaowtn`); until that exists, this section does not claim
+coverage the pipeline does not have.

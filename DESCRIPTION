@@ -13,10 +13,8 @@ Depends:
     R (>= 4.0.0)
 Imports:
     igraph,
-    rurl (>= 3.0.0),
+    rurl (>= 3.0.1),
     utils
-Remotes:
-    gitlab::bart-turczynski/rurl
 Suggests:
     testthat (>= 3.0.0),
     withr,

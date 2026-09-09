@@ -31,16 +31,24 @@ The single NOTE is the CRAN-incoming feasibility note:
 
   New submission
 
-  Unknown, possibly misspelled, field in DESCRIPTION: 'Remotes'
+  Found the following (possibly) invalid URLs:
+    URL: https://gitlab.com/bart-turczynski/pagerankr/-/issues
+      From: DESCRIPTION
+            man/pagerankr-package.Rd
+            README.md
+      Status: 404
+      Message: Not Found
 
 Explanation:
 
 - **New submission** -- this is expected; pagerankr 0.1.0 is a first release.
-- **`Remotes` field** -- the package Imports 'rurl' (>= 3.0.0), which is not
-  yet on CRAN, so `DESCRIPTION` currently declares a `Remotes:` entry pointing
-  at the GitLab source. CRAN does not honor the `Remotes` field, so this must
-  be resolved before a real CRAN submission (i.e. 'rurl' >= 3.0.0 must be on
-  CRAN and the `Remotes` field removed). This is tracked separately.
+- **The `BugReports` 404** -- not a broken link; see the section below.
+
+Every hard dependency now resolves from CRAN. 'rurl' reached CRAN as 3.0.1 on
+2026-09-09, so the `Remotes:` field -- which CRAN does not honor, and which
+previously drew a second line on this NOTE -- has been removed and `Imports:`
+declares 'rurl' (>= 3.0.1), the lowest 'rurl' that exists as an installable
+release and that the suite has been run against.
 
 ## A note on the `BugReports` URL
 

@@ -72,12 +72,12 @@ default:
     - Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")'
   cache:
     # Keyed on DESCRIPTION: the library only needs rebuilding when the declared
-    # dependencies move. `Remotes:` resolves to rurl main HEAD, which moves
-    # without touching DESCRIPTION — that staleness is intentional and matches
-    # what the GitHub jobs did (PAGE-fjqyruaf relies on the resulting continuous
-    # main-versus-pagerankr revdep coverage), but it does mean a cache hit can
-    # hold an older rurl than main. `rurl-floor` is unaffected: it installs into
-    # its own library, below.
+    # dependencies move. Every dependency now resolves from CRAN, so a cache hit
+    # can still hold an older rurl than CRAN currently serves — a new rurl
+    # release does not touch DESCRIPTION and so does not rotate the key. That
+    # was true before too (`Remotes:` tracked rurl main HEAD); what changed is
+    # that the drift is now bounded by releases rather than by commits.
+    # `rurl-floor` is unaffected: it installs into its own library, below.
     key:
       files:
         - DESCRIPTION
@@ -426,42 +426,36 @@ check-oldrel:
 
 # Exercises the rurl lower bound that DESCRIPTION declares.
 #
-# Every other job resolves `Remotes:` to rurl main HEAD, so nothing else here
-# installs the version `Imports:` actually requires. That gap is how
-# `rurl (>= 2.1.0)` survived while no v2.1.0 tag existed (PAGE-tsbkxhoz): the
-# floor was a number someone reasoned to, not a release anything was tested
-# against.
+# The gap this closes: a floor is a number someone reasoned to, and nothing
+# routinely installs it. That is how `rurl (>= 2.1.0)` survived while no v2.1.0
+# existed at all, and how `>= 3.0.0` survived after it — rurl went 1.2.0 to
+# 3.0.1 on CRAN and never released a 3.0.0 (PAGE-tsbkxhoz).
 #
-# EXPECTED RED until rurl 3.0.0 ships. Measured 2026-08-15: the declared floor
-# of 3.0.0 is the correct number — pagerankr depends on rurl 3.0.0's argument
-# surface after commit fc1caba, and both released candidates fail (v2.2.1: 157
-# errors; v2.2.0: red on canonicalization alone). rurl's newest tag is v2.2.1,
-# so this job cannot pass yet, and it says so precisely rather than being
-# deleted or quietly skipped. It is therefore MANUAL on branches and merge
-# requests — a red floor must not block work that has nothing to do with it —
-# and automatic on scheduled pipelines, which is where the signal is wanted:
-# the moment rurl 3.0.0 is tagged, the next schedule turns this green on its
-# own. Flip it to `when: always` for merge requests then.
+# It resolves the floor from CRAN, not from a forge tag. Until 2026-09-09 rurl
+# was off CRAN and `Remotes:` named the source, so this job read the repo and
+# its host out of that field and installed a git tag. `Remotes:` is gone now
+# (rurl is on CRAN, and CRAN does not honor the field), so the version anyone
+# can actually install is the one CRAN serves — current or archived. A tag that
+# never became a release is not a floor a user can reach.
+#
+# It stays ADDITIVE and job-local: rurl at the floor goes into
+# `.rurl-floor-lib`, prepended for the test step only, so the shared cache the
+# other jobs use is untouched.
+#
+# It runs on every merge request now. It was manual while it could not pass;
+# it can, so it gates.
 rurl-floor:
   stage: check
   needs: []
   variables:
     RURL_FLOOR_LIB: "$CI_PROJECT_DIR/.rurl-floor-lib"
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-      when: always
-    - when: manual
-      allow_failure: true
+    - when: always
   script:
-    # `git` is this job's working tool, not incidental: it queries the tag and
-    # `remotes::install_git()` fetches it. The runner clones through its own
-    # helper image, so the job image is not guaranteed to carry git.
-    - apt-get update -qq && apt-get install -y --no-install-recommends git
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install(c("remotes", "testthat", "pkgload"))'
-    # Reads the floor and the source repo out of DESCRIPTION rather than
-    # hardcoding either, so a forge move cannot leave this testing the wrong
-    # fork, and a floor bump cannot leave it testing the old number.
+    # Reads the floor out of DESCRIPTION rather than hardcoding it, so a bump
+    # cannot leave this testing the old number.
     - |
       Rscript -e '
       d <- read.dcf("DESCRIPTION")
@@ -474,61 +468,49 @@ rurl-floor:
       if (identical(version, hit)) {
         stop("`rurl` is declared in Imports without a `(>= x.y.z)` floor: ", hit, call. = FALSE)
       }
-      remotes_field <- trimws(strsplit(d[1L, "Remotes"], ",")[[1L]])
-      repo <- grep("rurl", remotes_field, value = TRUE)
-      if (length(repo) != 1L) {
-        stop("Expected exactly one `rurl` entry in Remotes, found ", length(repo), ".", call. = FALSE)
+      if ("Remotes" %in% colnames(d)) {
+        stop("DESCRIPTION carries a `Remotes:` field again. CRAN does not honor it, ",
+             "and this job resolves the floor from CRAN.", call. = FALSE)
       }
-      # The host prefix is part of the declaration, not decoration: a bare
-      # `owner/repo` means GitHub, by remotes own default. Carry it through, so
-      # this follows a forge move instead of querying the forge we left.
-      host <- if (grepl("::", repo, fixed = TRUE)) tolower(sub("::.*$", "", repo)) else "github"
-      bases <- c(github = "https://github.com", gitlab = "https://gitlab.com")
-      if (!host %in% names(bases)) {
-        stop("Unsupported `Remotes:` host prefix ", host, call. = FALSE)
+      # Enumerated separately from the install so a floor naming a version CRAN
+      # never served is reported as exactly that, rather than surfacing as an
+      # opaque install error. The archive matters: a floor is usually a version
+      # a newer release has already superseded.
+      # CRAN itself, not whatever mirror or binary front-end the job resolves
+      # through: the claim being checked is that CRAN published this version.
+      repo <- "https://cloud.r-project.org"
+      db <- utils::available.packages(repos = repo)
+      current <- if ("rurl" %in% rownames(db)) db["rurl", "Version"] else character(0)
+      con <- gzcon(url(file.path(repo, "src/contrib/Meta/archive.rds"), open = "rb"))
+      archive <- readRDS(con)
+      close(con)
+      archived <- if ("rurl" %in% names(archive)) {
+        sub("^.*/rurl_(.*)[.]tar[.]gz$", "\\1", rownames(archive[["rurl"]]))
+      } else character(0)
+      published <- c(current, archived)
+      if (!version %in% published) {
+        stop(sprintf(paste0("DESCRIPTION declares a rurl floor of %s, but CRAN has never published it.\n",
+                            "The declared minimum names a version nobody can install. CRAN carries: %s."),
+                     version, paste(sort(published), collapse = ", ")), call. = FALSE)
       }
-      repo <- sub("@.*$", "", sub("^[[:alpha:]]+::", "", repo))
-      # Written as `export`: the steps below reach these through Sys.getenv(),
-      # and a plain shell variable is not visible to a child process.
-      writeLines(c(sprintf("export FLOOR=%s", version),
-                   sprintf("export REPO=%s", repo),
-                   sprintf("export URL=%s/%s.git", bases[[host]], repo),
-                   sprintf("export TAG=v%s", version)), "floor.env")
-      cat(sprintf("DESCRIPTION declares %s (>= %s) on %s; testing against tag v%s.\n",
-                  repo, version, host, version))'
+      writeLines(sprintf("export FLOOR=%s", version), "floor.env")
+      cat(sprintf("DESCRIPTION declares rurl (>= %s); CRAN has published it. Testing against %s.\n",
+                  version, version))'
     - . ./floor.env
-    # Checked separately from the install so the error names the actual failure
-    # — a floor pointing at a version nobody released — instead of surfacing as
-    # an opaque install error. `--exit-code` reserves 2 for "queried fine, no
-    # such ref"; anything else is the query failing, which must NOT be reported
-    # as a missing tag.
-    - |
-      set +e
-      git ls-remote --exit-code --tags "$URL" "refs/tags/$TAG" >/dev/null
-      status=$?
-      set -e
-      case "$status" in
-        0) echo "Tag $TAG exists on $REPO." ;;
-        2) echo "DESCRIPTION declares a rurl floor of ${TAG#v}, but $REPO has no $TAG tag."
-           echo "The declared minimum names a version nobody can install."
-           exit 1 ;;
-        *) echo "Could not query tags on $REPO (git exit $status); the floor was NOT checked."
-           exit "$status" ;;
-      esac
-    # Installed from the URL the tag check just queried, so what runs is
-    # provably what was verified. Into a job-local library, prepended for the
-    # test run only: the shared cache still holds main HEAD for every other job.
+    # Pinned to the exact floor, into a job-local library. `install_version`
+    # reaches the CRAN archive, so a superseded floor still installs.
     - |
       Rscript -e '
       lib <- Sys.getenv("RURL_FLOOR_LIB")
       dir.create(lib, recursive = TRUE, showWarnings = FALSE)
-      remotes::install_git(Sys.getenv("URL"), ref = Sys.getenv("TAG"), lib = lib,
-                           dependencies = FALSE, upgrade = "never", force = TRUE)
-      installed <- as.character(packageVersion("rurl", lib.loc = lib))
       floor <- Sys.getenv("FLOOR")
+      remotes::install_version("rurl", version = sprintf("== %s", floor), lib = lib,
+                               repos = "https://cloud.r-project.org",
+                               dependencies = FALSE, upgrade = "never")
+      installed <- as.character(packageVersion("rurl", lib.loc = lib))
       if (!identical(installed, floor)) {
-        stop(sprintf("Tag %s installs rurl %s, but DESCRIPTION declares the floor as %s.",
-                     Sys.getenv("TAG"), installed, floor), call. = FALSE)
+        stop(sprintf("Installed rurl %s, but DESCRIPTION declares the floor as %s.",
+                     installed, floor), call. = FALSE)
       }'
     - |
       R_LIBS="$RURL_FLOOR_LIB:$R_LIBS_USER" Rscript -e '
