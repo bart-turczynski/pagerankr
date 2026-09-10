@@ -54,13 +54,30 @@ release and that the suite has been run against.
 
 An automated URL check may report `BugReports:`
 (`https://gitlab.com/bart-turczynski/pagerankr/-/issues`) as **404**. This is a
-GitLab.com behavior, not a broken link: gitlab.com serves 404 for issue *list*
-pages to unauthenticated automated clients. The same request against
+GitLab.com behavior, not a broken link: GitLab has migrated issues to work
+items and serves 404 on the legacy `/-/issues` path to any client that is not
+signed in, on every project. The same request against
 `https://gitlab.com/gitlab-org/gitlab/-/issues` -- one of the most public
-trackers on the site -- returns 404 identically, while the anonymous REST API
-(`/api/v4/projects/<id>/issues`) returns 200 and the page loads normally for a
-human in a browser. The URL is correct and reachable; only scripted fetches see
-the 404.
+trackers on the site -- returns 404 identically. A browser follows the redirect
+to `/-/work_items`, which is why the page loads normally by hand.
+
+What is stale is the path, not the project, and this is not a block on scripted
+clients. Measured 2026-09-10 from one anonymous client, one user agent, a
+single run:
+
+    gitlab.com/gitlab-org/gitlab/-/issues              404
+    gitlab.com/gitlab-org/gitlab/-/work_items          200
+    gitlab.com/bart-turczynski/pagerankr/-/issues      404
+    gitlab.com/bart-turczynski/pagerankr/-/work_items  200
+    gitlab.com/bart-turczynski/pagerankr               200
+
+The same anonymous scripted client that is refused `/-/issues` is served
+`/-/work_items`, so the anonymous REST API is not the only scripted path that
+answers. The address is correct and is the one users need; it is not dropped.
+`BugReports:` will name the `work_items` path from the next version, so that
+the change goes through a release cycle rather than a submission -- editing
+`DESCRIPTION` now would invalidate the tarball every check row above was
+measured against.
 
 ## Downstream dependencies
 
