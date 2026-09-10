@@ -496,6 +496,14 @@
 
 ## Internal
 
+* The OSS Index dependency audit in `tests/testthat/test-security.R` scopes to
+  hard dependencies (`Depends` + `Imports`) instead of the `Suggests` tree.
+  `oysteR::expect_secure()` audits `Suggests` too, which pulled in oysteR's own
+  recursive dependencies -- `curl` among them -- and failed the pre-push gate on
+  a vulnerability in the auditor rather than in anything pagerankr ships. Scoped
+  to hard dependencies the audit covers 23 packages and is clean; the old scope
+  covered 126 (`PAGE-aqnbdkov`).
+
 * CI adds CRAN behind the image's Posit Package Manager repo. p3m lags CRAN by
   up to a day for a new release -- on the day rurl 3.0.1 was published, the
   2026-09-09 p3m snapshot *and* p3m `latest` both still served 1.2.0 -- so
