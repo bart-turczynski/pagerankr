@@ -231,6 +231,24 @@ codemeta:
       fi
       echo "OK: codemeta.json is consistent with DESCRIPTION and carries no mangled URLs."
 
+# CITATION.cff / .zenodo.json version consistency.
+#
+# Ported verbatim from seor's scripts/check-citation.py (design/adr/0001 there):
+# CITATION.cff's `version:` and .zenodo.json's `"version"` must name the
+# release DESCRIPTION's Version points at (X.Y.Z -> X.Y.Z; X.Y.Z.9000 ->
+# X.Y.Z), plus every URL those two files declare must also appear in
+# DESCRIPTION's URL field. pagerankr is conformant today; this job exists so
+# it stays that way. Offline and stdlib-only, so no R image needed — same
+# shape as news-version and codemeta above.
+citation-version:
+  stage: verify
+  image: python:3.13-alpine
+  cache: []
+  before_script: []
+  script:
+    - python3 scripts/check-citation.py --self-test
+    - python3 scripts/check-citation.py
+
 # 2 + 3. Lint and spelling.
 #
 # Spelling guards DESCRIPTION `Language: en-US` across Rd, vignettes, README and
