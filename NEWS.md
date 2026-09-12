@@ -1,11 +1,10 @@
 # pagerankr (development version)
 
-* **`BugReports:` now points at `/-/work_items`.** The GitLab
-  issues-to-work-items migration makes `/-/issues` return 404 to any client
-  that does not ask for HTML, which is how `R CMD check` resolves declared
-  URLs -- CRAN archived `pslr 1.2.0` over exactly this. `README` and the
-  generated `pagerankr-package` help topic follow, because R harvests URLs
-  from those too (`SEOR-mqcdrzlg`).
+* **`BugReports:` points at `/-/issues`, the form the CRAN incoming
+  check requires.** The incoming check on `R-devel` notes any `gitlab.com` `BugReports:`
+  whose path is not `/-/issues`; a browser is redirected to `/-/work_items`.
+  `README` and the generated `pagerankr-package` help topic follow
+  (`PAGE-mehcgwzv`).
 
 * **`rurl` now installs from CRAN; the `Remotes:` field is gone.** `rurl`
   reached CRAN as 3.0.1 on 2026-09-09, so `DESCRIPTION` no longer needs a
