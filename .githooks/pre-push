@@ -9,7 +9,7 @@
 # at CRAN. Known divergences:
 #   * Dependencies resolve from the LOCAL library. CI installs them fresh from
 #     CRAN, so an out-of-date local rurl quietly makes this gate weaker than
-#     CI's — the very failure mode step 3 exists to catch. The non-gating
+#     CI's — the very failure mode the R CMD check step exists to catch. The non-gating
 #     notice below reports that skew when it can;
 #     `Rscript -e 'install.packages("rurl")'` clears it.
 #   * `qpdf` is often not installed locally, and without it `R CMD check` SKIPS
@@ -18,22 +18,25 @@
 #
 # Checks, cheapest first:
 #   1. news-version.yaml : top NEWS.md heading vs DESCRIPTION Version
-#   2. Verify / lint     : lintr::lint_package() (fails on any lint)
-#   3. Verify / spelling : spelling::spell_check_package() against
+#   2. citation-version  : CITATION.cff / .zenodo.json name the release
+#                          DESCRIPTION's Version points at, and declare no URL
+#                          DESCRIPTION omits. Same script the CI job runs.
+#   3. Verify / lint     : lintr::lint_package() (fails on any lint)
+#   4. Verify / spelling : spelling::spell_check_package() against
 #                          DESCRIPTION `Language: en-US`. Skipped (not failed)
 #                          when `spelling` is not installed.
-#   4. R CMD check       : rcmdcheck --as-cran, FAILS ON ERRORS AND WARNINGS
+#   5. R CMD check       : rcmdcheck --as-cran, FAILS ON ERRORS AND WARNINGS
 #                          (the package is warning-clean; the sole allowed NOTE
 #                          is the CRAN-incoming new-submission one).
-# Between steps 1 and 2, one non-gating notice: installed rurl vs the version
+# Between steps 2 and 3, one non-gating notice: installed rurl vs the version
 # CRAN serves. It warns, never fails, and skips itself when curl is missing or
 # the network is unreachable.
 #
-# Step 4 is what catches correctness regressions — e.g. a dependency bump that
+# Step 5 is what catches correctness regressions — e.g. a dependency bump that
 # turns test fixtures red (see PR #50: rurl 2.1.0 emptied bare-label graphs and
 # slipped in because remote CI was billing-disabled). It needs the full Suggests
 # set (covr, goodpractice, DT, visNetwork, rcmdcheck, ...). When that toolchain
-# is NOT installed, step 4 is SKIPPED with a warning rather than failing, so a
+# is NOT installed, step 5 is SKIPPED with a warning rather than failing, so a
 # fresh clone still gets the light gate. Install the Suggests to arm it.
 #
 # The cross-platform matrix (full-check.yml) and R-hub (rhub.yaml) remain the
@@ -63,7 +66,28 @@ if [ "$heading" != "(development version)" ] && [ "$heading" != "$version" ]; th
   exit 1
 fi
 
-# Dependency-skew notice (NON-GATING -- warns, never fails). Steps 2-3 resolve
+# 2. Citation metadata (mirrors the `citation-version` CI job, and runs the
+#    same script it does). CITATION.cff's `version:` and .zenodo.json's
+#    `"version"` must name the release DESCRIPTION's Version points at
+#    (X.Y.Z -> X.Y.Z; X.Y.Z.9000 -> X.Y.Z), and every URL those two files
+#    declare must also appear in DESCRIPTION's URL field. The rule is seor's
+#    design/adr/0001 and design/adr/0002 (SEOR-jxzjhbef).
+#
+#    Offline, stdlib-only and instant, so it sits here with the other cheap
+#    metadata check rather than behind the R toolchain. `--self-test` runs
+#    first for the same reason it does in CI: this tree is green by
+#    construction, so a passing check and a broken script look identical
+#    without it. Skipped, not failed, when python3 is unavailable -- the hook
+#    otherwise gains a hard dependency it did not have.
+echo "pre-push: citation metadata vs DESCRIPTION ..." >&2
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "pre-push:   python3 unavailable -- skipping the citation check." >&2
+else
+  python3 scripts/check-citation.py --self-test
+  python3 scripts/check-citation.py
+fi
+
+# Dependency-skew notice (NON-GATING -- warns, never fails). Steps 3-4 resolve
 # rurl from the local library; CI installs it fresh from CRAN. Compare the two
 # so a stale local copy cannot masquerade as CI-green.
 #
@@ -107,11 +131,11 @@ if [ -n "$rurl_target" ]; then
   fi
 fi
 
-# 2. Lint (mirrors the Verify `lint` job; fails on any lint).
+# 3. Lint (mirrors the Verify `lint` job; fails on any lint).
 echo "pre-push: lintr::lint_package() ..." >&2
 Rscript -e 'l <- lintr::lint_package(); if (length(l)) { print(l); quit(status = 1L) }'
 
-# 3. Spelling (mirrors the Verify `lint` job's Spelling step). Guards
+# 4. Spelling (mirrors the Verify `lint` job's Spelling step). Guards
 #    DESCRIPTION `Language: en-US` across Rd, vignettes, README and NEWS.
 #    Skipped (not failed) when `spelling` is unavailable — it was added to
 #    Suggests later than this hook, so existing clones are not broken by it.
@@ -125,9 +149,9 @@ else
   Rscript -e 'bad <- spelling::spell_check_package(); if (nrow(bad)) { print(bad); cat("Correct the prose, or add genuine terms to inst/WORDLIST.\n", file = stderr()); quit(status = 1L) }'
 fi
 
-# 4. R CMD check (mirrors the Verify `check` job) — fails on errors AND
+# 5. R CMD check (mirrors the Verify `check` job) — fails on errors AND
 #    warnings. Skipped (not failed) when rcmdcheck / the Suggests toolchain is
-#    unavailable, so a fresh clone still benefits from steps 1-3.
+#    unavailable, so a fresh clone still benefits from steps 1-4.
 if [ "${SKIP_RCMDCHECK:-}" = "1" ]; then
   echo "pre-push: SKIP_RCMDCHECK=1 set — skipping R CMD check" >&2
 elif ! Rscript -e 'quit(status = if (requireNamespace("rcmdcheck", quietly = TRUE)) 0L else 1L)' >/dev/null 2>&1; then
