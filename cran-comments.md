@@ -17,23 +17,31 @@ queues are clean -- see "Windows and the 'rurl' binary" below.
   ucrt), x86_64-w64-mingw32, Windows Server 2022 x64 (build 20348).
   Checked 2026-09-17 17:11:03 UTC. **1 NOTE**, the incoming feasibility note
   below, and nothing else. Package dependencies `OK`, tests `[56s] OK`,
-  vignettes re-built `[13s] OK`, PDF manual `[24s] OK`.
+  vignettes re-built `[13s] OK`, PDF manual `[24s] OK`, HTML manual `OK`.
   <https://win-builder.r-project.org/oyB8jH4otNFE>
 - win-builder R-release -- R 4.6.1 (2026-06-24 ucrt), same platform.
-  Checked 2026-09-17 21:10:16 UTC. **1 NOTE**, the same one, and nothing else.
+  Checked 2026-09-17 16:40:15 UTC. **1 NOTE**, the same one, and nothing else.
   Package dependencies `OK` -- the ERROR that stopped the previous R-release
   attempt is gone. Tests `[58s] OK`, vignettes re-built `[13s] OK`, PDF manual
-  `[23s] OK`, HTML manual `[22s] OK`.
-  <https://win-builder.r-project.org/F9sI3P5JGEV6>
+  `[24s] OK`, HTML manual `[22s] OK`.
+  <https://win-builder.r-project.org/3KuPXi20VE1Q>
 
-Both queues were uploaded to over FTP, response 226 each. The R-release tarball
-was built with `R CMD build` from a clean checkout of `main` at `36b3815`
-(`pagerankr_0.1.0.tar.gz`, 589166 bytes, SHA-256
-`9e09d4f2d191c1604eba0edab53944fb17e0fc9eeb6cb3d3a0fa626cb665480d`), and is the
-tarball intended for submission. The R-devel run was uploaded separately from
-the same commit; because `R CMD build` re-generates vignettes on every
-invocation, the two runs used byte-distinct tarballs built from identical
-sources. One upload per queue produced one run and one email each.
+**Both rows above describe one tarball.** It was built with `R CMD build` from
+a clean `git archive` export of `main` at `36b3815` and uploaded to both queues
+over FTP, response 226 each, one run and one email per queue:
+
+    artifact  pagerankr_0.1.0.tar.gz
+    size      588696 bytes
+    sha256    017b761fb79b27adccdad76227addd1d14e2c3b1676027bf1d237e2bd0f952c3
+
+That is the tarball intended for submission. `R CMD build` writes a `Packaged:`
+timestamp, so it is not bit-reproducible: a rebuild from the same commit gives
+a different hash and would not be the artifact these two runs describe.
+
+One later R-release upload was made from such a rebuild, in error, and returned
+the same 1 NOTE (<https://win-builder.r-project.org/F9sI3P5JGEV6>). It is
+recorded here for completeness and is not cited above; the rebuilt tarball is
+not the submission artifact.
 
 **R-hub has not been run and cannot be ported** -- it works by dispatching
 workflows inside a GitHub repository, so there is nothing to translate. Both
