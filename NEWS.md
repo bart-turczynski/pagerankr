@@ -1,4 +1,4 @@
-# pagerankr (development version)
+# pagerankr 0.1.0
 
 * **`BugReports:` points at `/-/issues`, the form the CRAN incoming
   check requires.** The incoming check on `R-devel` notes any `gitlab.com` `BugReports:`
@@ -500,38 +500,6 @@
   still defaults to `"zipf"` (now declared explicitly rather than by option
   order) and every other site still defaults to `"none"`.
 
-## Internal
-
-* The OSS Index dependency audit in `tests/testthat/test-security.R` scopes to
-  hard dependencies (`Depends` + `Imports`) instead of the `Suggests` tree.
-  `oysteR::expect_secure()` audits `Suggests` too, which pulled in oysteR's own
-  recursive dependencies -- `curl` among them -- and failed the pre-push gate on
-  a vulnerability in the auditor rather than in anything pagerankr ships. Scoped
-  to hard dependencies the audit covers 23 packages and is clean; the old scope
-  covered 126 (`PAGE-aqnbdkov`).
-
-* CI adds CRAN behind the image's Posit Package Manager repo. p3m lags CRAN by
-  up to a day for a new release -- on the day rurl 3.0.1 was published, the
-  2026-09-09 p3m snapshot *and* p3m `latest` both still served 1.2.0 -- so
-  `Imports: rurl (>= 3.0.1)` was unresolvable at any pin and every
-  dependency-resolving job failed. p3m stays first, so packages still arrive as
-  prebuilt binaries; CRAN only supplies what p3m has not synced yet.
-
-* The `rurl-floor` CI job resolves the floor from CRAN (current *or* archived)
-  instead of reading the source forge out of `Remotes:` and installing a git
-  tag. It now runs on every merge request rather than manually, because it can
-  pass. Its GitHub-hosted twin, which had no live runner and hard-failed on the
-  removed `Remotes:` field, was deleted; the GitLab job supersedes it.
-
-* The pre-push hook's non-gating rurl skew notice compares the installed `rurl`
-  against CRAN rather than against the `Remotes:` target. The skew it warns
-  about is not hypothetical: a local 3.0.0 build sat in front of CRAN 3.0.1
-  here and hid a new `get_clean_url` argument from the suite.
-
-# pagerankr 0.1.0
-
-_Released 2026-07-11._
-
 * Documented that `canonical_profile()` deliberately leaves `rurl`'s
   component-dropping knobs unpinned (`query_handling`, `port_handling`, and the
   `url_standard` selector added in `rurl` 2.2.0) -- they have no effect on the
@@ -768,3 +736,31 @@ _Released 2026-07-11._
   documented as a proxy, distinct from the backlink-authority prior.
 
 * Initial CI and lint baseline.
+
+## Internal
+
+* The OSS Index dependency audit in `tests/testthat/test-security.R` scopes to
+  hard dependencies (`Depends` + `Imports`) instead of the `Suggests` tree.
+  `oysteR::expect_secure()` audits `Suggests` too, which pulled in oysteR's own
+  recursive dependencies -- `curl` among them -- and failed the pre-push gate on
+  a vulnerability in the auditor rather than in anything pagerankr ships. Scoped
+  to hard dependencies the audit covers 23 packages and is clean; the old scope
+  covered 126 (`PAGE-aqnbdkov`).
+
+* CI adds CRAN behind the image's Posit Package Manager repo. p3m lags CRAN by
+  up to a day for a new release -- on the day rurl 3.0.1 was published, the
+  2026-09-09 p3m snapshot *and* p3m `latest` both still served 1.2.0 -- so
+  `Imports: rurl (>= 3.0.1)` was unresolvable at any pin and every
+  dependency-resolving job failed. p3m stays first, so packages still arrive as
+  prebuilt binaries; CRAN only supplies what p3m has not synced yet.
+
+* The `rurl-floor` CI job resolves the floor from CRAN (current *or* archived)
+  instead of reading the source forge out of `Remotes:` and installing a git
+  tag. It now runs on every merge request rather than manually, because it can
+  pass. Its GitHub-hosted twin, which had no live runner and hard-failed on the
+  removed `Remotes:` field, was deleted; the GitLab job supersedes it.
+
+* The pre-push hook's non-gating rurl skew notice compares the installed `rurl`
+  against CRAN rather than against the `Remotes:` target. The skew it warns
+  about is not hypothetical: a local 3.0.0 build sat in front of CRAN 3.0.1
+  here and hid a new `get_clean_url` argument from the suite.
