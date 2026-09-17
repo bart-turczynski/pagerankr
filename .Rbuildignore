@@ -49,3 +49,4 @@
 # of the installable package; without this, --as-cran reports it as a
 # non-standard top-level directory.
 ^scripts$
+^CRAN-SUBMISSION$

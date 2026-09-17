@@ -155,7 +155,7 @@ clean on win-builder R-devel throughout.
     https://cran.r-project.org/bin/windows/contrib/4.7/PACKAGES   rurl 3.0.1
 
 The R-release run was repeated against the current tarball and is clean:
-`checking package dependencies ... OK`, the full check ran in 204s, and the
+`checking package dependencies ... OK`, the full check ran in 205s, and the
 result is **1 NOTE** -- the incoming feasibility note above, identical to
 R-devel's. See the R-release row under "Test environments".
 
