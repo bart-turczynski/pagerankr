@@ -1,9 +1,9 @@
 <!--
 NOTE: This file is authored ahead of an actual CRAN submission.
-pagerankr is NOT being submitted to CRAN yet. Before any real submission,
-re-run the platform checks below and refresh these results so they reflect the
-exact tarball being submitted. One blocker is open and is NOT in this package:
-see "Windows and the 'rurl' binary" below.
+Before any real submission, confirm the platform results below still describe
+the exact tarball being submitted. No blocker is open: the 'rurl' Windows
+binary that held the previous attempt is now published, and both win-builder
+queues are clean -- see "Windows and the 'rurl' binary" below.
 -->
 
 ## Test environments
@@ -13,20 +13,27 @@ see "Windows and the 'rurl' binary" below.
   `R CMD check`, on every merge request and every push to `main`
 - GitLab CI: Ubuntu (rocker/r-ver:4.5), R 4.5.x -- `R CMD check`, on `v*` tags
   and on demand (`check-oldrel`)
-- win-builder R-devel -- R Under development (unstable) (2026-09-09 r90510
+- win-builder R-devel -- R Under development (unstable) (2026-09-16 r90549
   ucrt), x86_64-w64-mingw32, Windows Server 2022 x64 (build 20348).
-  Submitted 2026-09-10, checked 12:49:11 UTC. **1 NOTE**, the incoming
-  feasibility note below. Tests `[37s] OK`, vignettes re-built OK, PDF manual
-  `[15s] OK`. <https://win-builder.r-project.org/8iFbbLUPQsE3>
-- win-builder R-release -- R 4.6.1 (2026-06-24 ucrt), same platform. Submitted
-  in the same run, checked 12:40:04 UTC. **1 ERROR, 1 NOTE**, and the ERROR is
-  an environment defect rather than a package defect -- see below.
-  <https://win-builder.r-project.org/6kKLhSl1SxKL>
+  Checked 2026-09-17 17:11:03 UTC. **1 NOTE**, the incoming feasibility note
+  below, and nothing else. Package dependencies `OK`, tests `[56s] OK`,
+  vignettes re-built `[13s] OK`, PDF manual `[24s] OK`.
+  <https://win-builder.r-project.org/oyB8jH4otNFE>
+- win-builder R-release -- R 4.6.1 (2026-06-24 ucrt), same platform.
+  Checked 2026-09-17 21:10:16 UTC. **1 NOTE**, the same one, and nothing else.
+  Package dependencies `OK` -- the ERROR that stopped the previous R-release
+  attempt is gone. Tests `[58s] OK`, vignettes re-built `[13s] OK`, PDF manual
+  `[23s] OK`, HTML manual `[22s] OK`.
+  <https://win-builder.r-project.org/F9sI3P5JGEV6>
 
-Both win-builder queues were uploaded to over FTP, response 226 each, from a
-tarball built with `R CMD build` from a clean `git archive` export of `main` at
-`001ea7e` (`pagerankr_0.1.0.tar.gz`, 588625 bytes). One upload per queue
-produced one run and one email each; there was no second submission.
+Both queues were uploaded to over FTP, response 226 each. The R-release tarball
+was built with `R CMD build` from a clean checkout of `main` at `36b3815`
+(`pagerankr_0.1.0.tar.gz`, 589166 bytes, SHA-256
+`9e09d4f2d191c1604eba0edab53944fb17e0fc9eeb6cb3d3a0fa626cb665480d`), and is the
+tarball intended for submission. The R-devel run was uploaded separately from
+the same commit; because `R CMD build` re-generates vignettes on every
+invocation, the two runs used byte-distinct tarballs built from identical
+sources. One upload per queue produced one run and one email each.
 
 **R-hub has not been run and cannot be ported** -- it works by dispatching
 workflows inside a GitHub repository, so there is nothing to translate. Both
@@ -79,7 +86,7 @@ release and that the suite has been run against.
 
 ## A note on the `BugReports` URL
 
-An automated URL check may report `BugReports:`
+An automated URL check reports `BugReports:`
 (`https://gitlab.com/bart-turczynski/pagerankr/-/issues`) as **404**. This is a
 GitLab.com behavior, not a broken link: GitLab has migrated issues to work
 items and serves 404 on the legacy `/-/issues` path to any client that is not
@@ -88,9 +95,8 @@ signed in, on every project. The same request against
 trackers on the site -- returns 404 identically. A browser follows the redirect
 to `/-/work_items`, which is why the page loads normally by hand.
 
-What is stale is the path, not the project, and this is not a block on scripted
-clients. Measured 2026-09-10 from one anonymous client, one user agent, a
-single run:
+Measured 2026-09-17 from one anonymous client, one user agent, a single run
+(unchanged from the same measurement on 2026-09-10):
 
     gitlab.com/gitlab-org/gitlab/-/issues              404
     gitlab.com/gitlab-org/gitlab/-/work_items          200
@@ -101,48 +107,55 @@ single run:
 The same anonymous scripted client that is refused `/-/issues` is served
 `/-/work_items`, so the anonymous REST API is not the only scripted path that
 answers. The address is correct and is the one users need; it is not dropped.
-`BugReports:` will name the `work_items` path from the next version, so that
-the change goes through a release cycle rather than a submission -- editing
-`DESCRIPTION` now would invalidate the tarball every check row above was
-measured against.
 
-## Windows and the 'rurl' binary -- the open blocker
+**The field names `/-/issues` deliberately, and will keep naming it.** R's own
+incoming check requires it. `tools:::.check_package_CRAN_incoming()` validates
+a `github.com` or `gitlab.com` `BugReports` against `/issues(/new)?/?$` and
+NOTEs anything else, recommending `/issues` in its place:
 
-The win-builder **R-release** run stopped at:
+    if ((endsWith(tolower(z$authority), "github.com") ||
+         endsWith(tolower(z$authority), "gitlab.com")) &&
+        !grepl("/issues(/new)?/?$", z$path)) {
+
+So the two paths trade one NOTE for another, and they are not equivalent in
+cost. Pointing the field at `/-/work_items` satisfies the URL fetch but fails
+this check -- the NOTE that archived our sibling package 'pslr' 1.2.1 at the
+CRAN pretest. The 404 on `/-/issues` is the form CRAN already accepts in
+practice: 'rurl' 3.0.1 is published with the same arrangement. An earlier
+revision of this package did name `/-/work_items`; it was moved back for this
+reason, and this file previously stated an intention to move it forward again,
+which is withdrawn.
+
+## Windows and the 'rurl' binary -- resolved
+
+A previous win-builder **R-release** run stopped before it checked anything:
 
     * checking package dependencies ... ERROR
     Package required and available but unsuitable version: 'rurl'
 
-It aborted there, before running anything: install 2 s, check 12 s. **This is
-not a defect in pagerankr**, and the same tarball is clean on win-builder
-R-devel, which ran the full check in 128 s and returned 1 NOTE.
+'rurl' 3.0.1 had been published to CRAN as source on 2026-09-09, but no Windows
+binary had been built yet, so the R-release queue installed 'rurl' 1.2.0 -- the
+only Windows binary that existed -- and `Imports: rurl (>= 3.0.1)` correctly
+refused it. That was never a defect in pagerankr, and the same tarball was
+clean on win-builder R-devel throughout.
 
-CRAN has published 'rurl' 3.0.1 as source but has not yet built a Windows
-binary for it. Measured 2026-09-10:
+**This has cleared.** Measured 2026-09-17:
 
     https://cran.r-project.org/src/contrib/PACKAGES               rurl 3.0.1
-    https://cran.r-project.org/bin/windows/contrib/4.5/PACKAGES   rurl 1.2.0
-    https://cran.r-project.org/bin/windows/contrib/4.6/PACKAGES   rurl 1.2.0
-    https://cran.r-project.org/bin/windows/contrib/4.7/PACKAGES   rurl 1.2.0
+    https://cran.r-project.org/bin/windows/contrib/4.5/PACKAGES   rurl 3.0.1
+    https://cran.r-project.org/bin/windows/contrib/4.6/PACKAGES   rurl 3.0.1
+    https://cran.r-project.org/bin/windows/contrib/4.7/PACKAGES   rurl 3.0.1
 
-CRAN's own check-results page for 'rurl' shows the same split, with every
-flavor `OK` on one of two versions -- 3.0.1 on three Linux flavors and three
-macOS flavors, 1.2.0 on all three Windows flavors (page timestamped 2026-09-10
-13:51 CEST). Nothing has failed; the Windows binary simply has not been built
-yet. 'rurl' 3.0.1 was published 2026-09-09 07:40:02 UTC.
+The R-release run was repeated against the current tarball and is clean:
+`checking package dependencies ... OK`, the full check ran in 204s, and the
+result is **1 NOTE** -- the incoming feasibility note above, identical to
+R-devel's. See the R-release row under "Test environments".
 
-So the R-release queue installed 'rurl' 1.2.0, the only Windows binary that
-exists, and `Imports: rurl (>= 3.0.1)` correctly refused it.
-
-**The floor is not negotiable and will not be lowered to clear this.** 'rurl'
-1.2.0's `get_clean_url()` takes 11 arguments and lacks 10 of the 20
-`canonical_profile()` pins, `url_standard` among them, which is where node
-identity lives. 3.0.1 is the lowest 'rurl' that exists as an installable
+The declared floor stays at `rurl (>= 3.0.1)` and was never a candidate for
+lowering. 'rurl' 1.2.0's `get_clean_url()` takes 11 arguments and lacks 10 of
+the 20 `canonical_profile()` pins, `url_standard` among them, which is where
+node identity lives. 3.0.1 is the lowest 'rurl' that exists as an installable
 release and that this suite has been run against.
-
-This submission is therefore held until a Windows binary of 'rurl' 3.0.1
-appears in `bin/windows/contrib`, at which point the R-release run is repeated
-and this section is replaced by its result.
 
 ## Downstream dependencies
 
