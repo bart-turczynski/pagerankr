@@ -1,5 +1,12 @@
 # pagerankr 0.1.0
 
+* **The GitHub Actions workflows are gone, and `codemeta.json` names GitLab.**
+  `.gitlab-ci.yml` has replaced all eight workflows since the move to GitLab, so
+  `.github/workflows/` and `.github/dependabot.yml` were dead weight that the new
+  read-only GitHub mirror would have republished. `codemeta.json` now points at
+  `gitlab.com` for every URL it carries -- repository, issue tracker, release
+  notes and CI -- matching what `DESCRIPTION` has said since `PAGE-mehcgwzv` (`PAGE-yfmrrrhp`).
+
 * **`BugReports:` points at `/-/issues`, the form the CRAN incoming
   check requires.** The incoming check on `R-devel` notes any `gitlab.com` `BugReports:`
   whose path is not `/-/issues`; a browser is redirected to `/-/work_items`.
