@@ -4,9 +4,9 @@
   "identifier": "pagerankr",
   "description": "Provides a set of modular, pipeable functions to calculate PageRank scores from edge lists and redirect reports, common in SEO analysis. Functions handle URL cleaning, redirect resolution, edge deduplication, isolate handling, and PageRank computation using base R for data manipulation and 'igraph' for core PageRank calculation.",
   "name": "pagerankr: Modular Toolkit for PageRank Calculation",
-  "relatedLink": "https://bart-turczynski.github.io/pagerankr/",
-  "codeRepository": "https://github.com/bart-turczynski/pagerankr",
-  "issueTracker": "https://github.com/bart-turczynski/pagerankr/issues",
+  "relatedLink": ["https://pagerankr-63ad30.gitlab.io/", "https://bart-turczynski.r-universe.dev"],
+  "codeRepository": "https://gitlab.com/bart-turczynski/pagerankr",
+  "issueTracker": "https://gitlab.com/bart-turczynski/pagerankr/-/issues",
   "license": "https://spdx.org/licenses/MIT",
   "version": "0.1.0",
   "programmingLanguage": {
@@ -245,13 +245,13 @@
         }
       ],
       "name": "{pagerankr}: Modular Toolkit for PageRank Calculation",
-      "url": "https://github.com/bart-turczynski/pagerankr",
+      "url": "https://gitlab.com/bart-turczynski/pagerankr",
       "description": "R package version 0.1.0"
     }
   ],
-  "releaseNotes": "https://github.com/bart-turczynski/pagerankr/blob/main/NEWS.md",
-  "readme": "https://github.com/bart-turczynski/pagerankr/blob/main/README.md",
-  "contIntegration": ["https://github.com/bart-turczynski/pagerankr/actions/workflows/verify.yml", "https://app.codecov.io/gh/bart-turczynski/pagerankr", "https://github.com/bart-turczynski/pagerankr/actions/workflows/full-check.yml", "https://github.com/bart-turczynski/pagerankr/actions/workflows/rhub.yaml", "https://github.com/bart-turczynski/pagerankr/actions/workflows/osv-audit.yml"],
+  "releaseNotes": "https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/NEWS.md",
+  "readme": "https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/README.md",
+  "contIntegration": "https://gitlab.com/bart-turczynski/pagerankr/-/pipelines",
   "developmentStatus": "https://lifecycle.r-lib.org/articles/stages.html#experimental",
   "keywords": ["centrality", "crawl-analysis", "graph-algorithms", "igraph", "internal-linking", "link-graph", "network-analysis", "pagerank", "r", "r-lang", "r-package", "redirects", "rstats", "screaming-frog", "seo", "site-architecture", "technical-seo", "url-canonicalization", "web-graph", "link-equity"]
 }
