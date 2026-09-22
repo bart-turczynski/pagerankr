@@ -552,4 +552,3 @@ hits <- function(edge_list_df,
   }
   invisible(NULL)
 }
-
