@@ -14,6 +14,7 @@
 ^\.githooks$
 ^\.gitignore$
 ^\.Rbuildignore$
+^\.pre-commit-config\.yaml$
 ^README\.Rmd$
 ^instructions\.md$
 ^cran-comments\.md$

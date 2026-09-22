@@ -27,31 +27,39 @@ checks, R-hub, and the OSS Index audit — not because they execute. What could 
 ported has been (PAGE-ppmceqnr); `.gitlab-ci.yml`'s header records each
 remaining gap and why it is a gap rather than a to-do.
 
-The same checks also run **locally**, as a committed pre-push hook in
+The same checks also run **locally**, as a committed pre-push hook script,
 `.githooks/pre-push`, so a red result costs seconds instead of a round trip
-through CI. It runs four checks, cheapest first:
+through CI. It runs five checks, cheapest first:
 
 1. top `NEWS.md` heading matches `DESCRIPTION` `Version:` (or is `(development version)`)
-2. `lintr::lint_package()` reports no lints
-3. `spelling::spell_check_package()` reports no misspellings against
+2. citation metadata vs `DESCRIPTION` (`scripts/check-citation.py`, the same
+   script the `citation-version` CI job runs)
+3. `lintr::lint_package()` reports no lints
+4. `spelling::spell_check_package()` reports no misspellings against
    `DESCRIPTION` `Language: en-US`
-4. `R CMD check --as-cran` — **fails on errors AND warnings** (the package is
+5. `R CMD check --as-cran` — **fails on errors AND warnings** (the package is
    warning-clean; the only allowed NOTE is the CRAN-incoming new-submission
    one)
 
-Enable it once per clone:
+The script itself is unchanged; only how it is armed changed. It now runs
+through a `pre-commit` local hook (`.pre-commit-config.yaml`) rather than
+`git config core.hooksPath`, because that file also carries the fleet's
+commit-stage hygiene hooks (trailing-whitespace, large-file guard,
+merge-conflict markers, and so on), and `pre-commit install` refuses to run at
+all while `core.hooksPath` is set. Enable both once per clone:
 
 ```bash
-git config core.hooksPath .githooks
+pre-commit install
+pre-commit install --hook-type pre-push
 ```
 
-It blocks a push that would turn the `lint` / `news-version` / `check` CI jobs
-red.
-Emergency bypass: `SKIP_VERIFY=1 git push` (skips all four);
-`SKIP_RCMDCHECK=1 git push` (skips only step 4); `SKIP_SPELLING=1 git push`
-(skips only step 3).
+It blocks a push that would turn the `lint` / `news-version` /
+`citation-version` / `check` CI jobs red.
+Emergency bypass: `SKIP_VERIFY=1 git push` (skips all five);
+`SKIP_RCMDCHECK=1 git push` (skips only step 5); `SKIP_SPELLING=1 git push`
+(skips only step 4).
 
-### Spelling (step 3)
+### Spelling (step 4)
 
 Spelling is gated because prose regressed silently once already: the
 case-study vignette introduced two en-GB spellings and two untracked terms
@@ -61,12 +69,12 @@ Fix genuine misspellings in the text; add real terms to `inst/WORDLIST`
 the step is **skipped with a warning**, so clones predating its addition to
 `Suggests` are not broken.
 
-### Step 4 needs the Suggests toolchain
+### Step 5 needs the Suggests toolchain
 
-`R CMD check` (step 4) requires the full `Suggests` set (`covr`,
+`R CMD check` (step 5) requires the full `Suggests` set (`covr`,
 `goodpractice`, `DT`, `visNetwork`, `rcmdcheck`, ...). When `rcmdcheck` is not
-installed, step 4 is **skipped with a warning** rather than failing, so a fresh
-clone still gets the light gate (steps 1-3). Install the Suggests to arm the
+installed, step 5 is **skipped with a warning** rather than failing, so a fresh
+clone still gets the light gate (steps 1-4). Install the Suggests to arm the
 full check — it is what catches correctness regressions such as a dependency
 bump that turns test fixtures red (this class of failure previously slipped
 onto `main` while remote CI was billing-disabled; see PR #50).

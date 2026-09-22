@@ -13,9 +13,9 @@ axes; keep them separate.
 `NEWS.md` describes changes to the library. Crawl measurements and ranking-outcome
 predictions belong in a vignette or `notes/`.
 
-Push runs a local four-check gate, armed once per clone with
-`git config core.hooksPath .githooks`. For the gate, its skip flags, and the
-spelling/WORDLIST rule, see CONTRIBUTING.md.
+Push runs a local five-check gate, armed once per clone with
+`pre-commit install && pre-commit install --hook-type pre-push`. For the gate,
+its skip flags, and the spelling/WORDLIST rule, see CONTRIBUTING.md.
 
 fp issue-tracking rules are fp-managed; regenerate them with `fp agent setup
 standard` rather than editing FP_AGENTS.md by hand.

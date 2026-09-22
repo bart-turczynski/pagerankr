@@ -1,0 +1,65 @@
+# Wraps the existing local gate rather than replacing it (PAGE-bqrdbmht). This
+# repo already had a richer pre-push gate than the rest of the fleet --
+# .githooks/pre-push, armed via `git config core.hooksPath .githooks` -- with
+# five checks (NEWS/DESCRIPTION version, citation metadata, lintr, spelling,
+# R CMD check --as-cran). pre-commit refuses to install at all while
+# core.hooksPath is set ("Cowardly refusing to install hooks with
+# `core.hooksPath` set."), so arming the fleet-standard commit-stage hygiene
+# hooks required unsetting core.hooksPath and re-pointing the pre-push stage at
+# the SAME script -- not a reimplementation of its five checks in YAML. The
+# script stays at .githooks/pre-push; only how it is invoked changed.
+#
+# air (the R formatter) is intentionally NOT wired up here: this package has no
+# air.toml, so enabling it would reformat the whole source tree in one churny
+# pass. Same call punycoder and rurl made.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-added-large-files
+        args: ['--maxkb=5120']
+      # inst/extdata/reviews-microsite-{before,after}/*.csv are a deterministic,
+      # scrub-gated case-study fixture (see inst/extdata/README.md):
+      # data-raw/build-fixture.R states "the same source reproduces this
+      # fixture exactly". A whitespace/EOF fixer edit would make the checked-in
+      # bytes diverge from that regeneration guarantee even though no test
+      # byte-compares them.
+      #
+      # tests/testthat/fixtures/screaming-frog/*-bom.csv are verbatim Screaming
+      # Frog export fixtures (note the BOM in the filename -- they exist
+      # specifically to exercise BOM/encoding handling), so their bytes are the
+      # fixture.
+      #
+      # tests/testthat/_snaps/ is testthat-owned: it rewrites those files on
+      # every test run (passing runs included) and its writer ends each file
+      # with a blank line that end-of-file-fixer would strip, which would make
+      # the committed form one the suite can never reproduce and fail the
+      # pre-push hook with "files were modified by this hook" on an otherwise
+      # green tree. Empty today, but the failure mode is immediate the moment a
+      # snapshot test is added, so it is excluded now rather than after the
+      # fact.
+      - id: end-of-file-fixer
+        exclude: &fixer-excludes '^(inst/extdata/|tests/testthat/fixtures/|tests/testthat/_snaps/)'
+      - id: trailing-whitespace
+        exclude: *fixer-excludes
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: check-toml
+      - id: mixed-line-ending
+        exclude: *fixer-excludes
+      - id: check-case-conflict
+  - repo: local
+    hooks:
+      # The same five-check script CI's local counterpart has always run,
+      # unchanged -- .githooks/pre-push stays where it is. It reads no git
+      # hook arguments and no stdin, so it runs identically whether git invokes
+      # it directly or pre-commit does. Skip flags (SKIP_VERIFY, SKIP_RCMDCHECK,
+      # SKIP_SPELLING) are untouched and still read from the environment.
+      - id: verify
+        name: 'verify (five-step gate: news/citation/lint/spelling/check)'
+        entry: .githooks/pre-push
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+        verbose: true
