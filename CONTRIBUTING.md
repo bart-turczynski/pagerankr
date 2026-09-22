@@ -4,21 +4,41 @@
 
 The four checks run remotely in **GitLab CI** (`.gitlab-ci.yml`): `news-version`
 (NEWS/DESCRIPTION consistency), `lint` (lintr + spelling) and `check`
-(`R CMD check`). They run on every merge request, every push to `main`, and on
-`v*` tags. Alongside them, `codemeta` checks `codemeta.json` against
-`DESCRIPTION`, and `coverage` measures test coverage — reported through GitLab's
-own cobertura ingestion, so merge requests get per-line coverage in the diff
-without a Codecov account. Coverage is `allow_failure`, deliberately: coverage
-that blocks a merge turns every honest refactor into a fight with a number.
+(`R CMD check`). They run on every push to `main` and on `v*` tags — **not** on
+merge requests or feature-branch pushes; see "One pipeline, not three" below.
+Alongside them, `codemeta` checks `codemeta.json` against `DESCRIPTION`, and
+`coverage` measures test coverage — reported through GitLab's own cobertura
+ingestion. Coverage is `allow_failure`, deliberately: coverage that blocks a
+merge turns every honest refactor into a fight with a number.
 
 Two things about that pipeline are worth knowing before you rely on it.
 
 **It runs on a self-hosted runner, not GitLab's shared fleet.** The namespace is
 on the free plan, where shared runners return `ci_quota_exceeded` before
 executing a line, and this project does not pay for minutes. The gate therefore
-depends on one machine being awake with Docker running: a push made while it is
-not will sit *queued* rather than fail, so a merge request with no pipeline
-result is waiting, not passing.
+depends on one machine being awake with Docker running: a push to `main` made
+while it is not will sit *queued* rather than fail, so a `main` commit with no
+pipeline result yet is waiting, not passing.
+
+**One pipeline, not three.** `workflow:` in `.gitlab-ci.yml` suppresses both the
+merge-request pipeline and the branch pipeline, leaving only the one on `main`
+(and on `v*` tags). A feature-branch push, and the merge request built from it,
+get **no CI at all** — not a red result, no result. That is deliberate, not a
+gap: on this fleet's concurrency-1 runners the branch and MR pipelines were
+created *before* the one on `main`, tested the same tree it was about to test
+again, and could hold the only slot for a full check run after their own branch
+was already deleted at merge (SEOR-bmgkzhvy). It costs nothing here in
+practice — `only_allow_merge_if_pipeline_succeeds` is `false` on this project
+(verified against the `projects` API), so a pipeline result has never gated a
+merge; `main` is protected by role (Maintainer-only push/merge, no force-push),
+not by CI status — and `.githooks/pre-push` runs the same checks locally
+*before* the push happens, so a red result costs seconds, not a round trip
+through CI. What it does cost: GitLab's per-line coverage diff annotation on a
+merge request needs a pipeline associated with that MR, and none runs now, so
+`coverage` numbers only ever land on `main`, after the fact — not in the MR
+diff. A web- or API-triggered pipeline on a non-default branch also produces
+nothing, for the same reason (`$CI_COMMIT_BRANCH` is set but not
+`$CI_DEFAULT_BRANCH`, so `workflow:` falls through to `when: never`).
 
 **The nine `.github/workflows/` files are dormant and are NOT the gate.** They
 target a suspended account and have not run since 2026-08-07. They are kept as
@@ -84,9 +104,12 @@ The cross-platform matrix (`full-check.yml`) and R-hub (`rhub.yaml`) are the
 time, because that matrix is slow rather than expensive.
 
 One slice of the matrix now runs on GitLab: `check-oldrel` checks the package
-under the previous R minor release, manually on branches and automatically on
-`v*` tags. The rest cannot follow it, and a CRAN submission still has to account
-for that:
+under the previous R minor release, automatically on `v*` tags and manually
+otherwise. "Otherwise" is narrower than it used to be: with only `main` and tag
+pipelines existing at all (see "One pipeline, not three" above), the manual
+trigger is only reachable from a pipeline on `main` — there is no longer a
+branch or MR pipeline to run it from before merging. The rest cannot follow it,
+and a CRAN submission still has to account for that:
 
 - **macOS and Windows** have no runner. The self-hosted runner is Docker on one
   Mac, so Linux containers only, and shared runners are unusable on the free
@@ -121,8 +144,12 @@ now and the field is gone (CRAN does not honor it), so the installable version
 is the one CRAN serves. A tag that never became a release is not a floor a user
 can reach — which is precisely the failure `>= 3.0.0` was.
 
-It runs on **every merge request**. It was manual while it could not possibly
-pass; it can now, so it gates like any other check.
+It runs on **every pipeline that exists** — `rules: [{when: always}]`, unfiltered
+by pipeline source. In practice that means every push to `main` and every `v*`
+tag: merge-request and branch pipelines no longer run at all (see "One pipeline,
+not three" above), so it no longer runs on merge requests specifically, only on
+`main` after one merges. It was manual while it could not possibly pass; it can
+now, so it gates like any other check.
 
 Two properties to preserve when editing it:
 

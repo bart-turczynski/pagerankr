@@ -144,17 +144,42 @@ variables:
   PKG_SYSREQS: "true"
   GIT_DEPTH: "0"
 
-# Workflow rules keep a branch push and its merge request from producing two
-# identical pipelines.
+# One pipeline per merge, on main — not three.
+#
+# This used to suppress only the branch pipeline when its branch had an open
+# MR, leaving branch + MR + main to run for ordinary work and MR + main for a
+# branch with an open MR. On a concurrency-1 runner (pagerankr's own included
+# — a dedicated runner does not fix this, since the collision is within one
+# project's own queue) the branch and MR pipelines are CREATED FIRST, before
+# the one on main, and they test the same tree main is about to test again.
+# Worse, they can outlive what they were testing: a branch pipeline can still
+# be fetching sources after its branch is deleted at merge, and an MR
+# pipeline for an already-merged, already-deleted-branch MR has been observed
+# holding a runner's only slot for over half an hour while the main pipeline
+# that actually gates the work sat pending behind it. Measured repeatedly
+# across the fleet; see SEOR-bmgkzhvy.
+#
+# So: no branch pipelines, no MR pipelines, ever. Only main and tags.
+#
+# The cost is real and deliberate, not an oversight: you lose the ability to
+# see a CI result before clicking merge, and a feature-branch push now gets
+# NO CI at all — not just no *branch* pipeline, since the "web"/API-triggered
+# pipeline on a non-default branch also falls through to `when: never` below.
+# Both cost nothing here in practice: `only_allow_merge_if_pipeline_succeeds`
+# is false on this project (verified against `protected_branches` /
+# `projects` API, not assumed), so a pipeline result has never gated a merge
+# — main is protected by role (Maintainer push/merge), not by CI status — and
+# `.githooks/pre-push` runs the same checks locally before the push ever
+# happens. What it does cost: GitLab's per-line coverage annotation in an MR
+# diff (see `coverage` below) needs a pipeline associated with the MR, and
+# none runs now — see CONTRIBUTING.md.
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-    - if: $CI_COMMIT_TAG =~ /^v/
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS
       when: never
-    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - when: never
 
 # 1. NEWS / DESCRIPTION version consistency.
 #
@@ -314,10 +339,16 @@ check:
 #
 # This was a job inside the GitHub `verify.yml`, not a workflow of its own, and
 # it reported to Codecov. It reports to GitLab instead: `coverage_format:
-# cobertura` drives the per-line coverage annotations in a merge request diff,
-# and the `coverage:` regex below drives the project percentage and its badge.
-# That removes a third-party account and a CODECOV_TOKEN from the critical path
-# rather than re-linking the existing `/gh/` Codecov project under `/gl/`.
+# cobertura` is what WOULD drive per-line coverage annotations in a merge
+# request diff, and the `coverage:` regex below drives the project percentage
+# and its badge. The annotation half needs a pipeline associated with the MR to
+# attach the report to, and the top-level `workflow:` block creates none — see
+# CONTRIBUTING.md — so today this only ever runs on `main`, after the merge,
+# and the diff annotation never appears. Kept anyway: the badge and the
+# artifact are still useful, and it costs nothing to leave cobertura wired up
+# for the day an MR pipeline exists again. That removes a third-party account
+# and a CODECOV_TOKEN from the critical path rather than re-linking the
+# existing `/gh/` Codecov project under `/gl/`.
 #
 # Not a gate: coverage that FAILS a pipeline turns every honest refactor into a
 # fight with a number. `allow_failure` keeps a covr crash visible without
@@ -352,9 +383,13 @@ coverage:
 # unlike the OSS Index audit this supersedes.
 #
 # Scheduled, because that is what a vulnerability audit is for: the dependency
-# set can stop being safe on a day nothing in this repo changed. On the default
-# branch it additionally runs when the inputs move, and it is available manually
-# everywhere else.
+# set can stop being safe on a day nothing in this repo changed. No schedule is
+# configured today (`pipeline_schedules` is empty) — this rule is ready for one,
+# and a schedule would need to target `main` to produce a pipeline at all, per
+# the top-level `workflow:` block. On the default branch it additionally runs
+# when the inputs move, and it is available manually on any pipeline that DOES
+# get created (a `main` push or a `v*` tag — no branch or MR pipeline exists to
+# trigger it from before merging).
 osv-audit:
   stage: verify
   needs: []
@@ -514,8 +549,10 @@ check-oldrel:
 # `.rurl-floor-lib`, prepended for the test step only, so the shared cache the
 # other jobs use is untouched.
 #
-# It runs on every merge request now. It was manual while it could not pass;
-# it can, so it gates.
+# It runs on every pipeline that exists (`rules: [{when: always}]`) — under the
+# top-level `workflow:` block that means every push to `main` and every `v*`
+# tag, since no branch or MR pipeline is created any more. It was manual while
+# it could not pass; it can, so it gates.
 rurl-floor:
   stage: check
   needs: []
