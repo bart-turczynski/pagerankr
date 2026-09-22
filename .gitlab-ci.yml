@@ -159,12 +159,19 @@ variables:
 # that actually gates the work sat pending behind it. Measured repeatedly
 # across the fleet; see SEOR-bmgkzhvy.
 #
-# So: no branch pipelines, no MR pipelines, ever. Only main and tags.
+# So: no branch pipelines, no MR pipelines, ever. Only main, tags, and a
+# pipeline a human starts by hand.
 #
 # The cost is real and deliberate, not an oversight: you lose the ability to
-# see a CI result before clicking merge, and a feature-branch push now gets
-# NO CI at all — not just no *branch* pipeline, since the "web"/API-triggered
-# pipeline on a non-default branch also falls through to `when: never` below.
+# see a CI result before clicking merge, and a feature-branch *push* now gets
+# NO CI at all, as does an API-triggered pipeline on a non-default branch.
+# The hand-started ("web") pipeline is the exception, and it is what keeps
+# that cost bearable: it runs the full gate against whatever ref you pick, so
+# a branch can still be verified on the server before it merges. It cannot
+# fire on its own — someone has to open Build > Pipelines > Run pipeline — so
+# it does not reintroduce the pile-up above, which was push- and
+# merge-request-driven. `pages` is pinned to the default branch and is not
+# reachable that way.
 # Both cost nothing here in practice: `only_allow_merge_if_pipeline_succeeds`
 # is false on this project (verified against `protected_branches` /
 # `projects` API, not assumed), so a pipeline result has never gated a merge
@@ -179,6 +186,7 @@ workflow:
       when: never
     - if: $CI_COMMIT_TAG
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
     - when: never
 
 # 1. NEWS / DESCRIPTION version consistency.

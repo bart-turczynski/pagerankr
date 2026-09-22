@@ -36,9 +36,17 @@ not by CI status — and `.githooks/pre-push` runs the same checks locally
 through CI. What it does cost: GitLab's per-line coverage diff annotation on a
 merge request needs a pipeline associated with that MR, and none runs now, so
 `coverage` numbers only ever land on `main`, after the fact — not in the MR
-diff. A web- or API-triggered pipeline on a non-default branch also produces
-nothing, for the same reason (`$CI_COMMIT_BRANCH` is set but not
-`$CI_DEFAULT_BRANCH`, so `workflow:` falls through to `when: never`).
+diff. An API-triggered pipeline on a non-default branch also produces nothing,
+for the same reason (`$CI_COMMIT_BRANCH` is set but not `$CI_DEFAULT_BRANCH`,
+so `workflow:` falls through to `when: never`).
+
+**A pipeline you start by hand is the exception.** Open **Build > Pipelines >
+Run pipeline**, pick the branch, and the full gate runs against it — this is
+how you get a server-side answer about a branch before merging it, and it is
+worth doing for anything the local hook cannot speak to. Only `pages` is out
+of reach, pinned to `main` because it publishes rather than reports. Note the
+button specifically: `glab ci run` starts an `api`-source pipeline, which
+`workflow:` still refuses on a branch.
 
 **The nine `.github/workflows/` files are dormant and are NOT the gate.** They
 target a suspended account and have not run since 2026-08-07. They are kept as
