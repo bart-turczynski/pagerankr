@@ -44,7 +44,7 @@ so `workflow:` falls through to `when: never`).
 Run pipeline**, pick the branch, and the full gate runs against it — this is
 how you get a server-side answer about a branch before merging it, and it is
 worth doing for anything the local hook cannot speak to. Only `pages` is out
-of reach, pinned to `main` because it publishes rather than reports. Note the
+of reach, pinned to `main` because it publishes rather than reports. It strips the agent instruction files first — pkgdown renders every top-level `.md`, so `AGENTS.md`, `CLAUDE.md` and the `FP_*.md` files were being published next to the function reference as `AGENTS.html`, `CLAUDE.html` and friends: internal working notes served as if they were user documentation (SEOR-pibdjanz). The job removes them with a glob, `rm -f AGENTS*.md CLAUDE*.md FP_*.md`, immediately before `build_site`, so a file later added under one of those names is covered without another round of this. Add an agent file that does **not** match those patterns and you must extend the glob in the same commit. Note the
 button specifically: `glab ci run` starts an `api`-source pipeline, which
 `workflow:` still refuses on a branch.
 
