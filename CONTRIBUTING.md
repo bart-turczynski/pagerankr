@@ -13,21 +13,36 @@ merge turns every honest refactor into a fight with a number.
 
 Two things about that pipeline are worth knowing before you rely on it.
 
-**It runs on a self-hosted runner, not GitLab's shared fleet.** The namespace is
-on the free plan, where shared runners return `ci_quota_exceeded` before
-executing a line, and this project does not pay for minutes. The gate therefore
-depends on one machine being awake with Docker running: a push to `main` made
-while it is not will sit *queued* rather than fail, so a `main` commit with no
-pipeline result yet is waiting, not passing.
+**It runs on a self-hosted runner, not GitLab's shared fleet.** This is not a
+platform restriction — the free plan does grant shared-runner minutes. The
+namespace has simply used its allowance: shared runners return
+`ci_quota_exceeded` before executing a line because the Free plan's 400
+minutes/month were spent (406/400, measured 2026-09-23), and this project does
+not pay for more. That fact is true and worth knowing on its own, but it does
+not explain why this pipeline works: self-hosted runner minutes do not count
+against that quota at all, quota-exhausted or not. The eight repos in this
+fleet, pagerankr included, run on Docker runners registered to one Mac
+(`~/.gitlab-runner/config.toml`), which is a machine this project's owner
+runs, not a GitLab-hosted resource — see
+`design/adr/0003-fleet-ci-runs-on-self-hosted-runners.md` in the sibling
+`seor` repo for how this was verified. The gate therefore depends on one
+machine being awake with Docker running: a push to `main` made while it is not
+will sit *queued* rather than fail, so a `main` commit with no pipeline result
+yet is waiting, not passing.
 
 **One pipeline, not three.** `workflow:` in `.gitlab-ci.yml` suppresses both the
 merge-request pipeline and the branch pipeline, leaving only the one on `main`
 (and on `v*` tags). A feature-branch push, and the merge request built from it,
 get **no CI at all** — not a red result, no result. That is deliberate, not a
-gap: on this fleet's concurrency-1 runners the branch and MR pipelines were
-created *before* the one on `main`, tested the same tree it was about to test
-again, and could hold the only slot for a full check run after their own branch
-was already deleted at merge (SEOR-bmgkzhvy). It costs nothing here in
+gap: on this fleet's runners the branch and MR pipelines were created
+*before* the one on `main`, tested the same tree it was about to test again,
+and could hold a runner slot for a full check run after their own branch was
+already deleted at merge (SEOR-bmgkzhvy). Raising `concurrent` does not fix
+that — it is a queue-ordering collision within one project, not a capacity
+shortage, and stays possible at any concurrency (this fleet's runners are
+configured for `concurrent = 4`, a value in `~/.gitlab-runner/config.toml` on
+the host this project's owner controls, not a GitLab-imposed limit). It costs
+nothing here in
 practice — `only_allow_merge_if_pipeline_succeeds` is `false` on this project
 (verified against the `projects` API), so a pipeline result has never gated a
 merge; `main` is protected by role (Maintainer-only push/merge, no force-push),
@@ -44,7 +59,24 @@ so `workflow:` falls through to `when: never`).
 Run pipeline**, pick the branch, and the full gate runs against it — this is
 how you get a server-side answer about a branch before merging it, and it is
 worth doing for anything the local hook cannot speak to. Only `pages` is out
-of reach, pinned to `main` because it publishes rather than reports. It strips the agent instruction files first — pkgdown renders every top-level `.md`, so `AGENTS.md`, `CLAUDE.md` and the `FP_*.md` files were being published next to the function reference as `AGENTS.html`, `CLAUDE.html` and friends: internal working notes served as if they were user documentation (SEOR-pibdjanz). The job removes them with a glob, `rm -f AGENTS*.md CLAUDE*.md FP_*.md`, immediately before `build_site`, so a file later added under one of those names is covered without another round of this. Add an agent file that does **not** match those patterns and you must extend the glob in the same commit. Note the
+of reach, pinned to `main` because it publishes rather than reports. It moves
+every top-level `.md` file that is not on an explicit public keep-list out of
+the way first — pkgdown renders every top-level `.md`, and its own skip list
+(`README`/`NEWS`/`LICENSE`) is hardcoded and cannot be extended from
+`_pkgdown.yml`, so `AGENTS.md`, `CLAUDE.md` and friends were being published
+next to the function reference as `AGENTS.html`, `CLAUDE.html`: internal
+working notes served as if they were user documentation (SEOR-pibdjanz). A
+glob naming the private families (`rm -f AGENTS*.md CLAUDE*.md FP_*.md`) used
+to cover this, but a glob is fail-open: a family it does not name is public
+by default until someone notices and extends it, which is how the leak
+reached four repos after being fixed in one (SEOR-wqxhftpv). The job now
+names what IS public instead — README, NEWS, LICENSE, CONTRIBUTING,
+SECURITY, CODE_OF_CONDUCT, THIRD_PARTY_NOTICES, plus `ACKNOWLEDGMENTS.md`
+(linked from `_pkgdown.yml`'s navbar) — and `mv`s everything else into
+`/tmp/agent-md/` immediately before `build_site`, so an unnamed file (a
+future `GEMINI.md`, `cran-comments.md`, anything) stays private by default.
+The job aborts if one of the named public docs is missing, so a rename can't
+silently drop it from the site without the build failing loudly. Note the
 button specifically: `glab ci run` starts an `api`-source pipeline, which
 `workflow:` still refuses on a branch.
 
@@ -119,9 +151,11 @@ trigger is only reachable from a pipeline on `main` — there is no longer a
 branch or MR pipeline to run it from before merging. The rest cannot follow it,
 and a CRAN submission still has to account for that:
 
-- **macOS and Windows** have no runner. The self-hosted runner is Docker on one
-  Mac, so Linux containers only, and shared runners are unusable on the free
-  plan.
+- **macOS and Windows** have no runner. The self-hosted runner is Docker on
+  one Mac, so Linux containers only, and shared runners are not an
+  alternative today because the namespace's Free-plan quota is exhausted (see
+  "It runs on a self-hosted runner, not GitLab's shared fleet" above) — not
+  because the plan structurally disallows them.
 - **R-devel** is left out on purpose: `rocker/r-devel` publishes no arm64
   variant, so it would run emulated on this host.
 - **R-hub cannot be ported at all.** R-hub v2 works by dispatching workflows

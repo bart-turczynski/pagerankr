@@ -17,9 +17,14 @@
 # NOT ported, because they cannot be (PAGE-ppmceqnr) — recorded here so their
 # absence reads as a decision rather than as neglect:
 #
-#   macOS / Windows checks  No runner exists. Shared runners are unusable on
-#                           the free plan, and the self-hosted runner is Docker
-#                           on one Mac, so Linux containers only.
+#   macOS / Windows checks  No runner exists. The runner is self-hosted Docker
+#                           on one Mac, so Linux containers only. Shared
+#                           runners are not an alternative today because the
+#                           namespace's Free-plan CI quota is exhausted
+#                           (406/400 minutes, measured 2026-09-23) -- a
+#                           consumption fact, not a plan-tier restriction, and
+#                           one self-hosted minutes never counted against
+#                           anyway (design/adr/0003, seor repo).
 #   R-hub                   R-hub v2 works by dispatching workflows inside a
 #                           GitHub repository. There is no GitLab equivalent to
 #                           port; `rhub.yaml` is not translatable, only
@@ -114,6 +119,19 @@ default:
           append = TRUE)'
     - Rscript -e 'cat("Effective repos:\n"); print(getOption("repos"))'
     - Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")'
+    # Self-evidencing check for the R_LIBS reasoning below (SEOR-dyzgzyot):
+    # print .libPaths()[1] so a claim about cache ordering is verifiable from
+    # every job's own log, not just from a comment. Verified once already —
+    # live, with docker — via scripts/check-libpaths-order.py: the cache
+    # directory already wins here, so this line is evidence, not a fix.
+    - |
+      Rscript -e '
+      cat("Effective .libPaths():\n"); print(.libPaths())
+      if (normalizePath(.libPaths()[1]) != normalizePath(Sys.getenv("R_LIBS_USER"))) {
+        stop("Cache directory is not first in .libPaths(); the cache would ",
+             "carry downloads but not the built library. See SEOR-dyzgzyot.",
+             call. = FALSE)
+      }'
   cache:
     # Keyed on DESCRIPTION: the library only needs rebuilding when the declared
     # dependencies move. Every dependency now resolves from CRAN, so a cache hit
@@ -138,6 +156,25 @@ variables:
   # reported "Successfully extracted cache". Measured before this line: 117
   # packages downloaded on a warm cache. Setting `R_LIBS` wins because that
   # Renviron.site default defers to an already-set value.
+  #
+  # Re-verified 2026-09-23 against a fleet-wide claim (SEOR-dyzgzyot) that
+  # `R_LIBS_USER` alone is what every repo sets and that the fix is to append
+  # `.libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))` to Rprofile.site in
+  # before_script. That claim does not describe this file: the explicit
+  # `R_LIBS` below already existed and already wins, confirmed live —
+  #
+  #   docker run --rm -e R_LIBS_USER=/tmp/rlib rocker/r-ver:4.6 \
+  #     Rscript -e '.libPaths()'
+  #   [1] "/usr/local/lib/R/site-library" "/usr/local/lib/R/library"
+  #
+  #   docker run --rm -e R_LIBS=/tmp/rlib:/usr/local/lib/R/site-library:/usr/local/lib/R/library \
+  #     rocker/r-ver:4.6 sh -c 'mkdir -p /tmp/rlib; Rscript -e ".libPaths()"'
+  #   [1] "/tmp/rlib" "/usr/local/lib/R/site-library" "/usr/local/lib/R/library"
+  #
+  # — so pagerankr needs the Rprofile.site mechanism from nowhere; it would be
+  # a second, redundant way to reach an ordering this file already reaches.
+  # See scripts/check-libpaths-order.py, which pins this for both this job
+  # and check-oldrel, and the `.libPaths()` print in before_script above.
   R_LIBS: "$CI_PROJECT_DIR/.cache/R:/usr/local/lib/R/site-library:/usr/local/lib/R/library"
   # pak resolves Ubuntu system requirements itself; the image runs as root, so
   # it can act on them. Saves hand-maintaining an apt list per job.
@@ -148,10 +185,13 @@ variables:
 #
 # This used to suppress only the branch pipeline when its branch had an open
 # MR, leaving branch + MR + main to run for ordinary work and MR + main for a
-# branch with an open MR. On a concurrency-1 runner (pagerankr's own included
-# — a dedicated runner does not fix this, since the collision is within one
-# project's own queue) the branch and MR pipelines are CREATED FIRST, before
-# the one on main, and they test the same tree main is about to test again.
+# branch with an open MR. On this fleet's self-hosted runners (pagerankr's
+# own included; `concurrent = 4` in `~/.gitlab-runner/config.toml` on the
+# host this project's owner controls, not a GitLab-imposed cap -- a dedicated
+# runner does not fix this either way, since the collision is a queue-
+# ordering problem within one project, not a capacity shortage) the branch
+# and MR pipelines are CREATED FIRST, before the one on main, and they test
+# the same tree main is about to test again.
 # Worse, they can outlive what they were testing: a branch pipeline can still
 # be fetching sources after its branch is deleted at merge, and an MR
 # pipeline for an already-merged, already-deleted-branch MR has been observed
@@ -519,6 +559,17 @@ check-oldrel:
           "\n  with CRAN appended as fallback\n")'
     - mkdir -p "$R_LIBS_USER"
     - Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")'
+    # Same self-evidencing check as the default job's before_script
+    # (SEOR-dyzgzyot) — this job has its own R_LIBS_USER/R_LIBS pair
+    # (.cache/R-4.5), so it is checked separately.
+    - |
+      Rscript -e '
+      cat("Effective .libPaths():\n"); print(.libPaths())
+      if (normalizePath(.libPaths()[1]) != normalizePath(Sys.getenv("R_LIBS_USER"))) {
+        stop("Cache directory is not first in .libPaths(); the cache would ",
+             "carry downloads but not the built library. See SEOR-dyzgzyot.",
+             call. = FALSE)
+      }'
   script:
     - Rscript -e 'cat("Effective repos:\n"); print(getOption("repos"))'
     - apt-get update -qq && apt-get install -y --no-install-recommends pandoc qpdf ghostscript
@@ -659,20 +710,56 @@ pages:
     # "there is no package called 'pagerankr'". The GitHub workflow got this for
     # free from `extra-packages: local::.`; on GitLab it has to be explicit.
     - Rscript -e 'pak::local_install(upgrade = FALSE)'
-    # pkgdown renders EVERY top-level .md into the site, so the agent
+    # pkgdown renders EVERY top-level .md into the site --
+    # `pkgdown:::package_mds()` hardcodes its own skip list (README/NEWS/
+    # LICENSE) and _pkgdown.yml cannot override it -- so the agent
     # instruction files were being published as AGENTS.html, CLAUDE.html and
-    # friends next to the reference -- internal working notes served as if
+    # friends next to the reference: internal working notes served as if
     # they were user documentation, and indexable (SEOR-pibdjanz).
     #
-    # Globbed on purpose, not spelled out file by file. The leak reached
-    # four repos AFTER being fixed in one, because the exact names differ
-    # per repo and the explicit list was copied rather than re-derived.
-    # These three patterns cover every agent file in the fleet today and a
-    # future AGENTS_SOMETHING.md or FP_WHATEVER.md without a second round
-    # of this. `rm -f` so a pattern that matches nothing is a no-op: the
-    # set of files present differs per repo, and some are gitignored and
-    # never reach the runner at all.
-    - 'rm -f AGENTS*.md CLAUDE*.md FP_*.md'
+    # A glob naming the PRIVATE families (`AGENTS*.md CLAUDE*.md FP_*.md`)
+    # used to live here. It is fail-OPEN: a family it does not name --
+    # GEMINI.md, CODEX.md, anything not yet invented -- is published by
+    # default until someone notices and extends the glob. That is exactly
+    # how the leak reached four repos after being fixed in one, because the
+    # exact names differ per repo and the explicit list was copied rather
+    # than re-derived (SEOR-wqxhftpv).
+    #
+    # Inverted to a KEEP-list: name what is meant for the site, move
+    # everything else. An unknown file then stays private by default. `mv`,
+    # not `rm -f` -- deleting the source before `build_site` still leaves
+    # pkgdown's search.json pointing at a page that then 404s; moving it out
+    # first means pkgdown never sees it at all (matches pslr's `pages` job,
+    # see the comment above its own `mv ... /tmp/agent-md/`). The scratch
+    # dir is on the CI runner's disposable filesystem, outside the checkout
+    # that becomes `public/`, and the CI checkout is disposable, so nothing
+    # is restored after.
+    #
+    # The `for f in $keep` loop deliberately fails the job if one of these
+    # named files is missing: the list is a claim about which docs this repo
+    # publishes, and a silently-missing one would mean the site quietly lost
+    # a page rather than the build failing loudly. THIRD_PARTY_NOTICES.md is
+    # the one exception -- not every repo carries it -- so its absence is a
+    # no-op rather than a failure.
+    - |
+      set -eu
+      keep="README.md NEWS.md LICENSE.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md THIRD_PARTY_NOTICES.md ACKNOWLEDGMENTS.md"
+      for f in $keep; do
+        if [ "$f" = "THIRD_PARTY_NOTICES.md" ] && [ ! -f "$f" ]; then
+          continue
+        fi
+        if [ ! -f "$f" ]; then
+          echo "Expected public doc '$f' is missing; the pkgdown md keep-list no longer describes this repo (SEOR-wqxhftpv)." >&2
+          exit 1
+        fi
+      done
+      mkdir -p /tmp/agent-md
+      for f in *.md; do
+        case " $keep " in
+          *" $f "*) ;;
+          *) mv "$f" /tmp/agent-md/ ;;
+        esac
+      done
     - Rscript -e 'pkgdown::build_site(new_process = FALSE, install = FALSE)'
     - mv docs public
   artifacts:
