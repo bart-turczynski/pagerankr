@@ -41,8 +41,18 @@ CI_FILE = REPO_ROOT / ".gitlab-ci.yml"
 
 # Golden snapshot of what the CURRENT `pages` job filter produces. This is a
 # pin, not an aspiration: it is updated deliberately, in the same commit that
-# changes the filter, to describe the NEW behavior -- see SEOR-wqxhftpv's
-# commit pinning the keep-list shape for the post-fix value.
+# changes the filter, to describe the NEW behavior.
+#
+# Post SEOR-wqxhftpv: the filter is a keep-list (README, NEWS, LICENSE,
+# CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, THIRD_PARTY_NOTICES, plus
+# ACKNOWLEDGMENTS.md -- referenced from _pkgdown.yml's navbar, so it is a
+# per-repo addition to the base list) rather than a glob naming private
+# families. `cran-comments.md` is no longer a survivor: it was never in any
+# version of the private-family glob (so it used to survive by omission) and
+# is not on the public keep-list either, so it is now moved out too.
+# THIRD_PARTY_NOTICES.md is not in this set because pagerankr does not carry
+# that file -- it is still keep-listed in .gitlab-ci.yml itself, for the repo
+# that does.
 EXPECTED_SURVIVORS = {
     "ACKNOWLEDGMENTS.md",
     "CODE_OF_CONDUCT.md",
@@ -51,7 +61,6 @@ EXPECTED_SURVIVORS = {
     "NEWS.md",
     "README.md",
     "SECURITY.md",
-    "cran-comments.md",
 }
 
 
@@ -59,10 +68,19 @@ def load_pages_filter_script() -> str:
     with open(CI_FILE) as fh:
         doc = yaml.safe_load(fh)
     steps = doc["pages"]["script"]
-    hits = [s for s in steps if "AGENTS" in s]
+    # Matched by content, not position, and against several anchors rather
+    # than one: the filter step's exact shape has already changed once (a
+    # glob naming private families -> a keep-list naming public ones,
+    # SEOR-wqxhftpv) and may change again. "AGENTS" covers the old glob
+    # shape, "agent-md" the mv target both this repo's keep-list and
+    # pslr's job use, and the ticket id covers the keep-list's own error
+    # message -- so this still finds the step across a re-shape instead of
+    # silently checking zero steps.
+    anchors = ("AGENTS", "agent-md", "wqxhftpv")
+    hits = [s for s in steps if any(a in s for a in anchors)]
     if len(hits) != 1:
         raise AssertionError(
-            f"expected exactly one `pages.script` step mentioning AGENTS.md "
+            f"expected exactly one `pages.script` step matching {anchors} "
             f"(the md filter step), found {len(hits)}"
         )
     return hits[0]

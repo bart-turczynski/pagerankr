@@ -702,20 +702,56 @@ pages:
     # "there is no package called 'pagerankr'". The GitHub workflow got this for
     # free from `extra-packages: local::.`; on GitLab it has to be explicit.
     - Rscript -e 'pak::local_install(upgrade = FALSE)'
-    # pkgdown renders EVERY top-level .md into the site, so the agent
+    # pkgdown renders EVERY top-level .md into the site --
+    # `pkgdown:::package_mds()` hardcodes its own skip list (README/NEWS/
+    # LICENSE) and _pkgdown.yml cannot override it -- so the agent
     # instruction files were being published as AGENTS.html, CLAUDE.html and
-    # friends next to the reference -- internal working notes served as if
+    # friends next to the reference: internal working notes served as if
     # they were user documentation, and indexable (SEOR-pibdjanz).
     #
-    # Globbed on purpose, not spelled out file by file. The leak reached
-    # four repos AFTER being fixed in one, because the exact names differ
-    # per repo and the explicit list was copied rather than re-derived.
-    # These three patterns cover every agent file in the fleet today and a
-    # future AGENTS_SOMETHING.md or FP_WHATEVER.md without a second round
-    # of this. `rm -f` so a pattern that matches nothing is a no-op: the
-    # set of files present differs per repo, and some are gitignored and
-    # never reach the runner at all.
-    - 'rm -f AGENTS*.md CLAUDE*.md FP_*.md'
+    # A glob naming the PRIVATE families (`AGENTS*.md CLAUDE*.md FP_*.md`)
+    # used to live here. It is fail-OPEN: a family it does not name --
+    # GEMINI.md, CODEX.md, anything not yet invented -- is published by
+    # default until someone notices and extends the glob. That is exactly
+    # how the leak reached four repos after being fixed in one, because the
+    # exact names differ per repo and the explicit list was copied rather
+    # than re-derived (SEOR-wqxhftpv).
+    #
+    # Inverted to a KEEP-list: name what is meant for the site, move
+    # everything else. An unknown file then stays private by default. `mv`,
+    # not `rm -f` -- deleting the source before `build_site` still leaves
+    # pkgdown's search.json pointing at a page that then 404s; moving it out
+    # first means pkgdown never sees it at all (matches pslr's `pages` job,
+    # see the comment above its own `mv ... /tmp/agent-md/`). The scratch
+    # dir is on the CI runner's disposable filesystem, outside the checkout
+    # that becomes `public/`, and the CI checkout is disposable, so nothing
+    # is restored after.
+    #
+    # The `for f in $keep` loop deliberately fails the job if one of these
+    # named files is missing: the list is a claim about which docs this repo
+    # publishes, and a silently-missing one would mean the site quietly lost
+    # a page rather than the build failing loudly. THIRD_PARTY_NOTICES.md is
+    # the one exception -- not every repo carries it -- so its absence is a
+    # no-op rather than a failure.
+    - |
+      set -eu
+      keep="README.md NEWS.md LICENSE.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md THIRD_PARTY_NOTICES.md ACKNOWLEDGMENTS.md"
+      for f in $keep; do
+        if [ "$f" = "THIRD_PARTY_NOTICES.md" ] && [ ! -f "$f" ]; then
+          continue
+        fi
+        if [ ! -f "$f" ]; then
+          echo "Expected public doc '$f' is missing; the pkgdown md keep-list no longer describes this repo (SEOR-wqxhftpv)." >&2
+          exit 1
+        fi
+      done
+      mkdir -p /tmp/agent-md
+      for f in *.md; do
+        case " $keep " in
+          *" $f "*) ;;
+          *) mv "$f" /tmp/agent-md/ ;;
+        esac
+      done
     - Rscript -e 'pkgdown::build_site(new_process = FALSE, install = FALSE)'
     - mv docs public
   artifacts:
