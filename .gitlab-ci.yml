@@ -114,6 +114,19 @@ default:
           append = TRUE)'
     - Rscript -e 'cat("Effective repos:\n"); print(getOption("repos"))'
     - Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")'
+    # Self-evidencing check for the R_LIBS reasoning below (SEOR-dyzgzyot):
+    # print .libPaths()[1] so a claim about cache ordering is verifiable from
+    # every job's own log, not just from a comment. Verified once already —
+    # live, with docker — via scripts/check-libpaths-order.py: the cache
+    # directory already wins here, so this line is evidence, not a fix.
+    - |
+      Rscript -e '
+      cat("Effective .libPaths():\n"); print(.libPaths())
+      if (normalizePath(.libPaths()[1]) != normalizePath(Sys.getenv("R_LIBS_USER"))) {
+        stop("Cache directory is not first in .libPaths(); the cache would ",
+             "carry downloads but not the built library. See SEOR-dyzgzyot.",
+             call. = FALSE)
+      }'
   cache:
     # Keyed on DESCRIPTION: the library only needs rebuilding when the declared
     # dependencies move. Every dependency now resolves from CRAN, so a cache hit
@@ -138,6 +151,25 @@ variables:
   # reported "Successfully extracted cache". Measured before this line: 117
   # packages downloaded on a warm cache. Setting `R_LIBS` wins because that
   # Renviron.site default defers to an already-set value.
+  #
+  # Re-verified 2026-09-23 against a fleet-wide claim (SEOR-dyzgzyot) that
+  # `R_LIBS_USER` alone is what every repo sets and that the fix is to append
+  # `.libPaths(c(Sys.getenv("R_LIBS_USER"), .libPaths()))` to Rprofile.site in
+  # before_script. That claim does not describe this file: the explicit
+  # `R_LIBS` below already existed and already wins, confirmed live —
+  #
+  #   docker run --rm -e R_LIBS_USER=/tmp/rlib rocker/r-ver:4.6 \
+  #     Rscript -e '.libPaths()'
+  #   [1] "/usr/local/lib/R/site-library" "/usr/local/lib/R/library"
+  #
+  #   docker run --rm -e R_LIBS=/tmp/rlib:/usr/local/lib/R/site-library:/usr/local/lib/R/library \
+  #     rocker/r-ver:4.6 sh -c 'mkdir -p /tmp/rlib; Rscript -e ".libPaths()"'
+  #   [1] "/tmp/rlib" "/usr/local/lib/R/site-library" "/usr/local/lib/R/library"
+  #
+  # — so pagerankr needs the Rprofile.site mechanism from nowhere; it would be
+  # a second, redundant way to reach an ordering this file already reaches.
+  # See scripts/check-libpaths-order.py, which pins this for both this job
+  # and check-oldrel, and the `.libPaths()` print in before_script above.
   R_LIBS: "$CI_PROJECT_DIR/.cache/R:/usr/local/lib/R/site-library:/usr/local/lib/R/library"
   # pak resolves Ubuntu system requirements itself; the image runs as root, so
   # it can act on them. Saves hand-maintaining an apt list per job.
@@ -519,6 +551,17 @@ check-oldrel:
           "\n  with CRAN appended as fallback\n")'
     - mkdir -p "$R_LIBS_USER"
     - Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")'
+    # Same self-evidencing check as the default job's before_script
+    # (SEOR-dyzgzyot) — this job has its own R_LIBS_USER/R_LIBS pair
+    # (.cache/R-4.5), so it is checked separately.
+    - |
+      Rscript -e '
+      cat("Effective .libPaths():\n"); print(.libPaths())
+      if (normalizePath(.libPaths()[1]) != normalizePath(Sys.getenv("R_LIBS_USER"))) {
+        stop("Cache directory is not first in .libPaths(); the cache would ",
+             "carry downloads but not the built library. See SEOR-dyzgzyot.",
+             call. = FALSE)
+      }'
   script:
     - Rscript -e 'cat("Effective repos:\n"); print(getOption("repos"))'
     - apt-get update -qq && apt-get install -y --no-install-recommends pandoc qpdf ghostscript
