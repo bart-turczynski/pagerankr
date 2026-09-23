@@ -276,8 +276,8 @@ The reference and vignettes ship with the package and are reachable
 through `help(package = "pagerankr")` and the `vignette()` calls below;
 the rendered website is being rebuilt after the move to GitLab. To
 report a bug or request an enhancement, use [GitLab
-Issues](https://gitlab.com/bart-turczynski/pagerankr/-/issues). Please
-read
+Issues](https://gitlab.com/bart-turczynski/pagerankr/-/work_items).
+Please read
 [CONTRIBUTING.md](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/CONTRIBUTING.md)
 before proposing a change; it sets out the test, lint, and R CMD check
 requirements. For privately reported security vulnerabilities, follow

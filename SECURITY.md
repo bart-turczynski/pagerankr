@@ -20,7 +20,7 @@ put `pagerankr security` in the subject line, and include the package version
 and enough detail to reproduce.
 
 If you would rather report through the tracker, open a
-[confidential issue](https://gitlab.com/bart-turczynski/pagerankr/-/issues/new)
+[confidential issue](https://gitlab.com/bart-turczynski/pagerankr/-/work_items)
 and tick **This issue is confidential**, which restricts it to project members.
 
 (Before the move to GitLab this pointed at GitHub private vulnerability
