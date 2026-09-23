@@ -746,6 +746,12 @@
 
 ## Internal
 
+* `DESCRIPTION`'s `URL:` now lists the package's r-universe page. r-universe
+  records this repository's upstream owner as `gitlab-bart-turczynski` because
+  it is hosted on GitLab, which does not match the `bart-turczynski` universe,
+  so the package was built and served but hidden from r-universe search. The
+  URL claims it (`SEOR-zfamoutf`).
+
 * The OSS Index dependency audit in `tests/testthat/test-security.R` scopes to
   hard dependencies (`Depends` + `Imports`) instead of the `Suggests` tree.
   `oysteR::expect_secure()` audits `Suggests` too, which pulled in oysteR's own
