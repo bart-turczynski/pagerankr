@@ -17,9 +17,14 @@
 # NOT ported, because they cannot be (PAGE-ppmceqnr) — recorded here so their
 # absence reads as a decision rather than as neglect:
 #
-#   macOS / Windows checks  No runner exists. Shared runners are unusable on
-#                           the free plan, and the self-hosted runner is Docker
-#                           on one Mac, so Linux containers only.
+#   macOS / Windows checks  No runner exists. The runner is self-hosted Docker
+#                           on one Mac, so Linux containers only. Shared
+#                           runners are not an alternative today because the
+#                           namespace's Free-plan CI quota is exhausted
+#                           (406/400 minutes, measured 2026-09-23) -- a
+#                           consumption fact, not a plan-tier restriction, and
+#                           one self-hosted minutes never counted against
+#                           anyway (design/adr/0003, seor repo).
 #   R-hub                   R-hub v2 works by dispatching workflows inside a
 #                           GitHub repository. There is no GitLab equivalent to
 #                           port; `rhub.yaml` is not translatable, only
@@ -180,10 +185,13 @@ variables:
 #
 # This used to suppress only the branch pipeline when its branch had an open
 # MR, leaving branch + MR + main to run for ordinary work and MR + main for a
-# branch with an open MR. On a concurrency-1 runner (pagerankr's own included
-# — a dedicated runner does not fix this, since the collision is within one
-# project's own queue) the branch and MR pipelines are CREATED FIRST, before
-# the one on main, and they test the same tree main is about to test again.
+# branch with an open MR. On this fleet's self-hosted runners (pagerankr's
+# own included; `concurrent = 4` in `~/.gitlab-runner/config.toml` on the
+# host this project's owner controls, not a GitLab-imposed cap -- a dedicated
+# runner does not fix this either way, since the collision is a queue-
+# ordering problem within one project, not a capacity shortage) the branch
+# and MR pipelines are CREATED FIRST, before the one on main, and they test
+# the same tree main is about to test again.
 # Worse, they can outlive what they were testing: a branch pipeline can still
 # be fetching sources after its branch is deleted at merge, and an MR
 # pipeline for an already-merged, already-deleted-branch MR has been observed
