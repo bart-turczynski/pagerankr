@@ -229,121 +229,50 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "web"
     - when: never
 
-# 1. NEWS / DESCRIPTION version consistency.
+# 1-4. Folded verify-stage gate (SEOR-pgammbgo).
 #
-# The top NEWS.md heading must be either "(development version)" or exactly the
-# DESCRIPTION Version. Catches a stale "(development version)" heading left in
-# place at release time. A checkout plus two greps — no R, so it runs on a
-# minimal image and finishes in seconds.
-news-version:
-  stage: verify
-  image: alpine:latest
-  cache: []
-  before_script: []
-  script:
-    - |
-      set -eu
-      version="$(grep -E '^Version:' DESCRIPTION | head -n1 | sed -E 's/^Version:[[:space:]]*//')"
-      heading="$(grep -m1 -E '^# ' NEWS.md | sed -E 's/^#[[:space:]]+pagerankr[[:space:]]*//')"
-      echo "DESCRIPTION Version : '$version'"
-      echo "Top NEWS heading    : '$heading'"
-      if [ "$heading" = "(development version)" ] || [ "$heading" = "$version" ]; then
-        echo "OK: NEWS heading and version are consistent."
-      else
-        echo "Top NEWS.md heading ('$heading') is neither '(development version)'"
-        echo "nor the DESCRIPTION Version ('$version'). Update NEWS.md before release."
-        exit 1
-      fi
-
-# codemeta.json consistency.
+# Used to be four separate jobs: news-version, codemeta, citation-version
+# (each on a minimal alpine/python image, no R, ~11 seconds of combined real
+# work) and lint (on the default R image, real dependency install + lintr +
+# spelling). Measured 2026-09-23, pagerankr was one of the three worst repos
+# in the fleet's CI measurement: 9-10 jobs, 7.3 minutes of compute against
+# 31.1 minutes of wall time — about 2.6 minutes of pure runner-pickup tax PER
+# JOB, paid four times over by checks that together did almost no work.
 #
-# The GitHub `codemeta.yaml` REGENERATED codemeta.json with codemetar and
-# committed the result unreviewed. That job is deliberately not ported, because
-# regeneration is what damages this file: codemetar 0.3.7 builds a
-# `host::`-prefixed Remotes spec's `sameAs` by prepending https://github.com/ to
-# the raw string, emitting https://github.com/gitlab::bart-turczynski/rurl —
-# wrong host, literal `::` in the path (PAGE-bpwkoofa) — and a local
-# regeneration also silently drops readme, releaseNotes and keywords. So
-# codemeta.json is maintained by hand, and this job checks the two properties
-# the generator was there to keep true, without touching the file.
+# Folded into one job on rurl's tools/verify.R shape (RURL-mvsxmyww), run
+# here as scripts/gates.R: every gate runs regardless of an earlier one's
+# outcome, every verdict is captured, ONE final summary names every gate that
+# failed, and only then does the job exit non-zero. A fail-fast harness would
+# gut the point of folding — a red `news-version` would hide whatever `lint`
+# also found. See scripts/gates.R's own header for the per-gate command
+# provenance (each gate reproduces its former job's script verbatim).
 #
-# Same shape as news-version: a checkout and some greps, no R.
-codemeta:
-  stage: verify
-  image: alpine:latest
-  cache: []
-  before_script: []
-  script:
-    - |
-      set -eu
-      version="$(grep -E '^Version:' DESCRIPTION | head -n1 | sed -E 's/^Version:[[:space:]]*//')"
-      # Anchored to exactly two spaces of indent so this reads the TOP-LEVEL
-      # version, not the `"version"` inside each of the ~20 nested dependency
-      # objects. If the file is ever reshaped, the count check below fails
-      # loudly rather than silently comparing against the wrong line.
-      hits="$(grep -c '^  "version":' codemeta.json || true)"
-      if [ "$hits" != "1" ]; then
-        echo "Expected exactly one top-level '\"version\":' line in codemeta.json, found $hits."
-        echo "The file's shape changed; this check needs updating before it can be trusted."
-        exit 1
-      fi
-      declared="$(grep '^  "version":' codemeta.json | sed -E 's/.*"version":[[:space:]]*"([^"]*)".*/\1/')"
-      echo "DESCRIPTION Version : '$version'"
-      echo "codemeta.json version: '$declared'"
-      if [ "$version" != "$declared" ]; then
-        echo "codemeta.json is stale. Hand-edit its version to '$version' — do NOT run"
-        echo "codemetar::write_codemeta(), which drops readme/releaseNotes/keywords."
-        exit 1
-      fi
-      # Catches the codemetar mangling directly, whatever produced it: a remote
-      # spec left inside a URL. Nothing legitimate in this file has `::` after a
-      # scheme.
-      if grep -nE 'https?://[^"]*::' codemeta.json; then
-        echo "codemeta.json carries a remote spec inside a URL (see the lines above)."
-        exit 1
-      fi
-      echo "OK: codemeta.json is consistent with DESCRIPTION and carries no mangled URLs."
-
-# CITATION.cff / .zenodo.json version consistency.
+# Runs on the DEFAULT image/before_script (not alpine), because `lint`
+# requires the full R dependency install regardless of which job hosts it —
+# folding does not remove that cost, only the three extra runner pickups
+# around it. `check` below now depends on `gates` (it used to depend on
+# `lint`) for the same reason: it needs gates' installed library, whichever
+# job builds it.
 #
-# Ported verbatim from seor's scripts/check-citation.py (design/adr/0001 there):
-# CITATION.cff's `version:` and .zenodo.json's `"version"` must name the
-# release DESCRIPTION's Version points at (X.Y.Z -> X.Y.Z; X.Y.Z.9000 ->
-# X.Y.Z), plus every URL those two files declare must also appear in
-# DESCRIPTION's URL field. pagerankr is conformant today; this job exists so
-# it stays that way. Offline and stdlib-only, so no R image needed — same
-# shape as news-version and codemeta above.
-citation-version:
-  stage: verify
-  image: python:3.13-alpine
-  cache: []
-  before_script: []
-  script:
-    - python3 scripts/check-citation.py --self-test
-    - python3 scripts/check-citation.py
-
-# 2 + 3. Lint and spelling.
-#
-# Spelling guards DESCRIPTION `Language: en-US` across Rd, vignettes, README and
-# NEWS. It exists because prose drifted in unnoticed after the WORDLIST was
-# built: the case-study vignette introduced two en-GB spellings and two
-# untracked terms, and nothing caught them (PAGE-xevimisi). Fix real
-# misspellings in the text; add genuine terms to inst/WORDLIST.
-lint:
+# What did NOT get folded in, and why:
+#   * `check`, `coverage`, `pages` — different failure meanings (a build
+#     error is not a stale NEWS heading), left as-is per the ticket.
+#   * `osv-audit` — a security/vulnerability signal, judged separately below
+#     to keep its own red/green rather than being buried inside an unrelated
+#     metadata check. It is also not cheap (installs pagerankr itself) and
+#     does not run on every push (schedule / DESCRIPTION-or-test-file-change
+#     / manual — see its own rules), so it fails the "cheap AND runs on every
+#     push" bar this fold requires.
+#   * `check-oldrel`, `rurl-floor` — release-shaped floor/compatibility
+#     checks, not cheap metadata checks; handled under SEOR-ihmntqzm below.
+gates:
   stage: verify
   variables:
     LINTR_ERROR_ON_LINT: "true"
   script:
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install(c("lintr", "spelling"))'
-    - Rscript -e 'l <- lintr::lint_package(); if (length(l)) { print(l); quit(status = 1L) }'
-    - |
-      Rscript -e '
-      bad <- spelling::spell_check_package()
-      if (nrow(bad)) {
-        print(bad)
-        stop("Spelling errors found. Correct the prose, or add genuine terms to inst/WORDLIST (see `spelling::update_wordlist()`).", call. = FALSE)
-      }'
+    - Rscript scripts/gates.R
 
 # 4. R CMD check.
 #
@@ -356,7 +285,7 @@ lint:
 # unported release-time matrix used to run.
 check:
   stage: check
-  needs: [lint]
+  needs: [gates]
   variables:
     R_KEEP_PKG_SOURCE: "yes"
   script:
@@ -492,6 +421,27 @@ osv-audit:
 #
 # Manual on branches, automatic on release tags: the cost is a full second check
 # per run, and the moment it has to be right is a CRAN submission.
+#
+# SCHEDULE_KIND guard (SEOR-ihmntqzm). `check-oldrel`'s `manual` rule below
+# is not a fallback in practice — the four most recent runs (orchestrator-
+# measured 2026-09-23 via `glab api projects/bart-turczynski%2Fpagerankr/jobs`)
+# are all `manual`, all 0.0s: nobody clicks it, so it has never actually
+# executed. The owner's decision is to move this class of expensive,
+# release-shaped check off "reachable in theory, run in practice never" and
+# onto a WEEKLY staggered schedule instead — the runner is one Mac and can
+# sleep the rest of the week.
+#
+# This commit adds ONLY the guard rule, not a schedule: creating a
+# `pipeline_schedules` entry is a separate, owner-only action. The mechanism:
+# a GitLab pipeline schedule can set its own CI/CD variables (Settings > CI/CD
+# > Schedules > Edit > Variables), so a future weekly schedule sets
+# `SCHEDULE_KIND=deep-check` and only jobs that check for exactly that value
+# fire on its tick — letting several DIFFERENT staggered schedules (this one,
+# a future rurl-floor-style one, anything else release-shaped) share the
+# `schedule` pipeline source without all firing on every schedule's tick. A
+# schedule pipeline with no `SCHEDULE_KIND` set, or set to something else,
+# does not match this rule and falls through to the existing tag/manual rules
+# below — this is an ADDED path, the existing two are unchanged.
 check-oldrel:
   stage: check
   needs: []
@@ -513,6 +463,7 @@ check-oldrel:
       - .cache/R-4.5
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "deep-check"
     - when: manual
       allow_failure: true
   before_script:
@@ -612,6 +563,15 @@ check-oldrel:
 # top-level `workflow:` block that means every push to `main` and every `v*`
 # tag, since no branch or MR pipeline is created any more. It was manual while
 # it could not pass; it can, so it gates.
+#
+# EVALUATED for the same `deep-check` schedule guard as `check-oldrel`
+# (SEOR-ihmntqzm) and deliberately left alone. Unlike `check-oldrel`, this is
+# not "reachable in theory, run in practice never": orchestrator-measured
+# 2026-09-23 via `glab api projects/bart-turczynski%2Fpagerankr/jobs`, the four
+# most recent `rurl-floor` runs are all `success`, 60-85s each, on ordinary
+# pipelines — it already runs, automatically, on every push to `main`. Adding
+# the guard here would TAKE AWAY a check that currently runs on every push,
+# which is the exact failure mode this ticket exists to avoid, not produce.
 rurl-floor:
   stage: check
   needs: []
