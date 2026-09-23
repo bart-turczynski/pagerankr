@@ -1,5 +1,19 @@
 # pagerankr 0.1.0
 
+* **`BugReports:` stays on `/-/issues`; every human-facing tracker link now
+  points at `/-/work_items`.** CRAN runs two checks over a GitLab
+  `BugReports:` URL and they contradict each other: `tools::check_url_db()`
+  fetches the address and 404s on `/-/issues`, which GitLab replaced with a
+  new work-items page, while `tools:::.check_package_CRAN_incoming()` never
+  fetches anything and flags any path that is not a string match for
+  `/-/issues` with a NOTE. Declaring `/-/work_items` in `DESCRIPTION` is not
+  a style choice: it got the first pslr 1.2.1 upload archived at the CRAN
+  pretest on 2026-09-12. So `DESCRIPTION` (and the roxygen2-generated
+  `pagerankr-package` help topic, which mirrors it) keep `/-/issues`;
+  `codemeta.json`, `SECURITY.md`, and `README` -- files a human actually
+  clicks -- now point at `/-/work_items`, the address GitLab serves
+  (`SEOR-ocbtrrnl`).
+
 * **The GitHub Actions workflows are gone, and `codemeta.json` names GitLab.**
   `.gitlab-ci.yml` has replaced all eight workflows since the move to GitLab, so
   `.github/workflows/` and `.github/dependabot.yml` were dead weight that the new

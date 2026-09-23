@@ -6,7 +6,7 @@
   "name": "pagerankr: Modular Toolkit for PageRank Calculation",
   "relatedLink": ["https://pagerankr-63ad30.gitlab.io/", "https://bart-turczynski.r-universe.dev"],
   "codeRepository": "https://gitlab.com/bart-turczynski/pagerankr",
-  "issueTracker": "https://gitlab.com/bart-turczynski/pagerankr/-/issues",
+  "issueTracker": "https://gitlab.com/bart-turczynski/pagerankr/-/work_items",
   "license": "https://spdx.org/licenses/MIT",
   "version": "0.1.0",
   "programmingLanguage": {
