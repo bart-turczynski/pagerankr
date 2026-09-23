@@ -4,11 +4,11 @@
   points at `/-/work_items`.** CRAN runs two checks over a GitLab
   `BugReports:` URL and they contradict each other: `tools::check_url_db()`
   fetches the address and 404s on `/-/issues`, which GitLab replaced with a
-  work-items UI, while `tools:::.check_package_CRAN_incoming()` never
-  fetches anything and NOTEs any path that is not a string match for
-  `/-/issues`. Declaring `/-/work_items` in `DESCRIPTION` is not a style
-  choice: it got the first pslr 1.2.1 upload archived at the CRAN pretest on
-  2026-09-12. So `DESCRIPTION` (and the roxygen-generated
+  new work-items page, while `tools:::.check_package_CRAN_incoming()` never
+  fetches anything and flags any path that is not a string match for
+  `/-/issues` with a NOTE. Declaring `/-/work_items` in `DESCRIPTION` is not
+  a style choice: it got the first pslr 1.2.1 upload archived at the CRAN
+  pretest on 2026-09-12. So `DESCRIPTION` (and the roxygen2-generated
   `pagerankr-package` help topic, which mirrors it) keep `/-/issues`;
   `codemeta.json`, `SECURITY.md`, and `README` -- files a human actually
   clicks -- now point at `/-/work_items`, the address GitLab serves

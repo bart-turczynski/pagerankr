@@ -13,7 +13,7 @@ axes; keep them separate.
 `NEWS.md` describes changes to the library. Crawl measurements and ranking-outcome
 predictions belong in a vignette or `notes/`.
 
-Push runs a local five-check gate, armed once per clone with
+Push runs a local six-check gate, armed once per clone with
 `pre-commit install && pre-commit install --hook-type pre-push`. For the gate,
 its skip flags, and the spelling/WORDLIST rule, see CONTRIBUTING.md.
 

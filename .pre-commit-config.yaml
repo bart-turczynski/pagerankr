@@ -50,13 +50,13 @@ repos:
       - id: check-case-conflict
   - repo: local
     hooks:
-      # The same five-check script CI's local counterpart has always run,
+      # The same six-check script CI's local counterpart has always run,
       # unchanged -- .githooks/pre-push stays where it is. It reads no git
       # hook arguments and no stdin, so it runs identically whether git invokes
       # it directly or pre-commit does. Skip flags (SKIP_VERIFY, SKIP_RCMDCHECK,
       # SKIP_SPELLING) are untouched and still read from the environment.
       - id: verify
-        name: 'verify (five-step gate: news/citation/lint/spelling/check)'
+        name: 'verify (six-step gate: news/citation/bugreports/lint/spelling/check)'
         entry: .githooks/pre-push
         language: system
         pass_filenames: false
