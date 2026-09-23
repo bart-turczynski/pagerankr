@@ -2,13 +2,25 @@
 
 # Folded verify-stage gate harness (SEOR-pgammbgo).
 #
-# WHY THIS EXISTS. `news-version`, `codemeta`, `citation-version` and `lint`
-# used to be four separate GitLab CI jobs. Measured 2026-09-23, the first
-# three do about 11 seconds of real work between them, but pagerankr pays the
-# fleet's own ~2.6-minute runner-pickup tax PER JOB regardless of how little
-# that job does -- 9-10 jobs, 7.3 minutes of compute against 31.1 minutes of
-# wall time. Folding these four into one `gates` job removes three of those
-# four pickups without dropping a single check.
+# WHY THIS EXISTS. `news-version`, `codemeta` and `lint` used to be three
+# separate GitLab CI jobs. Measured 2026-09-23, `news-version` and `codemeta`
+# do a few seconds of real work between them, but pagerankr pays the fleet's
+# own ~2.6-minute runner-pickup tax PER JOB regardless of how little that job
+# does -- 9-10 jobs, 7.3 minutes of compute against 31.1 minutes of wall
+# time. Folding these three into one `gates` job removes two of those three
+# pickups without dropping a single check.
+#
+# `citation-version` (CITATION.cff / .zenodo.json vs DESCRIPTION) is
+# DELIBERATELY NOT folded in here. It runs `scripts/check-citation.py`, which
+# needs python3, and this job runs on the R image (`rocker/r-ver:4.6`), which
+# has none -- verified directly with `docker run --rm rocker/r-ver:4.6 sh -c
+# 'which python3'`. Folding it in without a python3 install fails every run
+# with exit 127; adding an apt-get for it would add a new network/package
+# dependency to a job whose other two members touch no package manager at
+# all. citation-version stays its own job on `python:3.13-alpine`, where
+# python3 already exists at near-zero cost. See the `gates:` job's own
+# comment in .gitlab-ci.yml for the full reasoning and the two options
+# weighed.
 #
 # THE SHAPE IS PORTED FROM rurl's tools/verify.R (RURL-mvsxmyww): every gate
 # below runs regardless of an earlier one failing, each verdict is captured,
@@ -17,12 +29,13 @@
 # folding: a red `news-version` would hide whatever `lint` also found behind a
 # job that stopped before running it.
 #
-# WHAT STAYS SEPARATE, on purpose: `check`, `coverage`, `pages`, `osv-audit`,
-# `check-oldrel` and `rurl-floor` are not part of this harness -- different
-# failure meanings, and `osv-audit` in particular is a security signal that
-# should not lose its own red/green by being buried inside an unrelated
-# metadata check. See the `gates:` job's own comment in .gitlab-ci.yml for the
-# fold / no-fold reasoning in full.
+# WHAT STAYS SEPARATE, on purpose: `check`, `coverage`, `pages`,
+# `citation-version`, `osv-audit`, `check-oldrel` and `rurl-floor` are not
+# part of this harness -- different failure meanings (or a missing
+# interpreter, for citation-version), and `osv-audit` in particular is a
+# security signal that should not lose its own red/green by being buried
+# inside an unrelated metadata check. See the `gates:` job's own comment in
+# .gitlab-ci.yml for the fold / no-fold reasoning in full.
 #
 # Each gate below reproduces its former CI job's script VERBATIM -- same
 # commands, same comparisons, same exit conditions -- so folding changes
@@ -104,23 +117,7 @@ gate_codemeta <- function() {
   record("codemeta", TRUE)
 }
 
-# 3. citation-version -- ported verbatim from the `citation-version` CI job:
-# `--self-test` first (the tree is green by construction, so a passing check
-# and a broken script look identical without it), then the real check.
-gate_citation_version <- function() {
-  self_test <- system2("python3", c("scripts/check-citation.py", "--self-test"),
-                        stdout = TRUE, stderr = TRUE)
-  self_test_status <- attr(self_test, "status")
-  if (!(is.null(self_test_status) || identical(self_test_status, 0L))) {
-    return(record("citation-version", FALSE, c("--self-test failed:", self_test)))
-  }
-  out <- system2("python3", "scripts/check-citation.py", stdout = TRUE, stderr = TRUE)
-  status <- attr(out, "status")
-  ok <- is.null(status) || identical(status, 0L)
-  record("citation-version", ok, if (!ok) out else character())
-}
-
-# 4. lint -- ported verbatim from the `lint` CI job: lintr, then spelling
+# 3. lint -- ported verbatim from the `lint` CI job: lintr, then spelling
 # against DESCRIPTION `Language: en-US`.
 gate_lint <- function() {
   l <- lintr::lint_package()
@@ -140,7 +137,6 @@ gate_lint <- function() {
 results <- list(
   gate_news_version(),
   gate_codemeta(),
-  gate_citation_version(),
   gate_lint()
 )
 
@@ -152,4 +148,4 @@ if (length(failed)) {
       "\n")
   quit(status = 1L)
 }
-cat("VERDICT: PASS -- news-version, codemeta, citation-version, lint\n")
+cat("VERDICT: PASS -- news-version, codemeta, lint\n")

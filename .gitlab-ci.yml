@@ -229,7 +229,7 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "web"
     - when: never
 
-# 1-4. Folded verify-stage gate (SEOR-pgammbgo).
+# 1, 2, 4. Folded verify-stage gate (SEOR-pgammbgo).
 #
 # Used to be four separate jobs: news-version, codemeta, citation-version
 # (each on a minimal alpine/python image, no R, ~11 seconds of combined real
@@ -239,24 +239,46 @@ workflow:
 # 31.1 minutes of wall time — about 2.6 minutes of pure runner-pickup tax PER
 # JOB, paid four times over by checks that together did almost no work.
 #
-# Folded into one job on rurl's tools/verify.R shape (RURL-mvsxmyww), run
-# here as scripts/gates.R: every gate runs regardless of an earlier one's
-# outcome, every verdict is captured, ONE final summary names every gate that
-# failed, and only then does the job exit non-zero. A fail-fast harness would
-# gut the point of folding — a red `news-version` would hide whatever `lint`
-# also found. See scripts/gates.R's own header for the per-gate command
-# provenance (each gate reproduces its former job's script verbatim).
+# news-version, codemeta and lint fold into one job on rurl's tools/verify.R
+# shape (RURL-mvsxmyww), run here as scripts/gates.R: every gate runs
+# regardless of an earlier one's outcome, every verdict is captured, ONE
+# final summary names every gate that failed, and only then does the job
+# exit non-zero. A fail-fast harness would gut the point of folding — a red
+# `news-version` would hide whatever `lint` also found. See scripts/gates.R's
+# own header for the per-gate command provenance (each gate reproduces its
+# former job's script verbatim).
+#
+# citation-version is NOT folded in here — it stays its own job below,
+# unchanged. Verified with `docker run --rm rocker/r-ver:4.6 sh -c 'which
+# python3'` -> not present: this job's image has no python3, and
+# scripts/check-citation.py needs one. Two fixes were on the table: apt-get
+# a python3 into this job (measured ~6s locally for `apt-get update -qq &&
+# apt-get install -y --no-install-recommends python3` on this image), or
+# leave citation-version where python3 already exists. Chose the latter:
+# apt-get is cheap in isolation, but it would add a NEW network/package
+# dependency to a job whose other two members (news-version, codemeta are
+# pure grep; lint resolves R packages through the P3M/CRAN options already
+# configured in `before_script`) touch no package manager at all today — one
+# more thing that can flake and take three unrelated checks down with it, to
+# save a pickup that citation-version's own tiny alpine image already pays
+# almost nothing for. check-citation.py is also stdlib-only and offline by
+# design (that is why it got the minimal image in the first place); keeping
+# it there keeps that property visible rather than laundering it through an
+# apt-get. This still removes 2 of the 3 possible extra pickups (news-version
+# and codemeta), just not all 3.
 #
 # Runs on the DEFAULT image/before_script (not alpine), because `lint`
 # requires the full R dependency install regardless of which job hosts it —
-# folding does not remove that cost, only the three extra runner pickups
-# around it. `check` below now depends on `gates` (it used to depend on
-# `lint`) for the same reason: it needs gates' installed library, whichever
-# job builds it.
+# folding does not remove that cost, only the two extra runner pickups around
+# it. `check` below now depends on `gates` (it used to depend on `lint`) for
+# the same reason: it needs gates' installed library, whichever job builds
+# it.
 #
 # What did NOT get folded in, and why:
 #   * `check`, `coverage`, `pages` — different failure meanings (a build
 #     error is not a stale NEWS heading), left as-is per the ticket.
+#   * `citation-version` — needs python3, which this job's image does not
+#     have; see above.
 #   * `osv-audit` — a security/vulnerability signal, judged separately below
 #     to keep its own red/green rather than being buried inside an unrelated
 #     metadata check. It is also not cheap (installs pagerankr itself) and
@@ -273,6 +295,25 @@ gates:
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install(c("lintr", "spelling"))'
     - Rscript scripts/gates.R
+
+# CITATION.cff / .zenodo.json version consistency.
+#
+# Ported verbatim from seor's scripts/check-citation.py (design/adr/0001 there):
+# CITATION.cff's `version:` and .zenodo.json's `"version"` must name the
+# release DESCRIPTION's Version points at (X.Y.Z -> X.Y.Z; X.Y.Z.9000 ->
+# X.Y.Z), plus every URL those two files declare must also appear in
+# DESCRIPTION's URL field. pagerankr is conformant today; this job exists so
+# it stays that way. Offline and stdlib-only, so no R image needed — kept on
+# its own minimal python image rather than folded into `gates`, which runs
+# on the R image and has no python3 (see the `gates:` comment above).
+citation-version:
+  stage: verify
+  image: python:3.13-alpine
+  cache: []
+  before_script: []
+  script:
+    - python3 scripts/check-citation.py --self-test
+    - python3 scripts/check-citation.py
 
 # 4. R CMD check.
 #
