@@ -33,6 +33,7 @@ Useful links:
 \itemize{
   \item \url{https://pagerankr-63ad30.gitlab.io/}
   \item \url{https://gitlab.com/bart-turczynski/pagerankr}
+  \item \url{https://bart-turczynski.r-universe.dev/pagerankr}
   \item Report bugs at \url{https://gitlab.com/bart-turczynski/pagerankr/-/issues}
 }
 
