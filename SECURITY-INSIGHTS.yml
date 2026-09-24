@@ -1,28 +1,30 @@
 header:
   schema-version: 2.2.0
-  last-updated: '2026-07-18'
-  last-reviewed: '2026-07-18'
-  url: https://github.com/bart-turczynski/pagerankr/raw/main/SECURITY-INSIGHTS.yml
+  last-updated: '2026-09-24'
+  last-reviewed: '2026-09-24'
+  url: https://gitlab.com/bart-turczynski/pagerankr/-/raw/main/SECURITY-INSIGHTS.yml
   comment: |
     OpenSSF Security Insights self-report for pagerankr. This machine-readable
     report accompanies SECURITY.md and .bestpractices.json.
 
 project:
   name: pagerankr
-  homepage: https://bart-turczynski.github.io/pagerankr/
+  homepage: https://pagerankr-63ad30.gitlab.io/
   administrators:
     - name: Bart Turczynski
       email: bartek@turczynski.pl
       social: https://orcid.org/0000-0002-8788-7980
       primary: true
   documentation:
-    quickstart-guide: https://bart-turczynski.github.io/pagerankr/
-    detailed-guide: https://bart-turczynski.github.io/pagerankr/reference/index.html
-    release-process: https://github.com/bart-turczynski/pagerankr/blob/main/CONTRIBUTING.md
+    quickstart-guide: https://pagerankr-63ad30.gitlab.io/
+    detailed-guide: https://pagerankr-63ad30.gitlab.io/reference/index.html
+    release-process: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/CONTRIBUTING.md
   repositories:
     - name: pagerankr
-      url: https://github.com/bart-turczynski/pagerankr
-      comment: Sole repository for the pagerankr R package.
+      url: https://gitlab.com/bart-turczynski/pagerankr
+      comment: |
+        Canonical repository and issue tracker for the pagerankr R package.
+        GitHub carries a read-only mirror with issues and Actions turned off.
   vulnerability-reporting:
     reports-accepted: true
     bug-bounty-available: false
@@ -30,20 +32,20 @@ project:
       name: Bart Turczynski
       email: bartek@turczynski.pl
       primary: true
-    policy: https://github.com/bart-turczynski/pagerankr/blob/main/SECURITY.md
+    policy: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/SECURITY.md
     in-scope:
       - Unsafe handling of untrusted URL, redirect, link-graph, crawl, or analytics input.
       - Resource exhaustion, unexpected code execution, or information disclosure caused by those inputs.
     out-of-scope:
       - Vulnerabilities in dependencies; report those to the relevant upstream project.
     comment: |
-      Do not use public GitHub issues for security reports. Use GitHub private
-      vulnerability reporting (Security tab -> "Report a vulnerability") or
-      email the maintainer when that channel is unavailable. Reports are
+      Do not use public issues for security reports. Email the maintainer
+      (preferred; put "pagerankr security" in the subject), or open a GitLab
+      confidential issue, which only project members can see. Reports are
       targeted for acknowledgment within 7 days.
 
 repository:
-  url: https://github.com/bart-turczynski/pagerankr
+  url: https://gitlab.com/bart-turczynski/pagerankr
   status: active
   bug-fixes-only: false
   accepts-change-request: true
@@ -55,23 +57,25 @@ repository:
       social: https://orcid.org/0000-0002-8788-7980
       primary: true
   documentation:
-    contributing-guide: https://github.com/bart-turczynski/pagerankr/blob/main/CONTRIBUTING.md
-    security-policy: https://github.com/bart-turczynski/pagerankr/blob/main/SECURITY.md
+    contributing-guide: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/CONTRIBUTING.md
+    security-policy: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/SECURITY.md
   license:
-    url: https://github.com/bart-turczynski/pagerankr/blob/main/LICENSE
+    url: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/LICENSE
     expression: MIT
   release:
-    changelog: https://github.com/bart-turczynski/pagerankr/blob/main/NEWS.md
+    changelog: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/NEWS.md
     automated-pipeline: false
     distribution-points:
-      - uri: https://github.com/bart-turczynski/pagerankr/releases
-        comment: Tagged GitHub Releases when published; the package is currently experimental.
+      - uri: https://gitlab.com/bart-turczynski/pagerankr
+        comment: |
+          Source installs from GitLab (devtools::install_gitlab()). No release is
+          tagged yet; 0.1.0 has been submitted to CRAN.
       - uri: https://bart-turczynski.r-universe.dev
         comment: Development builds through r-universe.
   security:
     assessments:
       self:
-        evidence: https://github.com/bart-turczynski/pagerankr/blob/main/.bestpractices.json
+        evidence: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/.bestpractices.json
         date: '2026-07-10'
         comment: OpenSSF Best Practices self-assessment, tracked in the repository.
     champions:
@@ -88,7 +92,9 @@ repository:
           ci: true
           release: false
         results: {}
-        comment: Full-package linting runs in the Verify workflow on every push and pull request.
+        comment: |
+          Full-package linting runs in the GitLab CI `gates` job on every pipeline
+          (each push to main, and tags) and in the pre-push hook.
       - name: R CMD check
         type: other
         rulesets:
@@ -98,7 +104,11 @@ repository:
           ci: true
           release: true
         results: {}
-        comment: Verify runs an Ubuntu check; full-check runs --as-cran across supported platforms before releases.
+        comment: |
+          The GitLab CI `check` job runs R CMD check on Linux with R 4.6;
+          `check-oldrel` runs it with R 4.5 on v* tags and on the deep-check
+          schedule. The pre-push hook runs --as-cran. There is no macOS or
+          Windows CI; see the header of .gitlab-ci.yml.
       - name: rosv (OSV)
         type: SCA
         rulesets:
@@ -109,9 +119,10 @@ repository:
           release: false
         results: {}
         comment: |
-          Weekly and on-push audit of the runtime dependency closure against the
-          OSV database (osv.dev). No account or secrets required. See
-          .github/workflows/osv-audit.yml.
+          Audit of the runtime dependency closure against the OSV database
+          (osv.dev). No account or secrets required. Runs as the `osv-audit` job
+          in .gitlab-ci.yml on a pipeline schedule that sets
+          SCHEDULE_KIND=dependency-audit, or by hand.
       - name: oysteR (Sonatype OSS Index)
         type: SCA
         rulesets:
@@ -122,5 +133,8 @@ repository:
           release: false
         results: {}
         comment: |
-          Weekly and on-push audit of declared dependencies against the Sonatype
-          OSS Index. See .github/workflows/security-audit.yml.
+          Audit of the hard dependencies (Depends + Imports) against the Sonatype
+          OSS Index. Runs as the `security-audit` job in .gitlab-ci.yml on a
+          pipeline schedule that sets SCHEDULE_KIND=dependency-audit, or by
+          hand; needs the OSSINDEX_USER / OSSINDEX_TOKEN CI/CD variables and
+          fails without them.
