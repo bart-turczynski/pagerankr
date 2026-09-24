@@ -41,10 +41,21 @@
 # commands, same comparisons, same exit conditions -- so folding changes
 # nothing about what is checked, only how many jobs check it.
 #
-# Usage: Rscript scripts/gates.R
-# Assumes `lintr` and `spelling` are already installed: the CI job's own
+# Usage: Rscript scripts/gates.R [gate ...]
+#
+# With no arguments every gate runs -- that is what the CI job does. Named
+# gates run just that subset, which is how `.githooks/pre-push` reuses this
+# file: it calls `gates.R news-version codemeta` for the two base-R gates and
+# runs lint itself, because the hook keeps SKIP_SPELLING as a separate opt-in
+# that this file's combined `lint` gate has no way to express (SEOR-dzrisdmi).
+#
+# Selecting a subset does NOT make it fail-fast: whatever is selected still
+# runs to completion and reports once, below.
+#
+# `lint` assumes `lintr` and `spelling` are already installed: the CI job's own
 # `script:` installs them (and the package's dev deps) before invoking this,
-# the same way the old `lint` job did.
+# the same way the old `lint` job did. `news-version` and `codemeta` need
+# nothing but base R, which is why the hook can afford them unconditionally.
 
 results <- list()
 
@@ -134,18 +145,52 @@ gate_lint <- function() {
   record("lint", TRUE)
 }
 
-results <- list(
-  gate_news_version(),
-  gate_codemeta(),
-  gate_lint()
+available <- list(
+  "news-version" = gate_news_version,
+  "codemeta" = gate_codemeta,
+  "lint" = gate_lint
 )
 
+args <- commandArgs(trailingOnly = TRUE)
+
+# `--no-summary` suppresses the count and VERDICT lines, keeping the per-gate
+# PASS/FAIL lines and the exit status. .githooks/pre-push passes it: the hook
+# drives this file one gate at a time and prints its OWN verdict list across all
+# seven of its gates, so an inner "VERDICT: PASS -- codemeta" in the middle of a
+# failing push is noise that contradicts the real summary.
+summarize <- !("--no-summary" %in% args)
+selected <- setdiff(args, "--no-summary")
+if (!length(selected)) {
+  selected <- names(available)
+}
+
+unknown <- setdiff(selected, names(available))
+if (length(unknown)) {
+  cat(
+    "[gates] unknown gate(s):", paste(unknown, collapse = ", "), "\n",
+    "[gates] available:", paste(names(available), collapse = ", "), "\n",
+    sep = " "
+  )
+  quit(status = 2L)
+}
+
+# Run ALL selected gates before reporting any verdict. A failure here must not
+# stop the next gate -- see THE SHAPE IS PORTED FROM rurl's tools/verify.R
+# above; the whole point is that one run names every failure.
+results <- lapply(selected, function(name) available[[name]]())
+
 failed <- Filter(function(r) !r$ok, results)
-cat(sprintf("\n[gates] %d gate(s), %d failed\n", length(results), length(failed)))
+if (summarize) {
+  cat(sprintf("\n[gates] %d gate(s), %d failed\n", length(results), length(failed)))
+}
 if (length(failed)) {
-  cat("VERDICT: FAIL --",
-      paste(vapply(failed, function(r) r$label, character(1)), collapse = ", "),
-      "\n")
+  if (summarize) {
+    cat("VERDICT: FAIL --",
+        paste(vapply(failed, function(r) r$label, character(1)), collapse = ", "),
+        "\n")
+  }
   quit(status = 1L)
 }
-cat("VERDICT: PASS -- news-version, codemeta, lint\n")
+if (summarize) {
+  cat("VERDICT: PASS --", paste(selected, collapse = ", "), "\n")
+}

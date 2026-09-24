@@ -760,6 +760,27 @@
 
 ## Internal
 
+* **The pre-push verify gate fails when a checker is missing, instead of
+  skipping the check and exiting 0.** Four checks -- citation, the
+  `BugReports:` split, spelling and `R CMD check` -- were guarded by "is the
+  tool installed?" tests that printed a warning line on a miss and let the gate
+  pass. On a feature
+  branch this hook is the only gate that runs anywhere, so its most degraded
+  form still reported success. A missing checker is now a failed gate. The
+  opt-in bypasses (`SKIP_VERIFY`, `SKIP_RCMDCHECK`, `SKIP_SPELLING`) are
+  unchanged and report as `SKIP (opt-in)` rather than as passes. The gate also
+  runs every check before reporting and ends with a verdict list naming each
+  one, so "the gate passed" is a claim about a named set (`SEOR-dzrisdmi`).
+
+* **`scripts/check-bugreports.py` now runs in CI.** It had zero references in
+  `.gitlab-ci.yml`, so the newest gate in the fleet ran on a correctly
+  provisioned laptop and nowhere else. It joins the existing `citation-version`
+  job, which already runs on a python image (`SEOR-dzrisdmi`).
+
+* `scripts/gates.R` takes optional gate names and a `--no-summary` flag, so the
+  pre-push hook runs the same `news-version` and `codemeta` implementations CI
+  runs instead of a second copy of the rules in bash (`SEOR-dzrisdmi`).
+
 * `DESCRIPTION`'s `URL:` now lists the package's r-universe page. r-universe
   records this repository's upstream owner as `gitlab-bart-turczynski` because
   it is hosted on GitLab, which does not match the `bart-turczynski` universe,
