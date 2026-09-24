@@ -760,6 +760,17 @@
 
 ## Internal
 
+* **The OSS Index audit judges each advisory by disposition, not by "the scan
+  is empty".** `tests/testthat/test-security.R` now reads an allow-list in the
+  new `tests/testthat/helper-security.R`: a reported advisory not on the list
+  fails, a listed advisory no longer reported fails, and a row past its review
+  date or version warns. The list is empty because the 24-package hard
+  dependency closure reports zero advisories. A validator checks every row
+  against fixtures, an audit that resolves no packages fails, and under
+  `OSSINDEX_AUDIT_REQUIRED=true` a missing `oysteR` or missing credentials is a
+  failure rather than a skip, so a future credentialed audit job cannot go
+  green having audited nothing (`SEOR-fftbjnpl`).
+
 * **The pre-push verify gate fails when a checker is missing, instead of
   skipping the check and exiting 0.** Four checks -- citation, the
   `BugReports:` split, spelling and `R CMD check` -- were guarded by "is the
