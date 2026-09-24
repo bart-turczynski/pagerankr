@@ -306,6 +306,15 @@ gates:
 # it stays that way. Offline and stdlib-only, so no R image needed — kept on
 # its own minimal python image rather than folded into `gates`, which runs
 # on the R image and has no python3 (see the `gates:` comment above).
+# `check-bugreports.py` rides along here rather than getting a job of its own.
+# It was hook-only until 2026-09-24 -- zero references in this file -- so the
+# fleet's newest gate ran on a correctly-provisioned laptop and nowhere else,
+# and on a branch (which creates no pipeline at all) that laptop is the only
+# gate there is (SEOR-dzrisdmi). It is stdlib-only, offline and instant, with
+# exactly the same shape as check-citation.py, so it belongs in the job that
+# already has a python3 and costs nothing to extend. A separate job would pay
+# the fleet's ~2.6-minute runner-pickup tax for about a second of work, which
+# is the trade seor design/adr/0005 exists to refuse.
 citation-version:
   stage: verify
   image: python:3.13-alpine
@@ -314,6 +323,8 @@ citation-version:
   script:
     - python3 scripts/check-citation.py --self-test
     - python3 scripts/check-citation.py
+    - python3 scripts/check-bugreports.py --self-test
+    - python3 scripts/check-bugreports.py
 
 # 4. R CMD check.
 #

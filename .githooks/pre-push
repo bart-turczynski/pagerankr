@@ -1,139 +1,175 @@
 #!/usr/bin/env bash
-# Pre-push verify gate — a local APPROXIMATION of the GitHub-hosted `Verify` and
-# `news-version` workflows, both of which run remotely on every push to main and
-# every pull request. This is defense-in-depth, not a stand-in: catching a red
-# result here costs seconds instead of a round trip through Actions, and it also
-# covers a push made with remote CI unavailable.
+# Pre-push verify gate.
 #
-# It is NOT a faithful mirror, and a green here does not prove a green on CI or
-# at CRAN. Known divergences:
-#   * Dependencies resolve from the LOCAL library. CI installs them fresh from
-#     CRAN, so an out-of-date local rurl quietly makes this gate weaker than
-#     CI's — the very failure mode the R CMD check step exists to catch. The non-gating
-#     notice below reports that skew when it can;
-#     `Rscript -e 'install.packages("rurl")'` clears it.
-#   * `qpdf` is often not installed locally, and without it `R CMD check` SKIPS
-#     the tarball / PDF size checks that CRAN does run. `brew install qpdf`
-#     arms them.
+# On a feature branch this hook is the ONLY gate that runs anywhere. pagerankr's
+# `workflow:` block admits a tag, a push to main, or a hand-started `web` run
+# and nothing else, so a branch push creates no pipeline and a merge request
+# creates none either. That is deliberate (see AGENTS.md), and it is why this
+# file fails loudly rather than degrading quietly.
 #
-# Checks, cheapest first:
-#   1. news-version.yaml : top NEWS.md heading vs DESCRIPTION Version
-#   2. citation-version  : CITATION.cff / .zenodo.json name the release
-#                          DESCRIPTION's Version points at, and declare no URL
-#                          DESCRIPTION omits. Same script the CI job runs.
-#   3. bugreports-split  : DESCRIPTION's BugReports: (and the roxygen-
-#                          generated man/pagerankr-package.Rd link it feeds)
-#                          stay on the CRAN-incoming-safe /-/issues form,
-#                          while codemeta.json / SECURITY.md / README.Rmd /
-#                          README.md -- files a human clicks -- name
-#                          /-/work_items instead (SEOR-ocbtrrnl).
-#   4. Verify / lint     : lintr::lint_package() (fails on any lint)
-#   5. Verify / spelling : spelling::spell_check_package() against
-#                          DESCRIPTION `Language: en-US`. Skipped (not failed)
-#                          when `spelling` is not installed.
-#   6. R CMD check       : rcmdcheck --as-cran, FAILS ON ERRORS AND WARNINGS
-#                          (the package is warning-clean; the sole allowed NOTE
-#                          is the CRAN-incoming new-submission one).
-# Between steps 3 and 4, one non-gating notice: installed rurl vs the version
-# CRAN serves. It warns, never fails, and skips itself when curl is missing or
-# the network is unreachable.
+# IT USED TO DEGRADE QUIETLY (SEOR-dzrisdmi). Four checks -- citation,
+# BugReports-split, spelling and R CMD check -- were guarded by "is the tool
+# installed?" tests that, on a miss, printed a line to stderr and let the gate
+# exit 0. The push succeeded, a line of stderr scrolled past, and the only gate
+# in the system had checked less than it claimed. A missing checker is a broken
+# environment, not a passing tree -- the same principle scripts/check-toolchain.R
+# already applies (SEOR-tcytizic). So a missing tool now FAILS.
 #
-# Step 6 is what catches correctness regressions — e.g. a dependency bump that
-# turns test fixtures red (see PR #50: rurl 2.1.0 emptied bare-label graphs and
-# slipped in because remote CI was billing-disabled). It needs the full Suggests
-# set (covr, goodpractice, DT, visNetwork, rcmdcheck, ...). When that toolchain
-# is NOT installed, step 6 is SKIPPED with a warning rather than failing, so a
-# fresh clone still gets the light gate. Install the Suggests to arm it.
+# The opt-in bypasses are KEPT and are unaffected: SKIP_VERIFY, SKIP_RCMDCHECK
+# and SKIP_SPELLING are emergency hatches someone deliberately typed, and they
+# report as SKIP(opt-in) in the summary rather than as PASS.
 #
-# The cross-platform matrix (full-check.yml) and R-hub (rhub.yaml) remain the
-# release-tag / on-demand path.
+# RUN-ALL-THEN-REPORT. Every gate below runs even when an earlier one failed,
+# each verdict is captured, one final summary names every gate that failed, and
+# only then does this exit non-zero. Same shape as scripts/gates.R and rurl's
+# tools/verify.R. A fail-fast gate would make you push, fail, fix, push and fail
+# again to discover the second problem.
+#
+# WHAT THIS GATE RUNS, cheapest first:
+#   1. news-version    scripts/gates.R -- top NEWS.md heading vs DESCRIPTION
+#   2. codemeta        scripts/gates.R -- codemeta.json version + URL sanity
+#   3. citation        scripts/check-citation.py  (+ --self-test)
+#   4. bugreports      scripts/check-bugreports.py (+ --self-test)
+#   5. lint            lintr::lint_package()
+#   6. spelling        spelling::spell_check_package()
+#   7. rcmdcheck       rcmdcheck --as-cran, fails on ERRORS AND WARNINGS
+# Between 4 and 5, one NON-GATING notice: installed rurl vs the version CRAN
+# serves. It warns and never fails, and it is the one thing here still allowed
+# to skip itself, because it reports drift rather than checking the tree.
+#
+# Gates 1 and 2 are not reimplemented here. They call scripts/gates.R, the same
+# file the `gates` CI job runs, so the two cannot drift. This hook used to carry
+# its own bash reimplementation of the news-version rule; that was a second
+# copy of a rule that already existed in R.
+#
+# HOOK vs CI, enumerated both ways, because neither side covers the other:
+#
+#   gate            hook   CI job              note
+#   news-version    yes    gates               same scripts/gates.R
+#   codemeta        yes    gates               same scripts/gates.R
+#   lint+spelling   yes    gates               same checks, invoked separately
+#                                              here so SKIP_SPELLING still works
+#   citation        yes    citation-version    same script
+#   bugreports      yes    citation-version    same script (added SEOR-dzrisdmi;
+#                                              it was hook-only before, so the
+#                                              fleet's newest gate ran on one
+#                                              laptop and nowhere else)
+#   R CMD check     yes    check               CI's is a standard check; this
+#                                              one is --as-cran and stricter
+#   coverage        NO     coverage            CI only
+#   osv-audit       NO     osv-audit           CI only, and schedule-gated
+#   check-oldrel    NO     check-oldrel        CI only, manual
+#   rurl-floor      NO     rurl-floor          CI only
+#   pages           NO     pages               CI only
+#
+# Known divergence that remains on purpose: dependencies resolve from the LOCAL
+# library here, while CI installs them fresh. An out-of-date local rurl makes
+# this gate weaker than CI's -- which is what the non-gating notice reports, and
+# what gate 7 exists to catch. `qpdf` missing also makes R CMD check SKIP the
+# tarball/PDF size checks CRAN runs; `brew install qpdf` arms them.
 #
 # Enable once per clone:   git config core.hooksPath .githooks
 # Emergency bypass:        SKIP_VERIFY=1 git push
 # Skip only R CMD check:   SKIP_RCMDCHECK=1 git push
 # Skip only spelling:      SKIP_SPELLING=1 git push
-set -euo pipefail
+
+# NOTE: no `-e`. This gate runs every check and reports once, so a failing
+# command must not abort the script. Each gate's status is captured explicitly.
+set -uo pipefail
 
 if [ "${SKIP_VERIFY:-}" = "1" ]; then
-  echo "pre-push: SKIP_VERIFY=1 set — skipping the verify gate" >&2
+  echo "pre-push: SKIP_VERIFY=1 set — skipping the verify gate entirely" >&2
   exit 0
 fi
 
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
-# 1. NEWS / DESCRIPTION version consistency (mirrors news-version.yaml).
-echo "pre-push: NEWS/version consistency ..." >&2
-version="$(grep -E '^Version:' DESCRIPTION | head -n1 | sed -E 's/^Version:[[:space:]]*//')"
-heading="$(grep -m1 -E '^# ' NEWS.md | sed -E 's/^#[[:space:]]+pagerankr[[:space:]]*//')"
-if [ "$heading" != "(development version)" ] && [ "$heading" != "$version" ]; then
-  echo "pre-push: top NEWS.md heading ('$heading') is neither '(development version)'" >&2
-  echo "          nor the DESCRIPTION Version ('$version'). Update NEWS.md." >&2
-  exit 1
-fi
+failed=()
+skipped=()
+passed=()
 
-# 2. Citation metadata (mirrors the `citation-version` CI job, and runs the
-#    same script it does). CITATION.cff's `version:` and .zenodo.json's
-#    `"version"` must name the release DESCRIPTION's Version points at
-#    (X.Y.Z -> X.Y.Z; X.Y.Z.9000 -> X.Y.Z), and every URL those two files
-#    declare must also appear in DESCRIPTION's URL field. The rule is seor's
-#    design/adr/0001 and design/adr/0002 (SEOR-jxzjhbef).
+# record <label> <status> -- status is pass | fail | skip
+record() {
+  case "$2" in
+    pass) passed+=("$1"); printf '[verify] %-14s PASS\n' "$1" >&2 ;;
+    fail) failed+=("$1"); printf '[verify] %-14s FAIL\n' "$1" >&2 ;;
+    skip) skipped+=("$1"); printf '[verify] %-14s SKIP (opt-in)\n' "$1" >&2 ;;
+  esac
+}
+
+# have_tool <label> <command> -- a missing tool is a FAILED gate, not a skip.
+have_tool() {
+  if command -v "$2" >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "pre-push: $2 is not installed, so the '$1' gate cannot run." >&2
+  echo "          A missing checker is a broken environment, not a green tree." >&2
+  return 1
+}
+
+# have_r_pkg <label> <package> -- same rule for an R package.
+have_r_pkg() {
+  if Rscript -e "quit(status = if (requireNamespace(\"$2\", quietly = TRUE)) 0L else 1L)" >/dev/null 2>&1; then
+    return 0
+  fi
+  echo "pre-push: the R package '$2' is not installed, so the '$1' gate cannot run." >&2
+  echo "          Install the package Suggests to arm the full local gate." >&2
+  return 1
+}
+
+# 1 + 2. news-version and codemeta, via the same harness the `gates` CI job
+# runs. Base R only, so there is nothing here that can be missing.
 #
-#    Offline, stdlib-only and instant, so it sits here with the other cheap
-#    metadata check rather than behind the R toolchain. `--self-test` runs
-#    first for the same reason it does in CI: this tree is green by
-#    construction, so a passing check and a broken script look identical
-#    without it. Skipped, not failed, when python3 is unavailable -- the hook
-#    otherwise gains a hard dependency it did not have.
+# Invoked once PER GATE rather than as `gates.R news-version codemeta`, so each
+# one gets its own line in this gate's summary. gates.R would run both and
+# report both itself, but it exits once, and a single exit status cannot say
+# which of the two failed without parsing its output. Two base-R invocations
+# cost milliseconds and keep the verdict list exact.
+for gate in news-version codemeta; do
+  echo "pre-push: $gate (scripts/gates.R) ..." >&2
+  if Rscript scripts/gates.R --no-summary "$gate" >&2; then
+    record "$gate" pass
+  else
+    record "$gate" fail
+  fi
+done
+
+# 3. Citation metadata. Same script the `citation-version` CI job runs.
+# `--self-test` first for the reason it runs first in CI: this tree is green by
+# construction, so a passing check and a broken script look identical without it.
 echo "pre-push: citation metadata vs DESCRIPTION ..." >&2
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "pre-push:   python3 unavailable -- skipping the citation check." >&2
+if ! have_tool citation python3; then
+  record citation fail
+elif python3 scripts/check-citation.py --self-test >&2 &&
+  python3 scripts/check-citation.py >&2; then
+  record citation pass
 else
-  python3 scripts/check-citation.py --self-test
-  python3 scripts/check-citation.py
+  record citation fail
 fi
 
-# 3. BugReports tracker-link split (SEOR-ocbtrrnl). CRAN runs two checks over
-#    a GitLab BugReports: URL and they contradict each other:
-#    tools::check_url_db() fetches the address and 404s on the classic
-#    /-/issues path now that GitLab serves work items instead;
-#    tools:::.check_package_CRAN_incoming() never fetches anything -- it is a
-#    hardcoded string test that only accepts /-/issues (optionally /new) and
-#    NOTEs anything else, /-/work_items included. Declaring /-/work_items in
-#    DESCRIPTION is not a style choice: it archived the first pslr 1.2.1
-#    upload at the CRAN pretest on 2026-09-12 (pslr commit 509c776). So
-#    DESCRIPTION (and man/pagerankr-package.Rd, which roxygen2's "_PACKAGE"
-#    sentinel generates from it verbatim) must stay on /-/issues, while
-#    codemeta.json / SECURITY.md / README.Rmd / README.md -- files a human
-#    actually clicks, which the incoming check never reads -- must name
-#    /-/work_items, the address GitLab serves.
-#
-#    Same shape as the citation check just above: offline, stdlib-only,
-#    instant, `--self-test` first for the same reason, skipped (not failed)
-#    when python3 is unavailable.
+# 4. BugReports tracker-link split (SEOR-ocbtrrnl). DESCRIPTION and the roxygen-
+# generated man/pagerankr-package.Rd stay on the CRAN-incoming-safe /-/issues
+# form; codemeta.json / SECURITY.md / README.Rmd / README.md -- the files a
+# human clicks -- name /-/work_items, the address GitLab actually serves.
+# Declaring /-/work_items in DESCRIPTION archived the first pslr 1.2.1 upload at
+# the CRAN pretest on 2026-09-12.
 echo "pre-push: BugReports tracker-link split ..." >&2
-if ! command -v python3 >/dev/null 2>&1; then
-  echo "pre-push:   python3 unavailable -- skipping the BugReports-split check." >&2
+if ! have_tool bugreports python3; then
+  record bugreports fail
+elif python3 scripts/check-bugreports.py --self-test >&2 &&
+  python3 scripts/check-bugreports.py >&2; then
+  record bugreports pass
 else
-  python3 scripts/check-bugreports.py --self-test
-  python3 scripts/check-bugreports.py
+  record bugreports fail
 fi
 
-# Dependency-skew notice (NON-GATING -- warns, never fails). Steps 4-5 resolve
-# rurl from the local library; CI installs it fresh from CRAN. Compare the two
-# so a stale local copy cannot masquerade as CI-green.
-#
-# It read the DESCRIPTION `Remotes:` target until rurl reached CRAN on
-# 2026-09-09 and the field was removed. The skew it guards is unchanged --
-# and it is not hypothetical: a local 3.0.0 build sat in front of CRAN 3.0.1
-# and hid a new `get_clean_url` argument (PAGE-tsbkxhoz). Only the source of
-# "what CI installs" moved, from a forge ref to CRAN.
-#
-# Every command here is guarded: a missing curl or no network downgrades this
-# to a one-line skip notice.
-echo "pre-push: installed rurl vs CRAN ..." >&2
+# Dependency-skew notice (NON-GATING -- warns, never fails, and is the only
+# thing in this file still allowed to skip itself). Gates 5-7 resolve rurl from
+# the local library; CI installs it fresh from CRAN. A local 3.0.0 build sat in
+# front of CRAN 3.0.1 and hid a new `get_clean_url` argument (PAGE-tsbkxhoz).
+echo "pre-push: installed rurl vs CRAN (notice only) ..." >&2
 rurl_url="https://cloud.r-project.org/web/packages/rurl/DESCRIPTION"
-
 rurl_target=""
 if grep -q '^Remotes:' DESCRIPTION; then
   echo "pre-push:   DESCRIPTION carries a Remotes: field again — CRAN does not honor" >&2
@@ -155,43 +191,64 @@ if [ -n "$rurl_target" ]; then
     echo "pre-push: ------------------------- WARNING -------------------------" >&2
     echo "pre-push: installed rurl $rurl_behind is BEHIND CRAN ($rurl_target)," >&2
     echo "          which is what CI and every fresh install resolve." >&2
-    echo "          The checks below run against the OLD" >&2
-    echo "          copy, so passing here does NOT imply passing on CI (see the" >&2
-    echo "          PR #50 note in this file's header). Refresh with:" >&2
+    echo "          The gates below run against the OLD copy, so passing here" >&2
+    echo "          does NOT imply passing on CI. Refresh with:" >&2
     echo "            Rscript -e 'install.packages(\"rurl\")'" >&2
     echo "pre-push: -----------------------------------------------------------" >&2
   fi
 fi
 
-# 4. Lint (mirrors the Verify `lint` job; fails on any lint).
+# 5. Lint.
 echo "pre-push: lintr::lint_package() ..." >&2
-Rscript -e 'l <- lintr::lint_package(); if (length(l)) { print(l); quit(status = 1L) }'
+if ! have_r_pkg lint lintr; then
+  record lint fail
+elif Rscript -e 'l <- lintr::lint_package(); if (length(l)) { print(l); quit(status = 1L) }' >&2; then
+  record lint pass
+else
+  record lint fail
+fi
 
-# 5. Spelling (mirrors the Verify `lint` job's Spelling step). Guards
-#    DESCRIPTION `Language: en-US` across Rd, vignettes, README and NEWS.
-#    Skipped (not failed) when `spelling` is unavailable — it was added to
-#    Suggests later than this hook, so existing clones are not broken by it.
+# 6. Spelling, against DESCRIPTION `Language: en-US`.
 if [ "${SKIP_SPELLING:-}" = "1" ]; then
-  echo "pre-push: SKIP_SPELLING=1 set — skipping the spelling check" >&2
-elif ! Rscript -e 'quit(status = if (requireNamespace("spelling", quietly = TRUE)) 0L else 1L)' >/dev/null 2>&1; then
-  echo "pre-push: spelling not installed — skipping the spelling check" >&2
-  echo "          (install.packages(\"spelling\") to arm it)." >&2
+  record spelling skip
+elif ! have_r_pkg spelling spelling; then
+  record spelling fail
 else
   echo "pre-push: spelling::spell_check_package() ..." >&2
-  Rscript -e 'bad <- spelling::spell_check_package(); if (nrow(bad)) { print(bad); cat("Correct the prose, or add genuine terms to inst/WORDLIST.\n", file = stderr()); quit(status = 1L) }'
+  if Rscript -e 'bad <- spelling::spell_check_package(); if (nrow(bad)) { print(bad); cat("Correct the prose, or add genuine terms to inst/WORDLIST.\n", file = stderr()); quit(status = 1L) }' >&2; then
+    record spelling pass
+  else
+    record spelling fail
+  fi
 fi
 
-# 6. R CMD check (mirrors the Verify `check` job) — fails on errors AND
-#    warnings. Skipped (not failed) when rcmdcheck / the Suggests toolchain is
-#    unavailable, so a fresh clone still benefits from steps 1-5.
+# 7. R CMD check --as-cran, fails on errors AND warnings. This is what catches
+# correctness regressions -- a dependency bump that turns fixtures red (rurl
+# 2.1.0 emptied bare-label graphs and slipped in while remote CI was
+# billing-disabled).
 if [ "${SKIP_RCMDCHECK:-}" = "1" ]; then
-  echo "pre-push: SKIP_RCMDCHECK=1 set — skipping R CMD check" >&2
-elif ! Rscript -e 'quit(status = if (requireNamespace("rcmdcheck", quietly = TRUE)) 0L else 1L)' >/dev/null 2>&1; then
-  echo "pre-push: rcmdcheck not installed — skipping R CMD check (install the" >&2
-  echo "          package Suggests to arm the full local gate)." >&2
+  record rcmdcheck skip
+elif ! have_r_pkg rcmdcheck rcmdcheck; then
+  record rcmdcheck fail
 else
   echo "pre-push: R CMD check (--as-cran; fails on errors + warnings) ..." >&2
-  Rscript -e 'q <- rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning", quiet = TRUE)'
+  if Rscript -e 'q <- rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning", quiet = TRUE)' >&2; then
+    record rcmdcheck pass
+  else
+    record rcmdcheck fail
+  fi
 fi
 
-echo "pre-push: verify gate passed ✓" >&2
+# The summary. "The gate passed" is a claim about a NAMED set, never about
+# whatever happened to be installed.
+echo "" >&2
+printf 'pre-push: %d passed, %d failed, %d skipped by opt-in\n' \
+  "${#passed[@]}" "${#failed[@]}" "${#skipped[@]}" >&2
+if [ "${#skipped[@]}" -gt 0 ]; then
+  echo "pre-push: SKIPPED (opt-in): ${skipped[*]}" >&2
+fi
+if [ "${#failed[@]}" -gt 0 ]; then
+  echo "VERDICT: FAIL -- ${failed[*]}" >&2
+  exit 1
+fi
+echo "VERDICT: PASS -- ${passed[*]}" >&2
