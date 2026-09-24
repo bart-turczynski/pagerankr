@@ -760,6 +760,23 @@
 
 ## Internal
 
+* **The two dependency audits run on a dedicated schedule, and the OSS Index
+  one now runs at all.** `osv-audit` fired on every pipeline schedule, on
+  `main` pushes that touched `DESCRIPTION` or its test, and as a manual job on
+  every pipeline; it now fires only on a schedule that sets
+  `SCHEDULE_KIND=dependency-audit`, or by hand. A new `security-audit` job runs
+  `test-security.R` under the same rules with `OSSINDEX_AUDIT_REQUIRED=true`,
+  so missing OSS Index credentials fail the job instead of letting it pass
+  having audited nothing (`SEOR-fftbjnpl`).
+
+* **`.bestpractices.json` and `SECURITY-INSIGHTS.yml` describe the project as
+  it is hosted now.** Both still cited GitHub issues, releases, Actions
+  workflows that no longer exist, Codecov, a `github.io` site and GitHub
+  private vulnerability reporting. They now cite the GitLab repository and
+  tracker, `.gitlab-ci.yml`, the `gitlab.io` site and the channels
+  `SECURITY.md` names. The self-assessment marks release tags as unmet,
+  because no release has been tagged yet (`SEOR-wmtfrsjq`).
+
 * **The OSS Index audit judges each advisory by disposition, not by "the scan
   is empty".** `tests/testthat/test-security.R` now reads an allow-list in the
   new `tests/testthat/helper-security.R`: a reported advisory not on the list
