@@ -30,10 +30,10 @@
 # job that stopped before running it.
 #
 # WHAT STAYS SEPARATE, on purpose: `check`, `coverage`, `pages`,
-# `citation-version`, `osv-audit`, `check-oldrel` and `rurl-floor` are not
-# part of this harness -- different failure meanings (or a missing
-# interpreter, for citation-version), and `osv-audit` in particular is a
-# security signal that should not lose its own red/green by being buried
+# `citation-version`, `osv-audit`, `security-audit`, `check-oldrel` and
+# `rurl-floor` are not part of this harness -- different failure meanings (or a
+# missing interpreter, for citation-version), and the two audits in particular
+# are security signals that should not lose their own red/green by being buried
 # inside an unrelated metadata check. See the `gates:` job's own comment in
 # .gitlab-ci.yml for the fold / no-fold reasoning in full.
 #

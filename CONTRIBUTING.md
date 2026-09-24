@@ -80,12 +80,17 @@ silently drop it from the site without the build failing loudly. Note the
 button specifically: `glab ci run` starts an `api`-source pipeline, which
 `workflow:` still refuses on a branch.
 
-**The nine `.github/workflows/` files are dormant and are NOT the gate.** They
-target a suspended account and have not run since 2026-08-07. They are kept as
-the source material for what GitLab CI cannot carry — the macOS and Windows
-checks, R-hub, and the OSS Index audit — not because they execute. What could be
-ported has been (PAGE-ppmceqnr); `.gitlab-ci.yml`'s header records each
-remaining gap and why it is a gap rather than a to-do.
+**There is no GitHub Actions gate.** The old `.github/workflows/` files were
+deleted (PAGE-yfmrrrhp); GitHub now holds a read-only mirror with Actions
+turned off. What GitLab CI could carry has been ported (PAGE-ppmceqnr); what it
+cannot — the macOS and Windows checks and R-hub — is recorded in
+`.gitlab-ci.yml`'s header, with why each is a gap rather than a to-do.
+
+**The two dependency audits run only on a schedule.** `osv-audit` (OSV, no
+account) and `security-audit` (Sonatype OSS Index, needs the `OSSINDEX_USER` /
+`OSSINDEX_TOKEN` CI/CD variables) fire on a pipeline schedule that sets
+`SCHEDULE_KIND=dependency-audit`, or by hand from **Run pipeline**. No push
+pipeline runs them.
 
 The same checks also run **locally**, as a committed pre-push hook script,
 `.githooks/pre-push`, so a red result costs seconds instead of a round trip

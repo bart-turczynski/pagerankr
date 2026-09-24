@@ -11,8 +11,8 @@
 # rather than mechanically translated.
 #
 # Ported: the four-check gate (news-version, lint, spelling, R CMD check), the
-# rurl floor, the docs site, coverage, the OSV audit, a codemeta consistency
-# check, and the R-oldrel slice of the matrix.
+# rurl floor, the docs site, coverage, the OSV and OSS Index dependency audits,
+# a codemeta consistency check, and the R-oldrel slice of the matrix.
 #
 # NOT ported, because they cannot be (PAGE-ppmceqnr) — recorded here so their
 # absence reads as a decision rather than as neglect:
@@ -29,11 +29,6 @@
 #                           GitHub repository. There is no GitLab equivalent to
 #                           port; `rhub.yaml` is not translatable, only
 #                           replaceable, and nothing here replaces it.
-#   OSS Index audit         Needs OSSINDEX_USER / OSSINDEX_TOKEN as project
-#                           variables, which only the owner can add. `osv-audit`
-#                           below covers the same ground unauthenticated, and
-#                           oysteR 0.1.4 hardcodes the legacy OSS Index endpoint
-#                           that sunsets 2026-12-31.
 #   R-devel check           `rocker/r-devel` publishes no arm64 variant, so it
 #                           would run emulated on this host — the trap the
 #                           `default.image` note below exists to warn about.
@@ -279,12 +274,12 @@ workflow:
 #     error is not a stale NEWS heading), left as-is per the ticket.
 #   * `citation-version` — needs python3, which this job's image does not
 #     have; see above.
-#   * `osv-audit` — a security/vulnerability signal, judged separately below
-#     to keep its own red/green rather than being buried inside an unrelated
-#     metadata check. It is also not cheap (installs pagerankr itself) and
-#     does not run on every push (schedule / DESCRIPTION-or-test-file-change
-#     / manual — see its own rules), so it fails the "cheap AND runs on every
-#     push" bar this fold requires.
+#   * `osv-audit`, `security-audit` — security/vulnerability signals, judged
+#     separately below to keep their own red/green rather than being buried
+#     inside an unrelated metadata check. They are also not cheap (they
+#     install pagerankr itself) and do not run on every push (only on a
+#     `dependency-audit` schedule, or by hand — see their own rules), so they
+#     fail the "cheap AND runs on every push" bar this fold requires.
 #   * `check-oldrel`, `rurl-floor` — release-shaped floor/compatibility
 #     checks, not cheap metadata checks; handled under SEOR-ihmntqzm below.
 gates:
@@ -412,13 +407,22 @@ coverage:
 # unlike the OSS Index audit this supersedes.
 #
 # Scheduled, because that is what a vulnerability audit is for: the dependency
-# set can stop being safe on a day nothing in this repo changed. No schedule is
-# configured today (`pipeline_schedules` is empty) — this rule is ready for one,
-# and a schedule would need to target `main` to produce a pipeline at all, per
-# the top-level `workflow:` block. On the default branch it additionally runs
-# when the inputs move, and it is available manually on any pipeline that DOES
-# get created (a `main` push or a `v*` tag — no branch or MR pipeline exists to
-# trigger it from before merging).
+# set can stop being safe on a day nothing in this repo changed.
+#
+# SCHEDULE_KIND guard (SEOR-fftbjnpl), the same mechanism `check-oldrel` uses
+# for `deep-check` (see there). This job and `security-audit` below fire ONLY
+# on a pipeline schedule that sets `SCHEDULE_KIND=dependency-audit`, so a
+# different schedule sharing the `schedule` pipeline source does not also run
+# two network audits on its tick. A schedule must target `main` to produce a
+# pipeline at all, per the top-level `workflow:` block. Creating that schedule
+# is an owner-only action (Settings > CI/CD > Schedules); until one exists,
+# neither audit runs unattended.
+#
+# The only other way in is a hand-started (`web`) pipeline, where the job is
+# offered as manual and non-blocking. It used to run automatically on `main`
+# pushes that touched DESCRIPTION, test-osv.R or this file, and to be offered
+# as manual on every pipeline; both paths are gone, so no ordinary push
+# pipeline carries an audit job.
 osv-audit:
   stage: verify
   needs: []
@@ -428,14 +432,16 @@ osv-audit:
     # queried nothing.
     NOT_CRAN: "true"
   rules:
-    - if: $CI_PIPELINE_SOURCE == "schedule"
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      changes:
-        - DESCRIPTION
-        - tests/testthat/test-osv.R
-        - .gitlab-ci.yml
-    - when: manual
+    # Blocking on the schedule: a vulnerability detector that reports success
+    # when it fires is worthless.
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "dependency-audit"
+    # Under `rules`, `when: manual` defaults to `allow_failure: false`, which
+    # would leave a hand-started pipeline blocked on a job nobody meant to gate
+    # on. The explicit `allow_failure` is load-bearing.
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
       allow_failure: true
+    - when: never
   script:
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install(c("rosv", "testthat"))'
@@ -458,6 +464,49 @@ osv-audit:
       }
       cat("Auditing", length(closure), "runtime dependencies.\n")'
     - Rscript -e 'testthat::test_local(filter = "osv", stop_on_failure = TRUE)'
+
+# Dependency vulnerability audit against the Sonatype OSS Index via {oysteR}.
+#
+# Runs tests/testthat/test-security.R, which audits pagerankr's hard
+# dependencies (Depends + Imports) and judges every reported advisory against
+# the allow-list in tests/testthat/helper-security.R. OSS Index rejects
+# anonymous requests with HTTP 401, so this job needs two CI/CD variables:
+#   OSSINDEX_USER   - OSS Index account email (https://ossindex.sonatype.org)
+#   OSSINDEX_TOKEN  - OSS Index API token
+#
+# THIS JOB FAILS WHEN THEY ARE ABSENT, ON PURPOSE. `OSSINDEX_AUDIT_REQUIRED`
+# turns each precondition test-security.R would otherwise skip on -- oysteR not
+# installed, credentials missing -- into a hard failure naming what is missing,
+# so the job cannot report success having audited nothing (the failure
+# `PUNY-rsxtbbln` records in punycoder). It is set here and nowhere else, so
+# local runs, the pre-push gate and `R CMD check` still skip.
+#
+# Same rules as `osv-audit` above: a `SCHEDULE_KIND=dependency-audit` schedule,
+# or by hand from a `web` pipeline. Setting the two variables and creating
+# that schedule are both owner-only actions.
+#
+# Known expiry: oysteR 0.1.4 hardcodes the legacy OSS Index endpoint, which
+# Sonatype sunsets on 2026-12-31. After that this job goes red on transport,
+# not on an advisory, until oysteR moves or the audit is re-pointed.
+security-audit:
+  stage: verify
+  needs: []
+  variables:
+    NOT_CRAN: "true"
+    OSSINDEX_AUDIT_REQUIRED: "true"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "dependency-audit"
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+      allow_failure: true
+    - when: never
+  script:
+    - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
+    - Rscript -e 'pak::pkg_install(c("oysteR", "testthat"))'
+    # Installed for the same reason as in `osv-audit`: the test reads the
+    # installed DESCRIPTION through system.file(package = "pagerankr").
+    - Rscript -e 'pak::local_install(upgrade = FALSE)'
+    - Rscript -e 'testthat::test_local(filter = "security", stop_on_failure = TRUE)'
 
 # R CMD check on the previous R minor release.
 #

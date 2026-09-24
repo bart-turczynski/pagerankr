@@ -58,6 +58,8 @@
 #                                              one is --as-cran and stricter
 #   coverage        NO     coverage            CI only
 #   osv-audit       NO     osv-audit           CI only, and schedule-gated
+#   OSS Index       NO     security-audit      CI only, schedule-gated, needs
+#                                              OSSINDEX_USER / OSSINDEX_TOKEN
 #   check-oldrel    NO     check-oldrel        CI only, manual
 #   rurl-floor      NO     rurl-floor          CI only
 #   pages           NO     pages               CI only
