@@ -769,13 +769,25 @@
   so missing OSS Index credentials fail the job instead of letting it pass
   having audited nothing (`SEOR-fftbjnpl`).
 
-* **`.bestpractices.json` and `SECURITY-INSIGHTS.yml` describe the project as
-  it is hosted now.** Both still cited GitHub issues, releases, Actions
-  workflows that no longer exist, Codecov, a `github.io` site and GitHub
-  private vulnerability reporting. They now cite the GitLab repository and
-  tracker, `.gitlab-ci.yml`, the `gitlab.io` site and the channels
-  `SECURITY.md` names. The self-assessment marks release tags as unmet,
-  because no release has been tagged yet (`SEOR-wmtfrsjq`).
+* **`SECURITY-INSIGHTS.yml` describes the project as it is hosted now.** It
+  still cited GitHub issues, releases, Actions workflows that no longer exist,
+  Codecov, a `github.io` site and GitHub private vulnerability reporting. It now
+  cites the GitLab repository and tracker, `.gitlab-ci.yml`, the `gitlab.io`
+  site and the channels `SECURITY.md` names (`SEOR-wmtfrsjq`).
+
+* **`.bestpractices.json` now names GitLab and describes today's CI, and
+  `scripts/bestpractices-url.py`, copied from the `seor` repository, pushes
+  it.** The OpenSSF self-assessment still cited GitHub Issues, GitHub private
+  vulnerability reporting, the deleted `.github/workflows/` files, Codecov and
+  the `github.io` site. Every justification now points at the GitLab repository,
+  work items, pipelines and the pkgdown site `DESCRIPTION` declares, and names
+  GitHub only as the read-only mirror. Four answers moved to what the repository
+  actually does: `static_analysis_common_vulnerabilities`, `dynamic_analysis`
+  and `tests_documented_added` are Unmet, and `dynamic_analysis_fixed` is N/A.
+  The OpenSSF Best Practices site does not import the file from a GitLab
+  repository, so the script turns it into edit links the owner opens and saves,
+  and `--check` compares the live entry with the file. A pre-push hook runs its
+  offline self-test when the script changes (`SEOR-grrcptww`).
 
 * **The OSS Index audit judges each advisory by disposition, not by "the scan
   is empty".** `tests/testthat/test-security.R` now reads an allow-list in the
