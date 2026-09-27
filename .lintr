@@ -23,11 +23,12 @@
 #     legitimately call library().
 #   * undesirable_operator_linter: configured to keep flagging `<<-`/`->>` but
 #     allow `:::`, which tests use to reach internal (unexported) functions.
-#   * strings_as_factors_linter: off. It flags every data.frame()/as.data.frame()
-#     call that omits `stringsAsFactors=`, a portability guard for the pre-R-4.0
-#     default. The fleet targets R >= 4.0 where stringsAsFactors = FALSE is
-#     already the default, so every hit is a no-op annotation with no behavioral
-#     risk. (Dropped 2026-07-18; see pagerankr PAGE-iiqjlfxl for the evidence.)
+#
+# strings_as_factors_linter is off, as in goodpractice, which dropped it in
+# 1.2.0 (ropensci-review-tools/goodpractice#321). It only guarded the pre-R-4.0
+# data.frame() default, and this package Depends on R >= 4.0.0. (The fleet
+# turned it off on 2026-07-18, before goodpractice did; see pagerankr
+# PAGE-iiqjlfxl.)
 linters: linters_with_defaults(
     defaults = list(),
     undesirable_operator_linter = lintr::undesirable_operator_linter(
