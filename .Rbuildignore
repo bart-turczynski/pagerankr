@@ -33,8 +33,6 @@
 ^lib$
 ^\.lintr$
 ^CLAUDE\.md$
-^FP_CLAUDE\.md$
-^FP_AGENTS\.md$
 ^AGENTS\.md$
 ^\.fp$
 ^_scratch$

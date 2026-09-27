@@ -17,8 +17,8 @@ Push runs a local six-check gate, armed once per clone with
 `pre-commit install && pre-commit install --hook-type pre-push`. For the gate,
 its skip flags, and the spelling/WORDLIST rule, see CONTRIBUTING.md.
 
-fp issue-tracking rules are fp-managed; regenerate them with `fp agent setup
-standard` rather than editing FP_AGENTS.md by hand.
+Git follows the house `agent-workflow` skill. fp tracks issues, and status changes stay
+decoupled from git (the `fp` skill's `references/decoupling.md`).
 
 ## A red gate on an untouched tree
 
@@ -31,5 +31,3 @@ cost an afternoon (SEOR-tcytizic).
 
 If that check passes and the gate is still red on a tree you have not touched,
 say so and keep the evidence rather than assuming your change caused it.
-
-@FP_AGENTS.md
