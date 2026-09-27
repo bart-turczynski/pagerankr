@@ -762,7 +762,7 @@
 
 * The agent instructions no longer import `FP_AGENTS.md`, the file the `fp`
   tracker generates, which is deleted. `AGENTS.md` points at the house
-  `agent-workflow` and `fp` skills for the git workflow (SEOR-ipwcbcov).
+  `agent-workflow` and `fp` skills for the git workflow (`SEOR-ipwcbcov`).
 
 * **The two dependency audits run on a dedicated schedule, and the OSS Index
   one now runs at all.** `osv-audit` fired on every pipeline schedule, on
