@@ -118,7 +118,7 @@
   "static_analysis_status": "Met",
   "static_analysis_justification": "lintr, the common R static analysis tool, runs on the whole package in the pre-push gate and in the gates job of the GitLab pipeline: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/.gitlab-ci.yml",
   "static_analysis_common_vulnerabilities_status": "Unmet",
-  "static_analysis_common_vulnerabilities_justification": "lintr and R CMD check find defects but are not vulnerability scanners. The osv-audit job checks the runtime dependencies against OSV, but it is SCA, not static analysis of pagerankr's code, and it runs only when DESCRIPTION, test-osv.R or .gitlab-ci.yml change on main, or when started by hand.",
+  "static_analysis_common_vulnerabilities_justification": "lintr and R CMD check find defects but are not vulnerability scanners. The osv-audit job checks the runtime dependencies against OSV, but it is SCA, not static analysis of pagerankr's code, and it runs only in a pipeline schedule that sets SCHEDULE_KIND=dependency-audit, or when started by hand.",
   "static_analysis_fixed_status": "Met",
   "static_analysis_fixed_justification": "The pre-push gate and the pipeline's gates job fail on any lintr finding, so static-analysis findings are fixed before merge.",
   "static_analysis_often_status": "Met",

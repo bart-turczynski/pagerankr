@@ -760,6 +760,21 @@
 
 ## Internal
 
+* **The two dependency audits run on a dedicated schedule, and the OSS Index
+  one now runs at all.** `osv-audit` fired on every pipeline schedule, on
+  `main` pushes that touched `DESCRIPTION` or its test, and as a manual job on
+  every pipeline; it now fires only on a schedule that sets
+  `SCHEDULE_KIND=dependency-audit`, or by hand. A new `security-audit` job runs
+  `test-security.R` under the same rules with `OSSINDEX_AUDIT_REQUIRED=true`,
+  so missing OSS Index credentials fail the job instead of letting it pass
+  having audited nothing (`SEOR-fftbjnpl`).
+
+* **`SECURITY-INSIGHTS.yml` describes the project as it is hosted now.** It
+  still cited GitHub issues, releases, Actions workflows that no longer exist,
+  Codecov, a `github.io` site and GitHub private vulnerability reporting. It now
+  cites the GitLab repository and tracker, `.gitlab-ci.yml`, the `gitlab.io`
+  site and the channels `SECURITY.md` names (`SEOR-wmtfrsjq`).
+
 * **`.bestpractices.json` now names GitLab and describes today's CI, and
   `scripts/bestpractices-url.py`, copied from the `seor` repository, pushes
   it.** The OpenSSF self-assessment still cited GitHub Issues, GitHub private
