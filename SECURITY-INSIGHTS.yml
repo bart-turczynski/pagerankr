@@ -9,15 +9,15 @@ header:
 
 project:
   name: pagerankr
-  homepage: https://pagerankr-63ad30.gitlab.io/
+  homepage: https://bart-turczynski.gitlab.io/pagerankr/
   administrators:
     - name: Bart Turczynski
       email: bartek@turczynski.pl
       social: https://orcid.org/0000-0002-8788-7980
       primary: true
   documentation:
-    quickstart-guide: https://pagerankr-63ad30.gitlab.io/
-    detailed-guide: https://pagerankr-63ad30.gitlab.io/reference/index.html
+    quickstart-guide: https://bart-turczynski.gitlab.io/pagerankr/
+    detailed-guide: https://bart-turczynski.gitlab.io/pagerankr/reference/index.html
     release-process: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/CONTRIBUTING.md
   repositories:
     - name: pagerankr
