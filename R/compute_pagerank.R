@@ -360,7 +360,7 @@ compute_pagerank <- function(edge_list_df,
   niter <- .coerce_niter_or_null(niter)
   if ((!is.null(eps) || !is.null(niter)) && algo == "prpack") {
     message(
-      "`eps`/`niter` are only honoured by the ARPACK solver; switching ",
+      "`eps`/`niter` are only honored by the ARPACK solver; switching ",
       "`algo` to \"arpack\". Pass `algo = \"arpack\"` explicitly to silence ",
       "this message."
     )
