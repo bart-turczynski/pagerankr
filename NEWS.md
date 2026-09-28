@@ -3,7 +3,9 @@
 * Documentation prose is now US English throughout, matching `DESCRIPTION`'s
   `Language: en-US`: the help pages for `smooth_transitions()` and
   `transform_weights()` and the `README` function table no longer use British
-  spellings, and `inst/WORDLIST` no longer accepts them (`SEOR-kfiqpymb`).
+  spellings, and `inst/WORDLIST` no longer accepts them. The message
+  `compute_pagerank()` prints when `eps` or `niter` switches the solver to
+  ARPACK now reads "honored" (`SEOR-kfiqpymb`).
 
 * The documentation site's address is now the GitLab Pages namespace path
   <https://bart-turczynski.gitlab.io/pagerankr/>, the fleet-wide standard,
