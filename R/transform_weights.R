@@ -15,7 +15,7 @@
 #'     \item{\code{"percentile"}}{Map values to their empirical percentile
 #'       (0--1). Robust to extreme outliers.}
 #'     \item{\code{"minmax"}}{Scale to the \code{[0, 1]} range using
-#'       min-max normalisation. A small floor (\code{floor_value}, default
+#'       min-max normalization. A small floor (\code{floor_value}, default
 #'       0.01) is added so that the lowest-weighted edge still carries some
 #'       weight rather than zero.}
 #'     \item{\code{"zipf"}}{Convert to rank order, then apply Zipf's law:

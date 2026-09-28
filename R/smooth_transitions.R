@@ -4,7 +4,7 @@
 #'   probability of exactly zero. Observed page-transition data (e.g. from
 #'   [ga4_page_transitions()]) is sparse: a low-traffic but real internal link
 #'   may simply never have been traversed in the measured window, which leaves
-#'   its raw empirical share at zero and destabilises the stationary PageRank
+#'   its raw empirical share at zero and destabilizes the stationary PageRank
 #'   vector. This helper combines the empirical distribution with a structural
 #'   prior using a per-source shrinkage weight that grows with the source page's
 #'   sample size.
@@ -176,7 +176,7 @@ smooth_transitions <- function(empirical_df,
     structural_weight_col
   )
 
-  # --- Normalise both inputs to from/to/value triples (NA-dropped, summed) ---
+  # --- Normalize both inputs to from/to/value triples (NA-dropped, summed) ---
   emp <- .collapse_edge_values(
     empirical_df, from_col, to_col, empirical_df[[count_col]]
   )

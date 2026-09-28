@@ -1,5 +1,10 @@
 # pagerankr (development version)
 
+* Documentation prose is now US English throughout, matching `DESCRIPTION`'s
+  `Language: en-US`: the help pages for `smooth_transitions()` and
+  `transform_weights()` and the `README` function table no longer use British
+  spellings, and `inst/WORDLIST` no longer accepts them (`SEOR-kfiqpymb`).
+
 * The documentation site's address is now the GitLab Pages namespace path
   <https://bart-turczynski.gitlab.io/pagerankr/>, the fleet-wide standard,
   instead of the project's unique Pages domain, which stops resolving once it

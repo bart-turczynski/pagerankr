@@ -219,7 +219,7 @@ export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
 | `simulate_changes()` | Evaluate proposed link/redirect changes |
 | `auto_grid()` | Build exhaustive parameter grids |
 | `pagerank_grid()` | Run PageRank across multiple parameter sets |
-| `analyze_pagerank_grid()` | Summarise PageRank distribution by model |
+| `analyze_pagerank_grid()` | Summarize PageRank distribution by model |
 | `pr_gini()` | Gini concentration metric |
 | `pr_entropy()` | Entropy dispersion metric |
 | `pr_top_k_share()` | Top-k PageRank concentration share |
