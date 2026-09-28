@@ -30,7 +30,7 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 Practices](https://www.bestpractices.dev/projects/13553/badge)](https://www.bestpractices.dev/projects/13553)
 [![Pipeline
 status](https://gitlab.com/bart-turczynski/pagerankr/badges/main/pipeline.svg)](https://gitlab.com/bart-turczynski/pagerankr/-/pipelines)
-[![Documentation](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://pagerankr-63ad30.gitlab.io/)
+[![Documentation](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://bart-turczynski.gitlab.io/pagerankr/)
 [![Coverage](https://gitlab.com/bart-turczynski/pagerankr/badges/main/coverage.svg)](https://gitlab.com/bart-turczynski/pagerankr/-/pipelines)
 <!-- badges: end -->
 

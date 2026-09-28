@@ -1,8 +1,4 @@
-# A GitLab Pages UNIQUE DOMAIN, read off `GET /projects/:id/pages` after the
-# first deploy rather than assumed. It is deliberately not
-# `bart-turczynski.gitlab.io/pagerankr`: GitLab defaults new Pages sites to
-# unique domains, and that older-convention path does not exist.
-url: https://pagerankr-63ad30.gitlab.io
+url: https://bart-turczynski.gitlab.io/pagerankr/
 
 template:
   bootstrap: 5

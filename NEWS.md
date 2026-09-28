@@ -1,3 +1,13 @@
+# pagerankr (development version)
+
+* The documentation site's address is now the GitLab Pages namespace path
+  <https://bart-turczynski.gitlab.io/pagerankr/>, the fleet-wide standard,
+  instead of the project's unique Pages domain, which stops resolving once it
+  is turned off. `DESCRIPTION`, `_pkgdown.yml`, `CITATION.cff`, `.zenodo.json`,
+  `codemeta.json`, `SECURITY-INSIGHTS.yml`, `.bestpractices.json` and the
+  `README` badge all carry the new address. The CRAN page for 0.1.0 keeps the
+  old address until the next release (`SEOR-vujgdjfv`).
+
 # pagerankr 0.1.0
 
 * **`BugReports:` stays on `/-/issues`; every human-facing tracker link now

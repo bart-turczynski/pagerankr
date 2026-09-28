@@ -1,7 +1,7 @@
 Package: pagerankr
 Type: Package
 Title: Modular Toolkit for PageRank Calculation
-Version: 0.1.0
+Version: 0.1.0.9000
 Authors@R: person("Bart", "Turczynski", email = "bartek@turczynski.pl", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0002-8788-7980"))
 Description: Provides a set of modular, pipeable functions to calculate PageRank scores from edge lists and redirect reports, common in SEO analysis. Functions handle URL cleaning, redirect resolution, edge deduplication, isolate handling, and PageRank computation using base R for data manipulation and 'igraph' for core PageRank calculation.
@@ -33,7 +33,7 @@ Suggests:
 Config/Needs/build: local
 Config/testthat/edition: 3
 VignetteBuilder: knitr
-URL: https://pagerankr-63ad30.gitlab.io/,
+URL: https://bart-turczynski.gitlab.io/pagerankr/,
     https://gitlab.com/bart-turczynski/pagerankr,
     https://bart-turczynski.r-universe.dev/pagerankr
 BugReports: https://gitlab.com/bart-turczynski/pagerankr/-/issues
