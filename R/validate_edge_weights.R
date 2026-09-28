@@ -185,7 +185,7 @@ vew_empty_report <- function() {
   )
 }
 
-#' Summarise one source's outgoing weights into a report row
+#' Summarize one source's outgoing weights into a report row
 #' @noRd
 vew_summarize_source <- function(source, sources, weights,
                                  expected_total, tolerance) {

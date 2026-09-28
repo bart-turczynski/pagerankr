@@ -82,7 +82,7 @@ Shrinks sparse empirical transition shares toward the
   probability of exactly zero. Observed page-transition data (e.g. from
   [ga4_page_transitions()]) is sparse: a low-traffic but real internal link
   may simply never have been traversed in the measured window, which leaves
-  its raw empirical share at zero and destabilises the stationary PageRank
+  its raw empirical share at zero and destabilizes the stationary PageRank
   vector. This helper combines the empirical distribution with a structural
   prior using a per-source shrinkage weight that grows with the source page's
   sample size.
