@@ -48,6 +48,30 @@ repos:
       - id: mixed-line-ending
         exclude: *fixer-excludes
       - id: check-case-conflict
+  # British spellings in code, comments, string literals and tooling, which
+  # spelling::spell_check_package() (gate 6 of .githooks/pre-push) never
+  # reads: it covers DESCRIPTION, roxygen, vignettes, README and NEWS only,
+  # and that gap let British runtime messages ship (SEOR-xtmnpmae). Only the
+  # en-GB_to_en-US dictionary is enabled, so this is not a general typo
+  # checker. codespell skips dotfiles unless given --check-hidden, so
+  # .bestpractices.json is skipped either way; it is listed so the intent
+  # survives a flag change.
+  # Excluded: man/ (roxygen output; fix the roxygen source), the Screaming
+  # Frog case-study exports under inst/extdata/ (upstream values such as the
+  # "Canonicalised" Indexability Status; the hand-written inst/extdata/README.md
+  # stays checked), the Screaming Frog test fixtures, and .bestpractices.json
+  # (mirrors the live bestpractices.dev entry). The British alias identifiers
+  # (analyse_pagerank_grid, sf_normalise_position) need no allow-list: the
+  # default tokenizer keeps underscores inside a word, so it never sees
+  # "analyse" or "normalise" on its own there.
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.3
+    hooks:
+      - id: codespell
+        name: codespell (British spellings, en-GB_to_en-US; SEOR-xtmnpmae)
+        args: [--builtin, en-GB_to_en-US]
+        stages: [pre-commit, pre-push]
+        exclude: '^(man/|inst/extdata/(?!README\.md$)|tests/testthat/fixtures/|\.bestpractices\.json$)'
   - repo: local
     hooks:
       # The same six-check script CI's local counterpart has always run,
