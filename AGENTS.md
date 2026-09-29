@@ -1,5 +1,5 @@
 R package `pagerankr`: SEO-focused PageRank modeling on crawl data — edge lists, redirect
-reports, Screaming Frog exports. Lifecycle experimental; not on CRAN yet.
+reports, Screaming Frog exports. Lifecycle experimental; on CRAN since 0.1.0 (2026-09-28).
 
 `rurl` installs from CRAN, at or above the floor `DESCRIPTION` declares. Its canonicalization
 profile decides node identity, so a profile change re-keys the graph and must stay in sync

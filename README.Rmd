@@ -13,6 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 # pagerankr <img src="man/figures/logo.png" align="right" height="139" alt="pagerankr hex sticker" />
 
 <!-- badges: start -->
+[![CRAN status](https://www.r-pkg.org/badges/version/pagerankr)](https://CRAN.R-project.org/package=pagerankr)
+[![CRAN downloads](https://cranlogs.r-pkg.org/badges/pagerankr)](https://CRAN.R-project.org/package=pagerankr)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13553/badge)](https://www.bestpractices.dev/projects/13553)
 [![Pipeline status](https://gitlab.com/bart-turczynski/pagerankr/badges/main/pipeline.svg)](https://gitlab.com/bart-turczynski/pagerankr/-/pipelines)
@@ -47,6 +49,10 @@ The package currently includes:
 ## Installation
 
 ```r
+# From CRAN
+install.packages("pagerankr")
+
+# Development version from GitLab
 # install.packages("devtools")
 devtools::install_gitlab("bart-turczynski/pagerankr")
 ```

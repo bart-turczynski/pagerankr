@@ -4,7 +4,7 @@
   "identifier": "pagerankr",
   "description": "Provides a set of modular, pipeable functions to calculate PageRank scores from edge lists and redirect reports, common in SEO analysis. Functions handle URL cleaning, redirect resolution, edge deduplication, isolate handling, and PageRank computation using base R for data manipulation and 'igraph' for core PageRank calculation.",
   "name": "pagerankr: Modular Toolkit for PageRank Calculation",
-  "relatedLink": ["https://bart-turczynski.gitlab.io/pagerankr/", "https://bart-turczynski.r-universe.dev"],
+  "relatedLink": ["https://bart-turczynski.gitlab.io/pagerankr/", "https://bart-turczynski.r-universe.dev", "https://CRAN.R-project.org/package=pagerankr"],
   "codeRepository": "https://gitlab.com/bart-turczynski/pagerankr",
   "issueTracker": "https://gitlab.com/bart-turczynski/pagerankr/-/work_items",
   "license": "https://spdx.org/licenses/MIT",

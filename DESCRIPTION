@@ -35,6 +35,7 @@ Config/testthat/edition: 3
 VignetteBuilder: knitr
 URL: https://bart-turczynski.gitlab.io/pagerankr/,
     https://gitlab.com/bart-turczynski/pagerankr,
-    https://bart-turczynski.r-universe.dev/pagerankr
+    https://bart-turczynski.r-universe.dev/pagerankr,
+    https://CRAN.R-project.org/package=pagerankr
 BugReports: https://gitlab.com/bart-turczynski/pagerankr/-/issues
 Config/roxygen2/version: 8.0.0

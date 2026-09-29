@@ -15,6 +15,7 @@ authors:
     given-names: Bart
     orcid: "https://orcid.org/0000-0002-8788-7980"
 repository-code: "https://gitlab.com/bart-turczynski/pagerankr"
+repository: "https://CRAN.R-project.org/package=pagerankr"
 url: "https://bart-turczynski.gitlab.io/pagerankr/"
 license: MIT
 keywords:
