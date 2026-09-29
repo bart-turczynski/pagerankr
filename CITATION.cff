@@ -3,7 +3,8 @@ message: "If you use this software, please cite it as below."
 type: software
 title: "pagerankr: Modular Toolkit for PageRank Calculation"
 version: 0.1.0
-date-released: "2026-07-11"
+date-released: "2026-09-28"
+doi: 10.5281/zenodo.23046334
 abstract: >-
   A set of modular, pipeable functions to calculate PageRank scores from edge
   lists and redirect reports, common in SEO analysis. Functions handle URL
@@ -18,6 +19,16 @@ repository-code: "https://gitlab.com/bart-turczynski/pagerankr"
 repository: "https://CRAN.R-project.org/package=pagerankr"
 url: "https://bart-turczynski.gitlab.io/pagerankr/"
 license: MIT
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23046334
+    description: >-
+      Concept DOI (all deposited versions). Deposits are minted by Zenodo's
+      GitHub integration from a Release on the read-only GitHub mirror, and
+      this DOI resolves to the latest one.
+  - type: doi
+    value: 10.5281/zenodo.23046335
+    description: "Version DOI for pagerankr 0.1.0"
 keywords:
   - PageRank
   - link graph
