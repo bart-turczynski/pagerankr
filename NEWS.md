@@ -21,6 +21,11 @@
   `README` badge all carry the new address. The CRAN page for 0.1.0 keeps the
   old address until the next release (`SEOR-vujgdjfv`).
 
+* pagerankr is on CRAN. `DESCRIPTION`'s `URL:` now lists the CRAN page,
+  <https://CRAN.R-project.org/package=pagerankr>, as do `CITATION.cff` and
+  `codemeta.json`, and the `README` leads its installation instructions with
+  `install.packages("pagerankr")` (`PAGE-gwgjmtmw`).
+
 # pagerankr 0.1.0
 
 * **`BugReports:` stays on `/-/issues`; every human-facing tracker link now

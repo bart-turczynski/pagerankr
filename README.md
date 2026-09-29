@@ -24,6 +24,10 @@ pagerankr: SEO-Focused PageRank Modeling Toolkit
 
 <!-- badges: start -->
 
+[![CRAN
+status](https://www.r-pkg.org/badges/version/pagerankr)](https://CRAN.R-project.org/package=pagerankr)
+[![CRAN
+downloads](https://cranlogs.r-pkg.org/badges/pagerankr)](https://CRAN.R-project.org/package=pagerankr)
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![OpenSSF Best
@@ -61,6 +65,10 @@ The package currently includes:
 ## 1.1 Installation
 
 ``` r
+# From CRAN
+install.packages("pagerankr")
+
+# Development version from GitLab
 # install.packages("devtools")
 devtools::install_gitlab("bart-turczynski/pagerankr")
 ```
