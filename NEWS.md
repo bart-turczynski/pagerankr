@@ -1,5 +1,11 @@
 # pagerankr (development version)
 
+* `analyse_pagerank_grid()` and `sf_normalise_position()` are now exported as
+  British-spelling aliases of `analyze_pagerank_grid()` and
+  `sf_normalize_position()`. Each alias is the same function as its US-spelled
+  primary and is documented on the primary's help page; the US spellings stay
+  the canonical names (`SEOR-qwomlgjd`).
+
 * Documentation prose is now US English throughout, matching `DESCRIPTION`'s
   `Language: en-US`: the help pages for `smooth_transitions()` and
   `transform_weights()` and the `README` function table no longer use British

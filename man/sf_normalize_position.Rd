@@ -2,9 +2,12 @@
 % Please edit documentation in R/screaming_frog_contract.R
 \name{sf_normalize_position}
 \alias{sf_normalize_position}
+\alias{sf_normalise_position}
 \title{Normalize a Screaming Frog link position}
 \usage{
 sf_normalize_position(x)
+
+sf_normalise_position(x)
 }
 \arguments{
 \item{x}{A vector (typically character) of link positions.}
