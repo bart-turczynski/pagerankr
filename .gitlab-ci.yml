@@ -586,7 +586,7 @@ check-oldrel:
     # A user .Rprofile is the override, because Rprofile.site hardcodes the URL
     # and reads no environment variable. Only the trailing date is replaced, so
     # the distro path travels with the image instead of being restated here, and
-    # an unrecognised shape stops the job rather than silently leaving the pin in
+    # an unrecognized shape stops the job rather than silently leaving the pin in
     # place. Testing old R against CURRENT packages is also what CRAN does.
     #
     # CRAN is appended behind p3m for the same reason the default before_script
