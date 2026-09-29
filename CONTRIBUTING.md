@@ -299,3 +299,19 @@ On any export rename:
 3. Also update `NAMESPACE` (via roxygen), the `R/` and `tests/testthat/` file
    names, `README.Rmd` (then `devtools::build_readme()`), vignette reference
    tables, and a `NEWS.md` entry.
+
+## CRAN release checklist
+
+Follow the fleet checklist,
+[seor `design/release-checklist.md`](https://gitlab.com/bart-turczynski/seor/-/blob/main/design/release-checklist.md).
+pagerankr's deltas:
+
+- **Step 1: the rurl floor is a CRAN release.** The `rurl-floor` job (see
+  "The rurl floor job" above) installs exactly the floor `Imports:` declares
+  from CRAN and runs the suite. Confirm it passed on the release commit's
+  `main` pipeline. Before win-builder's R-release queue, also check that CRAN
+  serves Windows binaries of that rurl version: 0.1.0's R-release run waited
+  for them (PAGE-xylymvme).
+- **Step 6: `check-oldrel` runs by itself only on the tag.** To see it
+  before submission, start it by hand from the release commit's `main`
+  pipeline (agent+go).
