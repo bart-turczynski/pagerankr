@@ -2,7 +2,7 @@
   "sites_https_status": "Met",
   "sites_https_justification": "The project homepage, the source repository and the development distribution are all served over HTTPS: https://bart-turczynski.gitlab.io/pagerankr/ , https://gitlab.com/bart-turczynski/pagerankr and https://bart-turczynski.r-universe.dev/pagerankr .",
   "description_good_status": "Met",
-  "description_good_justification": "DESCRIPTION and the project homepage succinctly describe pagerankr as an R toolkit for PageRank modelling on crawl and analytics data: https://bart-turczynski.gitlab.io/pagerankr/",
+  "description_good_justification": "DESCRIPTION and the project homepage succinctly describe pagerankr as an R toolkit for PageRank modeling on crawl and analytics data: https://bart-turczynski.gitlab.io/pagerankr/",
   "interact_status": "Met",
   "interact_justification": "The project homepage https://bart-turczynski.gitlab.io/pagerankr/ links to the source repository, CONTRIBUTING.md, SECURITY.md and the issue tracker. Contribution instructions are at https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/CONTRIBUTING.md and the issue tracker is https://gitlab.com/bart-turczynski/pagerankr/-/work_items",
   "contribution_status": "Met",
