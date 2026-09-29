@@ -51,7 +51,7 @@
 # today: `.gitlab-ci.yml` records the OSS Index audit as not ported, because
 # the credentials are project variables only the owner can add, and
 # `osv-audit` covers the same ground unauthenticated. Nothing sets the flag
-# yet, so no context changes behaviour. A future audit job needs only the two
+# yet, so no context changes behavior. A future audit job needs only the two
 # credential variables and `OSSINDEX_AUDIT_REQUIRED: "true"`.
 #
 # NOTE ON THE PRE-PUSH HOOK. `SEOR-fkvlzltx` names "the audit runs in the
