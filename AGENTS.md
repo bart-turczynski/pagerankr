@@ -10,6 +10,14 @@ triaged, on purpose.
 `page_state` (crawl-derived page condition) and `node_status` (graph role) are separate
 axes; keep them separate.
 
+Defaults are faithful: the plain, untransformed choice shows the site as crawled, and every
+fancier treatment (log priors, folds, weighting) is a first-class, documented opt-in. When
+variants are cheap, materialize them as columns (`pagerank_grid()`) rather than asking for re-runs.
+
+Crawl exports under `_scratch/crawls/` run past 1 GB. Never read one into context: aggregate
+in an Rscript with `data.table::fread(select = ...)`, print summaries only, and inspect a
+schema with a bounded `head -c`.
+
 `NEWS.md` describes changes to the library. Crawl measurements and ranking-outcome
 predictions belong in a vignette or `notes/`.
 

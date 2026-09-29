@@ -164,6 +164,25 @@ reasons a real package hits as it grows:
 (ropensci-review-tools/goodpractice#321). It only guarded the pre-R-4.0
 `data.frame()` default, and this package Depends on R >= 4.0.0. The fleet
 turned it off on 2026-07-18, before goodpractice did (`PAGE-iiqjlfxl`).
+Its absence does not make `stringsAsFactors = FALSE` removable everywhere:
+`expand.grid()` kept `TRUE` as its default through R 4.0, so the argument in
+`R/auto_grid.R` is load-bearing.
+
+**Measuring cyclomatic complexity.** `cyclocomp::cyclocomp_package_dir()` does
+not see `.`-prefixed functions, and those are most of this package: it reports
+83 functions against the 447 in the namespace, 364 of them dot-prefixed
+(measured 2026-09-29). Score the loaded namespace instead:
+
+```r
+pkgload::load_all(".")
+ns <- asNamespace("pagerankr")
+fns <- Filter(function(n) is.function(get(n, envir = ns)), ls(ns, all.names = TRUE))
+sort(vapply(fns, function(n) cyclocomp::cyclocomp(get(n, envir = ns)), 0), decreasing = TRUE)
+```
+
+The cheapest reduction is usually splitting one `&&`/`||` guard chain into
+sequential single-condition `if`s: a four-way `||` guard scores 11, the same
+four checks as separate `if`s score 5.
 
 ### Spelling (step 4)
 
@@ -259,3 +278,24 @@ by rurl *releases* rather than rurl *commits*, so an upstream break reaches
 pagerankr only once it is already on CRAN. Restoring it needs a separate
 additive job (`PAGE-majaowtn`); until that exists, this section does not claim
 coverage the pipeline does not have.
+
+## Renaming an exported function
+
+`_pkgdown.yml`'s `reference:` index lists topics by name, and a stale entry
+fails the site build with "must be a known topic name or alias". Nothing
+before the merge sees it: tests, lint and `R CMD check --as-cran` all pass,
+the pre-push gate does not run pkgdown, and the `pages` job runs only on
+`main`, so the first red result arrives after the merge. The
+`resolve_urls()` -> `resolve_redirect_urls()` rename (PR #119) cost a round
+trip exactly this way.
+
+On any export rename:
+
+1. Sweep for the old name with **no file-extension filter**:
+   `git grep -nwE 'old_name'`. A sweep limited to `.R`/`.Rmd`/`.md`/`.Rd`
+   skips `.yml`.
+2. Run `pkgdown::check_pkgdown()`. It validates the whole reference index in
+   seconds without building the site.
+3. Also update `NAMESPACE` (via roxygen), the `R/` and `tests/testthat/` file
+   names, `README.Rmd` (then `devtools::build_readme()`), vignette reference
+   tables, and a `NEWS.md` entry.

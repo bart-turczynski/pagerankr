@@ -6,8 +6,9 @@ this file records *the model we think explains it* and the decisions that follow
 
 Status: design agreed and validated against three real crawls (§10). **§4 (placement) is
 implemented** — PRs #127 and #128, `PAGE-ktatjtta` done; the `content` preset that carries the
-recipe shipped in PR #130, `PAGE-ooqveone` done. §5 (boilerplate detection) and the position axis
-are still design only. **§12 is an open empirical question**, not part of the agreed model.
+recipe shipped in PR #130, `PAGE-ooqveone` done. §5 (boilerplate detection, `PAGE-izdemdfs`) and
+the position axis (`PAGE-xzxntstl`, PR #140, `R/position.R`) are implemented too, which closes the
+epic `PAGE-kguuodkx`. **§12 is an open empirical question**, not part of the agreed model.
 Tickets: see "Where this lives" at the end.
 
 ---
@@ -61,12 +62,13 @@ edge_weight = boilerplate_weight × position_weight
 
 **Two numbers, not three.**
 
-> **Status of the position factor (§13, 2026-07-21).** The composition argument below stands.
-> `position_weight` is not yet implemented, but its data source is now settled: link order is
-> recoverable from a Screaming Frog **All Outlinks** export (row order is document order), though
-> **not** from All Inlinks (row order is destination alphabetical order). Until the axis is built
-> the shipped model is the boilerplate axis alone, `edge_weight = boilerplate_weight` with
-> `position_weight` fixed at 1.
+> **Status of the position factor.** The composition argument below stands, and the axis is
+> implemented (`PAGE-xzxntstl`, PR #140): `position_col` opts in, the weight *multiplies* into the
+> graded boilerplate weight, and the decay reuses `transform_weights()` (`position_transform =
+> "zipf"` or `"rank_linear"`, clamped by `position_floor`) rather than adding a new curve.
+> `screaming_frog_links()` materializes `position_index` at ingest, ranked among each source's
+> content links, from **All Outlinks** row order only (document order); an All Inlinks export
+> yields `NA`, because its row order is destination alphabetical order (§13).
 
 ### Why multiplicative composition is right
 

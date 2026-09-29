@@ -342,6 +342,18 @@ path alone silently merges pages that share a path across hosts.
 *Synthetic experiment, not a field observation. Reproduce with
 `notes/experiments/teleport-dead-pages.R`.*
 
+> **Status: the absolute numbers below predate the shipped model.** They were
+> measured with dead pages as *dangling* nodes, so mass a dead page does not
+> keep recycles to real pages and scores sum to about 1. Since `PAGE-pvfdijrw`
+> the class is sink-routed, and `prior_exclude_waste` (`PAGE-bcpacnfm`)
+> *composes* with that sink rather than reproducing the exclusion table: under
+> exclusion the unretained mass now evaporates into `__pr_waste_sink__`, and the
+> reported scores sum to less than 1. The *pattern* still holds (the real
+> decline survives, the uniform-teleport collapse does not, dead pages stop
+> inflating), and that pattern is what `test-pagerank-exclude-waste.R` asserts.
+> Figures such as "54.6% at K=1000" do not describe the current package. The
+> section and its script are kept as the record that motivated the change.
+
 Setup: a 21-page site (hub + 20 interlinked pages), plus **K fake dead URLs**
 each discovered via exactly one link from the hub — the realistic shape, since a
 crawler only finds a URL because something links to it. The dead pages have no
