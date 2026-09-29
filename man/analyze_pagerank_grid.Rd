@@ -2,9 +2,16 @@
 % Please edit documentation in R/analyze_pagerank_grid.R
 \name{analyze_pagerank_grid}
 \alias{analyze_pagerank_grid}
+\alias{analyse_pagerank_grid}
 \title{Analyze PageRank Grid Results}
 \usage{
 analyze_pagerank_grid(
+  grid_result,
+  model_id_col = "model_id",
+  pr_col = "pagerank"
+)
+
+analyse_pagerank_grid(
   grid_result,
   model_id_col = "model_id",
   pr_col = "pagerank"

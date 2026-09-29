@@ -458,6 +458,10 @@ sf_normalize_position <- function(x) {
   out
 }
 
+#' @rdname sf_normalize_position
+#' @export
+sf_normalise_position <- sf_normalize_position
+
 #' Derive a link's page region from its DOM path
 #'
 #' @description Reads the page region a link sits in out of Screaming Frog's

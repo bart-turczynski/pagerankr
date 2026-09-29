@@ -77,3 +77,7 @@ analyze_pagerank_grid <- function(grid_result,
   row.names(result) <- NULL
   result
 }
+
+#' @rdname analyze_pagerank_grid
+#' @export
+analyse_pagerank_grid <- analyze_pagerank_grid
