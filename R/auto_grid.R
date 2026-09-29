@@ -45,7 +45,9 @@ auto_grid <- function(...) {
     )
   }
 
-  # Create all combinations
+  # Create all combinations. `stringsAsFactors = FALSE` is load-bearing:
+  # R 4.0 flipped the default for data.frame() but NOT for expand.grid(),
+  # which still defaults to TRUE and would turn string parameters into factors.
   combinations <- expand.grid(params, stringsAsFactors = FALSE)
 
   # Build the named list of named lists
