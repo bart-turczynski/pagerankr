@@ -471,7 +471,7 @@ edges <- data.frame(
 grid <- auto_grid(damping = c(0.75, 0.85, 0.95))
 results <- pagerank_grid(edges, params_grid = grid, clean_edge_urls = FALSE)
 
-# Analyse distribution metrics across the grid
+# Analyze distribution metrics across the grid
 analysis <- analyze_pagerank_grid(results)
 print(analysis)
 ```

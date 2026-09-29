@@ -225,7 +225,7 @@
   robots_blocked / response_dead) is a page's health/index state; `node_status`
   (normal / new-target / removed-dead) is a node's role in a before/after
   comparison. They are kept separate on purpose: `new-target` has no health
-  analogue, and `removed-dead` is the single value bridging both axes (a node
+  analog, and `removed-dead` is the single value bridging both axes (a node
   removed *because* its proposed health state is a forced 404). The two `@return`
   sections now cross-reference each other.
 

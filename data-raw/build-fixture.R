@@ -104,7 +104,7 @@ parts <- rbindlist(lapply(urls, parse_url))
 
 # Hosts: the two site hosts keep the pseudonyms already used in notes/; every
 # other host becomes a numbered example.org, assigned in sorted order so the
-# labelling is stable across runs.
+# labeling is stable across runs.
 ext_hosts <- sort(setdiff(unique(parts$host), c(host_primary, host_secondary)))
 host_map <- c(
   setNames("reviews-microsite.example.net", host_primary),
@@ -115,7 +115,7 @@ host_map <- c(
   )
 )
 
-# Paths: topology-preserving, semantics-free. Segments are relabelled per
+# Paths: topology-preserving, semantics-free. Segments are relabeled per
 # parent so depth and sibling grouping survive while meaning does not. A leaf
 # carrying a file extension keeps it, since asset type is part of the graph.
 split_path <- function(p) {
@@ -332,7 +332,7 @@ check_leaks <- function(dt, label) {
   if (length(hits) > 0L) {
     # Report which column each token survived in: a hit in a URL-bearing column
     # is a transform bug, whereas a hit in page metadata is shared vocabulary
-    # (a locale code, a MIME type) and needs a different judgement.
+    # (a locale code, a MIME type) and needs a different judgment.
     where <- vapply(hits, function(t) {
       cols <- names(dt)[vapply(dt, function(v) {
         v <- tolower(as.character(v))

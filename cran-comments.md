@@ -76,8 +76,8 @@ Explanation:
 - **New submission** -- this is expected; pagerankr 0.1.0 is a first release.
 - **The three flagged words are spelled correctly and are intended.**
   *PageRank* is the proper name of the Page-Brin algorithm this package
-  implements, capitalised as Google and the original literature capitalise it.
-  *SEO* is the standard abbreviation for search engine optimisation. *pipeable*
+  implements, capitalized as Google and the original literature capitalize it.
+  *SEO* is the standard abbreviation for search engine optimization. *pipeable*
   describes a function designed to be composed with R's `|>` pipe, and is the
   term the tidyverse design guide uses. None is a typographical error and none
   is dropped. This line appears only under CRAN's incoming check, which uses

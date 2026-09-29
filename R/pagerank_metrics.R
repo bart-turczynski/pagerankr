@@ -42,7 +42,7 @@ pr_entropy <- function(x) {
   if (length(x) == 0 || all(x == 0)) {
     return(NA_real_)
   }
-  # Normalise to probability distribution
+  # Normalize to probability distribution
   p <- x / sum(x)
   # Drop zeros (0 * log(0) = 0 by convention)
   p <- p[p > 0]

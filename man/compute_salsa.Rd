@@ -119,5 +119,5 @@ Lempel, R. & Moran, S. (2001). SALSA: The Stochastic Approach for
 }
 \seealso{
 [salsa()] for the full identity pipeline; [compute_hits()] for the
-  HITS analogue; [compute_pagerank()] for the PageRank analogue.
+  HITS analog; [compute_pagerank()] for the PageRank analog.
 }

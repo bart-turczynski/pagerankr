@@ -21,7 +21,7 @@ a change in PageRank is attributable to the intervention rather than to a
 difference between sites.
 
 `notes/edge-weighting-model.md` and `notes/pagerank-behavior-field-notes.md`
-analyse this pair; the vignette reproduces the headline before/after table.
+analyze this pair; the vignette reproduces the headline before/after table.
 
 ## Loading
 
@@ -64,7 +64,7 @@ replaced rather than redacted:
 - **Hosts** map to `reviews-microsite.example.net` (the crawled host) and
   `reviews-microsite.example.com` (the canonical target, which was never
   crawled). Third-party hosts become `external-NN.example.org`.
-- **Paths** are relabelled to `/s2/p07/`-style tokens that preserve depth and
+- **Paths** are relabeled to `/s2/p07/`-style tokens that preserve depth and
   sibling grouping and discard meaning. No real path segment survives.
 - **Anchors and alt text** are regenerated from the destination's label. Only
   the empty / non-empty distinction is preserved, because an empty anchor is a

@@ -6,7 +6,7 @@ These notes are raw material for a promotional / applied paper (see the
 "Paper: pagerankr" fp issue) and for future vignettes. Numbers below come from a
 live case study unless stated otherwise.
 
-Two companion documents distil this one: `replication-playbook.md` is the
+Two companion documents distill this one: `replication-playbook.md` is the
 operational checklist for running the same audit on another site, and
 `vignette("case-study")` is the worked before/after with every figure computed
 from the shipped fixture at build time.

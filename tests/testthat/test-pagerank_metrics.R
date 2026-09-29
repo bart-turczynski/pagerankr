@@ -29,7 +29,7 @@ describe("pr_gini", {
 })
 
 describe("pr_entropy", {
-  it("is maximised for uniform distribution", {
+  it("is maximized for uniform distribution", {
     n <- 10
     uniform <- rep(1 / n, n)
     max_entropy <- log(n) # theoretical maximum

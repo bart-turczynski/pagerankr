@@ -28,7 +28,7 @@ lose to a column-trimming step:
   reads to identify a template container.
 
 Crawl configuration: render JavaScript if the site needs it, and keep the crawl
-scoped to the host you intend to analyse. If you are measuring an intervention,
+scoped to the host you intend to analyze. If you are measuring an intervention,
 **crawl both phases with the same configuration** — a settings change between
 crawls is indistinguishable from a site change in the output.
 
@@ -85,7 +85,7 @@ lens while the full graph correlated at Pearson 0.9999 before and after — the
 same change was both dramatic and invisible depending on which was scored.
 
 Reporting only one lens is how an audit produces a confident wrong answer. If
-the two disagree, that disagreement *is* the finding: it localises the change to
+the two disagree, that disagreement *is* the finding: it localizes the change to
 the editorial layer or the template.
 
 A middle option exists — `preset = "content"` downweights chrome instead of

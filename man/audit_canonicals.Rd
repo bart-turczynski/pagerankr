@@ -33,7 +33,7 @@ A list with class `"canonical_audit"` mirroring the structure of
   `edge_list_df` is given) `orphaned_redirects` (orphaned canonical sources).
 }
 \description{
-Analyses a `rel=canonical` data frame and returns a diagnostic
+Analyzes a `rel=canonical` data frame and returns a diagnostic
   report covering chain lengths, loops, conflicting sources (a page declaring
   multiple distinct canonicals), self-referencing canonicals, and terminal
   destinations. Mirrors [audit_redirects()] for the canonical signal; useful

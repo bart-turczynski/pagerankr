@@ -1,5 +1,5 @@
 #' @title Audit Declared Canonical Links
-#' @description Analyses a `rel=canonical` data frame and returns a diagnostic
+#' @description Analyzes a `rel=canonical` data frame and returns a diagnostic
 #'   report covering chain lengths, loops, conflicting sources (a page declaring
 #'   multiple distinct canonicals), self-referencing canonicals, and terminal
 #'   destinations. Mirrors [audit_redirects()] for the canonical signal; useful

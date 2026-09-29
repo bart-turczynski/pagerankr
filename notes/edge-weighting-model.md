@@ -316,7 +316,7 @@ Both settled from the three-crawl comparison (§10). The reasoning matters more 
 **The threshold only has consequences for Content-position pairs.** Nav, header, footer and aside
 edges are already discounted to 0.1 by placement, so the detector failing to catch them costs
 nothing. An early reading of the data ("a 0.9 threshold misses `/cart` at ratio 0.82") was
-mis-emphasised — `/cart` sits in Header position and was already handled. Only content-position
+mis-emphasized — `/cart` sits in Header position and was already handled. Only content-position
 edges are at stake, because that is the only place placement cannot help.
 
 **At 0.9 the detector misses two whole families of real boilerplate**, consistent across
@@ -339,7 +339,7 @@ Moving 0.9 → 0.5 adds 37 content pairs on vendor-a (against 42 already caught)
 (78 pairs at ratio ≥ 0.9 from 3–10-page containers on vendor-a, 147 on vendor-b), and "3 out of 3"
 is thin evidence — a 3-page container can only produce ratios of 0.33, 0.67 or 1.0, so band
 membership is partly quantization rather than genuine ambiguity. Excluding them is cheap because
-they carry few edges. But 10 is a judgement call, not a measured cut.
+they carry few edges. But 10 is a judgment call, not a measured cut.
 
 ### Known surprise: author pages lose rank
 
@@ -431,7 +431,7 @@ Settled:
 `content`**, with `editorial` reserved for a future composite (content weighting *plus*
 boilerplate suppression) that would actually earn the name.
 
-`content` names the region bucket it favours — nothing more. It matches SF's vocabulary, matches
+`content` names the region bucket it favors — nothing more. It matches SF's vocabulary, matches
 our own placement term, and glosses cleanly as "weights toward the (main) content region". One
 concept, one word, used consistently in both places.
 
@@ -644,7 +644,7 @@ everything else is already discounted by placement:
 | 11–50 | 13,124 | 71 | 139 | 174 |
 | 50+ | 85,546 | 18 | 1 | 77 |
 
-The band is not noise. It contains two recognisable families — recurring in-content CTAs and
+The band is not noise. It contains two recognizable families — recurring in-content CTAs and
 author byline links — that recur across both sites and that placement cannot reach. This settles
 `boilerplate_threshold = 0.5` and motivates `min_container_pages`; see §5.
 

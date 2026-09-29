@@ -229,7 +229,7 @@ resolve_redirects <- function(edge_list_df,
 
 #' Apply a canonical map to the edge-list source/target columns
 #'
-#' Vectorised replacement of both edge columns (when present) via
+#' Vectorized replacement of both edge columns (when present) via
 #' [.apply_fold_map()].
 #' @noRd
 .apply_map_to_edges <- function(edge_list_df, canonical_map,
@@ -308,7 +308,7 @@ resolve_redirects <- function(edge_list_df,
 #' Apply a terminal fold map to a vector of URLs
 #'
 #' Replaces each URL with its mapped representative, leaving unmapped URLs and
-#' NAs untouched. Mirrors the vectorised replacement used throughout the
+#' NAs untouched. Mirrors the vectorized replacement used throughout the
 #' redirect/canonical machinery so edges, priors, and externally reported maps
 #' all fold identically.
 #'
@@ -453,7 +453,7 @@ resolve_redirects <- function(edge_list_df,
     # counts inbound edges from outside the cycle too, so the most-redirected-to
     # page becomes the canonical destination (in a bare cycle every within-cycle
     # in-degree is 1, so external inbound is the meaningful tie-breaker; ties
-    # fall back to first vertex order). Behaviour asserted in
+    # fall back to first vertex order). Behavior asserted in
     # test-resolve_redirects.R "break_arrow with asymmetric in-degree".
     in_deg <- igraph::degree(g, v = loop_verts, mode = "in")
     sink_idx <- which.max(in_deg)
@@ -492,7 +492,7 @@ resolve_redirects <- function(edge_list_df,
 
   resolved <- rep(NA_character_, n)
 
-  # Iterative traversal with memoisation
+  # Iterative traversal with memoization
   for (i in seq_len(n)) {
     if (is.na(resolved[i])) {
       resolved <- .fold_chain_from(i, resolved, out_list, vnames)
@@ -601,7 +601,7 @@ resolve_redirects <- function(edge_list_df,
 #' Resolve conflicting redirect sources according to the chosen policy
 #'
 #' Invoked by [.preprocess_redirects()] only when at least one source has
-#' multiple distinct targets. Error-message text and per-policy behaviour are
+#' multiple distinct targets. Error-message text and per-policy behavior are
 #' preserved verbatim.
 #' @noRd
 .apply_redirect_conflict_policy <- function(redirects_df, from_col, to_col,
