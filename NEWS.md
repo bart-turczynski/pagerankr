@@ -1,5 +1,14 @@
 # pagerankr (development version)
 
+* The test suite passes against rurl 3.1.0 as well as 3.0.1. rurl 3.1.0 adds
+  `path_normalisation`, a British-spelling alias of `path_normalization`, to
+  `rurl::get_clean_url()`, and the canonicalization surface guard in
+  `test-canonicalization.R` failed on it by design. The guard now lists the
+  alias as an optional argument: it counts as accounted for when the installed rurl has
+  it and is never reported as removed when it does not. It cannot move the node
+  key, because `canonical_profile()` pins `path_normalization` and rurl rejects
+  both spellings together (`PAGE-lgsbjjuf`).
+
 * `analyse_pagerank_grid()` and `sf_normalise_position()` are now exported as
   British-spelling aliases of `analyze_pagerank_grid()` and
   `sf_normalize_position()`. Each alias is the same function as its US-spelled

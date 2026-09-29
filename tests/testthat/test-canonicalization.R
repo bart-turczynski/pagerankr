@@ -10,6 +10,17 @@ triaged_unpinned_args <- c(
   "scheme_policy", "scheme_acceptance", "engine", "profile"
 )
 
+# Triaged arguments that only some rurl releases the `Imports: rurl` floor
+# admits carry. They count as accounted for when present and are never
+# reported as removed when absent, so the guard passes against both sides of
+# the release that added them.
+#
+# rurl 3.1.0: `path_normalisation`, the British-spelling alias of
+# `path_normalization`, which canonical_profile() pins. rurl errors when both
+# spellings are supplied, so the alias cannot move the key (SEOR-qwomlgjd,
+# PAGE-lgsbjjuf).
+triaged_optional_args <- "path_normalisation"
+
 # Compare rurl's actual argument surface against the surface pagerankr has
 # accounted for (pinned in canonical_profile() + triaged as unpinned above).
 # Takes the rurl names as an argument so removals can be exercised with a stub
@@ -17,11 +28,12 @@ triaged_unpinned_args <- c(
 canonicalization_surface_diff <- function(
     rurl_arg_names,
     profile_names = names(canonical_profile()),
-    triaged = triaged_unpinned_args) {
+    triaged = triaged_unpinned_args,
+    optional = triaged_optional_args) {
   accounted <- c(profile_names, triaged)
   list(
     # rurl grew an argument pagerankr has never considered.
-    added = setdiff(rurl_arg_names, accounted),
+    added = setdiff(rurl_arg_names, c(accounted, optional)),
     # rurl dropped an argument pagerankr still accounts for.
     removed = setdiff(accounted, rurl_arg_names)
   )
@@ -161,6 +173,33 @@ describe("canonical_profile", {
     grown <- canonicalization_surface_diff(c(actual, "brand_new_knob"))
     expect_identical(grown$added, "brand_new_knob")
     expect_identical(grown$removed, character(0))
+  })
+
+  it("accepts an optional alias whether or not the installed rurl has it", {
+    # The Imports floor admits rurl releases on both sides of an alias's
+    # introduction, so the guard must pass with and without it.
+    base <- setdiff(names(formals(rurl::get_clean_url)), triaged_optional_args)
+    none <- list(added = character(0), removed = character(0))
+    expect_identical(canonicalization_surface_diff(base), none)
+    expect_identical(
+      canonicalization_surface_diff(c(base, triaged_optional_args)), none
+    )
+  })
+
+  it("triages path_normalisation only because it is a true alias", {
+    skip_if_not(
+      "path_normalisation" %in% names(formals(rurl::get_clean_url)),
+      "the installed rurl predates the path_normalisation alias"
+    )
+    url <- "https://example.com/a/./b/../c"
+    expect_identical(
+      rurl::get_clean_url(url, path_normalisation = "dot_segments"),
+      rurl::get_clean_url(url, path_normalization = "dot_segments")
+    )
+    expect_error(rurl::get_clean_url(
+      url,
+      path_normalization = "dot_segments", path_normalisation = "none"
+    ))
   })
 
   it("keeps what identifies the resource and drops what does not", {
