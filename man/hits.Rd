@@ -197,7 +197,7 @@ the same arguments, so hub, authority, and PageRank can be joined on
 `node_name` without re-canonicalizing.
 
 The PageRank-specific, *forward-flow* modeling devices have **no HITS
-analogue and are intentionally not exposed**: nofollow evaporation, the
+analog and are intentionally not exposed**: nofollow evaporation, the
 indexability (noindex / robots.txt) transforms, the TIPR teleport prior, and
 the `reverse` flag. HITS already computes both directions of authority flow
 (hub is the outflow-oriented score, authority the inflow-oriented one), so a
@@ -234,5 +234,5 @@ h[which.max(h$authority), ]
 }
 \seealso{
 [compute_hits()] for the computational core, [pagerank()] for the
-  PageRank analogue sharing this identity pipeline.
+  PageRank analog sharing this identity pipeline.
 }

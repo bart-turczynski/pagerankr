@@ -68,7 +68,7 @@
 #'   19(2), 131-160.
 #' @export
 #' @seealso [salsa()] for the full identity pipeline; [compute_hits()] for the
-#'   HITS analogue; [compute_pagerank()] for the PageRank analogue.
+#'   HITS analog; [compute_pagerank()] for the PageRank analog.
 #' @examples
 #' edges <- data.frame(
 #'   from = c("A", "A", "B"), to = c("B", "C", "C")
@@ -304,7 +304,7 @@ compute_salsa <- function(edge_list_df,
 #' `node_name` without re-canonicalizing.
 #'
 #' The PageRank-specific, *forward-flow* modeling devices have **no SALSA
-#' analogue and are intentionally not exposed**: nofollow evaporation, the
+#' analog and are intentionally not exposed**: nofollow evaporation, the
 #' indexability (noindex / robots.txt) transforms, the TIPR teleport prior, and
 #' the `reverse` flag. SALSA already computes both directions of authority flow
 #' (hub is the outflow-oriented score, authority the inflow-oriented one).
@@ -336,7 +336,7 @@ compute_salsa <- function(edge_list_df,
 #'   19(2), 131-160.
 #' @export
 #' @seealso [compute_salsa()] for the computational core, [hits()] for the HITS
-#'   analogue, and [pagerank()] for the PageRank analogue sharing this identity
+#'   analog, and [pagerank()] for the PageRank analog sharing this identity
 #'   pipeline.
 #' @examples
 #' edges <- data.frame(

@@ -1,5 +1,5 @@
 #' @title Audit Redirect Rules
-#' @description Analyses a redirect data frame and returns a diagnostic report
+#' @description Analyzes a redirect data frame and returns a diagnostic report
 #'   covering chain lengths, loops, conflicting sources, self-referencing
 #'   redirects, and terminal destinations. Useful as a pre-flight check before
 #'   running \code{\link{resolve_redirects}} or \code{\link{pagerank}}.

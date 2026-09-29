@@ -644,7 +644,7 @@ Standard PageRank measures **inflow** importance ("who points to me"). With
 **outflow centrality** ("does this page funnel authority outward"). This is
 the *reverse PageRank* of Bar-Yossef & Mashiach (CIKM 2008), equivalent to
 the **CheiRank** of the transposed Google matrix, and the PageRank-flavored
-analogue of the *hub* score in Kleinberg's HITS. The sibling `semantic`
+analog of the *hub* score in Kleinberg's HITS. The sibling `semantic`
 project consumes this as an outflow signal.
 
 Only edge orientation is flipped; URL cleaning, redirect folding,

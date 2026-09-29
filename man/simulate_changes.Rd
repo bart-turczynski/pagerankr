@@ -107,7 +107,7 @@ The output of \code{\link{compare_pagerank}} (per-node deltas,
   \code{\link{pagerank}} attaches to describe a page's \emph{health/index
   state} (\code{live} / \code{noindex} / \code{robots_blocked} /
   \code{response_dead}). The two are deliberately not merged into one
-  vocabulary: \code{new-target} has no health analogue, and
+  vocabulary: \code{new-target} has no health analog, and
   \code{removed-dead} is the single value bridging both axes — a node whose
   comparison role is "removed" \emph{because} its proposed health state is
   \code{response_dead} (a forced 404). Attributes:

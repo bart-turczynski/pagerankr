@@ -102,5 +102,5 @@ compute_hits(edges, vertices_df = verts)
 }
 \seealso{
 [hits()] for the full identity pipeline; [compute_pagerank()] for
-  the PageRank analogue.
+  the PageRank analog.
 }
