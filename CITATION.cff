@@ -2,7 +2,7 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: "pagerankr: Modular Toolkit for PageRank Calculation"
-version: 0.1.0
+version: 0.1.1
 date-released: "2026-09-28"
 doi: 10.5281/zenodo.23046334
 abstract: >-

@@ -1,7 +1,7 @@
 {
   "upload_type": "software",
   "title": "pagerankr: Modular Toolkit for PageRank Calculation",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "language": "eng",
   "access_right": "open",
   "license": "MIT",
