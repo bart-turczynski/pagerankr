@@ -760,6 +760,57 @@ rurl-floor:
       cat("Running the suite against rurl", in_use, "\n")
       testthat::test_local(".", stop_on_failure = TRUE)'
 
+# Runs the suite against rurl's development `main` (PAGE-majaowtn): the
+# upstream-commit coverage that `Remotes:` used to give every job, restored as
+# one additive job. `rurl-floor`'s shape: rurl goes into a job-local library
+# prepended for the test step only, so the shared cache keeps the CRAN rurl.
+#
+# It reports on upstream, so it never blocks: `allow_failure` on both paths. It
+# runs on a pipeline schedule that sets `SCHEDULE_KIND=rurl-devel` (the
+# SCHEDULE_KIND mechanism `check-oldrel` describes; creating the schedule is
+# the owner's action), or by hand. `RURL_DEVEL_REF` picks another rurl branch
+# or commit for a manual run, which is how a deliberate upstream break is
+# checked for visibility.
+rurl-devel:
+  stage: check
+  needs: []
+  variables:
+    RURL_DEVEL_LIB: "$CI_PROJECT_DIR/.rurl-devel-lib"
+    RURL_DEVEL_REF: "main"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "rurl-devel"
+      allow_failure: true
+    - when: manual
+      allow_failure: true
+  script:
+    - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
+    - Rscript -e 'pak::pkg_install(c("remotes", "testthat", "pkgload"))'
+    - |
+      Rscript -e '
+      lib <- Sys.getenv("RURL_DEVEL_LIB")
+      dir.create(lib, recursive = TRUE, showWarnings = FALSE)
+      ref <- Sys.getenv("RURL_DEVEL_REF")
+      remotes::install_gitlab(paste0("bart-turczynski/rurl@", ref), lib = lib,
+                              dependencies = NA, upgrade = "never")
+      sha <- utils::packageDescription("rurl", lib.loc = lib)$RemoteSha
+      if (is.null(sha)) {
+        stop("rurl in ", lib, " carries no RemoteSha; it did not come from GitLab.", call. = FALSE)
+      }
+      writeLines(sprintf("export RURL_DEVEL_SHA=%s", sha), "rurl-devel.env")
+      cat(sprintf("Installed rurl %s from GitLab %s at %s\n",
+                  as.character(packageVersion("rurl", lib.loc = lib)), ref, sha))'
+    - . ./rurl-devel.env
+    - |
+      R_LIBS="$RURL_DEVEL_LIB:$R_LIBS_USER" Rscript -e '
+      sha <- utils::packageDescription("rurl")$RemoteSha
+      if (!identical(sha, Sys.getenv("RURL_DEVEL_SHA"))) {
+        stop("Suite would run against a rurl other than the GitLab install at ",
+             Sys.getenv("RURL_DEVEL_SHA"), ".", call. = FALSE)
+      }
+      cat("Running the suite against rurl", as.character(packageVersion("rurl")),
+          "at", sha, "\n")
+      testthat::test_local(".", stop_on_failure = TRUE)'
+
 # The docs site. Must be named `pages` and publish `public/` — that pairing is
 # what GitLab Pages deploys, not a convention this file chose.
 #

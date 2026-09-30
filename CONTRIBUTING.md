@@ -271,13 +271,30 @@ Two properties to preserve when editing it:
 If it goes red, the floor is wrong, not the suite: correct `Imports:` to the
 lowest released version that passes.
 
-**What no longer happens.** While `Remotes:` existed, every routine job resolved
-rurl to **main HEAD**, which gave continuous reverse-dependency coverage against
-unreleased upstream work. Removing the field removed that: drift is now bounded
-by rurl *releases* rather than rurl *commits*, so an upstream break reaches
-pagerankr only once it is already on CRAN. Restoring it needs a separate
-additive job (`PAGE-majaowtn`); until that exists, this section does not claim
-coverage the pipeline does not have.
+## The rurl development job (`rurl-devel`)
+
+While `Remotes:` existed, every routine job resolved rurl to **main HEAD**,
+which gave continuous reverse-dependency coverage against unreleased upstream
+work (PAGE-fjqyruaf). Removing the field removed that, and `rurl-devel` puts
+it back as one additive job (PAGE-majaowtn). It installs rurl from GitLab at
+`RURL_DEVEL_REF` (default `main`) into `.rurl-devel-lib`, checks that the suite
+will load that install (by its `RemoteSha`), and runs the suite with the
+library prepended for the test step only, the same shape as `rurl-floor`, so
+the shared cache keeps the CRAN rurl.
+
+It reports on upstream, so it never blocks anything: `allow_failure` whichever
+way it runs. It runs on a pipeline schedule that sets
+`SCHEDULE_KIND=rurl-devel`, or by hand from **Run pipeline**. Setting
+`RURL_DEVEL_REF` on a manual run points it at a rurl branch or commit, which is
+how to check that a deliberate upstream break shows up. Coverage is only as
+continuous as the schedule: without one, the job runs only when started by
+hand, and drift is bounded by rurl releases again.
+
+When it goes red, read it as news about rurl, not about pagerankr: either rurl
+`main` broke a reverse dependency, which is fixed in rurl before it releases,
+or pagerankr needs to adapt before that rurl release. It is how the
+`path_normalisation` guard failure (PAGE-lgsbjjuf) would have surfaced before
+rurl's release prep instead of during it.
 
 ## Renaming an exported function
 
