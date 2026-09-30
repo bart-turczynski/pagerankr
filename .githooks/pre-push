@@ -234,7 +234,7 @@ elif ! have_r_pkg rcmdcheck rcmdcheck; then
   record rcmdcheck fail
 else
   echo "pre-push: R CMD check (--as-cran; fails on errors + warnings) ..." >&2
-  if Rscript -e 'q <- rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning", quiet = TRUE)' >&2; then
+  if Rscript -e 'res <- rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning", quiet = TRUE); if (!identical(as.integer(res$status), 0L)) stop("R CMD check exited with status ", res$status, "; the run did not complete.", call. = FALSE)' >&2; then
     record rcmdcheck pass
   else
     record rcmdcheck fail

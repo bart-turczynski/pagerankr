@@ -347,12 +347,13 @@ check:
     # wanted most.
     - |
       Rscript -e '
-      rcmdcheck::rcmdcheck(
+      res <- rcmdcheck::rcmdcheck(
         args = "--no-manual",
         build_args = c("--no-manual", "--compact-vignettes=gs+qpdf"),
         error_on = "warning",
         check_dir = "check"
-      )'
+      )
+      if (!identical(as.integer(res$status), 0L)) stop("R CMD check exited with status ", res$status, "; the run did not complete.", call. = FALSE)'
   artifacts:
     when: on_failure
     paths:
@@ -637,12 +638,13 @@ check-oldrel:
     - |
       Rscript -e '
       cat("Checking under R", as.character(getRversion()), "\n")
-      rcmdcheck::rcmdcheck(
+      res <- rcmdcheck::rcmdcheck(
         args = "--no-manual",
         build_args = c("--no-manual", "--compact-vignettes=gs+qpdf"),
         error_on = "warning",
         check_dir = "check"
-      )'
+      )
+      if (!identical(as.integer(res$status), 0L)) stop("R CMD check exited with status ", res$status, "; the run did not complete.", call. = FALSE)'
   artifacts:
     when: on_failure
     paths:
