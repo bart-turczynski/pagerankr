@@ -3,6 +3,12 @@
 This is an update. CRAN serves pagerankr 0.1.0, accepted 2026-09-28; this is
 0.1.1.
 
+Submitted 2026-09-30 11:45:43 UTC with `devtools::submit_cran()`, built from
+`main` 735f1de (597641 bytes, sha256
+d4db5c9ce7c86352235a82f1df3ecfeb223c1aad602edfce79c97cb9356f0c4b, as CRAN's
+incoming queue serves it). Its sources match the release commit f9d6d71 that
+every check below ran on; everything merged since is build-ignored.
+
 **Why so soon after 0.1.0.** This is a compatibility release that 'rurl', one
 of pagerankr's imports, needs before its own next version can be submitted.
 'rurl' 3.1.0 (same maintainer) adds an argument alias to
