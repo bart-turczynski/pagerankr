@@ -64,6 +64,11 @@ default:
   # on an amd64 `r-ver:4.5` even though 4.6 had already been corrected. Every
   # rocker tag added below needs the same one-off pull on the runner host.
   image: rocker/r-ver:4.6
+  # Every job names the runner pool it depends on. pagerankr-local-docker
+  # carries this tag (and also runs untagged jobs), so the tag only stops a job
+  # from falling back to a shared runner (owner decision 2026-09-23, option a;
+  # SEOR-hhtzaknn).
+  tags: [local-docker]
   # rocker/r-ver points `install.packages()` at the Posit binary repo for this
   # image's Ubuntu release, so R packages arrive prebuilt. Without that, a cold
   # `check` job compiles the whole Suggests set from source.
