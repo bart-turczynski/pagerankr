@@ -1,4 +1,4 @@
-# pagerankr (development version)
+# pagerankr 0.1.1
 
 * The test suite passes against rurl 3.1.0 as well as 3.0.1. rurl 3.1.0 adds
   `path_normalisation`, a British-spelling alias of `path_normalization`, to
