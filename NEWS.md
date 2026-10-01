@@ -1,5 +1,14 @@
 # pagerankr (development version)
 
+## Bug fixes
+
+* **Case-insensitive matching no longer depends on the locale.** Screaming Frog
+  header names and values (`Follow`, `Link Origin`, the crawl and indexing
+  `Allowed` flags), XPath regions, placement labels and URL hosts were folded
+  with `tolower()`, which under a Turkish or Azeri locale on Linux maps `I` to
+  a dotless `ı`, so values containing `I` silently stopped matching. Only ASCII
+  letters are folded now, in every locale (`PAGE-vzetnwuu`).
+
 ## Internal
 
 * **R CMD check gates fail when the check halts.** When `R CMD check` stopped

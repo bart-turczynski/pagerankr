@@ -350,7 +350,7 @@ screaming_frog_links <- function(x,
   if (identical(policy, "all")) {
     return(rep(TRUE, length(x)))
   }
-  value <- tolower(trimws(as.character(x)))
+  value <- .pr_ascii_lower(trimws(as.character(x)))
   if (identical(policy, "html")) {
     value %in% c("html", "html & rendered html")
   } else {

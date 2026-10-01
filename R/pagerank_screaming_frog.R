@@ -429,7 +429,7 @@ pagerank_screaming_frog <- function(bundle,
 }
 
 .sf_link_origin_key <- function(x) {
-  value <- tolower(trimws(as.character(x)))
+  value <- .pr_ascii_lower(trimws(as.character(x)))
   out <- rep(NA_character_, length(value))
   out[value == "html"] <- "html"
   out[value %in% c("rendered", "rendered html")] <- "rendered"

@@ -98,7 +98,7 @@ describe("pagerank() placement arguments", {
 
   it("normalizes case and whitespace on both sides of the match", {
     edges <- placement_edges()
-    edges$region <- toupper(paste0(" ", edges$region, " "))
+    edges$region <- .pr_ascii_upper(paste0(" ", edges$region, " "))
     applied <- .pr_apply_placement(
       edge_list_df = edges,
       placement_col = "region",

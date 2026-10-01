@@ -403,7 +403,7 @@ print.screaming_frog_bundle <- function(x, ...) {
   out <- rep(NA_character_, length(value))
   has_scheme <- grepl("^[A-Za-z][A-Za-z0-9+.-]*://", value)
   host <- sub("^[A-Za-z][A-Za-z0-9+.-]*://([^/?#:]+).*$", "\\1", value)
-  out[has_scheme] <- tolower(host[has_scheme])
+  out[has_scheme] <- .pr_ascii_lower(host[has_scheme])
   out
 }
 
