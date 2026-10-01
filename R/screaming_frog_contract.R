@@ -195,7 +195,7 @@ sf_contract <- function() {
 
 .sf_header_key <- function(x) {
   x <- sub("^\ufeff", "", as.character(x))
-  x <- tolower(trimws(x))
+  x <- .pr_ascii_lower(trimws(x))
   gsub("[^a-z0-9]+", "", x)
 }
 
@@ -390,7 +390,7 @@ sf_read_input <- function(x, export_kind, fields = NULL) {
 #' @examples
 #' sf_parse_follow(c("True", "nofollow", "yes", "", NA))
 sf_parse_follow <- function(x) {
-  value <- tolower(trimws(as.character(x)))
+  value <- .pr_ascii_lower(trimws(as.character(x)))
   out <- rep(NA, length(value))
   out[value %in% c("true", "yes", "1", "follow")] <- TRUE
   out[value %in% c("false", "no", "0", "nofollow")] <- FALSE
@@ -416,7 +416,7 @@ sf_parse_follow <- function(x) {
 #' @examples
 #' sf_rel_nofollow(c("nofollow", "ugc nofollow", "sponsored", "", NA))
 sf_rel_nofollow <- function(x) {
-  value <- tolower(trimws(as.character(x)))
+  value <- .pr_ascii_lower(trimws(as.character(x)))
   out <- vapply(strsplit(value, "[,[:space:]]+"), function(tokens) {
     "nofollow" %in% tokens
   }, logical(1))
@@ -445,7 +445,7 @@ sf_rel_nofollow <- function(x) {
 #' @examples
 #' sf_normalize_position(c("Navigation", "Aside", "Content", "", NA))
 sf_normalize_position <- function(x) {
-  value <- tolower(trimws(as.character(x)))
+  value <- .pr_ascii_lower(trimws(as.character(x)))
   normalized <- c(
     navigation = "nav",
     header = "header",
@@ -534,7 +534,7 @@ sf_region_from_path <- function(x) {
   }
   steps <- strsplit(path, "/", fixed = TRUE)[[1]]
   # Drop predicates -- `div[@class='site-footer']` is a div, not a footer.
-  steps <- tolower(sub("\\[.*$", "", steps))
+  steps <- .pr_ascii_lower(sub("\\[.*$", "", steps))
   # A link outside <body> sits in no page region at all: Screaming Frog emits
   # `//head/link[...]` rows for stylesheets, canonicals, and hreflang. None are
   # graph-eligible, so this is NA rather than the `content` residual.

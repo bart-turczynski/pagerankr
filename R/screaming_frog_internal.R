@@ -315,7 +315,7 @@ screaming_frog_internal <- function(x) {
 }
 
 .sf_parse_allowed <- function(x) {
-  value <- tolower(trimws(as.character(x)))
+  value <- .pr_ascii_lower(trimws(as.character(x)))
   out <- rep(NA, length(value))
   out[value %in% c("allowed", "true", "yes", "1")] <- TRUE
   out[value %in% c("not allowed", "disallowed", "false", "no", "0")] <- FALSE

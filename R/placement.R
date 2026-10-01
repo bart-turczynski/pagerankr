@@ -30,7 +30,7 @@
       call. = FALSE
     )
   }
-  x <- unique(tolower(trimws(x)))
+  x <- unique(.pr_ascii_lower(trimws(x)))
   allowed <- .pr_placement_vocabulary()
   if (!all(x %in% allowed)) {
     stop(
@@ -63,7 +63,7 @@
       call. = FALSE
     )
   }
-  names(x) <- tolower(trimws(names(x)))
+  names(x) <- .pr_ascii_lower(trimws(names(x)))
   allowed <- .pr_placement_vocabulary()
   if (!all(names(x) %in% allowed)) {
     stop(
@@ -220,7 +220,9 @@
     n_rows_dropped = 0L
   )
 
-  placement <- tolower(trimws(as.character(edge_list_df[[placement_col]])))
+  placement <- .pr_ascii_lower(
+    trimws(as.character(edge_list_df[[placement_col]]))
+  )
   if (!is.null(accepted_placements)) {
     keep <- !is.na(placement) & placement %in% accepted_placements
     provenance$n_rows_dropped <- sum(!keep)

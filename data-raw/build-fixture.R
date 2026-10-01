@@ -320,6 +320,12 @@ token_hit <- function(t, hay) {
   grepl(paste0("(^|[^a-z0-9])\\Q", t, "\\E($|[^a-z0-9])"), hay, perl = TRUE)
 }
 
+# The leak scan folds case with tolower(), not the package's ASCII-only
+# helper: real crawl text can carry non-ASCII letters, and a leak that differs
+# from its token only in such a letter's case must still be found. Both sides
+# fold the same way, so a locale's mapping cannot hide a match. This is a
+# maintainer script, never shipped (PAGE-vzetnwuu).
+# nolint start: case_folding_linter.
 check_leaks <- function(dt, label) {
   hay <- tolower(paste(unlist(lapply(dt, as.character)), collapse = "\n"))
   # Mask the vocabulary this script itself introduced before looking for leaks.
@@ -346,6 +352,7 @@ check_leaks <- function(dt, label) {
   }
   invisible(NULL)
 }
+# nolint end
 
 for (nm in names(out)) {
   check_leaks(out[[nm]]$links, paste(nm, "all_inlinks"))
