@@ -8,7 +8,7 @@
   "codeRepository": "https://gitlab.com/bart-turczynski/pagerankr",
   "issueTracker": "https://gitlab.com/bart-turczynski/pagerankr/-/work_items",
   "license": "https://spdx.org/licenses/MIT",
-  "version": "0.1.1",
+  "version": "0.1.1.9000",
   "programmingLanguage": {
     "@type": "ComputerLanguage",
     "name": "R",
