@@ -1,3 +1,18 @@
+# pagerankr (development version)
+
+## Internal
+
+* **R CMD check gates fail when the check halts.** When `R CMD check` stopped
+  partway, `rcmdcheck` parsed the cut-off log as 0 errors, 0 warnings and 0
+  notes, and the gate passed. The pre-push hook and the CI `check` and
+  `check-oldrel` jobs now also fail on a non-zero exit status (`SEOR-maavnxdm`).
+
+* **A weekly job tests against the development `main` of rurl again.** Removing
+  `Remotes:` ended the CI jobs' resolution of rurl to its `main`, so an upstream break
+  would have reached pagerankr only after a rurl release. The `rurl-devel` job,
+  on its own weekly schedule, installs rurl from GitLab `main` for the test
+  step only (`PAGE-majaowtn`).
+
 # pagerankr 0.1.1
 
 * The test suite passes against rurl 3.1.0 as well as 3.0.1. rurl 3.1.0 adds
