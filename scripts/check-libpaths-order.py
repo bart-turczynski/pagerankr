@@ -35,7 +35,10 @@ CI_FILE = Path(__file__).resolve().parents[1] / ".gitlab-ci.yml"
 # silently not being checked.
 JOBS_TO_CHECK = [
     ("default", None),  # the shared `variables:` block + `default.image`
-    ("check-oldrel", "check-oldrel"),
+    # `check-oldrel` became the `full-check` matrix (SEOR-wurguiqa), whose
+    # image is `$R_IMAGE` and so has no single tag to pull; `floor-check`
+    # declares the same R_LIBS/R_LIBS_USER pair on a concrete image.
+    ("floor-check", "floor-check"),
 ]
 
 

@@ -1,15 +1,31 @@
 # Contributing
 
+Report bugs and request features in the GitLab issue tracker:
+<https://gitlab.com/bart-turczynski/pagerankr/-/work_items>. Report security issues
+privately as described in `SECURITY.md`. Send changes as merge requests on
+GitLab; the GitHub repository is a read-only mirror.
+
+New code needs tests, and each user-facing change needs one `NEWS.md` bullet.
+A merge request must pass the verification command below.
+
+Run verification (the pre-push chain: the hygiene hooks, the toolchain check,
+the URL check, then the seven-gate `verify` hook described below):
+
+```sh
+pre-commit run --hook-stage pre-push --all-files
+```
+
 ## Verification gate
 
-The four checks run remotely in **GitLab CI** (`.gitlab-ci.yml`): `news-version`
-(NEWS/DESCRIPTION consistency), `lint` (lintr + spelling) and `check`
-(`R CMD check`). They run on every push to `main` and on `v*` tags — **not** on
-merge requests or feature-branch pushes; see "One pipeline, not three" below.
-Alongside them, `codemeta` checks `codemeta.json` against `DESCRIPTION`, and
-`coverage` measures test coverage — reported through GitLab's own cobertura
-ingestion. Coverage is `allow_failure`, deliberately: coverage that blocks a
-merge turns every honest refactor into a fight with a number.
+The checks run remotely in **GitLab CI** (`.gitlab-ci.yml`): `gates`
+(news-version, codemeta, README drift, lint and spelling), `citation-version`
+and `check` (`R CMD check --as-cran`, failing on warnings). They run on every
+push to `main` and on `v*` tags — **not** on merge requests or feature-branch
+pushes; see "One pipeline, not three" below. Alongside them, `coverage`
+measures test coverage — reported through GitLab's own cobertura ingestion —
+and fails below 95% total coverage, the fleet minimum (seor
+`design/fleet-standard.md`). The threshold is never lowered: a package under
+it adds tests.
 
 Two things about that pipeline are worth knowing before you rely on it.
 
@@ -175,7 +191,7 @@ reasons a real package hits as it grows:
 
 `strings_as_factors_linter` is off, as in goodpractice, which dropped it in 1.2.0
 (ropensci-review-tools/goodpractice#321). It only guarded the pre-R-4.0
-`data.frame()` default, and this package Depends on R >= 4.0.0. The fleet
+`data.frame()` default, and this package Depends on R >= 4.1.0. The fleet
 turned it off on 2026-07-18, before goodpractice did (`PAGE-iiqjlfxl`).
 Its absence does not make `stringsAsFactors = FALSE` removable everywhere:
 `expand.grid()` kept `TRUE` as its default through R 4.0, so the argument in
@@ -215,31 +231,28 @@ the Suggests (or push with `SKIP_RCMDCHECK=1` deliberately). The full check — 
 bump that turns test fixtures red (this class of failure previously slipped
 onto `main` while remote CI was billing-disabled; see PR #50).
 
-The cross-platform matrix (`full-check.yml`) and R-hub (`rhub.yaml`) are the
-**"remote testing when submitting to CRAN"** path — on demand / at release-tag
-time, because that matrix is slow rather than expensive.
-
-One slice of the matrix now runs on GitLab: `check-oldrel` checks the package
-under the previous R minor release, automatically on `v*` tags and manually
-otherwise. "Otherwise" is narrower than it used to be: with only `main` and tag
-pipelines existing at all (see "One pipeline, not three" above), the manual
-trigger is only reachable from a pipeline on `main` — there is no longer a
-branch or MR pipeline to run it from before merging. The rest cannot follow it,
-and a CRAN submission still has to account for that:
+The R-version matrix runs on GitLab, on the weekly `deep-check` schedule (a
+pipeline schedule that sets `SCHEDULE_KIND=deep-check`), on `v*` tags, by hand
+from **Run pipeline**, and from the terminal with
+`glab ci run --branch main --variables DEEP_CHECK:1`. `full-check` runs
+`R CMD check --as-cran` on R release, oldrel and devel; `floor-check` runs it
+on R 4.1.3, the floor `DESCRIPTION` declares, with dependencies from a dated
+Posit Package Manager snapshot (the job's comment in `.gitlab-ci.yml` says
+which come from CRAN instead, and why). No push pipeline runs them. The
+platform half of the old matrix cannot follow, and a CRAN submission still
+has to account for that:
 
 - **macOS and Windows** have no runner. The self-hosted runner is Docker on
   one Mac, so Linux containers only, and shared runners are not an
   alternative today because the namespace's Free-plan quota is exhausted (see
   "It runs on a self-hosted runner, not GitLab's shared fleet" above) — not
   because the plan structurally disallows them.
-- **R-devel** is left out on purpose: `rocker/r-devel` publishes no arm64
-  variant, so it would run emulated on this host.
 - **R-hub cannot be ported at all.** R-hub v2 works by dispatching workflows
   inside a GitHub repository; there is no GitLab equivalent to translate.
 
 So **a CRAN submission still needs R-hub and win-builder run by hand.** Nothing
-in GitLab CI substitutes for either, and `check-oldrel` does not narrow that gap
-— it widens R-version coverage, not platform coverage.
+in GitLab CI substitutes for either, and the `deep-check` legs do not narrow
+that gap — they widen R-version coverage, not platform coverage.
 
 ## The rurl floor job (`rurl-floor`)
 
@@ -340,6 +353,7 @@ pagerankr's deltas:
   `main` pipeline. Before win-builder's R-release queue, also check that CRAN
   serves Windows binaries of that rurl version: 0.1.0's R-release run waited
   for them (PAGE-xylymvme).
-- **Step 6: `check-oldrel` runs by itself only on the tag.** To see it
-  before submission, start it by hand from the release commit's `main`
-  pipeline (agent+go).
+- **Step 6: `full-check` and `floor-check` run by themselves only on the
+  tag and the weekly schedule.** To see them before submission, run
+  `glab ci run --branch main --variables DEEP_CHECK:1` on the release commit
+  (agent+go).

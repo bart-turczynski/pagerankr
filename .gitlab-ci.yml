@@ -1,18 +1,19 @@
 # Remote verification gate, on the forge this project actually lives on.
 #
-# The nine `.github/workflows/` files target a suspended account and have not
-# run since 2026-08-07 (PAGE-nsvpurra). Between that date and this file, the
-# only gate was `.githooks/pre-push` — one platform, locally, and only in a
-# clone where `git config core.hooksPath .githooks` had been run. This restores
-# a remote gate.
+# The old `.github/workflows/` files targeted a suspended account, stopped
+# running on 2026-08-07 (PAGE-nsvpurra) and were later deleted (PAGE-yfmrrrhp).
+# Between that date and this file, the only gate was `.githooks/pre-push` --
+# one platform, locally. This restores a remote gate.
 #
 # Scope is deliberately smaller than the GitHub set. There is no `r-lib/actions`
 # equivalent for GitLab CI, so every job here is hand-rolled on a rocker image
 # rather than mechanically translated.
 #
-# Ported: the four-check gate (news-version, lint, spelling, R CMD check), the
-# rurl floor, the docs site, coverage, the OSV and OSS Index dependency audits,
-# a codemeta consistency check, and the R-oldrel slice of the matrix.
+# Ported: the gate (news-version, README drift, lint, spelling, R CMD check
+# --as-cran), the rurl floor, the docs site, coverage, the OSV and OSS Index
+# dependency audits, a codemeta consistency check, and the R-version matrix
+# (release, oldrel, devel and the declared R floor) on the weekly `deep-check`
+# schedule, per seor design/fleet-standard.md.
 #
 # NOT ported, because they cannot be (PAGE-ppmceqnr) — recorded here so their
 # absence reads as a decision rather than as neglect:
@@ -29,16 +30,16 @@
 #                           GitHub repository. There is no GitLab equivalent to
 #                           port; `rhub.yaml` is not translatable, only
 #                           replaceable, and nothing here replaces it.
-#   R-devel check           `rocker/r-devel` publishes no arm64 variant, so it
-#                           would run emulated on this host — the trap the
-#                           `default.image` note below exists to warn about.
-#                           win-builder and R-hub remain the route to R-devel.
+#
+# R-devel used to be listed here, on the grounds that `rocker/r-devel` has no
+# arm64 variant. `rocker/r-ver:devel` does, and punycoder's `full-check` runs it
+# on the same runner, so `full-check` below carries a devel leg.
 #
 # Codecov is not re-linked and is not wanted: `coverage` below reports through
 # GitLab's own cobertura ingestion, so MR coverage diffs need no third-party
 # account and no CODECOV_TOKEN.
 #
-#   Local mirror of the four checks:  .githooks/pre-push
+#   Local mirror of the checks:       .githooks/pre-push
 #   What is and is not gated:         CONTRIBUTING.md, cran-comments.md
 
 stages:
@@ -60,7 +61,7 @@ default:
   # `docker image inspect rocker/r-ver:4.6 --format '{{.Architecture}}'` and
   # correct with `docker pull --platform linux/arm64 rocker/r-ver:4.6`.
   #
-  # This applies per TAG, not once per host: `check-oldrel` first ran emulated
+  # This applies per TAG, not once per host: `check-oldrel` (now full-check's 4.5 leg) first ran emulated
   # on an amd64 `r-ver:4.5` even though 4.6 had already been corrected. Every
   # rocker tag added below needs the same one-off pull on the runner host.
   image: rocker/r-ver:4.6
@@ -78,7 +79,7 @@ default:
     #
     # p3m lags CRAN by up to a day for a new release. Note this image is NOT
     # on a stale pin — measured from the images themselves, `r-ver:4.6` points
-    # at p3m `latest` and only `r-ver:4.5` (check-oldrel) carries a date:
+    # at p3m `latest` and only `r-ver:4.5` (full-check's oldrel leg) carries a date:
     #
     #     rocker/r-ver:4.6 -> https://p3m.dev/cran/__linux__/noble/latest
     #     rocker/r-ver:4.5 -> https://p3m.dev/cran/__linux__/noble/2026-04-23
@@ -174,7 +175,7 @@ variables:
   # — so pagerankr needs the Rprofile.site mechanism from nowhere; it would be
   # a second, redundant way to reach an ordering this file already reaches.
   # See scripts/check-libpaths-order.py, which pins this for both this job
-  # and check-oldrel, and the `.libPaths()` print in before_script above.
+  # and check-oldrel (now full-check), and the `.libPaths()` print in before_script above.
   R_LIBS: "$CI_PROJECT_DIR/.cache/R:/usr/local/lib/R/site-library:/usr/local/lib/R/library"
   # pak resolves Ubuntu system requirements itself; the image runs as root, so
   # it can act on them. Saves hand-maintaining an apt list per job.
@@ -228,6 +229,24 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     - if: $CI_PIPELINE_SOURCE == "web"
     - when: never
+
+# Pandoc is PINNED for the README drift gate in `gates`, copied from
+# punycoder's `.pandoc_script`. pandoc's markdown writer changes its line
+# wrapping and table layout between versions, so README.md is byte-stable only
+# under the version that knitted it: 3.10, the maintainer's local pandoc when
+# README.md was last re-knit. Ubuntu's apt pandoc (3.1.x) would report drift
+# that is not there. Bump it only together with a re-knit of README.md.
+#
+# A plain YAML anchor rather than `!reference`: the pre-commit `check-yaml`
+# hook parses this file with a safe loader, which cannot construct GitLab's
+# custom tag. The architecture comes from `dpkg --print-architecture`, so the
+# same lines work on the arm64 runner and on amd64.
+.pandoc_script: &pandoc_script
+  - PANDOC_VERSION=3.10
+  - apt-get update -qq && apt-get install -y --no-install-recommends curl ca-certificates git
+  - curl -fsSL -o /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-$(dpkg --print-architecture).deb"
+  - dpkg -i /tmp/pandoc.deb
+  - pandoc --version | head -n1
 
 # 1, 2, 4. Folded verify-stage gate (SEOR-pgammbgo).
 #
@@ -285,13 +304,16 @@ workflow:
 #     install pagerankr itself) and do not run on every push (only on a
 #     `dependency-audit` schedule, or by hand — see their own rules), so they
 #     fail the "cheap AND runs on every push" bar this fold requires.
-#   * `check-oldrel`, `rurl-floor` — release-shaped floor/compatibility
+#   * `full-check`, `floor-check`, `rurl-floor` — release-shaped floor/compatibility
 #     checks, not cheap metadata checks; handled under SEOR-ihmntqzm below.
 gates:
   stage: verify
   variables:
     LINTR_ERROR_ON_LINT: "true"
   script:
+    # pandoc and git serve the `readme` gate: it re-knits README.Rmd and diffs
+    # the result against the committed README.md.
+    - *pandoc_script
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install(c("lintr", "spelling"))'
     - Rscript scripts/gates.R
@@ -332,14 +354,19 @@ citation-version:
 # turns fixtures red (rurl 2.1.0 emptied bare-label graphs and slipped in while
 # remote CI was billing-disabled). Fails on errors AND warnings.
 #
-# A standard check, matching the GitHub `Verify` job it replaces; the strict
-# `--as-cran` pass is what `.githooks/pre-push` runs locally, and what the
-# unported release-time matrix used to run.
+# `--as-cran` on every push to main, per the fleet standard (seor
+# design/fleet-standard.md), the same strictness `.githooks/pre-push` runs
+# locally. CRAN incoming feasibility stays on (seor ADR 0004). R_CRAN_SRC and
+# R_CRAN_WEB point that step at cloud.r-project.org: p3m serves none of the
+# metadata it reads, and for a package already on CRAN the check would halt
+# there and read as 0/0/0 (SEOR-ygzjighu, as in punycoder's `check`).
 check:
   stage: check
   needs: [gates]
   variables:
     R_KEEP_PKG_SOURCE: "yes"
+    R_CRAN_SRC: "https://cloud.r-project.org"
+    R_CRAN_WEB: "https://cloud.r-project.org"
   script:
     # pandoc builds the vignettes; qpdf and ghostscript arm the tarball and PDF
     # size checks that R CMD check otherwise silently SKIPS.
@@ -353,7 +380,7 @@ check:
     - |
       Rscript -e '
       res <- rcmdcheck::rcmdcheck(
-        args = "--no-manual",
+        args = c("--no-manual", "--as-cran"),
         build_args = c("--no-manual", "--compact-vignettes=gs+qpdf"),
         error_on = "warning",
         check_dir = "check"
@@ -380,13 +407,14 @@ check:
 # and a CODECOV_TOKEN from the critical path rather than re-linking the
 # existing `/gh/` Codecov project under `/gl/`.
 #
-# Not a gate: coverage that FAILS a pipeline turns every honest refactor into a
-# fight with a number. `allow_failure` keeps a covr crash visible without
-# blocking a merge.
+# A gate: the job fails below 95% total coverage, the fleet minimum (seor
+# design/fleet-standard.md, ADR 0007 there). It used to be `allow_failure`;
+# the standard replaced that choice. cobertura.xml is written before the
+# threshold test, so a failing run still carries its report. The threshold is
+# never lowered: a package under it adds tests.
 coverage:
   stage: check
   needs: [check]
-  allow_failure: true
   script:
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install(c("covr", "xml2"))'
@@ -397,9 +425,12 @@ coverage:
       Rscript -e '
       cov <- covr::package_coverage(type = "tests", quiet = FALSE)
       covr::to_cobertura(cov)
-      cat(sprintf("Coverage: %.2f%%\n", covr::percent_coverage(cov)))'
+      pct <- covr::percent_coverage(cov)
+      cat(sprintf("Coverage: %.2f%%\n", pct))
+      if (pct < 95) stop(sprintf("total coverage %.2f%% is below the fleet minimum of 95%%; add tests, never lower the threshold", pct), call. = FALSE)'
   coverage: '/^Coverage: ([0-9.]+)%$/'
   artifacts:
+    when: always
     reports:
       coverage_report:
         coverage_format: cobertura
@@ -415,7 +446,7 @@ coverage:
 # Scheduled, because that is what a vulnerability audit is for: the dependency
 # set can stop being safe on a day nothing in this repo changed.
 #
-# SCHEDULE_KIND guard (SEOR-fftbjnpl), the same mechanism `check-oldrel` uses
+# SCHEDULE_KIND guard (SEOR-fftbjnpl), the same mechanism `full-check` uses
 # for `deep-check` (see there). This job and `security-audit` below fire ONLY
 # on a pipeline schedule that sets `SCHEDULE_KIND=dependency-audit`, so a
 # different schedule sharing the `schedule` pipeline source does not also run
@@ -521,112 +552,96 @@ security-audit:
     - Rscript -e 'pak::local_install(upgrade = FALSE)'
     - Rscript -e 'testthat::test_local(filter = "security", stop_on_failure = TRUE)'
 
-# R CMD check on the previous R minor release.
+# The `deep-check` legs: R CMD check --as-cran on R release, oldrel and devel
+# (`full-check`), and at the declared R floor (`floor-check`, below), per seor
+# design/fleet-standard.md. Job names, rules and the floor design follow
+# punycoder's, so the fleet reads the same everywhere.
 #
-# The one slice of the GitHub cross-platform matrix that this runner can carry
-# natively: `rocker/r-ver:4.5` publishes an arm64 variant, so it runs unemulated
-# on this host, while `rocker/r-devel` is amd64-only and is therefore left to
-# R-hub and win-builder (see the header).
+# `full-check` used to be `check-oldrel`, the one slice of the old GitHub
+# matrix this runner carried. It never ran in practice: its runs were all
+# `manual`, 0.0s (orchestrator-measured 2026-09-23 via `glab api
+# projects/bart-turczynski%2Fpagerankr/jobs`), which is why the
+# SCHEDULE_KIND guard below exists (SEOR-ihmntqzm). Every leg runs on the arm64
+# runner natively: rocker/r-ver publishes arm64 for `latest`, `4.5` and
+# `devel` (Docker Hub tag metadata, 2026-10-03). Each new tag needs the one-off
+# `docker pull --platform linux/arm64` on the runner host that the
+# `default.image` note describes.
 #
-# DESCRIPTION declares `R (>= 4.0.0)`. This does not prove that floor — one
-# release back is not four — but it is the difference between testing one R
-# version and testing more than one, which is where version-sensitive breakage
-# actually shows up.
+# Triggers, as in punycoder: `v*` tags; a hand-started `web` pipeline (manual,
+# non-blocking); the weekly schedule that sets `SCHEDULE_KIND=deep-check`
+# (a schedule pipeline of another kind does not match); and an API pipeline on
+# `main` with `DEEP_CHECK=1`, so a release can be checked from the terminal:
 #
-# Manual on branches, automatic on release tags: the cost is a full second check
-# per run, and the moment it has to be right is a CRAN submission.
+#   glab ci run --branch main --variables DEEP_CHECK:1
 #
-# SCHEDULE_KIND guard (SEOR-ihmntqzm). `check-oldrel`'s `manual` rule below
-# is not a fallback in practice — the four most recent runs (orchestrator-
-# measured 2026-09-23 via `glab api projects/bart-turczynski%2Fpagerankr/jobs`)
-# are all `manual`, all 0.0s: nobody clicks it, so it has never actually
-# executed. The owner's decision is to move this class of expensive,
-# release-shaped check off "reachable in theory, run in practice never" and
-# onto a WEEKLY staggered schedule instead — the runner is one Mac and can
-# sleep the rest of the week.
-#
-# This commit adds ONLY the guard rule, not a schedule: creating a
-# `pipeline_schedules` entry is a separate, owner-only action. The mechanism:
-# a GitLab pipeline schedule can set its own CI/CD variables (Settings > CI/CD
-# > Schedules > Edit > Variables), so a future weekly schedule sets
-# `SCHEDULE_KIND=deep-check` and only jobs that check for exactly that value
-# fire on its tick — letting several DIFFERENT staggered schedules (this one,
-# a future rurl-floor-style one, anything else release-shaped) share the
-# `schedule` pipeline source without all firing on every schedule's tick. A
-# schedule pipeline with no `SCHEDULE_KIND` set, or set to something else,
-# does not match this rule and falls through to the existing tag/manual rules
-# below — this is an ADDED path, the existing two are unchanged.
-check-oldrel:
+# No push pipeline runs these jobs; `check` is the push-time check.
+full-check:
   stage: check
   needs: []
-  image: rocker/r-ver:4.5
+  image: $R_IMAGE
   variables:
     R_KEEP_PKG_SOURCE: "yes"
-    # A SEPARATE library, and a separate cache key. An R package library is
-    # tied to the R minor version that built it — dropping 4.5 builds into the
-    # 4.6 cache would poison every other job with packages R 4.6 refuses to
-    # load ("installed by an R version with different internals").
-    R_LIBS_USER: "$CI_PROJECT_DIR/.cache/R-4.5"
-    R_LIBS: "$CI_PROJECT_DIR/.cache/R-4.5:/usr/local/lib/R/site-library:/usr/local/lib/R/library"
+    # A SEPARATE library per leg (the cache key below carries the job name,
+    # which carries the image). An R package library is tied to the R minor
+    # version that built it; mixing them into the 4.6 cache would poison every
+    # other job ("installed by an R version with different internals").
+    R_LIBS_USER: "$CI_PROJECT_DIR/.cache/R-deep"
+    R_LIBS: "$CI_PROJECT_DIR/.cache/R-deep:/usr/local/lib/R/site-library:/usr/local/lib/R/library"
+    # See `check`: incoming feasibility reads CRAN's metadata from here, not
+    # from p3m (SEOR-ygzjighu).
+    R_CRAN_SRC: "https://cloud.r-project.org"
+    R_CRAN_WEB: "https://cloud.r-project.org"
   cache:
-    key:
-      prefix: r45
-      files:
-        - DESCRIPTION
+    key: "deep-$CI_JOB_NAME_SLUG"
     paths:
-      - .cache/R-4.5
+      - .cache/R-deep
   rules:
     - if: $CI_COMMIT_TAG =~ /^v/
-    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "deep-check"
-    - when: manual
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
       allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "deep-check"
+    - if: $CI_PIPELINE_SOURCE == "api" && $DEEP_CHECK == "1"
+  parallel:
+    matrix:
+      # `latest` tracks the current R release; bump the pinned oldrel tag when
+      # a new minor R version ships.
+      - R_IMAGE:
+          - "rocker/r-ver:latest"
+          - "rocker/r-ver:4.5"
+          - "rocker/r-ver:devel"
   before_script:
-    # rocker pins `repos` to a FROZEN P3M snapshot in Rprofile.site — for
-    # `r-ver:4.5`, 2026-04-23 — which is the right default for reproducibility
-    # and the wrong one here. rurl imports punycoder and pslr, and the CRAN
-    # releases satisfying its floors postdate that snapshot, so dependency
-    # resolution fails outright:
-    #
-    #   * gitlab::bart-turczynski/rurl:
-    #     * Can't install dependency punycoder (>= 1.2.0) (>= 1.1.0)
-    #     * Can't install dependency pslr (>= 1.1.0)
-    #   * punycoder: Can't find package called punycoder, pslr.
-    #
-    # Not a pak bug and not version-specific: pak 0.9.4 and 0.11.1 both fail on
-    # the frozen snapshot and both succeed on `latest`. `r-ver:4.6` never hit it
-    # because its snapshot is recent enough to carry both packages.
-    #
-    # A user .Rprofile is the override, because Rprofile.site hardcodes the URL
-    # and reads no environment variable. Only the trailing date is replaced, so
-    # the distro path travels with the image instead of being restated here, and
-    # an unrecognized shape stops the job rather than silently leaving the pin in
-    # place. Testing old R against CURRENT packages is also what CRAN does.
-    #
-    # CRAN is appended behind p3m for the same reason the default before_script
-    # does it: p3m `latest` is NOT current — it lagged rurl 3.0.1 by more than a
-    # day. `latest` alone would leave this job unable to resolve the declared
-    # floor while every other job could. This file's user .Rprofile is read
-    # AFTER Rprofile.site, so it must carry the fallback itself rather than
-    # inherit it.
+    # The three images point `repos` at three shapes: `latest` at p3m
+    # `latest`, `4.5` at a FROZEN p3m snapshot (2026-04-23, older than the
+    # rurl, punycoder and pslr releases pagerankr needs, so resolution failed
+    # outright on it), and `devel` at cloud.r-project.org. A user .Rprofile,
+    # read after Rprofile.site, rewrites a trailing snapshot date to `latest`
+    # and puts CRAN itself behind it, because p3m `latest` lags a new CRAN
+    # release by up to a day (see the default before_script). Testing old R
+    # against CURRENT packages is also what CRAN does.
     - |
       Rscript -e '
       current <- getOption("repos")[["CRAN"]]
-      if (!grepl("/[0-9]{4}-[0-9]{2}-[0-9]{2}$", current)) {
-        stop("Expected a date-pinned P3M repo in Rprofile.site, found: ", current,
-             "\nThe image changed shape; this override needs rewriting.", call. = FALSE)
+      if (is.null(current) || !nzchar(current) || identical(current, "@CRAN@")) {
+        stop("Expected a repo in Rprofile.site, found: ", current, call. = FALSE)
       }
-      latest <- sub("/[0-9]{4}-[0-9]{2}-[0-9]{2}$", "/latest", current)
+      p3m <- sub("/[0-9]{4}-[0-9]{2}-[0-9]{2}$", "/latest", current)
       writeLines(sprintf("options(repos = c(P3M = %s, CRAN = %s))",
-                         dQuote(latest, FALSE),
+                         dQuote(p3m, FALSE),
                          dQuote("https://cloud.r-project.org", FALSE)),
                  file.path(Sys.getenv("HOME"), ".Rprofile"))
-      cat("Image pins:", current, "\n  overridden to:", latest,
+      cat("Image pins:", current, "\n  using:", p3m,
           "\n  with CRAN appended as fallback\n")'
     - mkdir -p "$R_LIBS_USER"
-    - Rscript -e 'if (!requireNamespace("pak", quietly = TRUE)) install.packages("pak")'
-    # Same self-evidencing check as the default job's before_script
-    # (SEOR-dyzgzyot) — this job has its own R_LIBS_USER/R_LIBS pair
-    # (.cache/R-4.5), so it is checked separately.
+    # pak from r-lib's own binary repository, not CRAN: rocker/r-ver:devel has
+    # no p3m binaries, and a CRAN source build of pak fails there for lack of
+    # libcurl headers (punycoder's full-check, pipeline 2894951198).
+    - >
+      Rscript -e 'if (!requireNamespace("pak", quietly = TRUE))
+      install.packages("pak", repos = sprintf(
+      "https://r-lib.github.io/p/pak/stable/%s/%s/%s",
+      .Platform$pkgType, R.Version()$os, R.Version()$arch))'
+    # Same self-evidencing check as the default before_script (SEOR-dyzgzyot).
     - |
       Rscript -e '
       cat("Effective .libPaths():\n"); print(.libPaths())
@@ -640,18 +655,96 @@ check-oldrel:
     - apt-get update -qq && apt-get install -y --no-install-recommends pandoc qpdf ghostscript
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install("rcmdcheck")'
+    # rcmdcheck reads a check that halted partway as 0/0/0 and returns normally,
+    # so error_on never fires; the guard also fails on R CMD check's own exit
+    # status (SEOR-maavnxdm).
     - |
       Rscript -e '
-      cat("Checking under R", as.character(getRversion()), "\n")
+      cat("Checking under", R.version.string, "\n")
       res <- rcmdcheck::rcmdcheck(
-        args = "--no-manual",
+        args = c("--no-manual", "--as-cran"),
         build_args = c("--no-manual", "--compact-vignettes=gs+qpdf"),
         error_on = "warning",
         check_dir = "check"
       )
       if (!identical(as.integer(res$status), 0L)) stop("R CMD check exited with status ", res$status, "; the run did not complete.", call. = FALSE)'
   artifacts:
-    when: on_failure
+    when: always
+    paths:
+      - check/
+    expire_in: 1 week
+
+# The deep-check leg at the declared R floor, `Depends: R (>= 4.1.0)`.
+#
+# 4.1 is the fleet floor rurl's own dependencies set (pslr and punycoder
+# declare it), and the oldest minor with an arm64 rocker/r-ver image (4.1.3).
+# Punycoder's `floor-check` design, with one pagerankr delta:
+#
+# - Packages come from one dated Posit Package Manager snapshot, FLOOR_SNAPSHOT,
+#   installed with base install.packages() (source builds; the snapshot URL is
+#   not a binary one). 2025-04-10 is the day before R 4.5.0, when R 4.1 was
+#   still inside the support window of these dependencies. The snapshot lives
+#   in this job alone, so it cannot conflict with what full-check's release
+#   and devel legs install.
+# - The delta: rurl, punycoder and pslr are newer than any such snapshot
+#   (`Imports: rurl (>= 3.0.1)` was published 2026-09-09), so those three come
+#   from CRAN itself, without dependencies, AFTER their own dependencies
+#   (stringi, digest, Rcpp, cpp11) came from the snapshot. They are reinstalled
+#   on every run, so a cached library cannot hold a stale rurl.
+# - Only what the check needs is installed: the hard dependencies, the test and
+#   vignette Suggests, and rcmdcheck. The rest of Suggests (shiny, DT,
+#   visNetwork, covr, pkgdown, lintr, goodpractice, oysteR, rosv) serve the
+#   explorer, the tooling and the scheduled audits; their tests skip or mock
+#   without them, so _R_CHECK_FORCE_SUGGESTS_=false lets --as-cran report them
+#   as a NOTE instead of stopping.
+# - Vignettes are neither built nor checked, as in punycoder: no pandoc in this
+#   job, and the vignettes exercise the same functions the tests do.
+#
+# Its own before_script: the default one rewrites repos and installs pak for
+# the 4.6 image, and this job uses neither.
+floor-check:
+  stage: check
+  needs: []
+  image: rocker/r-ver:4.1.3
+  variables:
+    FLOOR_SNAPSHOT: "https://packagemanager.posit.co/cran/2025-04-10"
+    R_CRAN_SRC: "https://cloud.r-project.org"
+    R_CRAN_WEB: "https://cloud.r-project.org"
+    _R_CHECK_FORCE_SUGGESTS_: "false"
+    R_LIBS_USER: "$CI_PROJECT_DIR/.cache/R-floor"
+    R_LIBS: "$CI_PROJECT_DIR/.cache/R-floor:/usr/local/lib/R/site-library:/usr/local/lib/R/library"
+  cache:
+    key: floor-r41-2025-04-10
+    paths:
+      - .cache/R-floor
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v/
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+      allow_failure: true
+    - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "deep-check"
+    - if: $CI_PIPELINE_SOURCE == "api" && $DEEP_CHECK == "1"
+  before_script:
+    - mkdir -p "$R_LIBS_USER"
+  script:
+    - apt-get update -qq && apt-get install -y --no-install-recommends pkg-config libcurl4-openssl-dev libssl-dev libxml2-dev libglpk-dev libgmp3-dev zlib1g-dev
+    - >
+      Rscript -e 'snap <- c("igraph", "stringi", "digest", "Rcpp", "cpp11", "testthat", "withr", "knitr", "rmarkdown", "rcmdcheck");
+      need <- setdiff(snap, rownames(installed.packages()));
+      if (length(need)) install.packages(need, repos = Sys.getenv("FLOOR_SNAPSHOT"), Ncpus = 4L);
+      install.packages(c("punycoder", "pslr", "rurl"), repos = "https://cloud.r-project.org", dependencies = FALSE, Ncpus = 4L);
+      stopifnot(all(vapply(c("igraph", "rurl", "testthat", "rcmdcheck"), requireNamespace, NA, quietly = TRUE)));
+      print(R.version.string)'
+    # rcmdcheck reads a check that halted partway as 0/0/0 and returns normally,
+    # so error_on never fires; the guard also fails on R CMD check's own exit
+    # status (SEOR-maavnxdm).
+    - >
+      Rscript -e 'res <- rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran", "--ignore-vignettes"),
+      build_args = c("--no-manual", "--no-build-vignettes"),
+      error_on = "warning", check_dir = "check");
+      if (!identical(as.integer(res$status), 0L)) stop("R CMD check exited with status ", res$status, "; the run did not complete.", call. = FALSE)'
+  artifacts:
+    when: always
     paths:
       - check/
     expire_in: 1 week
@@ -679,8 +772,8 @@ check-oldrel:
 # tag, since no branch or MR pipeline is created any more. It was manual while
 # it could not pass; it can, so it gates.
 #
-# EVALUATED for the same `deep-check` schedule guard as `check-oldrel`
-# (SEOR-ihmntqzm) and deliberately left alone. Unlike `check-oldrel`, this is
+# EVALUATED for the same `deep-check` schedule guard as `full-check` (then
+# `check-oldrel`; SEOR-ihmntqzm) and deliberately left alone. Unlike it, this is
 # not "reachable in theory, run in practice never": orchestrator-measured
 # 2026-09-23 via `glab api projects/bart-turczynski%2Fpagerankr/jobs`, the four
 # most recent `rurl-floor` runs are all `success`, 60-85s each, on ordinary
@@ -772,7 +865,7 @@ rurl-floor:
 #
 # It reports on upstream, so it never blocks: `allow_failure` on both paths. It
 # runs on a pipeline schedule that sets `SCHEDULE_KIND=rurl-devel` (the
-# SCHEDULE_KIND mechanism `check-oldrel` describes; creating the schedule is
+# SCHEDULE_KIND mechanism `full-check` describes; creating the schedule is
 # the owner's action), or by hand. `RURL_DEVEL_REF` picks another rurl branch
 # or commit for a manual run, which is how a deliberate upstream break is
 # checked for visibility.
@@ -869,7 +962,7 @@ pages:
     # no-op rather than a failure.
     - |
       set -eu
-      keep="README.md NEWS.md LICENSE.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md THIRD_PARTY_NOTICES.md ACKNOWLEDGMENTS.md"
+      keep="README.md NEWS.md LICENSE.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md THIRD_PARTY_NOTICES.md ACKNOWLEDGMENTS.md ARCHITECTURE.md"
       for f in $keep; do
         if [ "$f" = "THIRD_PARTY_NOTICES.md" ] && [ ! -f "$f" ]; then
           continue

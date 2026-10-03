@@ -74,7 +74,7 @@ repos:
         exclude: '^(man/|inst/extdata/(?!README\.md$)|tests/testthat/fixtures/|\.bestpractices\.json$)'
   - repo: local
     hooks:
-      # The same six-check script CI's local counterpart has always run,
+      # The same seven-check script CI's local counterpart has always run,
       # unchanged -- .githooks/pre-push stays where it is. It reads no git
       # hook arguments and no stdin, so it runs identically whether git invokes
       # it directly or pre-commit does. Skip flags (SKIP_VERIFY, SKIP_RCMDCHECK,
@@ -93,8 +93,22 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-push]
+      # Fetches every URL the package declares (DESCRIPTION, man/,
+      # inst/CITATION, NEWS, README.md) and fails on a dead one: --as-cran in
+      # `verify` reports a dead link only as a NOTE, which the gate lets
+      # through. A URL that cannot be reached at all only warns, so a network
+      # blip never rejects a push; zero URLs checked fails; the only exemption
+      # is BugReports' /-/issues URL answering exactly 404 (SEOR-ocbtrrnl).
+      # The fleet standard's URL check, copied from punycoder.
+      - id: check-urls
+        name: declared URLs resolve
+        entry: Rscript scripts/check-urls.R
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
       - id: verify
-        name: 'verify (six-step gate: news/citation/bugreports/lint/spelling/check)'
+        name: 'verify (seven-step gate: news/codemeta/citation/bugreports/lint/spelling/check)'
         entry: .githooks/pre-push
         language: system
         pass_filenames: false

@@ -55,13 +55,15 @@
 #                                              it was hook-only before, so the
 #                                              fleet's newest gate ran on one
 #                                              laptop and nowhere else)
-#   R CMD check     yes    check               CI's is a standard check; this
-#                                              one is --as-cran and stricter
+#   R CMD check     yes    check               both --as-cran, failing on
+#                                              warnings
 #   coverage        NO     coverage            CI only
 #   osv-audit       NO     osv-audit           CI only, and schedule-gated
 #   OSS Index       NO     security-audit      CI only, schedule-gated, needs
 #                                              OSSINDEX_USER / OSSINDEX_TOKEN
-#   check-oldrel    NO     check-oldrel        CI only, manual
+#   R matrix        NO     full-check,         CI only, deep-check schedule
+#                          floor-check         (release/oldrel/devel/4.1)
+#   README drift    NO     gates (readme)      CI only
 #   rurl-floor      NO     rurl-floor          CI only
 #   pages           NO     pages               CI only
 #

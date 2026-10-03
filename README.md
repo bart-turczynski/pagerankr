@@ -1,8 +1,7 @@
 pagerankr: SEO-Focused PageRank Modeling Toolkit
 ================
 
-- [1 pagerankr
-  <img src="man/figures/logo.png" align="right" height="139" alt="pagerankr hex sticker" />](#1-pagerankr-)
+- [1 pagerankr](#1-pagerankr)
   - [1.1 Installation](#11-installation)
   - [1.2 Quick Start](#12-quick-start)
   - [1.3 Current Capabilities](#13-current-capabilities)
@@ -20,7 +19,7 @@ pagerankr: SEO-Focused PageRank Modeling Toolkit
   - [1.6 Code of Conduct](#16-code-of-conduct)
   - [1.7 License](#17-license)
 
-# 1 pagerankr <img src="man/figures/logo.png" align="right" height="139" alt="pagerankr hex sticker" />
+# 1 pagerankr
 
 <!-- badges: start -->
 
@@ -28,14 +27,26 @@ pagerankr: SEO-Focused PageRank Modeling Toolkit
 status](https://www.r-pkg.org/badges/version/pagerankr)](https://CRAN.R-project.org/package=pagerankr)
 [![CRAN
 downloads](https://cranlogs.r-pkg.org/badges/pagerankr)](https://CRAN.R-project.org/package=pagerankr)
+[![CRAN
+checks](https://badges.cranchecks.info/worst/pagerankr.svg)](https://cran.r-project.org/web/checks/check_results_pagerankr.html)
+[![r-universe](https://bart-turczynski.r-universe.dev/pagerankr/badges/version)](https://bart-turczynski.r-universe.dev/pagerankr)
+[![Pipeline](https://gitlab.com/bart-turczynski/pagerankr/badges/main/pipeline.svg)](https://gitlab.com/bart-turczynski/pagerankr/-/pipelines)
+[![Coverage](https://gitlab.com/bart-turczynski/pagerankr/badges/main/coverage.svg)](https://gitlab.com/bart-turczynski/pagerankr/-/pipelines)
+[![Docs](https://img.shields.io/website?url=https%3A%2F%2Fbart-turczynski.gitlab.io%2Fpagerankr%2F&label=docs&logo=gitlab&logoColor=white&up_message=pkgdown&up_color=1f75cb)](https://bart-turczynski.gitlab.io/pagerankr/)
+[![Latest
+release](https://img.shields.io/gitlab/v/release/bart-turczynski%2Fpagerankr)](https://gitlab.com/bart-turczynski/pagerankr/-/releases)
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
+[![Project Status:
+Active](https://www.repostatus.org/badges/latest/active.svg)](https://www.repostatus.org/#active)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23046334.svg)](https://doi.org/10.5281/zenodo.23046334)
+[![Zenodo](https://img.shields.io/badge/Zenodo-all_software-1682D4?logo=zenodo&logoColor=white)](https://zenodo.org/search?q=metadata.creators.person_or_org.identifiers.identifier:0000-0002-8788-7980)
 [![OpenSSF Best
 Practices](https://www.bestpractices.dev/projects/13553/badge)](https://www.bestpractices.dev/projects/13553)
-[![Pipeline
-status](https://gitlab.com/bart-turczynski/pagerankr/badges/main/pipeline.svg)](https://gitlab.com/bart-turczynski/pagerankr/-/pipelines)
-[![Documentation](https://img.shields.io/badge/docs-pkgdown-blue.svg)](https://bart-turczynski.gitlab.io/pagerankr/)
-[![Coverage](https://gitlab.com/bart-turczynski/pagerankr/badges/main/coverage.svg)](https://gitlab.com/bart-turczynski/pagerankr/-/pipelines)
+[![License](https://img.shields.io/gitlab/license/bart-turczynski%2Fpagerankr)](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/LICENSE.md)
+[![Dependencies](https://tinyverse.netlify.app/badge/pagerankr)](https://CRAN.R-project.org/package=pagerankr)
+[![Last
+commit](https://img.shields.io/gitlab/last-commit/bart-turczynski%2Fpagerankr)](https://gitlab.com/bart-turczynski/pagerankr/-/commits/main)
 <!-- badges: end -->
 
 `pagerankr` is an SEO-focused R toolkit for PageRank modeling on crawl

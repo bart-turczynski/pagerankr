@@ -1,5 +1,11 @@
 # pagerankr (development version)
 
+## Breaking changes
+
+* pagerankr now requires R >= 4.1.0 (was R >= 4.0.0). rurl, which pagerankr
+  imports, needs pslr and punycoder, and both require R 4.1. The weekly
+  `deep-check` pipeline now checks the package on R 4.1.3 (`SEOR-wurguiqa`).
+
 ## Bug fixes
 
 * **Case-insensitive matching no longer depends on the locale.** Screaming Frog

@@ -105,8 +105,9 @@ repository:
           release: true
         results: {}
         comment: |
-          The GitLab CI `check` job runs R CMD check on Linux with R 4.6;
-          `check-oldrel` runs it with R 4.5 on v* tags and on the deep-check
+          The GitLab CI `check` job runs R CMD check --as-cran on Linux with
+          R 4.6; `full-check` runs it on R release, oldrel and devel, and
+          `floor-check` on R 4.1.3, on v* tags and on the deep-check
           schedule. The pre-push hook runs --as-cran. There is no macOS or
           Windows CI; see the header of .gitlab-ci.yml.
       - name: rosv (OSV)

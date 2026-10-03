@@ -46,7 +46,8 @@ CI_FILE = REPO_ROOT / ".gitlab-ci.yml"
 # Post SEOR-wqxhftpv: the filter is a keep-list (README, NEWS, LICENSE,
 # CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, THIRD_PARTY_NOTICES, plus
 # ACKNOWLEDGMENTS.md -- referenced from _pkgdown.yml's navbar, so it is a
-# per-repo addition to the base list) rather than a glob naming private
+# per-repo addition to the base list, and ARCHITECTURE.md, the fleet
+# standard's entry point, SEOR-wurguiqa) rather than a glob naming private
 # families. `cran-comments.md` is no longer a survivor: it was never in any
 # version of the private-family glob (so it used to survive by omission) and
 # is not on the public keep-list either, so it is now moved out too.
@@ -55,6 +56,7 @@ CI_FILE = REPO_ROOT / ".gitlab-ci.yml"
 # that does.
 EXPECTED_SURVIVORS = {
     "ACKNOWLEDGMENTS.md",
+    "ARCHITECTURE.md",
     "CODE_OF_CONDUCT.md",
     "CONTRIBUTING.md",
     "LICENSE.md",
