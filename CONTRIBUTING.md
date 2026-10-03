@@ -231,31 +231,28 @@ the Suggests (or push with `SKIP_RCMDCHECK=1` deliberately). The full check — 
 bump that turns test fixtures red (this class of failure previously slipped
 onto `main` while remote CI was billing-disabled; see PR #50).
 
-The cross-platform matrix (`full-check.yml`) and R-hub (`rhub.yaml`) are the
-**"remote testing when submitting to CRAN"** path — on demand / at release-tag
-time, because that matrix is slow rather than expensive.
-
-One slice of the matrix now runs on GitLab: `check-oldrel` checks the package
-under the previous R minor release, automatically on `v*` tags and manually
-otherwise. "Otherwise" is narrower than it used to be: with only `main` and tag
-pipelines existing at all (see "One pipeline, not three" above), the manual
-trigger is only reachable from a pipeline on `main` — there is no longer a
-branch or MR pipeline to run it from before merging. The rest cannot follow it,
-and a CRAN submission still has to account for that:
+The R-version matrix runs on GitLab, on the weekly `deep-check` schedule (a
+pipeline schedule that sets `SCHEDULE_KIND=deep-check`), on `v*` tags, by hand
+from **Run pipeline**, and from the terminal with
+`glab ci run --branch main --variables DEEP_CHECK:1`. `full-check` runs
+`R CMD check --as-cran` on R release, oldrel and devel; `floor-check` runs it
+on R 4.1.3, the floor `DESCRIPTION` declares, with dependencies from a dated
+Posit Package Manager snapshot (the job's comment in `.gitlab-ci.yml` says
+which come from CRAN instead, and why). No push pipeline runs them. The
+platform half of the old matrix cannot follow, and a CRAN submission still
+has to account for that:
 
 - **macOS and Windows** have no runner. The self-hosted runner is Docker on
   one Mac, so Linux containers only, and shared runners are not an
   alternative today because the namespace's Free-plan quota is exhausted (see
   "It runs on a self-hosted runner, not GitLab's shared fleet" above) — not
   because the plan structurally disallows them.
-- **R-devel** is left out on purpose: `rocker/r-devel` publishes no arm64
-  variant, so it would run emulated on this host.
 - **R-hub cannot be ported at all.** R-hub v2 works by dispatching workflows
   inside a GitHub repository; there is no GitLab equivalent to translate.
 
 So **a CRAN submission still needs R-hub and win-builder run by hand.** Nothing
-in GitLab CI substitutes for either, and `check-oldrel` does not narrow that gap
-— it widens R-version coverage, not platform coverage.
+in GitLab CI substitutes for either, and the `deep-check` legs do not narrow
+that gap — they widen R-version coverage, not platform coverage.
 
 ## The rurl floor job (`rurl-floor`)
 
@@ -356,6 +353,7 @@ pagerankr's deltas:
   `main` pipeline. Before win-builder's R-release queue, also check that CRAN
   serves Windows binaries of that rurl version: 0.1.0's R-release run waited
   for them (PAGE-xylymvme).
-- **Step 6: `check-oldrel` runs by itself only on the tag.** To see it
-  before submission, start it by hand from the release commit's `main`
-  pipeline (agent+go).
+- **Step 6: `full-check` and `floor-check` run by themselves only on the
+  tag and the weekly schedule.** To see them before submission, run
+  `glab ci run --branch main --variables DEEP_CHECK:1` on the release commit
+  (agent+go).

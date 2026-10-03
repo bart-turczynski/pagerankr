@@ -30,12 +30,13 @@
 # job that stopped before running it.
 #
 # WHAT STAYS SEPARATE, on purpose: `check`, `coverage`, `pages`,
-# `citation-version`, `osv-audit`, `security-audit`, `check-oldrel` and
-# `rurl-floor` are not part of this harness -- different failure meanings (or a
-# missing interpreter, for citation-version), and the two audits in particular
-# are security signals that should not lose their own red/green by being buried
-# inside an unrelated metadata check. See the `gates:` job's own comment in
-# .gitlab-ci.yml for the fold / no-fold reasoning in full.
+# `citation-version`, `osv-audit`, `security-audit`, `full-check`,
+# `floor-check` and `rurl-floor` are not part of this harness -- different
+# failure meanings (or a missing interpreter, for citation-version), and the
+# two audits in particular are security signals that should not lose their
+# own red/green by being buried inside an unrelated metadata check. See the
+# `gates:` job's own comment in .gitlab-ci.yml for the fold / no-fold
+# reasoning in full.
 #
 # Each gate below reproduces its former CI job's script VERBATIM -- same
 # commands, same comparisons, same exit conditions -- so folding changes
@@ -145,9 +146,50 @@ gate_lint <- function() {
   record("lint", TRUE)
 }
 
+# 4. readme -- the fleet standard's README drift gate (seor
+# design/fleet-standard.md): README.md must match a fresh knit of README.Rmd.
+# Rendered with rmarkdown directly rather than devtools::build_readme(): the
+# Rmd evaluates no package code, so nothing needs installing first, and
+# rmarkdown is already a Suggests. Needs pandoc 3.10 and git, which the `gates`
+# CI job installs (see `.pandoc_script` there).
+#
+# Blank-line-only differences don't count: pandoc versions disagree about the
+# blank line after `<!-- badges: start -->` (punycoder's
+# scripts/gates-readme-check.sh, SEOR-kaqtnovh). The test is on the diff's
+# output rather than its exit status, which rocker's git 2.43 sets on a
+# blank-only diff even under --ignore-blank-lines.
+gate_readme <- function() {
+  knit <- tryCatch(
+    {
+      rmarkdown::render(
+        "README.Rmd",
+        output_options = list(html_preview = FALSE),
+        quiet = TRUE
+      )
+      NULL
+    },
+    error = function(e) conditionMessage(e)
+  )
+  if (!is.null(knit)) {
+    return(record("readme", FALSE, c("README.Rmd failed to knit:", knit)))
+  }
+  drift <- system2(
+    "git", c("diff", "--ignore-blank-lines", "--", "README.md"),
+    stdout = TRUE
+  )
+  if (length(drift)) {
+    return(record("readme", FALSE, c(
+      drift,
+      "README.md is out of sync with README.Rmd. Knit it and commit the result."
+    )))
+  }
+  record("readme", TRUE)
+}
+
 available <- list(
   "news-version" = gate_news_version,
   "codemeta" = gate_codemeta,
+  "readme" = gate_readme,
   "lint" = gate_lint
 )
 
