@@ -16,116 +16,120 @@ topic_feeder_pagerank(
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, typically with
 columns like "from" and "to". Edges are expected to be page-to-page
-hyperlinks: `pagerank()` is graph-agnostic and treats every endpoint as a
+hyperlinks: \code{pagerank()} is graph-agnostic and treats every endpoint as a
 node, so resource links (images, CSS, JS, and other non-HTML references)
 must be filtered upstream or they collect authority as ordinary vertices.
-`pagerank_screaming_frog()` does this at the crawl boundary via
-[sf_graph_eligible()] (`Hyperlink` only); a hand-built or non-SF edge list
+\code{pagerank_screaming_frog()} does this at the crawl boundary via
+\code{\link[=sf_graph_eligible]{sf_graph_eligible()}} (\code{Hyperlink} only); a hand-built or non-SF edge list
 should apply the same hyperlink-only filter before scoring.}
 
 \item{seeds}{The target cluster. Either a character vector of cluster URLs
-(each gets equal seed weight unless `seed_weight` is given), or a data
-frame with a URL column and a numeric weight column (see `seed_url_col` /
-`seed_weight_col`) for unequal cluster emphasis. See [seed_prior()].}
+(each gets equal seed weight unless \code{seed_weight} is given), or a data
+frame with a URL column and a numeric weight column (see \code{seed_url_col} /
+\code{seed_weight_col}) for unequal cluster emphasis. See \code{\link[=seed_prior]{seed_prior()}}.}
 
-\item{seed_weight}{Optional numeric weight for a character-vector `seeds`:
+\item{seed_weight}{Optional numeric weight for a character-vector \code{seeds}:
 either one value per seed or a single value recycled to all seeds. Ignored
-when `seeds` is a data frame. Default `NULL` (every cluster page weight
-`1`, a uniform distribution over the cluster).}
+when \code{seeds} is a data frame. Default \code{NULL} (every cluster page weight
+\code{1}, a uniform distribution over the cluster).}
 
-\item{seed_url_col, seed_weight_col}{Column names used when `seeds` is a data
-frame. Defaults `"url"` / `"weight"`. Ignored for a character vector.}
+\item{seed_url_col, seed_weight_col}{Column names used when \code{seeds} is a data
+frame. Defaults \code{"url"} / \code{"weight"}. Ignored for a character vector.}
 
-\item{...}{Additional arguments forwarded to [pagerank()] (e.g.
-`redirects_df`, `canonicals_df`, `rurl_params`, `weight_col`,
-`prior_transform`, `prior_alpha`, `damping`). Passing `prior_df`,
-`prior_url_col`, `prior_weight_col`, or `reverse` is an error.}
+\item{...}{Additional arguments forwarded to \code{\link[=pagerank]{pagerank()}} (e.g.
+\code{redirects_df}, \code{canonicals_df}, \code{rurl_params}, \code{weight_col},
+\code{prior_transform}, \code{prior_alpha}, \code{damping}). Passing \code{prior_df},
+\code{prior_url_col}, \code{prior_weight_col}, or \code{reverse} is an error.}
 }
 \value{
-The [pagerank()] result data frame (`node_name`, `pagerank`, and the
-  `prior_weight` column the prior path adds), sorted by `pagerank`
-  descending, carrying the usual `"transition_audit"` attribute. The audit's
-  model configuration records `reverse = TRUE`.
+The \code{\link[=pagerank]{pagerank()}} result data frame (\code{node_name}, \code{pagerank}, and the
+\code{prior_weight} column the prior path adds), sorted by \code{pagerank}
+descending, carrying the usual \code{"transition_audit"} attribute. The audit's
+model configuration records \code{reverse = TRUE}.
 }
 \description{
-The reverse-graph sibling of [topic_sensitive_pagerank()].
-  Where Topic-Sensitive PageRank answers *"given I care about this cluster,
-  which pages are most **authoritative** for it?"* (authority flows
-  downstream **from** the seed cluster), `topic_feeder_pagerank()` answers
-  the inverse
-  question: *"which pages **feed / power** this cluster?"* — i.e. the
-  strongest internal hubs whose outlinks point **into** the target pages.
+The reverse-graph sibling of \code{\link[=topic_sensitive_pagerank]{topic_sensitive_pagerank()}}.
+Where Topic-Sensitive PageRank answers \emph{"given I care about this cluster,
+which pages are most \strong{authoritative} for it?"} (authority flows
+downstream \strong{from} the seed cluster), \code{topic_feeder_pagerank()} answers
+the inverse
+question: \emph{"which pages \strong{feed / power} this cluster?"} — i.e. the
+strongest internal hubs whose outlinks point \strong{into} the target pages.
 
-  It is personalized PageRank with the teleport prior concentrated on the
-  **target cluster**, run on the **transposed** link graph
-  (`reverse = TRUE`). Mass teleports onto the cluster and then walks
-  *backward* along links, so it accumulates on the pages that funnel
-  authority toward the cluster. The further (in out-link hops) a page is from
-  the cluster, the less feeder credit it earns — the PageRank damping factor
-  is exactly that attenuation.
+It is personalized PageRank with the teleport prior concentrated on the
+\strong{target cluster}, run on the \strong{transposed} link graph
+(\code{reverse = TRUE}). Mass teleports onto the cluster and then walks
+\emph{backward} along links, so it accumulates on the pages that funnel
+authority toward the cluster. The further (in out-link hops) a page is from
+the cluster, the less feeder credit it earns — the PageRank damping factor
+is exactly that attenuation.
 
-  Like [trustrank()] and [topic_sensitive_pagerank()], this introduces **no
-  new solver**: it builds a `prior_df` from the seed set ([seed_prior()]) and
-  hands it to [pagerank()] with `reverse = TRUE`. The caller supplies the
-  cluster; there is no topic inference. The prior builder is the *same*
-  [seed_prior()] that [trustrank()] uses — a seed prior is orientation-
-  agnostic; the reversed graph is what makes this a feeder query.
+Like \code{\link[=trustrank]{trustrank()}} and \code{\link[=topic_sensitive_pagerank]{topic_sensitive_pagerank()}}, this introduces \strong{no
+new solver}: it builds a \code{prior_df} from the seed set (\code{\link[=seed_prior]{seed_prior()}}) and
+hands it to \code{\link[=pagerank]{pagerank()}} with \code{reverse = TRUE}. The caller supplies the
+cluster; there is no topic inference. The prior builder is the \emph{same}
+\code{\link[=seed_prior]{seed_prior()}} that \code{\link[=trustrank]{trustrank()}} uses — a seed prior is orientation-
+agnostic; the reversed graph is what makes this a feeder query.
 }
 \details{
-## Why this is not recoverable from forward PageRank
+\subsection{Why this is not recoverable from forward PageRank}{
 
-In PageRank, authority flows **along** link direction: linking *to* an
+In PageRank, authority flows \strong{along} link direction: linking \emph{to} an
 important page does not make the linker important. So "the pages that feed
-cluster X" is **not** a re-reading of forward (or Topic-Sensitive) PageRank
+cluster X" is \strong{not} a re-reading of forward (or Topic-Sensitive) PageRank
 scores — it is the reversed-graph notion. Forward PageRank and
-[topic_sensitive_pagerank()] rank pages by **inflow** (important because
-important pages point at them); `topic_feeder_pagerank()` ranks by **outflow
-toward the cluster** (important because *it* points at the cluster).
-
-## How to read the result
-
-The seed (cluster) pages carry the teleport mass directly, so they appear in
-`prior_weight` with a positive value and tend to score highly *by
-construction* — that is teleport, not a feeder signal. **The feeders are
-the high-`pagerank` pages whose `prior_weight` is `0`** (pages outside the
-cluster that nonetheless accumulate reverse-walk mass). Rank by `pagerank`
-and read
-off the top non-seed rows, or filter `prior_weight == 0`.
-
-## Relationship to neighboring tools
-\describe{
-  \item{[pagerank()] (forward)}{Global inflow authority. Feeder PageRank is
-    its transpose, biased to a cluster.}
-  \item{[topic_sensitive_pagerank()] (G2)}{The forward-graph sibling: same
-    personalization plumbing, opposite flow direction. G2 finds a cluster's
-    *authorities*; this finds its *feeders*. They are complementary, not
-    substitutes.}
-  \item{Inverse PageRank (`pagerank(reverse = TRUE)`)}{The **global**,
-    unseeded outflow centrality — "which pages funnel authority outward
-    anywhere on the site". Feeder PageRank adds the cluster bias: not "good
-    hub in general" but "good hub *for this cluster*". With no `seeds` you
-    would just call `pagerank(reverse = TRUE)` directly.}
-  \item{HITS hubs ([hits()])}{Also an outflow notion, but a co-computed
-    eigenvector pair (hub <-> authority) with no teleport prior and no
-    damped-surfer / dangling handling. Feeder PageRank is the
-    random-surfer-model, cluster-seedable counterpart that stays inside the
-    [pagerank()] graph-preparation contract (redirects, canonicals,
-    duplicate-edge policy, weights).}
+\code{\link[=topic_sensitive_pagerank]{topic_sensitive_pagerank()}} rank pages by \strong{inflow} (important because
+important pages point at them); \code{topic_feeder_pagerank()} ranks by \strong{outflow
+toward the cluster} (important because \emph{it} points at the cluster).
 }
 
-Seed weights are an **additive feeder budget**: if two seed URLs fold onto
+\subsection{How to read the result}{
+
+The seed (cluster) pages carry the teleport mass directly, so they appear in
+\code{prior_weight} with a positive value and tend to score highly \emph{by
+construction} — that is teleport, not a feeder signal. \strong{The feeders are
+the high-\code{pagerank} pages whose \code{prior_weight} is \code{0}} (pages outside the
+cluster that nonetheless accumulate reverse-walk mass). Rank by \code{pagerank}
+and read
+off the top non-seed rows, or filter \code{prior_weight == 0}.
+}
+
+\subsection{Relationship to neighboring tools}{
+
+\describe{
+\item{\code{\link[=pagerank]{pagerank()}} (forward)}{Global inflow authority. Feeder PageRank is
+its transpose, biased to a cluster.}
+\item{\code{\link[=topic_sensitive_pagerank]{topic_sensitive_pagerank()}} (G2)}{The forward-graph sibling: same
+personalization plumbing, opposite flow direction. G2 finds a cluster's
+\emph{authorities}; this finds its \emph{feeders}. They are complementary, not
+substitutes.}
+\item{Inverse PageRank (\code{pagerank(reverse = TRUE)})}{The \strong{global},
+unseeded outflow centrality — "which pages funnel authority outward
+anywhere on the site". Feeder PageRank adds the cluster bias: not "good
+hub in general" but "good hub \emph{for this cluster}". With no \code{seeds} you
+would just call \code{pagerank(reverse = TRUE)} directly.}
+\item{HITS hubs (\code{\link[=hits]{hits()}})}{Also an outflow notion, but a co-computed
+eigenvector pair (hub <-> authority) with no teleport prior and no
+damped-surfer / dangling handling. Feeder PageRank is the
+random-surfer-model, cluster-seedable counterpart that stays inside the
+\code{\link[=pagerank]{pagerank()}} graph-preparation contract (redirects, canonicals,
+duplicate-edge policy, weights).}
+}
+
+Seed weights are an \strong{additive feeder budget}: if two seed URLs fold onto
 the same vertex (redirect / canonical variants) their weights sum, exactly as
 the
-[pagerank()] / [align_prior_to_vertices()] prior contract specifies.
+\code{\link[=pagerank]{pagerank()}} / \code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}} prior contract specifies.
 
-Everything [pagerank()] accepts flows through `...`: redirects, canonicals,
+Everything \code{\link[=pagerank]{pagerank()}} accepts flows through \code{...}: redirects, canonicals,
 URL cleaning, domain/host filtering, edge weights, duplicate-edge policy, and
-the prior-shaping knobs (`prior_transform`, `prior_alpha`). Because this owns
-both the prior and the graph orientation, passing `prior_df`,
-`prior_url_col`, `prior_weight_col`, or `reverse` is an error. Note that the
-direction-sensitive forward-flow devices that [pagerank()] already rejects
-under `reverse = TRUE` (`nofollow_action = "evaporate"`, `indexability_df`)
+the prior-shaping knobs (\code{prior_transform}, \code{prior_alpha}). Because this owns
+both the prior and the graph orientation, passing \code{prior_df},
+\code{prior_url_col}, \code{prior_weight_col}, or \code{reverse} is an error. Note that the
+direction-sensitive forward-flow devices that \code{\link[=pagerank]{pagerank()}} already rejects
+under \code{reverse = TRUE} (\code{nofollow_action = "evaporate"}, \code{indexability_df})
 are likewise unavailable here.
+}
 }
 \examples{
 edges <- data.frame(
@@ -150,6 +154,6 @@ identical_run <- pagerank(
 )
 }
 \seealso{
-[seed_prior()], [topic_sensitive_pagerank()], [trustrank()],
-  [pagerank()], [align_prior_to_vertices()], [hits()]
+\code{\link[=seed_prior]{seed_prior()}}, \code{\link[=topic_sensitive_pagerank]{topic_sensitive_pagerank()}}, \code{\link[=trustrank]{trustrank()}},
+\code{\link[=pagerank]{pagerank()}}, \code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}}, \code{\link[=hits]{hits()}}
 }

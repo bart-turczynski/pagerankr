@@ -382,7 +382,7 @@ smooth_transitions <- function(empirical_df,
   out
 }
 
-#' Validate a `lambda_fn` return value is a single number in [0, 1].
+#' Validate a `lambda_fn` return value is a single number in `[0, 1]`.
 #' @keywords internal
 #' @noRd
 .validate_lambda_value <- function(lambda, src) {

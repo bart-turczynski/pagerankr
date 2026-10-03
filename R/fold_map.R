@@ -150,7 +150,7 @@ build_fold_map <- function(redirects_df = NULL,
 #'   \describe{
 #'     \item{map}{Named character vector (source -> representative) covering
 #'       only sources whose URL actually changes. Idempotent: applying it to its
-#'       own values is a no-op. Use [.apply_fold_map()] to fold URLs with it.}
+#'       own values is a no-op. Use `.apply_fold_map()` to fold URLs with it.}
 #'     \item{signal}{Named character vector (source -> "redirect"|"canonical")
 #'       over the same keys as `map`.}
 #'     \item{redirect_terminal}{The standalone redirect terminal map.}

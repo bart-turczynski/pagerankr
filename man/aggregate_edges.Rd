@@ -16,99 +16,105 @@ aggregate_edges(
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, with at least
-the `from_col` and `to_col` columns.}
+the \code{from_col} and \code{to_col} columns.}
 
 \item{agg}{A named list of per-column aggregation overrides. Names are
 column names; values are either a built-in aggregation string or a
 function. Columns not listed use the defaults described above. Default
-`list()`.}
+\code{list()}.}
 
 \item{nofollow_policy}{The default conflict policy applied to logical
-columns that are not explicitly listed in `agg`. One of `"any"` (default),
-`"all"`, `"majority"`, or `"error"`. Named `nofollow_policy` because the
+columns that are not explicitly listed in \code{agg}. One of \code{"any"} (default),
+\code{"all"}, \code{"majority"}, or \code{"error"}. Named \code{nofollow_policy} because the
 nofollow flag is the canonical boolean attribute, but it governs every
 un-overridden logical column.}
 
 \item{preserve_cols}{Character vector of columns to keep un-collapsed as
 per-group list-columns (e.g. placement / position features). Default
-`character(0)`.}
+\code{character(0)}.}
 
-\item{self_loops}{How to handle self-loops (`a -> a`). One of `"drop"`
-(default) or `"keep"`.}
+\item{self_loops}{How to handle self-loops (\code{a -> a}). One of \code{"drop"}
+(default) or \code{"keep"}.}
 
-\item{from_col}{Name of the source-node column. Default `"from"`.}
+\item{from_col}{Name of the source-node column. Default \code{"from"}.}
 
-\item{to_col}{Name of the target-node column. Default `"to"`.}
+\item{to_col}{Name of the target-node column. Default \code{"to"}.}
 }
 \value{
-A data frame with one row per unique `from/to` pair (self-loops
-  handled per `self_loops`). `from_col` / `to_col` are coerced to character;
-  each remaining column is aggregated per its resolved rule; `preserve_cols`
-  become list-columns. Row order follows first appearance of each
-  `from/to` pair in the (NA-filtered, self-loop-handled) input.
+A data frame with one row per unique \code{from/to} pair (self-loops
+handled per \code{self_loops}). \code{from_col} / \code{to_col} are coerced to character;
+each remaining column is aggregated per its resolved rule; \code{preserve_cols}
+become list-columns. Row order follows first appearance of each
+\code{from/to} pair in the (NA-filtered, self-loop-handled) input.
 }
 \description{
-Collapses duplicate `from -> to` rows in an edge list using
-  explicit, per-column aggregation semantics. This is the post-fold
-  aggregation step intended to run *after* redirect / canonical folding has
-  coalesced URL variants onto their representatives, and it is a
-  loss-aware alternative to [get_unique_edges()].
+Collapses duplicate \code{from -> to} rows in an edge list using
+explicit, per-column aggregation semantics. This is the post-fold
+aggregation step intended to run \emph{after} redirect / canonical folding has
+coalesced URL variants onto their representatives, and it is a
+loss-aware alternative to \code{\link[=get_unique_edges]{get_unique_edges()}}.
 
-  Where [get_unique_edges()] dedups a `from/to` pair by **keeping the first
-  row** (silently discarding everything else on the duplicate rows),
-  `aggregate_edges()` combines the duplicate rows column-by-column. This
-  matters the moment edges carry quantities: click counts, predicted click
-  propensities, repeated links to the same destination, and conflicting
-  follow / nofollow metadata are all preserved or combined deterministically
-  instead of dropped.
+Where \code{\link[=get_unique_edges]{get_unique_edges()}} dedups a \code{from/to} pair by \strong{keeping the first
+row} (silently discarding everything else on the duplicate rows),
+\code{aggregate_edges()} combines the duplicate rows column-by-column. This
+matters the moment edges carry quantities: click counts, predicted click
+propensities, repeated links to the same destination, and conflicting
+follow / nofollow metadata are all preserved or combined deterministically
+instead of dropped.
 }
 \details{
-## Default per-column semantics
+\subsection{Default per-column semantics}{
 
-For every column other than `from_col` / `to_col` (and any column named in
-`preserve_cols`), an aggregation is chosen automatically unless overridden in
-`agg`:
+For every column other than \code{from_col} / \code{to_col} (and any column named in
+\code{preserve_cols}), an aggregation is chosen automatically unless overridden in
+\code{agg}:
+\itemize{
+\item \strong{numeric / integer columns} (additive counts and click propensities) are
+summed. Repeated link instances to the same destination therefore add their
+propensities together: multiple slots pointing at one target produce more
+total propensity, which is the correct behavioral reading.
+\item \strong{logical columns} (boolean attributes such as \code{nofollow}) are resolved
+with an explicit \emph{conflict policy} (see \code{nofollow_policy}). They are never
+silently first-wins.
+\item \strong{all other columns} (character, factor, ...) fall back to \code{"first"},
+which reproduces the legacy keep-first behavior for non-additive
+identifier-like columns.
+}
+}
 
-- **numeric / integer columns** (additive counts and click propensities) are
-  summed. Repeated link instances to the same destination therefore add their
-  propensities together: multiple slots pointing at one target produce more
-  total propensity, which is the correct behavioral reading.
-- **logical columns** (boolean attributes such as `nofollow`) are resolved
-  with an explicit *conflict policy* (see `nofollow_policy`). They are never
-  silently first-wins.
-- **all other columns** (character, factor, ...) fall back to `"first"`,
-  which reproduces the legacy keep-first behavior for non-additive
-  identifier-like columns.
+\subsection{Overriding per column}{
 
-## Overriding per column
+\code{agg} is a named list mapping a column name to either:
+\itemize{
+\item one of the built-in strings \code{"sum"}, \code{"mean"}, \code{"max"}, \code{"min"},
+\code{"first"}, \code{"last"}, \code{"any"}, \code{"all"}, \code{"majority"}, or \code{"error"}, or
+\item a function taking the vector of grouped values and returning a length-1
+value.
+}
 
-`agg` is a named list mapping a column name to either:
-
-- one of the built-in strings `"sum"`, `"mean"`, `"max"`, `"min"`,
-  `"first"`, `"last"`, `"any"`, `"all"`, `"majority"`, or `"error"`, or
-- a function taking the vector of grouped values and returning a length-1
-  value.
-
-The boolean conflict policies (`"any"`, `"all"`, `"majority"`, `"error"`)
-may be applied to any logical column. `"error"` raises if a `from/to` group
-holds conflicting (mixed `TRUE`/`FALSE`) values; the others reduce to
-"any TRUE", "all TRUE", and the majority value (ties resolve to `TRUE`)
+The boolean conflict policies (\code{"any"}, \code{"all"}, \code{"majority"}, \code{"error"})
+may be applied to any logical column. \code{"error"} raises if a \code{from/to} group
+holds conflicting (mixed \code{TRUE}/\code{FALSE}) values; the others reduce to
+"any TRUE", "all TRUE", and the majority value (ties resolve to \code{TRUE})
 respectively.
+}
 
-## Preserving placement features
+\subsection{Preserving placement features}{
 
-Columns named in `preserve_cols` are **not** collapsed. Each surviving
-`from/to` group keeps the individual per-instance values as a list-column
+Columns named in \code{preserve_cols} are \strong{not} collapsed. Each surviving
+\code{from/to} group keeps the individual per-instance values as a list-column
 (one list element per group, holding that group's vector of values). This
 lets placement / position features survive aggregation so a later
 reasonable-surfer model can use each individual link instance.
+}
 
-## Backward compatibility
+\subsection{Backward compatibility}{
 
-With no weight or extra columns (a plain `from`/`to` edge list), the result
-is identical to [get_unique_edges()]: NA edges dropped, self-loops handled
-per `self_loops`, one row per unique `from/to` pair, from/to coerced to
+With no weight or extra columns (a plain \code{from}/\code{to} edge list), the result
+is identical to \code{\link[=get_unique_edges]{get_unique_edges()}}: NA edges dropped, self-loops handled
+per \code{self_loops}, one row per unique \code{from/to} pair, from/to coerced to
 character.
+}
 }
 \examples{
 # Click counts to the same destination sum instead of being dropped.
@@ -132,5 +138,5 @@ edges_pos <- data.frame(
 aggregate_edges(edges_pos, preserve_cols = "position")
 }
 \seealso{
-[get_unique_edges()] for the lossy keep-first dedup.
+\code{\link[=get_unique_edges]{get_unique_edges()}} for the lossy keep-first dedup.
 }

@@ -14,70 +14,70 @@ pagerank_stability(
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, passed to every
-[pagerank()] call. (Named for consistency with the rest of the package;
+\code{\link[=pagerank]{pagerank()}} call. (Named for consistency with the rest of the package;
 it is an edge list, not a constructed graph object.)}
 
 \item{alphas}{Numeric vector of damping factors to sweep, each strictly
-between 0 and 1. Default `c(0.75, 0.80, 0.85, 0.90, 0.95)`. Duplicate
+between 0 and 1. Default \code{c(0.75, 0.80, 0.85, 0.90, 0.95)}. Duplicate
 values are dropped.}
 
 \item{reference}{The baseline damping factor every other \eqn{\alpha} is
-compared against. A single number strictly between 0 and 1, default `0.85`.
-Included in the sweep automatically if not already in `alphas`.}
+compared against. A single number strictly between 0 and 1, default \code{0.85}.
+Included in the sweep automatically if not already in \code{alphas}.}
 
-\item{top_k}{Size of the top-scoring set used for the `top_k_overlap`
-churn metric. Positive integer, default `10`.}
+\item{top_k}{Size of the top-scoring set used for the \code{top_k_overlap}
+churn metric. Positive integer, default \code{10}.}
 
-\item{...}{Additional arguments forwarded to [damping_sensitivity()] and on
-to [pagerank()] (e.g. `redirects_df`, `weight_col`, `algo`, `prior_df`).
-Passing `damping` is an error, since `alphas` drives the damping factor.}
+\item{...}{Additional arguments forwarded to \code{\link[=damping_sensitivity]{damping_sensitivity()}} and on
+to \code{\link[=pagerank]{pagerank()}} (e.g. \code{redirects_df}, \code{weight_col}, \code{algo}, \code{prior_df}).
+Passing \code{damping} is an error, since \code{alphas} drives the damping factor.}
 }
 \value{
 A data frame with one row per swept \eqn{\alpha} (ascending), with
-  columns:
-  \describe{
-    \item{`alpha`}{The damping factor.}
-    \item{`spearman_rho`}{Spearman rank correlation of this \eqn{\alpha}'s
-      ranking against the reference, on their common nodes (`NA` if fewer
-      than 3 common nodes).}
-    \item{`mean_abs_delta`}{Mean absolute score difference vs the reference
-      on common nodes.}
-    \item{`top_k_overlap`}{Fraction in `[0, 1]` of the reference's top-`k`
-      pages that are also in this \eqn{\alpha}'s top-`k` (1 = identical top
-      set). The effective `k` shrinks to the node count on small graphs.}
-    \item{`nodes_gained`, `nodes_lost`}{Nodes present at this \eqn{\alpha}
-      but not the reference, and vice versa. Normally 0: varying
-      \eqn{\alpha} changes scores, not the node set.}
-    \item{`algo`, `iters`, `iters_estimate`, `residual`, `tol`, `converged`,
-      `n_nodes`}{The per-\eqn{\alpha} convergence metadata carried over from
-      [damping_sensitivity()].}
-  }
+columns:
+\describe{
+\item{\code{alpha}}{The damping factor.}
+\item{\code{spearman_rho}}{Spearman rank correlation of this \eqn{\alpha}'s
+ranking against the reference, on their common nodes (\code{NA} if fewer
+than 3 common nodes).}
+\item{\code{mean_abs_delta}}{Mean absolute score difference vs the reference
+on common nodes.}
+\item{\code{top_k_overlap}}{Fraction in \verb{[0, 1]} of the reference's top-\code{k}
+pages that are also in this \eqn{\alpha}'s top-\code{k} (1 = identical top
+set). The effective \code{k} shrinks to the node count on small graphs.}
+\item{\code{nodes_gained}, \code{nodes_lost}}{Nodes present at this \eqn{\alpha}
+but not the reference, and vice versa. Normally 0: varying
+\eqn{\alpha} changes scores, not the node set.}
+\item{\code{algo}, \code{iters}, \code{iters_estimate}, \code{residual}, \code{tol}, \code{converged},
+\code{n_nodes}}{The per-\eqn{\alpha} convergence metadata carried over from
+\code{\link[=damping_sensitivity]{damping_sensitivity()}}.}
+}
 
-  The full per-(URL, \eqn{\alpha}) sensitivity frame from
-  [damping_sensitivity()] is attached as the `"sensitivity"` attribute, and
-  the `reference` and `top_k` used are attached as same-named attributes.
+The full per-(URL, \eqn{\alpha}) sensitivity frame from
+\code{\link[=damping_sensitivity]{damping_sensitivity()}} is attached as the \code{"sensitivity"} attribute, and
+the \code{reference} and \code{top_k} used are attached as same-named attributes.
 }
 \description{
-Sweeps [pagerank()] over a grid of damping factors with
-  [damping_sensitivity()] and compares each \eqn{\alpha}'s ranking against a
-  reference \eqn{\alpha} with [compare_pagerank()], returning a one-row-per-
-  \eqn{\alpha} stability summary. It answers the open question flagged in the
-  "Damping factor" section of [pagerank()]: on *your* graph, how much does
-  the ranking actually move as \eqn{\alpha} varies?
+Sweeps \code{\link[=pagerank]{pagerank()}} over a grid of damping factors with
+\code{\link[=damping_sensitivity]{damping_sensitivity()}} and compares each \eqn{\alpha}'s ranking against a
+reference \eqn{\alpha} with \code{\link[=compare_pagerank]{compare_pagerank()}}, returning a one-row-per-
+\eqn{\alpha} stability summary. It answers the open question flagged in the
+"Damping factor" section of \code{\link[=pagerank]{pagerank()}}: on \emph{your} graph, how much does
+the ranking actually move as \eqn{\alpha} varies?
 }
 \details{
 A Spearman rank correlation near 1 across the whole grid means the choice of
-damping factor is immaterial for this graph — the conventional `0.85` is as
+damping factor is immaterial for this graph — the conventional \code{0.85} is as
 good as any nearby value. A low correlation, or a top-\eqn{k} overlap well
 below 1, flags a graph whose ranking is genuinely \eqn{\alpha}-sensitive and
 worth investigating before trusting any single solve.
 
 This is a thin orchestration layer: it performs no PageRank math of its own,
-delegating the solves to [damping_sensitivity()] and the rank-comparison
-statistics to [compare_pagerank()]. The `reference` factor is always included
-in the sweep (even if absent from `alphas`) so it can serve as the comparison
-baseline; its own row is a sanity anchor (`spearman_rho = 1`,
-`mean_abs_delta = 0`, `top_k_overlap = 1`).
+delegating the solves to \code{\link[=damping_sensitivity]{damping_sensitivity()}} and the rank-comparison
+statistics to \code{\link[=compare_pagerank]{compare_pagerank()}}. The \code{reference} factor is always included
+in the sweep (even if absent from \code{alphas}) so it can serve as the comparison
+baseline; its own row is a sanity anchor (\code{spearman_rho = 1},
+\code{mean_abs_delta = 0}, \code{top_k_overlap = 1}).
 }
 \examples{
 edges <- data.frame(
@@ -91,6 +91,6 @@ print(stab)
 head(attr(stab, "sensitivity"))
 }
 \seealso{
-[damping_sensitivity()], [compare_pagerank()],
-  [pagerank()] (the "Damping factor" section)
+\code{\link[=damping_sensitivity]{damping_sensitivity()}}, \code{\link[=compare_pagerank]{compare_pagerank()}},
+\code{\link[=pagerank]{pagerank()}} (the "Damping factor" section)
 }

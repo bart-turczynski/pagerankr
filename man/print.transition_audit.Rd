@@ -7,12 +7,12 @@
 \method{print}{transition_audit}(x, ...)
 }
 \arguments{
-\item{x}{A `transition_audit` object.}
+\item{x}{A \code{transition_audit} object.}
 
 \item{...}{Unused; for S3 compatibility.}
 }
 \value{
-`x`, invisibly.
+\code{x}, invisibly.
 }
 \description{
 Print a transition_audit object

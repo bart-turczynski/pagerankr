@@ -183,7 +183,7 @@ damping_sensitivity <- function(edge_list_df,
 #'
 #' @param res A [pagerank()] result data frame.
 #' @param alpha The damping factor used for this solve.
-#' @param meta The per-solve metadata list from [.ds_conv_meta()].
+#' @param meta The per-solve metadata list from `.ds_conv_meta()`.
 #' @return A data frame of per-URL rows sorted by score descending then node,
 #'   or `NULL` when the solve scored no nodes.
 #' @noRd
@@ -208,7 +208,7 @@ damping_sensitivity <- function(edge_list_df,
 #' Build the one-row summary for one solve
 #'
 #' @param alpha The damping factor used for this solve.
-#' @param meta The per-solve metadata list from [.ds_conv_meta()].
+#' @param meta The per-solve metadata list from `.ds_conv_meta()`.
 #' @param n_nodes Number of nodes scored by this solve.
 #' @return A one-row data frame for the `"convergence"` summary attribute.
 #' @noRd

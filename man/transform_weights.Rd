@@ -19,24 +19,24 @@ GA4 click counts, or any positive numeric signal).}
 
 \item{method}{Character, the transformation strategy. One of:
 \describe{
-  \item{\code{"none"}}{Return \code{x} unchanged.}
-  \item{\code{"log"}}{Apply \code{log(x + offset)} to compress large
-    ranges (e.g., GA4 click counts spanning 1 to 100,000). The
-    \code{offset} parameter (default 1) avoids \code{log(0)}.}
-  \item{\code{"percentile"}}{Map values to their empirical percentile
-    (0--1). Robust to extreme outliers.}
-  \item{\code{"minmax"}}{Scale to the \code{[0, 1]} range using
-    min-max normalization. A small floor (\code{floor_value}, default
-    0.01) is added so that the lowest-weighted edge still carries some
-    weight rather than zero.}
-  \item{\code{"zipf"}}{Convert to rank order, then apply Zipf's law:
-    \code{weight = 1 / rank^alpha}. Position 1 gets 1.0, position 2
-    gets \code{1/2^alpha}, etc. Controlled by the \code{alpha} parameter
-    (default 1).}
-  \item{\code{"rank_linear"}}{Convert to rank order (1 = highest value),
-    then assign linearly decreasing weights:
-    \code{weight = (n - rank + 1) / n}. Position 1 gets 1.0, position
-    \emph{n} gets \code{1/n}.}
+\item{\code{"none"}}{Return \code{x} unchanged.}
+\item{\code{"log"}}{Apply \code{log(x + offset)} to compress large
+ranges (e.g., GA4 click counts spanning 1 to 100,000). The
+\code{offset} parameter (default 1) avoids \code{log(0)}.}
+\item{\code{"percentile"}}{Map values to their empirical percentile
+(0--1). Robust to extreme outliers.}
+\item{\code{"minmax"}}{Scale to the \code{[0, 1]} range using
+min-max normalization. A small floor (\code{floor_value}, default
+0.01) is added so that the lowest-weighted edge still carries some
+weight rather than zero.}
+\item{\code{"zipf"}}{Convert to rank order, then apply Zipf's law:
+\code{weight = 1 / rank^alpha}. Position 1 gets 1.0, position 2
+gets \code{1/2^alpha}, etc. Controlled by the \code{alpha} parameter
+(default 1).}
+\item{\code{"rank_linear"}}{Convert to rank order (1 = highest value),
+then assign linearly decreasing weights:
+\code{weight = (n - rank + 1) / n}. Position 1 gets 1.0, position
+\emph{n} gets \code{1/n}.}
 }}
 
 \item{alpha}{Numeric, exponent for the \code{"zipf"} method.
@@ -58,14 +58,14 @@ on a page (position 1 = most valuable, but numerically smallest).}
 }
 \value{
 Numeric vector of the same length as \code{x} with transformed
-  weights. \code{NA} values in \code{x} are preserved as \code{NA} in
-  the output.
+weights. \code{NA} values in \code{x} are preserved as \code{NA} in
+the output.
 }
 \description{
 Applies a transformation strategy to a numeric vector of edge
-  weights before passing them to \code{\link{pagerank}}. Useful for
-  converting link positions, click counts, or other raw signals into weights
-  suitable for the PageRank random surfer model.
+weights before passing them to \code{\link{pagerank}}. Useful for
+converting link positions, click counts, or other raw signals into weights
+suitable for the PageRank random surfer model.
 }
 \examples{
 # Link positions on a page (1 = top, most valuable)

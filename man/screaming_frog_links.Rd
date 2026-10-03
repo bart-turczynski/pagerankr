@@ -15,43 +15,43 @@ screaming_frog_links(
 \item{x}{A path to an All Inlinks/All Outlinks CSV file or an equivalent
 data frame.}
 
-\item{export_kind}{Declared export provenance: `"all_inlinks"` or
-`"all_outlinks"`. This never changes edge orientation.}
+\item{export_kind}{Declared export provenance: \code{"all_inlinks"} or
+\code{"all_outlinks"}. This never changes edge orientation.}
 
 \item{origin_policy}{Which DOM observations may become graph edges:
-`"all"` (default), `"html"`, or `"rendered"`. Combined
-`"HTML & Rendered HTML"` observations qualify for either selective policy.
+\code{"all"} (default), \code{"html"}, or \code{"rendered"}. Combined
+\code{"HTML & Rendered HTML"} observations qualify for either selective policy.
 The raw observation table is never filtered.}
 
 \item{endpoint_action}{How graph-eligible rows with a blank source or
-destination are handled: `"drop"` (default) or `"error"`. Such rows remain
-in `observations` in either mode.}
+destination are handled: \code{"drop"} (default) or \code{"error"}. Such rows remain
+in \code{observations} in either mode.}
 }
 \value{
-An object of class `screaming_frog_links` with components:
-  \describe{
-    \item{observations}{Normalized observations in input row order.}
-    \item{edges}{Unaggregated, graph-eligible `from` / `to` rows with
-      nofollow, placement, origin, and link provenance. `position_index`
-      carries each link's reading-order rank among its source page's
-      content links (`1` = first), materialized from document order for
-      `all_outlinks` and `NA` otherwise; it feeds [pagerank()]'s
-      `position_col`.}
-    \item{diagnostics}{Input, eligibility, endpoint, type, origin,
-      Follow/Rel, and schema counts plus row-level issues.}
-    \item{provenance}{Export kind, source, policy, retained input-row IDs,
-      and detected columns.}
-  }
+An object of class \code{screaming_frog_links} with components:
+\describe{
+\item{observations}{Normalized observations in input row order.}
+\item{edges}{Unaggregated, graph-eligible \code{from} / \code{to} rows with
+nofollow, placement, origin, and link provenance. \code{position_index}
+carries each link's reading-order rank among its source page's
+content links (\code{1} = first), materialized from document order for
+\code{all_outlinks} and \code{NA} otherwise; it feeds \code{\link[=pagerank]{pagerank()}}'s
+\code{position_col}.}
+\item{diagnostics}{Input, eligibility, endpoint, type, origin,
+Follow/Rel, and schema counts plus row-level issues.}
+\item{provenance}{Export kind, source, policy, retained input-row IDs,
+and detected columns.}
+}
 }
 \description{
-Normalizes a Screaming Frog **All Inlinks** or **All Outlinks** CSV or data
-frame. Both exports retain their native `Source -> Destination` orientation.
+Normalizes a Screaming Frog \strong{All Inlinks} or \strong{All Outlinks} CSV or data
+frame. Both exports retain their native \code{Source -> Destination} orientation.
 Raw observations are kept separately from graph-eligible edges, and URLs are
 preserved for one downstream canonicalization pass.
 }
 \details{
-Only `Type = "Hyperlink"` observations are graph-eligible. `Follow` is the
-authoritative field used to derive `nofollow`; `Rel` is parsed independently
+Only \code{Type = "Hyperlink"} observations are graph-eligible. \code{Follow} is the
+authoritative field used to derive \code{nofollow}; \code{Rel} is parsed independently
 for disagreement diagnostics. Duplicate observations are not aggregated.
 }
 \examples{

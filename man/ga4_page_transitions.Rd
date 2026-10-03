@@ -21,97 +21,97 @@ ga4_page_transitions(
 }
 \arguments{
 \item{events_df}{A data frame of GA4 export rows, one row per event
-(typically filtered to `page_view` events upstream). Must contain the
-session-identity, page, and timestamp columns named below; the `batch_*`
+(typically filtered to \code{page_view} events upstream). Must contain the
+session-identity, page, and timestamp columns named below; the \verb{batch_*}
 tie-break columns are optional but recommended.}
 
 \item{user_id_col}{Name of the user-identity column. GA4 default
-`"user_pseudo_id"`.}
+\code{"user_pseudo_id"}.}
 
 \item{session_id_col}{Name of the session-identity column (the un-nested
-`ga_session_id` event parameter). GA4 default `"ga_session_id"`.}
+\code{ga_session_id} event parameter). GA4 default \code{"ga_session_id"}.}
 
 \item{page_col}{Name of the page-identity column whose consecutive values
-form the transitions. GA4 default `"page_location"`.}
+form the transitions. GA4 default \code{"page_location"}.}
 
 \item{timestamp_col}{Name of the primary ordering column. GA4 default
-`"event_timestamp"`.}
+\code{"event_timestamp"}.}
 
 \item{batch_page_id_col, batch_ordering_id_col, batch_event_index_col}{Names
 of the GA4 batch tie-break columns, applied in this order after
-`timestamp_col`. GA4 defaults `"batch_page_id"`, `"batch_ordering_id"`,
-`"batch_event_index"`. A column that is not present in `events_df` is
+\code{timestamp_col}. GA4 defaults \code{"batch_page_id"}, \code{"batch_ordering_id"},
+\code{"batch_event_index"}. A column that is not present in \code{events_df} is
 skipped.}
 
 \item{from_col, to_col}{Names of the source/target columns in the returned
-edge list. Defaults `"from"` / `"to"` (the [pagerank()] defaults).}
+edge list. Defaults \code{"from"} / \code{"to"} (the \code{\link[=pagerank]{pagerank()}} defaults).}
 
 \item{count_col}{Name of the transition-count column in the returned edge
-list. Default `"n"`. Pass this name to `pagerank(weight_col = ...)`.}
+list. Default \code{"n"}. Pass this name to \code{pagerank(weight_col = ...)}.}
 
-\item{drop_self_transitions}{Logical. If `TRUE` (default), consecutive page
-views of the **same** page (reloads, SPA re-renders to the same route) are
-dropped before counting. If `FALSE`, self-transitions are kept and counted.}
+\item{drop_self_transitions}{Logical. If \code{TRUE} (default), consecutive page
+views of the \strong{same} page (reloads, SPA re-renders to the same route) are
+dropped before counting. If \code{FALSE}, self-transitions are kept and counted.}
 }
 \value{
-A data frame with one row per distinct `from -> to` page transition,
-  carrying the columns named by `from_col`, `to_col`, and `count_col`. The
-  count column is an integer tally of how many times that consecutive
-  page-view transition was observed across all sessions. Rows are ordered by
-  `from` then `to` for stable output. When no transitions exist (e.g. every
-  session has a single page view), an empty data frame with the correct
-  columns is returned.
+A data frame with one row per distinct \code{from -> to} page transition,
+carrying the columns named by \code{from_col}, \code{to_col}, and \code{count_col}. The
+count column is an integer tally of how many times that consecutive
+page-view transition was observed across all sessions. Rows are ordered by
+\code{from} then \code{to} for stable output. When no transitions exist (e.g. every
+session has a single page view), an empty data frame with the correct
+columns is returned.
 }
 \description{
-Builds consecutive-page-view **transition counts** from a
-  Google Analytics 4 (GA4) BigQuery event-export data frame. The result is a
-  `from`/`to` edge list with a count column, in the shape that
-  [pagerank()] accepts (pass the count column via `weight_col`).
+Builds consecutive-page-view \strong{transition counts} from a
+Google Analytics 4 (GA4) BigQuery event-export data frame. The result is a
+\code{from}/\code{to} edge list with a count column, in the shape that
+\code{\link[=pagerank]{pagerank()}} accepts (pass the count column via \code{weight_col}).
 
-  This function operates entirely on a data frame **you supply** — it does
-  **not** query BigQuery and adds no database dependencies. Extract the GA4
-  `events_*` rows you care about (typically `page_view` events, with the
-  session-identity and ordering fields un-nested from
-  `event_params` / the `batch` struct) into a data frame, then pass it here.
+This function operates entirely on a data frame \strong{you supply} — it does
+\strong{not} query BigQuery and adds no database dependencies. Extract the GA4
+\verb{events_*} rows you care about (typically \code{page_view} events, with the
+session-identity and ordering fields un-nested from
+\code{event_params} / the \code{batch} struct) into a data frame, then pass it here.
 }
 \section{What this measures (transition, NOT link-click)}{
 
-  The output is a **behavioral navigation signal** — the empirical
-  "where did users go next" sequence of page views within a session. It is
-  **not** a measured link-click probability. GA4 page-view sequences are
-  contaminated by page reloads, browser back/forward navigation, server
-  redirects, single-page-application route changes, dropped/missing events,
-  and off-site returns. A transition `A -> B` means "a session viewed page A
-  and then viewed page B next", which is **not** the same as "a user clicked
-  a link from A to B." For link-click instrumentation (the actual element
-  clicked), a separate `ga4_link_clicks()` product is required; do not use
-  this function as a substitute for it.
+The output is a \strong{behavioral navigation signal} — the empirical
+"where did users go next" sequence of page views within a session. It is
+\strong{not} a measured link-click probability. GA4 page-view sequences are
+contaminated by page reloads, browser back/forward navigation, server
+redirects, single-page-application route changes, dropped/missing events,
+and off-site returns. A transition \code{A -> B} means "a session viewed page A
+and then viewed page B next", which is \strong{not} the same as "a user clicked
+a link from A to B." For link-click instrumentation (the actual element
+clicked), a separate \code{ga4_link_clicks()} product is required; do not use
+this function as a substitute for it.
 }
 
 \section{Session / event ordering contract}{
 
-  Within each session, events are ordered by `event_timestamp` and then by a
-  deterministic chain of tie-break fields, **in this order**:
-  \enumerate{
-    \item `event_timestamp` (microseconds since epoch),
-    \item `batch_page_id`,
-    \item `batch_ordering_id`,
-    \item `batch_event_index`.
-  }
-  `event_timestamp` **alone is insufficient**: GA4 batches events and
-  multiple events in a session can share the exact same `event_timestamp`.
-  When timestamps tie, the `batch_*` fields (assigned by the GA4 SDK in the
-  order events were recorded on the client) break the tie so the ordering is
-  stable and reproducible. Any tie-break column that is absent from
-  `events_df` is simply skipped, but supplying all of them is strongly
-  recommended to guarantee a deterministic order. As a final stabilizer the
-  original row order of `events_df` is used, so the result never depends on
-  the platform's sort implementation.
+Within each session, events are ordered by \code{event_timestamp} and then by a
+deterministic chain of tie-break fields, \strong{in this order}:
+\enumerate{
+\item \code{event_timestamp} (microseconds since epoch),
+\item \code{batch_page_id},
+\item \code{batch_ordering_id},
+\item \code{batch_event_index}.
+}
+\code{event_timestamp} \strong{alone is insufficient}: GA4 batches events and
+multiple events in a session can share the exact same \code{event_timestamp}.
+When timestamps tie, the \verb{batch_*} fields (assigned by the GA4 SDK in the
+order events were recorded on the client) break the tie so the ordering is
+stable and reproducible. Any tie-break column that is absent from
+\code{events_df} is simply skipped, but supplying all of them is strongly
+recommended to guarantee a deterministic order. As a final stabilizer the
+original row order of \code{events_df} is used, so the result never depends on
+the platform's sort implementation.
 
-  A *session* is identified by the combination of `user_id_col` and
-  `session_id_col` (GA4: `user_pseudo_id` and the `ga_session_id` event
-  parameter). Transitions are only formed **within** a single session;
-  consecutive page views that cross a session boundary are never joined.
+A \emph{session} is identified by the combination of \code{user_id_col} and
+\code{session_id_col} (GA4: \code{user_pseudo_id} and the \code{ga_session_id} event
+parameter). Transitions are only formed \strong{within} a single session;
+consecutive page views that cross a session boundary are never joined.
 }
 
 \examples{
@@ -130,6 +130,6 @@ transitions
 # pagerank(transitions, weight_col = "n", clean_edge_urls = FALSE)
 }
 \seealso{
-[pagerank()] for consuming the result; [transform_weights()] for
-  turning raw transition counts into PageRank edge weights.
+\code{\link[=pagerank]{pagerank()}} for consuming the result; \code{\link[=transform_weights]{transform_weights()}} for
+turning raw transition counts into PageRank edge weights.
 }

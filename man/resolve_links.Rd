@@ -24,40 +24,40 @@ resolve_links(
 two columns for source and target URLs.}
 
 \item{redirects_df}{A data frame containing redirect rules with 'from' and
-'to' columns (or as specified by `redirect_from_col`/`redirect_to_col`).
-If `NULL`, no redirects are applied.}
+'to' columns (or as specified by \code{redirect_from_col}/\code{redirect_to_col}).
+If \code{NULL}, no redirects are applied.}
 
 \item{clean_urls}{Logical, whether to clean/normalize URLs using
-\code{rurl::clean_url} before resolving. Default `TRUE`.}
+\code{rurl::clean_url} before resolving. Default \code{TRUE}.}
 
 \item{self_loops}{Character, how to handle self-loops created after
-redirect resolution. One of `"drop"` (default) or `"keep"`.}
+redirect resolution. One of \code{"drop"} (default) or \code{"keep"}.}
 
 \item{edge_from_col, edge_to_col}{Names of the from/to columns in
-`edge_list_df`. Default `"from"` and `"to"`.}
+\code{edge_list_df}. Default \code{"from"} and \code{"to"}.}
 
 \item{redirect_from_col, redirect_to_col}{Names of the from/to columns in
-`redirects_df`. Default `"from"` and `"to"`.}
+\code{redirects_df}. Default \code{"from"} and \code{"to"}.}
 
 \item{duplicate_from_policy}{How to handle conflicting redirects. Passed
-through to [resolve_redirects()]. Default `"strict"`.}
+through to \code{\link[=resolve_redirects]{resolve_redirects()}}. Default \code{"strict"}.}
 
 \item{loop_handling}{How to handle redirect cycles. Passed through to
-[resolve_redirects()]. Default `"error"`.}
+\code{\link[=resolve_redirects]{resolve_redirects()}}. Default \code{"error"}.}
 
 \item{rurl_params}{Named list of additional arguments passed to
-\code{rurl::clean_url} when `clean_urls = TRUE`.}
+\code{rurl::clean_url} when \code{clean_urls = TRUE}.}
 }
 \value{
-A data frame with the same columns as `edge_list_df`, but with
-  URLs replaced by their final redirect destinations, duplicate edges
-  removed, and self-loops handled according to `self_loops`.
+A data frame with the same columns as \code{edge_list_df}, but with
+URLs replaced by their final redirect destinations, duplicate edges
+removed, and self-loops handled according to \code{self_loops}.
 }
 \description{
 Applies redirect rules to an edge list and returns the resolved
-  link graph without computing PageRank. Useful for inspecting what the
-  link graph looks like after redirects are applied, deduplication, and
-  optional URL cleaning.
+link graph without computing PageRank. Useful for inspecting what the
+link graph looks like after redirects are applied, deduplication, and
+optional URL cleaning.
 }
 \examples{
 edges <- data.frame(

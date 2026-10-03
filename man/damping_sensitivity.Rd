@@ -8,44 +8,44 @@ damping_sensitivity(edge_list_df, alphas = c(0.75, 0.8, 0.85, 0.9, 0.95), ...)
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, passed to every
-[pagerank()] call. (Named for consistency with the rest of the package;
+\code{\link[=pagerank]{pagerank()}} call. (Named for consistency with the rest of the package;
 it is an edge list, not a constructed graph object.)}
 
 \item{alphas}{Numeric vector of damping factors to sweep, each strictly
-between 0 and 1. Default `c(0.75, 0.80, 0.85, 0.90, 0.95)`. Duplicate
+between 0 and 1. Default \code{c(0.75, 0.80, 0.85, 0.90, 0.95)}. Duplicate
 values are dropped.}
 
-\item{...}{Additional arguments forwarded to [pagerank()] (e.g.
-`redirects_df`, `weight_col`, `algo`, `eps`, `niter`, `prior_df`). Passing
-`damping` here is an error, since `alphas` is what drives the damping
+\item{...}{Additional arguments forwarded to \code{\link[=pagerank]{pagerank()}} (e.g.
+\code{redirects_df}, \code{weight_col}, \code{algo}, \code{eps}, \code{niter}, \code{prior_df}). Passing
+\code{damping} here is an error, since \code{alphas} is what drives the damping
 factor.}
 }
 \value{
 A tidy data frame with one row per (URL, \eqn{\alpha}) pair, sorted
-  by `alpha` ascending then `score` descending, with columns:
-  \describe{
-    \item{`url`}{Node / page identifier.}
-    \item{`alpha`}{The damping factor used for this solve.}
-    \item{`score`}{The page's PageRank score at this `alpha`.}
-    \item{`iters`}{Iterations the solver used (ARPACK only; `NA` under
-      PRPACK).}
-    \item{`iters_estimate`}{Power-iteration iteration-count estimate at the
-      convergence tolerance (solver-independent).}
-    \item{`residual`}{Post-hoc L1 residual \eqn{\|G x - x\|_1} of the solve.}
-    \item{`converged`}{Whether the residual met the tolerance.}
-  }
+by \code{alpha} ascending then \code{score} descending, with columns:
+\describe{
+\item{\code{url}}{Node / page identifier.}
+\item{\code{alpha}}{The damping factor used for this solve.}
+\item{\code{score}}{The page's PageRank score at this \code{alpha}.}
+\item{\code{iters}}{Iterations the solver used (ARPACK only; \code{NA} under
+PRPACK).}
+\item{\code{iters_estimate}}{Power-iteration iteration-count estimate at the
+convergence tolerance (solver-independent).}
+\item{\code{residual}}{Post-hoc L1 residual \eqn{\|G x - x\|_1} of the solve.}
+\item{\code{converged}}{Whether the residual met the tolerance.}
+}
 
-  A `"convergence"` attribute is attached: a compact one-row-per-`alpha` data
-  frame (`alpha`, `algo`, `iters`, `iters_estimate`, `residual`, `tol`,
-  `converged`, `n_nodes`) summarizing each solve.
+A \code{"convergence"} attribute is attached: a compact one-row-per-\code{alpha} data
+frame (\code{alpha}, \code{algo}, \code{iters}, \code{iters_estimate}, \code{residual}, \code{tol},
+\code{converged}, \code{n_nodes}) summarizing each solve.
 }
 \description{
-Runs [pagerank()] at each damping factor \eqn{\alpha} in
-  `alphas` and returns a tidy data frame of per-URL scores alongside the
-  convergence metadata for each solve. This makes the sensitivity of the
-  ranking to \eqn{\alpha} directly inspectable on *your* graph, rather than
-  relying on the field default of `0.85` (see the "Damping factor" section of
-  [pagerank()] for why that default is only an empirical convention).
+Runs \code{\link[=pagerank]{pagerank()}} at each damping factor \eqn{\alpha} in
+\code{alphas} and returns a tidy data frame of per-URL scores alongside the
+convergence metadata for each solve. This makes the sensitivity of the
+ranking to \eqn{\alpha} directly inspectable on \emph{your} graph, rather than
+relying on the field default of \code{0.85} (see the "Damping factor" section of
+\code{\link[=pagerank]{pagerank()}} for why that default is only an empirical convention).
 }
 \details{
 The helper is the empirical companion to the closed-form
@@ -54,14 +54,14 @@ a Function of the Damping Factor}, WWW 2005): instead of differentiating the
 PageRank vector with respect to \eqn{\alpha} analytically, it samples the
 vector at a grid of \eqn{\alpha} values so you can see how much each page's
 score (and the overall ranking) actually moves. Pair it with
-[compare_pagerank()] to quantify the rank churn between any two \eqn{\alpha}
+\code{\link[=compare_pagerank]{compare_pagerank()}} to quantify the rank churn between any two \eqn{\alpha}
 values.
 
 Each row also carries the convergence metadata for that \eqn{\alpha}'s solve.
-The empirical `iters` count is only reported by the ARPACK solver; under the
-default PRPACK direct solver it is `NA` (PRPACK exposes no iteration count).
-To populate it, forward `algo = "arpack"` (or an `eps` / `niter` control)
-through `...`. The solver-independent `iters_estimate` column is always
+The empirical \code{iters} count is only reported by the ARPACK solver; under the
+default PRPACK direct solver it is \code{NA} (PRPACK exposes no iteration count).
+To populate it, forward \code{algo = "arpack"} (or an \code{eps} / \code{niter} control)
+through \code{...}. The solver-independent \code{iters_estimate} column is always
 populated: it is the power-iteration rule of thumb
 \eqn{\lceil \log_{10}(\tau) / \log_{10}(\alpha) \rceil} (Langville & Meyer,
 2004) at the convergence tolerance \eqn{\tau}, and shows how the required
@@ -83,6 +83,6 @@ sens_ar <- suppressMessages(
 attr(sens_ar, "convergence")
 }
 \seealso{
-[pagerank()] (the "Damping factor" section), [pagerank_convergence],
-  [compare_pagerank()], [pagerank_grid()]
+\code{\link[=pagerank]{pagerank()}} (the "Damping factor" section), \link{pagerank_convergence},
+\code{\link[=compare_pagerank]{compare_pagerank()}}, \code{\link[=pagerank_grid]{pagerank_grid()}}
 }

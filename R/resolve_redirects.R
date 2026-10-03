@@ -230,7 +230,7 @@ resolve_redirects <- function(edge_list_df,
 #' Apply a canonical map to the edge-list source/target columns
 #'
 #' Vectorized replacement of both edge columns (when present) via
-#' [.apply_fold_map()].
+#' `.apply_fold_map()`.
 #' @noRd
 .apply_map_to_edges <- function(edge_list_df, canonical_map,
                                 edge_from_col, edge_to_col) {
@@ -256,8 +256,8 @@ resolve_redirects <- function(edge_list_df,
 #' canonical folding. It is deliberately signal-agnostic: it knows nothing
 #' about whether the pairs are 3xx redirects or declared rel=canonicals. Given
 #' source/target vectors it strips NAs and self-references, applies the chosen
-#' duplicate-source policy via [.preprocess_redirects()], then resolves chains
-#' and cycles to terminal destinations via [.resolve_via_graph()].
+#' duplicate-source policy via `.preprocess_redirects()`, then resolves chains
+#' and cycles to terminal destinations via `.resolve_via_graph()`.
 #'
 #' @param from Character vector of source URLs.
 #' @param to Character vector of target URLs.
@@ -266,7 +266,7 @@ resolve_redirects <- function(edge_list_df,
 #' @param loop_handling How to handle cycles. See [resolve_redirects()].
 #' @return A named character vector mapping every reachable source URL to its
 #'   final terminal destination. Entries where a URL maps to itself are
-#'   retained (callers filter via [.apply_fold_map()] / `match()`). Returns an
+#'   retained (callers filter via `.apply_fold_map()` / `match()`). Returns an
 #'   empty named vector when there are no effective rules.
 #' @noRd
 .build_terminal_map <- function(from, to,
@@ -314,7 +314,7 @@ resolve_redirects <- function(edge_list_df,
 #'
 #' @param urls Character vector (or coercible) of URLs to fold.
 #' @param map Named character vector (source -> representative), e.g. from
-#'   [.build_terminal_map()] or [.compose_fold_map()].
+#'   `.build_terminal_map()` or `.compose_fold_map()`.
 #' @return Character vector the same length as `urls`, with mapped entries
 #'   replaced and original NAs preserved.
 #' @noRd
@@ -600,7 +600,7 @@ resolve_redirects <- function(edge_list_df,
 
 #' Resolve conflicting redirect sources according to the chosen policy
 #'
-#' Invoked by [.preprocess_redirects()] only when at least one source has
+#' Invoked by `.preprocess_redirects()` only when at least one source has
 #' multiple distinct targets. Error-message text and per-policy behavior are
 #' preserved verbatim.
 #' @noRd
@@ -661,7 +661,7 @@ resolve_redirects <- function(edge_list_df,
 #'
 #' Non-conflicting sources are simply deduplicated; each conflicting source is
 #' reduced to its modal target (ties broken by first occurrence) via
-#' [.most_frequent_target()].
+#' `.most_frequent_target()`.
 #' @noRd
 .resolve_most_frequent <- function(redirects_df, from_col, to_col,
                                    conflicting_sources) {

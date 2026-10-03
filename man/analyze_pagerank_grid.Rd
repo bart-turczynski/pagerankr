@@ -18,30 +18,30 @@ analyse_pagerank_grid(
 )
 }
 \arguments{
-\item{grid_result}{A data frame returned by [pagerank_grid()], with columns
-`model_id`, a node column, and a PageRank value column.}
+\item{grid_result}{A data frame returned by \code{\link[=pagerank_grid]{pagerank_grid()}}, with columns
+\code{model_id}, a node column, and a PageRank value column.}
 
 \item{model_id_col}{Name of the model identifier column. Default
-`"model_id"`.}
+\code{"model_id"}.}
 
-\item{pr_col}{Name of the PageRank value column. Default `"pagerank"`.}
+\item{pr_col}{Name of the PageRank value column. Default \code{"pagerank"}.}
 }
 \value{
 A data frame with one row per model and the following columns:
-  \describe{
-    \item{model_id}{Model identifier}
-    \item{num_nodes}{Number of nodes in the model}
-    \item{pr_sum}{Sum of PageRank scores (1 for standard graphs, less when
-      evaporation or vanish is active)}
-    \item{pr_max}{Maximum PageRank score}
-    \item{pr_gini}{Gini coefficient (see [pr_gini()])}
-    \item{pr_entropy}{Shannon entropy (see [pr_entropy()])}
-    \item{pr_top10_share}{Share of total PR held by the top 10 percent of
-      nodes (see [pr_top_k_share()])}
-  }
+\describe{
+\item{model_id}{Model identifier}
+\item{num_nodes}{Number of nodes in the model}
+\item{pr_sum}{Sum of PageRank scores (1 for standard graphs, less when
+evaporation or vanish is active)}
+\item{pr_max}{Maximum PageRank score}
+\item{pr_gini}{Gini coefficient (see \code{\link[=pr_gini]{pr_gini()}})}
+\item{pr_entropy}{Shannon entropy (see \code{\link[=pr_entropy]{pr_entropy()}})}
+\item{pr_top10_share}{Share of total PR held by the top 10 percent of
+nodes (see \code{\link[=pr_top_k_share]{pr_top_k_share()}})}
+}
 }
 \description{
-Computes distribution metrics for each model in a [pagerank_grid()] result,
+Computes distribution metrics for each model in a \code{\link[=pagerank_grid]{pagerank_grid()}} result,
 producing a one-row-per-model summary. Useful for quickly comparing how
 different parameter configurations affect the shape of the PageRank
 distribution.

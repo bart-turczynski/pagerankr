@@ -12,19 +12,19 @@ sf_region_from_path(x)
 }
 \value{
 A character vector the same length as \code{x} containing
-  \code{"nav"}, \code{"header"}, \code{"footer"}, \code{"aside"}, or
-  \code{"content"}. Blank strings and \code{NA} yield \code{NA}, so a caller
-  can fall back to \code{\link{sf_normalize_position}()}.
+\code{"nav"}, \code{"header"}, \code{"footer"}, \code{"aside"}, or
+\code{"content"}. Blank strings and \code{NA} yield \code{NA}, so a caller
+can fall back to \code{\link{sf_normalize_position}()}.
 }
 \description{
 Reads the page region a link sits in out of Screaming Frog's
-  \code{Link Path} (an XPath-like source locator), returning the same compact
-  vocabulary as \code{\link{sf_normalize_position}()}. This is the preferred
-  source of placement, because \code{Link Position} loses the enclosing
-  region whenever a \code{<nav>} is nested inside one.
+\code{Link Path} (an XPath-like source locator), returning the same compact
+vocabulary as \code{\link{sf_normalize_position}()}. This is the preferred
+source of placement, because \code{Link Position} loses the enclosing
+region whenever a \code{<nav>} is nested inside one.
 }
 \details{
-The region is the **outermost** layout container on the path ---
+The region is the \strong{outermost} layout container on the path ---
 \code{header}, \code{footer}, or \code{aside} --- and \code{"nav"} applies
 only when the link sits in a \code{<nav>} that is not inside one of those.
 So a footer nav resolves to \code{"footer"}, a header nav to
@@ -54,7 +54,7 @@ sf_region_from_path(c(
 ))
 }
 \seealso{
-[pagerank()], whose `placement_col` consumes the result.
+\code{\link[=pagerank]{pagerank()}}, whose \code{placement_col} consumes the result.
 
 Other Screaming Frog toolkit:
 \code{\link[=sf_container_from_path]{sf_container_from_path()}},

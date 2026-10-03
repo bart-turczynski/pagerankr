@@ -36,7 +36,7 @@ by exact from+to pair. Must have the same from/to column names as
 
 \item{redirect_urls_df}{Optional two-column \code{from}/\code{to} data frame
 of URL-level redirects to model. Each row retires the \code{from} URL and
-sends its inbound authority to \code{to} at 100\% pass-through. Retire
+sends its inbound authority to \code{to} at 100\\% pass-through. Retire
 semantics: the live source's own outbound links are \strong{stripped}
 before folding (an honest 301 has no body), so the target inherits the
 source's inbound authority only, never its outlinks. A row for source
@@ -94,40 +94,40 @@ Default \code{"proposed"}.}
 }
 \value{
 The output of \code{\link{compare_pagerank}} (per-node deltas,
-  percentage changes, and rank changes between baseline and proposed) with an
-  added \code{node_status} column: \code{"normal"} for a node present and
-  live in both models, \code{"new-target"} for a node introduced by the
-  changeset (present in the proposed model, absent from the baseline), or
-  \code{"removed-dead"} for a node retired via \code{remove_urls} (its
-  proposed score is residual absorbed mass on the way to the waste sink, not
-  earned authority).
+percentage changes, and rank changes between baseline and proposed) with an
+added \code{node_status} column: \code{"normal"} for a node present and
+live in both models, \code{"new-target"} for a node introduced by the
+changeset (present in the proposed model, absent from the baseline), or
+\code{"removed-dead"} for a node retired via \code{remove_urls} (its
+proposed score is residual absorbed mass on the way to the waste sink, not
+earned authority).
 
-  \code{node_status} describes a node's \emph{role in this before/after
-  comparison}, which is a different axis from the \code{page_state} column
-  \code{\link{pagerank}} attaches to describe a page's \emph{health/index
-  state} (\code{live} / \code{noindex} / \code{robots_blocked} /
-  \code{response_dead}). The two are deliberately not merged into one
-  vocabulary: \code{new-target} has no health analog, and
-  \code{removed-dead} is the single value bridging both axes — a node whose
-  comparison role is "removed" \emph{because} its proposed health state is
-  \code{response_dead} (a forced 404). Attributes:
-  \describe{
-    \item{summary}{Aggregate statistics from \code{compare_pagerank()}.}
-    \item{proposed}{The full proposed \code{pagerank()} result, including its
-      \code{transition_audit} attribute, so the evaporated-mass cost of a
-      removal is surfaced by default.}
-    \item{manifest}{A named list describing the changeset: redirects applied,
-      which sources overrode a prior redirect, URLs removed, link add/remove
-      counts, and any unknown targets.}
-  }
+\code{node_status} describes a node's \emph{role in this before/after
+comparison}, which is a different axis from the \code{page_state} column
+\code{\link{pagerank}} attaches to describe a page's \emph{health/index
+state} (\code{live} / \code{noindex} / \code{robots_blocked} /
+\code{response_dead}). The two are deliberately not merged into one
+vocabulary: \code{new-target} has no health analog, and
+\code{removed-dead} is the single value bridging both axes — a node whose
+comparison role is "removed" \emph{because} its proposed health state is
+\code{response_dead} (a forced 404). Attributes:
+\describe{
+\item{summary}{Aggregate statistics from \code{compare_pagerank()}.}
+\item{proposed}{The full proposed \code{pagerank()} result, including its
+\code{transition_audit} attribute, so the evaporated-mass cost of a
+removal is surfaced by default.}
+\item{manifest}{A named list describing the changeset: redirects applied,
+which sources overrode a prior redirect, URLs removed, link add/remove
+counts, and any unknown targets.}
+}
 }
 \description{
 Compares PageRank before and after proposed changes to the link
-  graph, at both the edge level (adding/removing links) and the URL level
-  (retiring a page behind a redirect, or repointing an existing redirect).
-  The whole graph is recomputed and a before/after table is returned;
-  interpretation is left to the caller. This is a faithful recompute
-  primitive, not a ranking or target-optimization engine.
+graph, at both the edge level (adding/removing links) and the URL level
+(retiring a page behind a redirect, or repointing an existing redirect).
+The whole graph is recomputed and a before/after table is returned;
+interpretation is left to the caller. This is a faithful recompute
+primitive, not a ranking or target-optimization engine.
 }
 \examples{
 # Current site links
@@ -156,5 +156,5 @@ simulate_changes(edges, remove_urls = "About", clean_edge_urls = FALSE)
 }
 \seealso{
 \code{\link{simulate_changes_screaming_frog}} for the Screaming Frog
-  bundle entry point.
+bundle entry point.
 }

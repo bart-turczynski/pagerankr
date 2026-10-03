@@ -18,148 +18,156 @@ smooth_transitions(
 )
 }
 \arguments{
-\item{empirical_df}{A data frame of observed transitions: a `from`/`to` edge
+\item{empirical_df}{A data frame of observed transitions: a \code{from}/\code{to} edge
 list with a numeric count column. Typically the output of
-[ga4_page_transitions()] (or [aggregate_edges()] over behavioral counts).
-Duplicate `from`/`to` rows are summed.}
+\code{\link[=ga4_page_transitions]{ga4_page_transitions()}} (or \code{\link[=aggregate_edges]{aggregate_edges()}} over behavioral counts).
+Duplicate \code{from}/\code{to} rows are summed.}
 
 \item{structural_df}{A data frame of crawl-graph links forming the structural
-prior: a `from`/`to` edge list, optionally with a numeric structural-weight
-column. Duplicate `from`/`to` rows are summed (so repeated link instances
-raise the prior weight). When `structural_weight_col` is `NULL`, each row
+prior: a \code{from}/\code{to} edge list, optionally with a numeric structural-weight
+column. Duplicate \code{from}/\code{to} rows are summed (so repeated link instances
+raise the prior weight). When \code{structural_weight_col} is \code{NULL}, each row
 contributes weight 1, i.e. a uniform prior over a source's crawled links.}
 
 \item{k}{Positive numeric. The pseudocount / Dirichlet concentration
 controlling shrinkage strength in
-\eqn{\lambda_i = n_i / (n_i + k)}. Larger `k`
+\eqn{\lambda_i = n_i / (n_i + k)}. Larger \code{k}
 pulls under-sampled sources more strongly toward the structural prior.
-Must be `> 0`. Default `5`. Ignored for a source if `lambda_fn` is given.}
+Must be \verb{> 0}. Default \code{5}. Ignored for a source if \code{lambda_fn} is given.}
 
-\item{min_support}{Non-negative numeric. Sources with `0 < n_i < min_support`
+\item{min_support}{Non-negative numeric. Sources with \verb{0 < n_i < min_support}
 are treated as having insufficient empirical support and fall back fully to
-the structural prior (\eqn{\lambda_i = 0}). Default `0` (no minimum).}
+the structural prior (\eqn{\lambda_i = 0}). Default \code{0} (no minimum).}
 
-\item{lambda_fn}{Optional function mapping a source's sample size `n_i` (a
-single numeric) to a shrinkage weight in `[0, 1]`. Overrides the default
-`n_i / (n_i + k)` rule for sources that have both empirical data and a
-structural prior and meet `min_support`. Must return values `< 1` to
-preserve the non-zero-crawled-link guarantee. Default `NULL`.}
+\item{lambda_fn}{Optional function mapping a source's sample size \code{n_i} (a
+single numeric) to a shrinkage weight in \verb{[0, 1]}. Overrides the default
+\code{n_i / (n_i + k)} rule for sources that have both empirical data and a
+structural prior and meet \code{min_support}. Must return values \verb{< 1} to
+preserve the non-zero-crawled-link guarantee. Default \code{NULL}.}
 
 \item{count_col}{Name of the numeric empirical-count column in
-`empirical_df`. Default `"n"` (the [ga4_page_transitions()] default).}
+\code{empirical_df}. Default \code{"n"} (the \code{\link[=ga4_page_transitions]{ga4_page_transitions()}} default).}
 
 \item{structural_weight_col}{Name of an optional numeric structural-weight
-column in `structural_df`, or `NULL` (default) for a uniform prior.}
+column in \code{structural_df}, or \code{NULL} (default) for a uniform prior.}
 
 \item{from_col, to_col}{Names of the source / target columns, shared by both
-inputs and the output. Defaults `"from"` / `"to"`.}
+inputs and the output. Defaults \code{"from"} / \code{"to"}.}
 
 \item{prob_col}{Name of the output smoothed-probability column. Default
-`"transition_probability"`. Pass this to `pagerank(weight_col = ...)`.}
+\code{"transition_probability"}. Pass this to \code{pagerank(weight_col = ...)}.}
 }
 \value{
 A data frame with one row per surviving source-target edge (the
-  per-source union of empirical and structural edges, zero-probability edges
-  dropped), ordered by `from` then `to`, carrying:
-  \describe{
-    \item{`from_col`, `to_col`}{the edge endpoints (character).}
-    \item{`prob_col`}{the smoothed transition probability; sums to 1 within
-      each source.}
-    \item{`empirical_count`}{the observed count for this edge (0 if the edge
-      is `structural_only`).}
-    \item{`empirical_share`}{`count / n_i`, the raw empirical share (0 if the
-      source had no empirical data for this edge).}
-    \item{`structural_prior`}{the structural prior share for this edge (0 if
-      absent from the crawl graph).}
-    \item{`support`}{`n_i`, the source page's total empirical out-count.}
-    \item{`lambda`}{the per-source shrinkage weight applied.}
-    \item{`origin`}{`"both"`, `"empirical_only"`, or `"structural_only"`.}
-  }
+per-source union of empirical and structural edges, zero-probability edges
+dropped), ordered by \code{from} then \code{to}, carrying:
+\describe{
+\item{\code{from_col}, \code{to_col}}{the edge endpoints (character).}
+\item{\code{prob_col}}{the smoothed transition probability; sums to 1 within
+each source.}
+\item{\code{empirical_count}}{the observed count for this edge (0 if the edge
+is \code{structural_only}).}
+\item{\code{empirical_share}}{\code{count / n_i}, the raw empirical share (0 if the
+source had no empirical data for this edge).}
+\item{\code{structural_prior}}{the structural prior share for this edge (0 if
+absent from the crawl graph).}
+\item{\code{support}}{\code{n_i}, the source page's total empirical out-count.}
+\item{\code{lambda}}{the per-source shrinkage weight applied.}
+\item{\code{origin}}{\code{"both"}, \code{"empirical_only"}, or \code{"structural_only"}.}
+}
 }
 \description{
 Shrinks sparse empirical transition shares toward the
-  crawl-graph link structure, so that no valid crawled link is assigned a
-  probability of exactly zero. Observed page-transition data (e.g. from
-  [ga4_page_transitions()]) is sparse: a low-traffic but real internal link
-  may simply never have been traversed in the measured window, which leaves
-  its raw empirical share at zero and destabilizes the stationary PageRank
-  vector. This helper combines the empirical distribution with a structural
-  prior using a per-source shrinkage weight that grows with the source page's
-  sample size.
+crawl-graph link structure, so that no valid crawled link is assigned a
+probability of exactly zero. Observed page-transition data (e.g. from
+\code{\link[=ga4_page_transitions]{ga4_page_transitions()}}) is sparse: a low-traffic but real internal link
+may simply never have been traversed in the measured window, which leaves
+its raw empirical share at zero and destabilizes the stationary PageRank
+vector. This helper combines the empirical distribution with a structural
+prior using a per-source shrinkage weight that grows with the source page's
+sample size.
 }
 \details{
-## The shrinkage model
+\subsection{The shrinkage model}{
 
-For each source page `i`, the smoothed transition probability to target `j`
+For each source page \code{i}, the smoothed transition probability to target \code{j}
 is the convex combination
 
 \deqn{P(i \to j) = \lambda_i \cdot \mathrm{emp}(i \to j) +
   (1 - \lambda_i) \cdot \mathrm{prior}(i \to j)}
 
-where `emp(i -> j)` is the empirical share `count(i -> j) / n_i`
-(`n_i` = total observed out-transitions from `i`), `prior(i -> j)` is the
-structural prior share (the crawl-graph out-link distribution of `i`), and
+where \code{emp(i -> j)} is the empirical share \code{count(i -> j) / n_i}
+(\code{n_i} = total observed out-transitions from \code{i}), \code{prior(i -> j)} is the
+structural prior share (the crawl-graph out-link distribution of \code{i}), and
 \eqn{\lambda_i} is the per-source trust placed in the empirical data.
+}
 
-## Sample-size-dependent shrinkage (`lambda_i`)
+\subsection{Sample-size-dependent shrinkage (\code{lambda_i})}{
 
 By default \eqn{\lambda_i = n_i / (n_i + k)}, the standard
 Dirichlet / pseudocount shrinkage rule: it is monotonically increasing in the
-source-page sample size `n_i` and equals `1/2` at `n_i = k`. Equivalently,
-the model adds `k` pseudo-observations distributed according to the
+source-page sample size \code{n_i} and equals \code{1/2} at \code{n_i = k}. Equivalently,
+the model adds \code{k} pseudo-observations distributed according to the
 structural prior, then renormalizes — a Dirichlet prior with concentration
-`k`. A high-traffic source (large `n_i`) is trusted almost entirely to its
-own behavior; a barely-sampled source leans on the crawl structure. `k`
+\code{k}. A high-traffic source (large \code{n_i}) is trusted almost entirely to its
+own behavior; a barely-sampled source leans on the crawl structure. \code{k}
 must be strictly positive: this is precisely what guarantees
 \eqn{\lambda_i < 1} for any sampled source, hence a non-zero
-\eqn{(1 - \lambda_i)} weight on every crawled link (see *Guarantees*).
+\eqn{(1 - \lambda_i)} weight on every crawled link (see \emph{Guarantees}).
+}
 
-## Per-source special cases
+\subsection{Per-source special cases}{
 
 Sources are matched between the two inputs and resolved as follows:
-- **No empirical data** (`n_i = 0`; crawled link absent from behavioral
-  data): \eqn{\lambda_i = 0}, so `P(i -> .)` is the pure structural
-  prior. The crawl link still receives mass.
-- **No structural prior** (observed transition whose source has no crawled
-  out-links): \eqn{\lambda_i = 1}, so `P(i -> .)` is the pure empirical
-  distribution — there is nothing to shrink toward.
-- **Insufficient support** (`0 < n_i < min_support`):
-  \eqn{\lambda_i = 0}. The
-  empirical sample is treated as too small to trust, and the source falls
-  back to its structural prior (when one exists).
-- **Otherwise**: \eqn{\lambda_i = n_i / (n_i + k)} (or `lambda_fn(n_i)`).
+\itemize{
+\item \strong{No empirical data} (\code{n_i = 0}; crawled link absent from behavioral
+data): \eqn{\lambda_i = 0}, so \code{P(i -> .)} is the pure structural
+prior. The crawl link still receives mass.
+\item \strong{No structural prior} (observed transition whose source has no crawled
+out-links): \eqn{\lambda_i = 1}, so \code{P(i -> .)} is the pure empirical
+distribution — there is nothing to shrink toward.
+\item \strong{Insufficient support} (\verb{0 < n_i < min_support}):
+\eqn{\lambda_i = 0}. The
+empirical sample is treated as too small to trust, and the source falls
+back to its structural prior (when one exists).
+\item \strong{Otherwise}: \eqn{\lambda_i = n_i / (n_i + k)} (or \code{lambda_fn(n_i)}).
+}
+}
 
-## Edge universe
+\subsection{Edge universe}{
 
-The output covers the **union** of empirical and structural out-edges per
-source, with an `origin` column flagging each as `"both"`,
-`"empirical_only"` (an observed transition absent from the crawl graph), or
-`"structural_only"` (a crawled link never observed behaviorally). Edges
+The output covers the \strong{union} of empirical and structural out-edges per
+source, with an \code{origin} column flagging each as \code{"both"},
+\code{"empirical_only"} (an observed transition absent from the crawl graph), or
+\code{"structural_only"} (a crawled link never observed behaviorally). Edges
 whose smoothed probability is exactly zero — only possible for an
-`empirical_only` edge from a below-`min_support` source — are dropped, since
+\code{empirical_only} edge from a below-\code{min_support} source — are dropped, since
 they carry no transition mass.
+}
 
-## Time decay and segmentation
+\subsection{Time decay and segmentation}{
 
 Time decay and device / template / channel segmentation are handled
-**upstream** by shaping the count input, keeping this function focused on the
+\strong{upstream} by shaping the count input, keeping this function focused on the
 shrinkage itself. For time decay, supply decayed (fractional) counts in
-`count_col` — the `n_i` totals and \eqn{\lambda_i} then reflect effective
+\code{count_col} — the \code{n_i} totals and \eqn{\lambda_i} then reflect effective
 sample
-size, and `count_col` need not be integer. For segmentation, partition the
-empirical counts by segment and call `smooth_transitions()` once per segment
+size, and \code{count_col} need not be integer. For segmentation, partition the
+empirical counts by segment and call \code{smooth_transitions()} once per segment
 (optionally against a segment-specific structural prior), then combine the
 results.
+}
 
-## Guarantees
+\subsection{Guarantees}{
 
-For any `k > 0`, every crawled link present in `structural_df` receives a
+For any \code{k > 0}, every crawled link present in \code{structural_df} receives a
 strictly positive smoothed probability: such an edge has
-`prior(i -> j) > 0`, and either \eqn{\lambda_i = 0} (pure prior) or
-\eqn{\lambda_i < 1} (since `n_i / (n_i + k) < 1`), so the
+\code{prior(i -> j) > 0}, and either \eqn{\lambda_i = 0} (pure prior) or
+\eqn{\lambda_i < 1} (since \code{n_i / (n_i + k) < 1}), so the
 \eqn{(1 - \lambda_i)}
 weight on the prior is positive. Within each source, the returned
 probabilities sum to 1.
+}
 }
 \examples{
 # Sparse behavioral data: only A->B was ever observed.
@@ -182,7 +190,7 @@ smoothed
 #          clean_edge_urls = FALSE)
 }
 \seealso{
-[ga4_page_transitions()] for the empirical input,
-  [aggregate_edges()] for collapsing behavioral counts, and [pagerank()]
-  for consuming the smoothed probabilities via `weight_col = prob_col`.
+\code{\link[=ga4_page_transitions]{ga4_page_transitions()}} for the empirical input,
+\code{\link[=aggregate_edges]{aggregate_edges()}} for collapsing behavioral counts, and \code{\link[=pagerank]{pagerank()}}
+for consuming the smoothed probabilities via \code{weight_col = prob_col}.
 }

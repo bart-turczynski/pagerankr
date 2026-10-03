@@ -418,7 +418,7 @@ compute_pagerank <- function(edge_list_df,
 #' Validate `compute_pagerank()` arguments (delegates to smaller validators).
 #'
 #' Preserves every error message and short-circuit order. `damping` is checked
-#' by the same [.assert_unit_interval()] `pagerank()` uses, so both entry points
+#' by the same `.assert_unit_interval()` `pagerank()` uses, so both entry points
 #' reject the typed NAs and the infinities identically.
 #' Returns `invisible(NULL)`.
 #' @keywords internal

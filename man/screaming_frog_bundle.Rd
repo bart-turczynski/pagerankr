@@ -14,34 +14,34 @@ screaming_frog_bundle(
 )
 }
 \arguments{
-\item{internal}{A path/data frame accepted by [screaming_frog_internal()], or
-an existing `screaming_frog_internal` object.}
+\item{internal}{A path/data frame accepted by \code{\link[=screaming_frog_internal]{screaming_frog_internal()}}, or
+an existing \code{screaming_frog_internal} object.}
 
-\item{links}{A path/data frame accepted by [screaming_frog_links()], or an
-existing `screaming_frog_links` object.}
+\item{links}{A path/data frame accepted by \code{\link[=screaming_frog_links]{screaming_frog_links()}}, or an
+existing \code{screaming_frog_links} object.}
 
-\item{link_export_kind}{Declared link export kind when `links` is not already
-a `screaming_frog_links` object: `"all_inlinks"` or `"all_outlinks"`.}
+\item{link_export_kind}{Declared link export kind when \code{links} is not already
+a \code{screaming_frog_links} object: \code{"all_inlinks"} or \code{"all_outlinks"}.}
 
-\item{origin_policy, endpoint_action}{Passed to [screaming_frog_links()] when
-`links` is not already imported.}
+\item{origin_policy, endpoint_action}{Passed to \code{\link[=screaming_frog_links]{screaming_frog_links()}} when
+\code{links} is not already imported.}
 }
 \value{
-An S3 object of class `screaming_frog_bundle` with stable top-level
-  fields `nodes`, `observations`, `edges`, `redirects`, `canonicals`,
-  `indexability`, `diagnostics`, and `provenance`.
+An S3 object of class \code{screaming_frog_bundle} with stable top-level
+fields \code{nodes}, \code{observations}, \code{edges}, \code{redirects}, \code{canonicals},
+\code{indexability}, \code{diagnostics}, and \code{provenance}.
 }
 \description{
-Builds the stable `screaming_frog_bundle` handoff object from an
-**Internal: All** export and one **All Inlinks** or **All Outlinks** export.
+Builds the stable \code{screaming_frog_bundle} handoff object from an
+\strong{Internal: All} export and one \strong{All Inlinks} or \strong{All Outlinks} export.
 The component adapters remain the source of truth: raw link observations stay
 separate from graph-eligible edges, and node, redirect, canonical, and
 indexability tables are exposed unchanged for downstream scoring.
 
-`pagerankr` accepts a Screaming Frog **Internal: All** export as node
-metadata and one **All Inlinks** or **All Outlinks** bulk export as link
+\code{pagerankr} accepts a Screaming Frog \strong{Internal: All} export as node
+metadata and one \strong{All Inlinks} or \strong{All Outlinks} bulk export as link
 observations. Internal: All is never treated as an edge list. Both link
-exports use `Source -> Destination`; the export kind records provenance and
+exports use \code{Source -> Destination}; the export kind records provenance and
 never changes orientation.
 }
 \section{Input boundary}{
@@ -55,43 +55,43 @@ Unknown extra columns are ignored and reported; missing required columns
 fail with their normalized contract names.
 
 Raw URLs are preserved at this boundary. URL cleaning belongs to the
-scoring path and is performed once with `pagerankr`'s pinned `rurl`
+scoring path and is performed once with \code{pagerankr}'s pinned \code{rurl}
 canonicalization profile.
 }
 
 \section{Link observation semantics}{
 
 Raw link observations and graph-eligible edges are separate tables.
-Duplicate observations are preserved. Only rows whose `type` is
-`"Hyperlink"` are graph-eligible by default. Resource, sitemap, hreflang,
+Duplicate observations are preserved. Only rows whose \code{type} is
+\code{"Hyperlink"} are graph-eligible by default. Resource, sitemap, hreflang,
 redirect, and canonical observations are not silently promoted to PageRank
 edges; redirects and canonicals remain dedicated signals.
 
-`follow` is the primary nofollow field. `rel` is retained and parsed
+\code{follow} is the primary nofollow field. \code{rel} is retained and parsed
 independently for diagnostics, so disagreements can be reported. Link
-position is normalized only for `Navigation`, `Content`, `Footer`, `Header`,
-and `Aside`; `Head`, blanks, and unknown values remain unmapped rather than
+position is normalized only for \code{Navigation}, \code{Content}, \code{Footer}, \code{Header},
+and \code{Aside}; \code{Head}, blanks, and unknown values remain unmapped rather than
 being guessed. Link origin and link path are preserved as provenance. Link
 path is an XPath-like source locator, not a URL path.
 }
 
 \section{Stable bundle shape}{
 
-The public `screaming_frog_bundle` object introduced by the adapter tickets
+The public \code{screaming_frog_bundle} object introduced by the adapter tickets
 is an S3 list with these stable top-level fields, in order:
 \describe{
-  \item{nodes}{Normalized Internal: All node facts.}
-  \item{observations}{Lossless normalized link observations.}
-  \item{edges}{The graph-eligible `from` / `to` subset.}
-  \item{redirects}{`from` / `to` redirect signals.}
-  \item{canonicals}{`from` / `to` canonical signals.}
-  \item{indexability}{URL-level indexability facts.}
-  \item{diagnostics}{Counts, omissions, invalid values, and disagreements.}
-  \item{provenance}{Input kind, source, schema aliases, and schema clues.}
+\item{nodes}{Normalized Internal: All node facts.}
+\item{observations}{Lossless normalized link observations.}
+\item{edges}{The graph-eligible \code{from} / \code{to} subset.}
+\item{redirects}{\code{from} / \code{to} redirect signals.}
+\item{canonicals}{\code{from} / \code{to} canonical signals.}
+\item{indexability}{URL-level indexability facts.}
+\item{diagnostics}{Counts, omissions, invalid values, and disagreements.}
+\item{provenance}{Input kind, source, schema aliases, and schema clues.}
 }
 
 This topic freezes the contract consumed by the SF1-SF5 implementation
-tickets. The complete object is constructed by [screaming_frog_bundle()].
+tickets. The complete object is constructed by \code{\link[=screaming_frog_bundle]{screaming_frog_bundle()}}.
 }
 
 \examples{

@@ -15,9 +15,9 @@ Called for its side effect (launches the app). Returns invisibly.
 }
 \description{
 Opens an interactive Shiny application for exploring PageRank
-  results. Upload CSV files for edge lists, redirects, and PageRank scores,
-  then visualize the graph interactively, inspect distributions, audit
-  redirects, and export in multiple formats.
+results. Upload CSV files for edge lists, redirects, and PageRank scores,
+then visualize the graph interactively, inspect distributions, audit
+redirects, and export in multiple formats.
 }
 \details{
 The app requires the \code{shiny} and \code{DT} packages. For interactive

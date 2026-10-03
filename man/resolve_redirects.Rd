@@ -22,52 +22,52 @@ resolve_redirects(
 \item{redirects_df}{A data frame containing redirect rules, with 'from' and
 'to' columns specifying the source and target of a redirect.}
 
-\item{edge_from_col}{Character, the name of the column in `edge_list_df`
+\item{edge_from_col}{Character, the name of the column in \code{edge_list_df}
 containing source URLs. Default "from".}
 
-\item{edge_to_col}{Character, the name of the column in `edge_list_df`
+\item{edge_to_col}{Character, the name of the column in \code{edge_list_df}
 containing target URLs. Default "to".}
 
-\item{redirect_from_col}{Character, the name of the column in `redirects_df`
+\item{redirect_from_col}{Character, the name of the column in \code{redirects_df}
 containing source URLs of redirects. Default "from".}
 
-\item{redirect_to_col}{Character, the name of the column in `redirects_df`
+\item{redirect_to_col}{Character, the name of the column in \code{redirects_df}
 containing target URLs of redirects. Default "to".}
 
 \item{duplicate_from_policy}{Character, how to handle conflicting redirects
 (same source URL mapping to multiple distinct targets). One of:
 \describe{
-  \item{"strict"}{(Default) Error on any conflict.}
-  \item{"first_wins"}{Keep the first occurrence for each conflicting
-    source.}
-  \item{"last_wins"}{Keep the last occurrence for each conflicting source.}
-  \item{"most_frequent"}{Keep the most common target. Ties broken by first
-    occurrence.}
-  \item{"prune_source"}{Remove ALL redirects from any conflicting source.}
-  \item{"resolve_if_consistent"}{Allow exact duplicates; error only on
-    true conflicts where targets differ.}
+\item{"strict"}{(Default) Error on any conflict.}
+\item{"first_wins"}{Keep the first occurrence for each conflicting
+source.}
+\item{"last_wins"}{Keep the last occurrence for each conflicting source.}
+\item{"most_frequent"}{Keep the most common target. Ties broken by first
+occurrence.}
+\item{"prune_source"}{Remove ALL redirects from any conflicting source.}
+\item{"resolve_if_consistent"}{Allow exact duplicates; error only on
+true conflicts where targets differ.}
 }}
 
 \item{loop_handling}{Character, how to handle redirect cycles (loops).
 One of:
 \describe{
-  \item{"error"}{(Default) Error when a redirect cycle is detected.}
-  \item{"prune_loop"}{Remove all edges involved in cycles. URLs in the
-    loop remain unresolved (map to themselves).}
-  \item{"break_arrow"}{For each cycle, keep the node with the highest
-    in-degree as the sink and remove edges pointing away from it within
-    the cycle. This preserves as much of the chain as possible.}
+\item{"error"}{(Default) Error when a redirect cycle is detected.}
+\item{"prune_loop"}{Remove all edges involved in cycles. URLs in the
+loop remain unresolved (map to themselves).}
+\item{"break_arrow"}{For each cycle, keep the node with the highest
+in-degree as the sink and remove edges pointing away from it within
+the cycle. This preserves as much of the chain as possible.}
 }}
 }
 \value{
-An updated `edge_list_df` with URLs in `edge_from_col` and
-  `edge_to_col` replaced by their final resolved destinations.
+An updated \code{edge_list_df} with URLs in \code{edge_from_col} and
+\code{edge_to_col} replaced by their final resolved destinations.
 }
 \description{
 Updates an edge list by replacing URLs with their final
-  destinations based on a redirect data frame. Handles redirect chains,
-  detects cycles, and resolves conflicting redirects using configurable
-  policies.
+destinations based on a redirect data frame. Handles redirect chains,
+detects cycles, and resolves conflicting redirects using configurable
+policies.
 }
 \details{
 Self-referencing redirects (where from == to) and any redirects with NA

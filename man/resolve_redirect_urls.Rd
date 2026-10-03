@@ -33,19 +33,19 @@ Use \code{"prune_loop"} or \code{"break_arrow"} to resolve despite loops.}
 }
 \value{
 A data frame with columns:
-  \describe{
-    \item{original}{The input URL.}
-    \item{resolved}{The final destination after following all redirects.}
-    \item{changed}{Logical, whether the URL was modified by a redirect.}
-  }
+\describe{
+\item{original}{The input URL.}
+\item{resolved}{The final destination after following all redirects.}
+\item{changed}{Logical, whether the URL was modified by a redirect.}
+}
 }
 \description{
 Given a character vector of URLs and a redirect data frame,
-  resolves each URL to its final destination by following redirect chains.
-  Unlike \code{\link{resolve_redirects}}, this function does not require an
-  edge list -- it works directly on a list of URLs. This helper is
-  redirect-only; use [resolve_canonical_urls()] for `rel=canonical` folding
-  or [resolve_folded_urls()] for composed redirect plus canonical folding.
+resolves each URL to its final destination by following redirect chains.
+Unlike \code{\link{resolve_redirects}}, this function does not require an
+edge list -- it works directly on a list of URLs. This helper is
+redirect-only; use \code{\link[=resolve_canonical_urls]{resolve_canonical_urls()}} for \code{rel=canonical} folding
+or \code{\link[=resolve_folded_urls]{resolve_folded_urls()}} for composed redirect plus canonical folding.
 }
 \examples{
 redirects <- data.frame(

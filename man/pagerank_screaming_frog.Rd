@@ -17,66 +17,66 @@ pagerank_screaming_frog(
 )
 }
 \arguments{
-\item{bundle}{A `screaming_frog_bundle` object.}
+\item{bundle}{A \code{screaming_frog_bundle} object.}
 
 \item{accepted_placements, placement_weights}{Placement controls forwarded to
-[pagerank()], which owns them: placement is a crawler-neutral concept, and
-this wrapper only supplies the bundle's normalized `placement` column as
-[pagerank()]'s `placement_col`. See [pagerank()] for the vocabulary
-(`"content"`, `"nav"`, `"header"`, `"footer"`, `"aside"`) and semantics.}
+\code{\link[=pagerank]{pagerank()}}, which owns them: placement is a crawler-neutral concept, and
+this wrapper only supplies the bundle's normalized \code{placement} column as
+\code{\link[=pagerank]{pagerank()}}'s \code{placement_col}. See \code{\link[=pagerank]{pagerank()}} for the vocabulary
+(\code{"content"}, \code{"nav"}, \code{"header"}, \code{"footer"}, \code{"aside"}) and semantics.}
 
 \item{link_origins}{Optional character vector of normalized link origins to
-retain. Values must be among `"html"`, `"rendered"`, and
-`"html_rendered"`. `NULL` keeps all origins present in `bundle$edges`.
-Unlike placement, link origin *is* a Screaming Frog concept and stays
+retain. Values must be among \code{"html"}, \code{"rendered"}, and
+\code{"html_rendered"}. \code{NULL} keeps all origins present in \code{bundle$edges}.
+Unlike placement, link origin \emph{is} a Screaming Frog concept and stays
 wrapper-owned.}
 
 \item{weight_col}{Optional existing edge weight column, forwarded to
-[pagerank()]. Cannot be combined with `placement_weights`.}
+\code{\link[=pagerank]{pagerank()}}. Cannot be combined with \code{placement_weights}.}
 
-\item{apply_canonicals}{Logical flag (default `TRUE`). When `TRUE` the
-bundle's `rel=canonical` signals are folded into the graph via
-[pagerank()]'s `canonicals_df`. Set `FALSE` for an as-crawled run that
+\item{apply_canonicals}{Logical flag (default \code{TRUE}). When \code{TRUE} the
+bundle's \code{rel=canonical} signals are folded into the graph via
+\code{\link[=pagerank]{pagerank()}}'s \code{canonicals_df}. Set \code{FALSE} for an as-crawled run that
 preserves the crawled node identities (no canonical folding) — useful when
 canonicals point off the crawled domain (e.g. a mirror/staging host) and
 would otherwise relabel crawled pages onto uncrawled targets.}
 
-\item{apply_redirects}{Logical flag (default `TRUE`). When `TRUE` the
-bundle's redirect signals are folded into the graph via [pagerank()]'s
-`redirects_df`. Set `FALSE` to skip redirect folding and keep the
+\item{apply_redirects}{Logical flag (default \code{TRUE}). When \code{TRUE} the
+bundle's redirect signals are folded into the graph via \code{\link[=pagerank]{pagerank()}}'s
+\code{redirects_df}. Set \code{FALSE} to skip redirect folding and keep the
 as-crawled node identities.}
 
-\item{preset}{Optional named view forwarded to [pagerank()]'s `preset`, one
-of `"raw"`, `"declared"`, `"reversed"`, `"content"`, or a [pr_preset()]
-result. The `"raw"` view additionally switches off the bundle's declared
+\item{preset}{Optional named view forwarded to \code{\link[=pagerank]{pagerank()}}'s \code{preset}, one
+of \code{"raw"}, \code{"declared"}, \code{"reversed"}, \code{"content"}, or a \code{\link[=pr_preset]{pr_preset()}}
+result. The \code{"raw"} view additionally switches off the bundle's declared
 canonical, redirect and indexability tables, since "the graph exactly as
 crawled" cannot honor declarations the wrapper would otherwise feed in.
-An explicit `apply_canonicals` or `apply_redirects` still overrides the
-`"raw"` default for that table. See `vignette("presets")`.}
+An explicit \code{apply_canonicals} or \code{apply_redirects} still overrides the
+\code{"raw"} default for that table. See \code{vignette("presets")}.}
 
-\item{...}{Additional scoring controls passed to [pagerank()], such as
-`self_loops`, `drop_isolates_flag`, `nofollow_action`,
-`robots_blocked_action`, `rurl_params`, prior settings, and `damping`.
-Positional decay is opt-in here too: the bundle's `edges` carry a
-`position_index` column (each link's reading-order rank among its source
-page's content links, materialized only from an **All Outlinks** export),
-so pass `position_col = "position_index"` -- optionally with
-`position_transform` / `position_alpha` / `position_floor` -- to switch the
+\item{...}{Additional scoring controls passed to \code{\link[=pagerank]{pagerank()}}, such as
+\code{self_loops}, \code{drop_isolates_flag}, \code{nofollow_action},
+\code{robots_blocked_action}, \code{rurl_params}, prior settings, and \code{damping}.
+Positional decay is opt-in here too: the bundle's \code{edges} carry a
+\code{position_index} column (each link's reading-order rank among its source
+page's content links, materialized only from an \strong{All Outlinks} export),
+so pass \code{position_col = "position_index"} -- optionally with
+\code{position_transform} / \code{position_alpha} / \code{position_floor} -- to switch the
 axis on. It stays off by default, per the faithful-default rule, because
 reading-order decay reshuffles ranking as hard as placement weighting does.}
 }
 \value{
-The [pagerank()] result data frame. It retains the
-  `"transition_audit"` attribute from [pagerank()] and adds a
-  `"screaming_frog_import"` attribute containing bundle diagnostics,
-  provenance, and wrapper filtering/weighting choices.
+The \code{\link[=pagerank]{pagerank()}} result data frame. It retains the
+\code{"transition_audit"} attribute from \code{\link[=pagerank]{pagerank()}} and adds a
+\code{"screaming_frog_import"} attribute containing bundle diagnostics,
+provenance, and wrapper filtering/weighting choices.
 }
 \description{
-Thin convenience wrapper around [pagerank()] for the stable
-[screaming_frog_bundle()] handoff object. Only `bundle$edges` enter the
+Thin convenience wrapper around \code{\link[=pagerank]{pagerank()}} for the stable
+\code{\link[=screaming_frog_bundle]{screaming_frog_bundle()}} handoff object. Only \code{bundle$edges} enter the
 graph. Raw observations and dedicated redirect, canonical, indexability, and
 resource rows stay out of the edge list and are mapped to the existing
-[pagerank()] arguments.
+\code{\link[=pagerank]{pagerank()}} arguments.
 }
 \examples{
 internal <- data.frame(

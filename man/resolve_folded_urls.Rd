@@ -24,54 +24,54 @@ resolve_folded_urls(
 \arguments{
 \item{urls}{Character vector of URLs to resolve.}
 
-\item{redirects_df}{Optional data frame of redirect rules, or `NULL`.}
+\item{redirects_df}{Optional data frame of redirect rules, or \code{NULL}.}
 
 \item{canonicals_df}{Optional data frame of declared canonical links, or
-`NULL`.}
+\code{NULL}.}
 
-\item{redirect_from_col, redirect_to_col}{From/to columns in `redirects_df`.
-Default `"from"` / `"to"`.}
+\item{redirect_from_col, redirect_to_col}{From/to columns in \code{redirects_df}.
+Default \code{"from"} / \code{"to"}.}
 
 \item{canonical_from_col, canonical_to_col}{From/to columns in
-`canonicals_df`. Default `"from"` / `"to"`.}
+\code{canonicals_df}. Default \code{"from"} / \code{"to"}.}
 
 \item{duplicate_from_policy}{How to handle a redirect source with multiple
-distinct targets. See [resolve_redirects()]. Default `"strict"`.}
+distinct targets. See \code{\link[=resolve_redirects]{resolve_redirects()}}. Default \code{"strict"}.}
 
 \item{loop_handling}{How to handle redirect cycles. See
-[resolve_redirects()]. Default `"error"`. Also governs cross-signal cycles
+\code{\link[=resolve_redirects]{resolve_redirects()}}. Default \code{"error"}. Also governs cross-signal cycles
 in the composed graph.}
 
 \item{canonical_duplicate_from_policy}{How to handle a canonical source with
-multiple distinct declared canonicals. Reuses the `duplicate_from_policy`
-enum. Default `"strict"`.}
+multiple distinct declared canonicals. Reuses the \code{duplicate_from_policy}
+enum. Default \code{"strict"}.}
 
 \item{canonical_loop_handling}{How to handle cycles among declared
-canonicals. Reuses the `loop_handling` enum. Default `"error"`.}
+canonicals. Reuses the \code{loop_handling} enum. Default \code{"error"}.}
 
 \item{canonical_conflict_policy}{How to resolve a redirect-vs-canonical
-disagreement on the **same source** URL. One of:
+disagreement on the \strong{same source} URL. One of:
 \describe{
-  \item{`"redirect_wins"`}{(Default) The 3xx redirect wins; a canonical
-    declared on a URL that itself redirects is ignored and flagged, never
-    transferred onto the redirect target.}
-  \item{`"error"`}{Error when a redirect and a canonical disagree on the
-    same source (after audit context is computed). Sources where the two
-    signals agree do not error.}
-  \item{`"canonical_wins"`}{The declared canonical wins for that source;
-    still flagged in the audit. The explicit exception to the default
-    ignored-canonical-on-redirecting-source rule.}
+\item{\code{"redirect_wins"}}{(Default) The 3xx redirect wins; a canonical
+declared on a URL that itself redirects is ignored and flagged, never
+transferred onto the redirect target.}
+\item{\code{"error"}}{Error when a redirect and a canonical disagree on the
+same source (after audit context is computed). Sources where the two
+signals agree do not error.}
+\item{\code{"canonical_wins"}}{The declared canonical wins for that source;
+still flagged in the audit. The explicit exception to the default
+ignored-canonical-on-redirecting-source rule.}
 }}
 }
 \value{
-A data frame with `original`, `resolved`, `changed`, and `signal`
-  columns. The exported fold map is attached as attribute `"fold_map"` and
-  cross-signal audit tables are attached as `"conflicts"` and
-  `"ignored_canonicals"`.
+A data frame with \code{original}, \code{resolved}, \code{changed}, and \code{signal}
+columns. The exported fold map is attached as attribute \code{"fold_map"} and
+cross-signal audit tables are attached as \code{"conflicts"} and
+\code{"ignored_canonicals"}.
 }
 \description{
 Resolves URL vectors with the same composed 3xx redirect plus declared
-`rel=canonical` fold-map engine used by [pagerank()] and [build_fold_map()].
+\code{rel=canonical} fold-map engine used by \code{\link[=pagerank]{pagerank()}} and \code{\link[=build_fold_map]{build_fold_map()}}.
 This helper performs signal folding only; it does not perform URL syntax
 canonicalization.
 }

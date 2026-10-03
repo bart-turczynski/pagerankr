@@ -10,94 +10,93 @@ pr_preset(name)
 \item{name}{A single string naming a registered preset. See "Presets".}
 }
 \value{
-A named list of [pagerank()] arguments.
+A named list of \code{\link[=pagerank]{pagerank()}} arguments.
 }
 \description{
-[pagerank()] exposes many graph-preparation knobs. A **preset** is a small,
-named bundle of those arguments describing one recurring *view* of the link
+\code{\link[=pagerank]{pagerank()}} exposes many graph-preparation knobs. A \strong{preset} is a small,
+named bundle of those arguments describing one recurring \emph{view} of the link
 graph, so a view is a one-liner instead of a hand-assembled argument list.
 }
 \details{
-`pr_preset()` returns the bundle as a plain named list, so it is
+\code{pr_preset()} returns the bundle as a plain named list, so it is
 inspectable (print it to audit exactly what a preset does) and spliceable
-(`do.call(pagerank, c(list(edges), pr_preset("raw")))`). Passing the name
-directly -- `pagerank(edges, preset = "raw")` -- is equivalent.
+(\code{do.call(pagerank, c(list(edges), pr_preset("raw")))}). Passing the name
+directly -- \code{pagerank(edges, preset = "raw")} -- is equivalent.
 }
 \section{Presets}{
 
 
 \describe{
-  \item{`"raw"`}{The graph exactly as crawled: nothing is applied. Self
-    loops are kept, isolates are kept, `rel=nofollow` is ignored (the edge
-    votes like any other), and fold-map entries pointing at uncrawled
-    targets are dropped rather than relabeling crawled pages onto phantom
-    vertices. This is the faithful baseline to compare every other view
-    against.}
-  \item{`"declared"`}{The graph after honoring the signals the site
-    *declares*: `rel=nofollow` evaporates, declared canonical/redirect
-    targets are followed even when they were not crawled, robots-blocked
-    pages keep the authority they collect, and self loops and isolates are
-    dropped. This is a **pure pin of the package defaults** -- it changes
-    nothing about how [pagerank()] behaves today. Its value is that it
-    *states* the default view: a run made with `preset = "declared"` is a
-    recorded, auditable claim about which view was intended, and it stays
-    pinned to the bundle as documented even if a future default moves. Note
-    that the declared **data** (`redirects_df`, `canonicals_df`,
-    `indexability_df`) still has to be supplied by the caller -- a preset
-    sets policy, never data.}
-  \item{`"reversed"`}{The graph with every edge flipped (`reverse = TRUE`),
-    yielding reverse / inverse PageRank: a page scores highly when it points
-    *at* well-connected pages rather than when it is pointed at. The feeder
-    view. Note that [topic_feeder_pagerank()] already reverses the graph
-    itself, so this preset is a no-op there rather than an error.}
-  \item{`"content"`}{Weights edges by the page region they were found in:
-    links in the main content keep their full vote, while links in
-    navigation, header, footer and aside are discounted to a tenth. Site
-    chrome is typically the large majority of a crawl's edges, so left
-    unweighted it *manufactures* the ranking. Edges are **downweighted, never
-    dropped** -- placement is a heuristic classification, so a misclassified
-    content link at 0.1 is a small error where a dropped one is a silent
-    deletion, and dropping most of the graph would also manufacture isolates
-    and dangling pages. All five placement terms are named explicitly, so
-    this is a complete recipe rather than a partial adjustment.
+\item{\code{"raw"}}{The graph exactly as crawled: nothing is applied. Self
+loops are kept, isolates are kept, \code{rel=nofollow} is ignored (the edge
+votes like any other), and fold-map entries pointing at uncrawled
+targets are dropped rather than relabeling crawled pages onto phantom
+vertices. This is the faithful baseline to compare every other view
+against.}
+\item{\code{"declared"}}{The graph after honoring the signals the site
+\emph{declares}: \code{rel=nofollow} evaporates, declared canonical/redirect
+targets are followed even when they were not crawled, robots-blocked
+pages keep the authority they collect, and self loops and isolates are
+dropped. This is a \strong{pure pin of the package defaults} -- it changes
+nothing about how \code{\link[=pagerank]{pagerank()}} behaves today. Its value is that it
+\emph{states} the default view: a run made with \code{preset = "declared"} is a
+recorded, auditable claim about which view was intended, and it stays
+pinned to the bundle as documented even if a future default moves. Note
+that the declared \strong{data} (\code{redirects_df}, \code{canonicals_df},
+\code{indexability_df}) still has to be supplied by the caller -- a preset
+sets policy, never data.}
+\item{\code{"reversed"}}{The graph with every edge flipped (\code{reverse = TRUE}),
+yielding reverse / inverse PageRank: a page scores highly when it points
+\emph{at} well-connected pages rather than when it is pointed at. The feeder
+view. Note that \code{\link[=topic_feeder_pagerank]{topic_feeder_pagerank()}} already reverses the graph
+itself, so this preset is a no-op there rather than an error.}
+\item{\code{"content"}}{Weights edges by the page region they were found in:
+links in the main content keep their full vote, while links in
+navigation, header, footer and aside are discounted to a tenth. Site
+chrome is typically the large majority of a crawl's edges, so left
+unweighted it \emph{manufactures} the ranking. Edges are \strong{downweighted, never
+dropped} -- placement is a heuristic classification, so a misclassified
+content link at 0.1 is a small error where a dropped one is a silent
+deletion, and dropping most of the graph would also manufacture isolates
+and dangling pages. All five placement terms are named explicitly, so
+this is a complete recipe rather than a partial adjustment.
 
-    This preset sets policy; the *data* is `placement_col`, which the caller
-    must supply (it errors otherwise). [pagerank_screaming_frog()] supplies
-    it from the bundle, so `preset = "content"` works there directly.}
+This preset sets policy; the \emph{data} is \code{placement_col}, which the caller
+must supply (it errors otherwise). \code{\link[=pagerank_screaming_frog]{pagerank_screaming_frog()}} supplies
+it from the bundle, so \code{preset = "content"} works there directly.}
 }
 
-Presets are not composable with one another -- `preset` takes a single
-bundle. `"content"` sets only placement weights and leaves every graph
-hygiene knob at its default, which *is* the `"declared"` view, so the two do
+Presets are not composable with one another -- \code{preset} takes a single
+bundle. \code{"content"} sets only placement weights and leaves every graph
+hygiene knob at its default, which \emph{is} the \code{"declared"} view, so the two do
 not need to be combined.
 }
 
 \section{Provenance}{
 
 
-The [transition_audit] attached to a [pagerank()] result records which
-preset produced it, in `audit$config$preset`: the preset name for a
-registered preset (whether passed by name or as a `pr_preset()` result),
-`"custom"` for a hand-rolled bundle, and `NULL` when no preset was used. The
-rest of `config` records the resulting configuration, so a result can be
+The \link{transition_audit} attached to a \code{\link[=pagerank]{pagerank()}} result records which
+preset produced it, in \code{audit$config$preset}: the preset name for a
+registered preset (whether passed by name or as a \code{pr_preset()} result),
+\code{"custom"} for a hand-rolled bundle, and \code{NULL} when no preset was used. The
+rest of \code{config} records the resulting configuration, so a result can be
 both reconstructed and attributed to the named view it was asked for.
 }
 
 \section{Precedence}{
 
 
-Arguments resolve **explicit argument > preset > base default**. A preset
+Arguments resolve \strong{explicit argument > preset > base default}. A preset
 value is applied only to arguments the caller did not name, so an explicit
 argument is never silently overridden:
 
-```r
-pagerank(edges, preset = "raw")                        # nofollow kept
+\if{html}{\out{<div class="sourceCode r">}}\preformatted{pagerank(edges, preset = "raw")                        # nofollow kept
 pagerank(edges, preset = "raw", nofollow_action = "drop")  # "drop" wins
-```
+}\if{html}{\out{</div>}}
 
-This holds through the wrappers that forward `...` to [pagerank()]
-([trustrank()], [topic_sensitive_pagerank()],
-[topic_feeder_pagerank()], [pagerank_screaming_frog()]), with one
+This holds through the wrappers that forward \code{...} to \code{\link[=pagerank]{pagerank()}}
+(\code{\link[=trustrank]{trustrank()}}, \code{\link[=topic_sensitive_pagerank]{topic_sensitive_pagerank()}},
+\code{\link[=topic_feeder_pagerank]{topic_feeder_pagerank()}}, \code{\link[=pagerank_screaming_frog]{pagerank_screaming_frog()}}), with one
 boundary: arguments a wrapper sets itself are wrapper-owned and a preset
 cannot change them.
 }
@@ -125,6 +124,6 @@ placed <- data.frame(
 pagerank(placed, preset = "content", placement_col = "region")
 }
 \seealso{
-`vignette("presets")` for each preset's full expansion, worked
-  examples, and the precedence rule.
+\code{vignette("presets")} for each preset's full expansion, worked
+examples, and the precedence rule.
 }

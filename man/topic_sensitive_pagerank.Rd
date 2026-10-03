@@ -16,89 +16,89 @@ topic_sensitive_pagerank(
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, typically with
 columns like "from" and "to". Edges are expected to be page-to-page
-hyperlinks: `pagerank()` is graph-agnostic and treats every endpoint as a
+hyperlinks: \code{pagerank()} is graph-agnostic and treats every endpoint as a
 node, so resource links (images, CSS, JS, and other non-HTML references)
 must be filtered upstream or they collect authority as ordinary vertices.
-`pagerank_screaming_frog()` does this at the crawl boundary via
-[sf_graph_eligible()] (`Hyperlink` only); a hand-built or non-SF edge list
+\code{pagerank_screaming_frog()} does this at the crawl boundary via
+\code{\link[=sf_graph_eligible]{sf_graph_eligible()}} (\code{Hyperlink} only); a hand-built or non-SF edge list
 should apply the same hyperlink-only filter before scoring.}
 
-\item{topics}{A **uniquely named** list, one element per topic. Each element
+\item{topics}{A \strong{uniquely named} list, one element per topic. Each element
 defines that topic's teleport seed set and is either:
 \describe{
-  \item{a character vector of seed URLs}{each seed gets equal weight `1`;}
-  \item{a data frame}{with a URL column and a numeric weight column (see
-    `topic_url_col` / `topic_weight_col`) for weighted seeds.}
+\item{a character vector of seed URLs}{each seed gets equal weight \code{1};}
+\item{a data frame}{with a URL column and a numeric weight column (see
+\code{topic_url_col} / \code{topic_weight_col}) for weighted seeds.}
 }
 The list names become the per-topic score column names in the result, so
 they must be non-empty, unique, and must not be the reserved names
-`"node_name"` or `"blended"`. Seed URLs are canonicalized and redirect- /
-canonical-folded into the graph's vertex namespace by [pagerank()] before
+\code{"node_name"} or \code{"blended"}. Seed URLs are canonicalized and redirect- /
+canonical-folded into the graph's vertex namespace by \code{\link[=pagerank]{pagerank()}} before
 alignment, identically to any other prior.}
 
-\item{topic_weights}{Optional blend weights for the `blended` column. Either
-a named numeric whose names match `topics`, or an unnamed numeric of the
-same length as `topics` (applied in list order). Must be non-negative,
+\item{topic_weights}{Optional blend weights for the \code{blended} column. Either
+a named numeric whose names match \code{topics}, or an unnamed numeric of the
+same length as \code{topics} (applied in list order). Must be non-negative,
 finite, and sum to a positive value; they are normalized to sum to 1
-internally. Default `NULL` gives every topic equal weight.}
+internally. Default \code{NULL} gives every topic equal weight.}
 
 \item{topic_url_col, topic_weight_col}{Column names used when a topic is
-supplied as a data frame. Defaults `"url"` / `"weight"`. Ignored for topics
+supplied as a data frame. Defaults \code{"url"} / \code{"weight"}. Ignored for topics
 given as plain character vectors.}
 
-\item{...}{Additional arguments forwarded to [pagerank()] and onward to
-`igraph::page_rank` (e.g. `redirects_df`, `canonicals_df`, `rurl_params`,
-`weight_col`, `prior_transform`, `prior_alpha`, `damping`). Because this
-function owns the teleport prior, passing `prior_df`, `prior_url_col`, or
-`prior_weight_col` here is an error — supply `topics` instead. Inner
+\item{...}{Additional arguments forwarded to \code{\link[=pagerank]{pagerank()}} and onward to
+\code{igraph::page_rank} (e.g. \code{redirects_df}, \code{canonicals_df}, \code{rurl_params},
+\code{weight_col}, \code{prior_transform}, \code{prior_alpha}, \code{damping}). Because this
+function owns the teleport prior, passing \code{prior_df}, \code{prior_url_col}, or
+\code{prior_weight_col} here is an error — supply \code{topics} instead. Inner
 per-topic alignment diagnostics are silenced by default
-(`prior_verbose = FALSE`); pass `prior_verbose = TRUE` to re-enable them.}
+(\code{prior_verbose = FALSE}); pass \code{prior_verbose = TRUE} to re-enable them.}
 }
 \value{
-A data frame with one row per node, sorted by `blended` descending:
-  \describe{
-    \item{node_name}{Node identifier (shared vertex namespace).}
-    \item{<one column per topic>}{The personalized PageRank score for that
-      topic, named after the corresponding `topics` entry.}
-    \item{blended}{The `topic_weights`-weighted combination of the per-topic
-      scores.}
-  }
-  Two attributes are attached: `"topic_weights"`, the normalized weights used
-  for the blend, and `"topic_audits"`, a named list of the per-topic
-  [transition_audit] objects from each underlying [pagerank()] run.
+A data frame with one row per node, sorted by \code{blended} descending:
+\describe{
+\item{node_name}{Node identifier (shared vertex namespace).}
+\item{\if{html}{\out{<one column per topic>}}}{The personalized PageRank score for that
+topic, named after the corresponding \code{topics} entry.}
+\item{blended}{The \code{topic_weights}-weighted combination of the per-topic
+scores.}
+}
+Two attributes are attached: \code{"topic_weights"}, the normalized weights used
+for the blend, and \code{"topic_audits"}, a named list of the per-topic
+\link{transition_audit} objects from each underlying \code{\link[=pagerank]{pagerank()}} run.
 }
 \description{
 Computes a per-topic PageRank by running the standard
-  [pagerank()] engine once per topic, biasing the random surfer's teleport
-  toward each topic's seed pages, then optionally blends the per-topic scores
-  into a single combined ranking.
+\code{\link[=pagerank]{pagerank()}} engine once per topic, biasing the random surfer's teleport
+toward each topic's seed pages, then optionally blends the per-topic scores
+into a single combined ranking.
 
-  This is Haveliwala's (2002) Topic-Sensitive PageRank adapted to a single
-  site: instead of one global ranking, each "topic" is a content cluster
-  (e.g. the *pricing* section, the *AI-Agent* product area, the *support*
-  docs) defined by a set of seed URLs. A page can be highly authoritative for
-  one topic and unimportant for another on the *same* link graph — the only
-  thing that changes between runs is where the surfer teleports.
+This is Haveliwala's (2002) Topic-Sensitive PageRank adapted to a single
+site: instead of one global ranking, each "topic" is a content cluster
+(e.g. the \emph{pricing} section, the \emph{AI-Agent} product area, the \emph{support}
+docs) defined by a set of seed URLs. A page can be highly authoritative for
+one topic and unimportant for another on the \emph{same} link graph — the only
+thing that changes between runs is where the surfer teleports.
 
-  Mechanically this is pure orchestration over the existing TIPR
-  personalization path: each topic becomes a `prior_df` handed to
-  [pagerank()] (see [align_prior_to_vertices()]). There is no new solver and
-  no topic inference — the caller supplies the seed sets.
+Mechanically this is pure orchestration over the existing TIPR
+personalization path: each topic becomes a \code{prior_df} handed to
+\code{\link[=pagerank]{pagerank()}} (see \code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}}). There is no new solver and
+no topic inference — the caller supplies the seed sets.
 }
 \details{
-All topics are scored on the **same** prepared graph: graph construction
+All topics are scored on the \strong{same} prepared graph: graph construction
 (URL cleaning, redirect/canonical folding, domain/host filtering, duplicate
-and isolate handling) depends only on `edge_list_df` and the forwarded
+and isolate handling) depends only on \code{edge_list_df} and the forwarded
 options, never on the teleport prior, so the vertex set is identical across
 topics. The per-topic results are combined with a full outer join on
-`node_name`; any node missing from a topic (which can only happen if you opt
-into `prior_inject_unmatched = TRUE`, where unmatched seed URLs are injected
-as topic-specific isolates) is filled with score `0` for that topic.
+\code{node_name}; any node missing from a topic (which can only happen if you opt
+into \code{prior_inject_unmatched = TRUE}, where unmatched seed URLs are injected
+as topic-specific isolates) is filled with score \code{0} for that topic.
 
-The `blended` column is the weight-normalized linear combination
+The \code{blended} column is the weight-normalized linear combination
 \eqn{\sum_t w_t \cdot score_t}. Each per-topic column carries the same mass
-semantics as a single [pagerank()] run (it can sum to less than 1 under
-nofollow evaporation or `robots_blocked_action = "vanish"`), and the blend
+semantics as a single \code{\link[=pagerank]{pagerank()}} run (it can sum to less than 1 under
+nofollow evaporation or \code{robots_blocked_action = "vanish"}), and the blend
 inherits that — it is a weighted average of the per-topic distributions, not
 renormalized.
 }
@@ -132,5 +132,5 @@ res2 <- topic_sensitive_pagerank(
 attr(res2, "topic_weights")
 }
 \seealso{
-[pagerank()], [align_prior_to_vertices()], [compare_pagerank()]
+\code{\link[=pagerank]{pagerank()}}, \code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}}, \code{\link[=compare_pagerank]{compare_pagerank()}}
 }

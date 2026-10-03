@@ -2,7 +2,7 @@
 % Please edit documentation in R/screaming_frog_contract.R
 \name{sf_rel_nofollow}
 \alias{sf_rel_nofollow}
-\title{Detect `nofollow` in a rel attribute}
+\title{Detect \code{nofollow} in a rel attribute}
 \usage{
 sf_rel_nofollow(x)
 }
@@ -11,14 +11,14 @@ sf_rel_nofollow(x)
 }
 \value{
 A logical vector the same length as \code{x}: \code{TRUE} when the
-  \code{nofollow} token is present, \code{FALSE} when it is not, and
-  \code{NA} for blank strings or \code{NA} input.
+\code{nofollow} token is present, \code{FALSE} when it is not, and
+\code{NA} for blank strings or \code{NA} input.
 }
 \description{
 Tests whether each value of a link's \code{rel} attribute
-  contains the \code{nofollow} token. Values are lowercased and split on
-  commas and whitespace, so \code{"ugc nofollow"} and \code{"nofollow,ugc"}
-  both count.
+contains the \code{nofollow} token. Values are lowercased and split on
+commas and whitespace, so \code{"ugc nofollow"} and \code{"nofollow,ugc"}
+both count.
 }
 \examples{
 sf_rel_nofollow(c("nofollow", "ugc nofollow", "sponsored", "", NA))

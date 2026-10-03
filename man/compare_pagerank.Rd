@@ -19,43 +19,43 @@ compare_pagerank(
 \item{pr_b}{A data frame of PageRank results (model B / comparison).}
 
 \item{node_col}{Name of the node column present in both data frames.
-Default `"node_name"`.}
+Default \code{"node_name"}.}
 
 \item{pr_col}{Name of the PageRank value column present in both data frames.
-Default `"pagerank"`.}
+Default \code{"pagerank"}.}
 
 \item{label_a}{Short label for model A (used in output column names).
-Default `"a"`.}
+Default \code{"a"}.}
 
 \item{label_b}{Short label for model B (used in output column names).
-Default `"b"`.}
+Default \code{"b"}.}
 }
 \value{
 A data frame with columns:
-  \describe{
-    \item{node_name}{Node identifier}
-    \item{pagerank_a, pagerank_b}{PageRank scores from each model (`NA` when
-      the node is absent from that model)}
-    \item{delta}{`pagerank_b - pagerank_a`}
-    \item{pct_change}{Percentage change from a to b (`NA` when a is `NA` or
-      0)}
-    \item{rank_a, rank_b}{Ordinal rank (1 = highest PageRank) within each
-      model (`NA` when the node is absent)}
-    \item{rank_delta}{`rank_a - rank_b` (positive = improved in b)}
-  }
+\describe{
+\item{node_name}{Node identifier}
+\item{pagerank_a, pagerank_b}{PageRank scores from each model (\code{NA} when
+the node is absent from that model)}
+\item{delta}{\code{pagerank_b - pagerank_a}}
+\item{pct_change}{Percentage change from a to b (\code{NA} when a is \code{NA} or
+0)}
+\item{rank_a, rank_b}{Ordinal rank (1 = highest PageRank) within each
+model (\code{NA} when the node is absent)}
+\item{rank_delta}{\code{rank_a - rank_b} (positive = improved in b)}
+}
 
-  A `"summary"` attribute (named list) is attached with:
-  \describe{
-    \item{spearman_rho}{Spearman rank correlation on common nodes}
-    \item{mean_abs_delta}{Mean of absolute delta on common nodes}
-    \item{nodes_gained}{Count of nodes in b but not a}
-    \item{nodes_lost}{Count of nodes in a but not b}
-  }
+A \code{"summary"} attribute (named list) is attached with:
+\describe{
+\item{spearman_rho}{Spearman rank correlation on common nodes}
+\item{mean_abs_delta}{Mean of absolute delta on common nodes}
+\item{nodes_gained}{Count of nodes in b but not a}
+\item{nodes_lost}{Count of nodes in a but not b}
+}
 }
 \description{
 Performs a full outer join on two PageRank result data frames
-  and computes deltas, percentage changes, and rank changes for each node.
-  Summary statistics are attached as an attribute.
+and computes deltas, percentage changes, and rank changes for each node.
+Summary statistics are attached as an attribute.
 }
 \examples{
 pr_a <- data.frame(

@@ -7,12 +7,12 @@
 \method{print}{screaming_frog_bundle}(x, ...)
 }
 \arguments{
-\item{x}{A `screaming_frog_bundle` object.}
+\item{x}{A \code{screaming_frog_bundle} object.}
 
 \item{...}{Unused; for S3 compatibility.}
 }
 \value{
-`x`, invisibly.
+\code{x}, invisibly.
 }
 \description{
 Print a Screaming Frog bundle

@@ -149,10 +149,10 @@
 
 #' Compose the redirect + canonical fold map and apply it to the edge endpoints.
 #'
-#' Shared by [hits()] and [salsa()] (via [.prepare_link_graph()]). No-op when
+#' Shared by [hits()] and [salsa()] (via `.prepare_link_graph()`). No-op when
 #' neither redirects nor canonicals are supplied, or when the composed map is
 #' empty. This is the plain fold applier; [pagerank()] uses its own richer
-#' [.resolve_fold_and_apply()] that additionally classifies out-of-scope folds,
+#' `.resolve_fold_and_apply()` that additionally classifies out-of-scope folds,
 #' routes leak sources, and detects fold-target collisions.
 #' @return The (possibly relabeled) edge list.
 #' @keywords internal
@@ -211,7 +211,7 @@
 #'
 #' No-op unless at least one keep/exclude domain or host value is supplied.
 #' Shared by [hits()] and [salsa()]; [pagerank()] uses its own
-#' [.apply_domain_host_filter()], which additionally warns when an out-of-scope
+#' `.apply_domain_host_filter()`, which additionally warns when an out-of-scope
 #' fold rewrote a crawled filter value away.
 #' @return The (possibly filtered) edge list.
 #' @keywords internal

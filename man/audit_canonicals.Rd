@@ -21,29 +21,29 @@ source URL with the canonical it declares.}
 canonicals (sources not present in the edge list) are identified.}
 
 \item{canonical_from_col, canonical_to_col}{From/to columns in
-`canonicals_df`. Default `"from"` / `"to"`.}
+\code{canonicals_df}. Default \code{"from"} / \code{"to"}.}
 
-\item{edge_from_col, edge_to_col}{From/to columns in `edge_list_df`. Default
-`"from"` / `"to"`.}
+\item{edge_from_col, edge_to_col}{From/to columns in \code{edge_list_df}. Default
+\code{"from"} / \code{"to"}.}
 }
 \value{
-A list with class `"canonical_audit"` mirroring the structure of
-  [audit_redirects()]: `n_rules`, `n_self_refs`, `self_refs`, `n_conflicts`,
-  `conflicts`, `n_loops`, `loops`, `chains`, `max_chain_length`, and (when
-  `edge_list_df` is given) `orphaned_redirects` (orphaned canonical sources).
+A list with class \code{"canonical_audit"} mirroring the structure of
+\code{\link[=audit_redirects]{audit_redirects()}}: \code{n_rules}, \code{n_self_refs}, \code{self_refs}, \code{n_conflicts},
+\code{conflicts}, \code{n_loops}, \code{loops}, \code{chains}, \code{max_chain_length}, and (when
+\code{edge_list_df} is given) \code{orphaned_redirects} (orphaned canonical sources).
 }
 \description{
-Analyzes a `rel=canonical` data frame and returns a diagnostic
-  report covering chain lengths, loops, conflicting sources (a page declaring
-  multiple distinct canonicals), self-referencing canonicals, and terminal
-  destinations. Mirrors [audit_redirects()] for the canonical signal; useful
-  as a pre-flight check before passing `canonicals_df` to [pagerank()].
+Analyzes a \code{rel=canonical} data frame and returns a diagnostic
+report covering chain lengths, loops, conflicting sources (a page declaring
+multiple distinct canonicals), self-referencing canonicals, and terminal
+destinations. Mirrors \code{\link[=audit_redirects]{audit_redirects()}} for the canonical signal; useful
+as a pre-flight check before passing \code{canonicals_df} to \code{\link[=pagerank]{pagerank()}}.
 
-  Declared canonicals are an **advisory** signal, distinct from enforced 3xx
-  redirects. To see how the two interact -- which one wins on a shared
-  source,
-  and which canonicals are ignored because their source also redirects -- use
-  [audit_fold()].
+Declared canonicals are an \strong{advisory} signal, distinct from enforced 3xx
+redirects. To see how the two interact -- which one wins on a shared
+source,
+and which canonicals are ignored because their source also redirects -- use
+\code{\link[=audit_fold]{audit_fold()}}.
 }
 \examples{
 canonicals <- data.frame(
@@ -53,5 +53,5 @@ canonicals <- data.frame(
 audit_canonicals(canonicals)
 }
 \seealso{
-[audit_redirects()], [audit_fold()], [build_fold_map()]
+\code{\link[=audit_redirects]{audit_redirects()}}, \code{\link[=audit_fold]{audit_fold()}}, \code{\link[=build_fold_map]{build_fold_map()}}
 }

@@ -12,35 +12,35 @@ sf_container_from_path(x)
 }
 \value{
 A character vector the same length as \code{x} holding the container
-  path. Blank strings and \code{NA} yield \code{NA}, leaving those rows
-  unscored by the detector.
+path. Blank strings and \code{NA} yield \code{NA}, leaving those rows
+unscored by the detector.
 }
 \description{
-Reduces a Screaming Frog \code{Link Path} to the **component
-  the link sits in**, stable across every page that component appears on.
-  This is the identity the boilerplate detector conditions on: see
-  \code{\link{pagerank}()}'s \code{container_col}.
+Reduces a Screaming Frog \code{Link Path} to the \strong{component
+the link sits in}, stable across every page that component appears on.
+This is the identity the boilerplate detector conditions on: see
+\code{\link{pagerank}()}'s \code{container_col}.
 
 Two steps:
 
 \enumerate{
-  \item **Strip numeric predicates, keep class predicates.** Screaming Frog's
-    \code{Link Path} is a hybrid, using \code{[@class='...']} where classes
-    exist and positional \code{[n]} elsewhere. Positions are unstable --- the
-    same recycled call-to-action lands at \code{p[5]} on a post with four
-    preceding paragraphs and \code{p[3]} on a shorter one --- while a class
-    is
-    exactly the stable component identifier we want.
-  \item **Drop the trailing \code{<a>} step**, whatever predicate it carries.
-    The anchor's own class describes the link, not the component containing
-    it.
+\item \strong{Strip numeric predicates, keep class predicates.} Screaming Frog's
+\code{Link Path} is a hybrid, using \code{[@class='...']} where classes
+exist and positional \code{[n]} elsewhere. Positions are unstable --- the
+same recycled call-to-action lands at \code{p[5]} on a post with four
+preceding paragraphs and \code{p[3]} on a shorter one --- while a class
+is
+exactly the stable component identifier we want.
+\item \strong{Drop the trailing \code{<a>} step}, whatever predicate it carries.
+The anchor's own class describes the link, not the component containing
+it.
 }
 
-Note this cuts the **opposite** way from
+Note this cuts the \strong{opposite} way from
 \code{\link{sf_region_from_path}()}, which strips class predicates so that a
 \code{div[@class='site-footer']} is not mistaken for a \code{<footer>}. The
-two answer different questions --- *which region is this* versus *is this the
-same component* --- and the inconsistency is deliberate.
+two answer different questions --- \emph{which region is this} versus \emph{is this the
+same component} --- and the inconsistency is deliberate.
 }
 \examples{
 sf_container_from_path(c(
@@ -51,7 +51,7 @@ sf_container_from_path(c(
 ))
 }
 \seealso{
-[pagerank()], whose `container_col` consumes the result.
+\code{\link[=pagerank]{pagerank()}}, whose \code{container_col} consumes the result.
 
 Other Screaming Frog toolkit:
 \code{\link[=sf_contract]{sf_contract()}},

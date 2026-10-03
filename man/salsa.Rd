@@ -38,11 +38,11 @@ salsa(
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, typically with
 columns like "from" and "to". Edges are expected to be page-to-page
-hyperlinks: `pagerank()` is graph-agnostic and treats every endpoint as a
+hyperlinks: \code{pagerank()} is graph-agnostic and treats every endpoint as a
 node, so resource links (images, CSS, JS, and other non-HTML references)
 must be filtered upstream or they collect authority as ordinary vertices.
-`pagerank_screaming_frog()` does this at the crawl boundary via
-[sf_graph_eligible()] (`Hyperlink` only); a hand-built or non-SF edge list
+\code{pagerank_screaming_frog()} does this at the crawl boundary via
+\code{\link[=sf_graph_eligible]{sf_graph_eligible()}} (\code{Hyperlink} only); a hand-built or non-SF edge list
 should apply the same hyperlink-only filter before scoring.}
 
 \item{redirects_df}{An optional data frame for redirect rules, typically
@@ -52,12 +52,12 @@ with "from" and "to" columns. Defaults to NULL.}
 Defaults to TRUE.}
 
 \item{clean_redirect_urls}{Logical, whether to clean URLs in the redirect
-list. Defaults to TRUE. Only effective if `redirects_df` is provided.}
+list. Defaults to TRUE. Only effective if \code{redirects_df} is provided.}
 
-\item{rurl_params}{A list of parameters to pass to `rurl::clean_url`.
-Defaults to an empty list. `protocol_handling` defaults to `"keep"` and
-`case_handling` to `"lower_host"` for cross-project canonicalization
-consistency. If you set `host_encoding` (`"idna"` or `"unicode"`) to fold
+\item{rurl_params}{A list of parameters to pass to \code{rurl::clean_url}.
+Defaults to an empty list. \code{protocol_handling} defaults to \code{"keep"} and
+\code{case_handling} to \code{"lower_host"} for cross-project canonicalization
+consistency. If you set \code{host_encoding} (\code{"idna"} or \code{"unicode"}) to fold
 internationalized (IDN) hosts, that same value is also passed to the
 domain-filtering step so its comparisons stay consistent with the cleaned
 node keys. (Registrable-domain matching is encoding-independent, so this
@@ -69,148 +69,150 @@ Either "drop" (default) or "keep".}
 \item{drop_isolates_flag}{Logical, whether to drop isolated nodes before
 PageRank computation. Defaults to TRUE.}
 
-\item{duplicate_edge_policy}{How repeated `from -> to` rows are represented
+\item{duplicate_edge_policy}{How repeated \code{from -> to} rows are represented
 after URL cleaning, redirect/canonical folding, and domain filtering. One
 of:
 \describe{
-  \item{`"collapse"`}{(default) Destination-level surfer: repeated rows
-    collapse to one unweighted destination edge, preserving legacy
-    `get_unique_edges()` behavior and the common binary PageRank
-    convention.}
-  \item{`"aggregate"`}{Collapse each `from -> to` pair with
-    [aggregate_edges()] semantics. Numeric columns, including
-    `weight_col`, are summed; logical columns such as `nofollow` use the
-    default `"any"` conflict policy.}
-  \item{`"count_instances"`}{Link-slot / edge-level surfer: repeated
-    rows increase transition probability. With no `weight_col`, each
-    surviving `from -> to` pair receives an internal weight equal to its
-    duplicate-row count. With `weight_col`, weights are summed and an
-    `instance_count` audit column is retained.}
+\item{\code{"collapse"}}{(default) Destination-level surfer: repeated rows
+collapse to one unweighted destination edge, preserving legacy
+\code{get_unique_edges()} behavior and the common binary PageRank
+convention.}
+\item{\code{"aggregate"}}{Collapse each \code{from -> to} pair with
+\code{\link[=aggregate_edges]{aggregate_edges()}} semantics. Numeric columns, including
+\code{weight_col}, are summed; logical columns such as \code{nofollow} use the
+default \code{"any"} conflict policy.}
+\item{\code{"count_instances"}}{Link-slot / edge-level surfer: repeated
+rows increase transition probability. With no \code{weight_col}, each
+surviving \code{from -> to} pair receives an internal weight equal to its
+duplicate-row count. With \code{weight_col}, weights are summed and an
+\code{instance_count} audit column is retained.}
 }}
 
-\item{edge_from_col, edge_to_col}{Names of from/to columns in `edge_list_df`.}
+\item{edge_from_col, edge_to_col}{Names of from/to columns in \code{edge_list_df}.}
 
 \item{redirect_from_col, redirect_to_col}{Names of from/to columns in
-`redirects_df`.}
+\code{redirects_df}.}
 
 \item{duplicate_from_policy}{How to handle conflicting redirects in
-`redirects_df`. Passed through to [resolve_redirects()]. Default
-`"strict"` (error on conflicts). See [resolve_redirects()] for all
+\code{redirects_df}. Passed through to \code{\link[=resolve_redirects]{resolve_redirects()}}. Default
+\code{"strict"} (error on conflicts). See \code{\link[=resolve_redirects]{resolve_redirects()}} for all
 available policies.}
 
 \item{loop_handling}{How to handle redirect cycles. Passed through to
-[resolve_redirects()]. Default `"error"`. See [resolve_redirects()] for
+\code{\link[=resolve_redirects]{resolve_redirects()}}. Default \code{"error"}. See \code{\link[=resolve_redirects]{resolve_redirects()}} for
 all available policies.}
 
-\item{canonicals_df}{An optional data frame of declared `rel=canonical`
-links, with `from`/`to` columns (or as set by `canonical_from_col` /
-`canonical_to_col`) pairing a source URL with the canonical it declares.
-Default `NULL` (opt-in; the default preserves current behavior).
-Canonicals are a **distinct, advisory** signal from enforced 3xx
-`redirects_df`: they are tracked separately and audited via
-[audit_canonicals()] / [audit_fold()], then folded into the same composed
-map as redirects (see [build_fold_map()]). Self-canonicals drop as no-ops.}
+\item{canonicals_df}{An optional data frame of declared \code{rel=canonical}
+links, with \code{from}/\code{to} columns (or as set by \code{canonical_from_col} /
+\code{canonical_to_col}) pairing a source URL with the canonical it declares.
+Default \code{NULL} (opt-in; the default preserves current behavior).
+Canonicals are a \strong{distinct, advisory} signal from enforced 3xx
+\code{redirects_df}: they are tracked separately and audited via
+\code{\link[=audit_canonicals]{audit_canonicals()}} / \code{\link[=audit_fold]{audit_fold()}}, then folded into the same composed
+map as redirects (see \code{\link[=build_fold_map]{build_fold_map()}}). Self-canonicals drop as no-ops.}
 
 \item{canonical_from_col, canonical_to_col}{From/to columns in
-`canonicals_df`. Default `"from"` / `"to"`.}
+\code{canonicals_df}. Default \code{"from"} / \code{"to"}.}
 
-\item{clean_canonical_urls}{Logical, whether to clean URLs in `canonicals_df`
-using the same resolved `rurl_params` profile as edge and redirect
-cleaning. Default `TRUE`. Only effective when `canonicals_df` is provided.}
+\item{clean_canonical_urls}{Logical, whether to clean URLs in \code{canonicals_df}
+using the same resolved \code{rurl_params} profile as edge and redirect
+cleaning. Default \code{TRUE}. Only effective when \code{canonicals_df} is provided.}
 
 \item{canonical_duplicate_from_policy}{How to handle a canonical source that
-declares multiple distinct canonicals. Reuses the `duplicate_from_policy`
-enum (see [resolve_redirects()]). Default `"strict"`.}
+declares multiple distinct canonicals. Reuses the \code{duplicate_from_policy}
+enum (see \code{\link[=resolve_redirects]{resolve_redirects()}}). Default \code{"strict"}.}
 
 \item{canonical_loop_handling}{How to handle cycles among declared
-canonicals. Reuses the `loop_handling` enum. Default `"error"`.}
+canonicals. Reuses the \code{loop_handling} enum. Default \code{"error"}.}
 
 \item{canonical_conflict_policy}{How to resolve a redirect-vs-canonical
-disagreement on the **same source** URL. One of `"redirect_wins"` (default;
+disagreement on the \strong{same source} URL. One of \code{"redirect_wins"} (default;
 the 3xx wins and the canonical on a redirecting source is ignored and
-flagged), `"error"` (error on genuine disagreement), or `"canonical_wins"`
+flagged), \code{"error"} (error on genuine disagreement), or \code{"canonical_wins"}
 (the declared canonical wins for that source, still flagged). See
-[build_fold_map()].}
+\code{\link[=build_fold_map]{build_fold_map()}}.}
 
 \item{keep_domains}{Optional character vector of domains to keep. When
-  provided, edges are filtered via [filter_links_by_domain()] so that only
-  links where both endpoints belong to one of the specified domains are
-  included. Useful for restricting to internal links. Default `NULL` (no
-  domain filtering).
+provided, edges are filtered via \code{\link[=filter_links_by_domain]{filter_links_by_domain()}} so that only
+links where both endpoints belong to one of the specified domains are
+included. Useful for restricting to internal links. Default \code{NULL} (no
+domain filtering).
 
-  **Ordering:** filtering runs *after* redirect/canonical folding, so it
-  scopes the post-fold (canonical) namespace, not the crawled input. If an
-  out-of-scope canonical/redirect rewrites the crawled domain onto a
-  different one, filtering on the crawled domain matches nothing (an empty
-  graph). To scope the INPUT you crawled, run [filter_links_by_domain()] on
-  the edge list *before* calling `pagerank()`.}
+\strong{Ordering:} filtering runs \emph{after} redirect/canonical folding, so it
+scopes the post-fold (canonical) namespace, not the crawled input. If an
+out-of-scope canonical/redirect rewrites the crawled domain onto a
+different one, filtering on the crawled domain matches nothing (an empty
+graph). To scope the INPUT you crawled, run \code{\link[=filter_links_by_domain]{filter_links_by_domain()}} on
+the edge list \emph{before} calling \code{pagerank()}.}
 
 \item{exclude_domains}{Optional character vector of domains to exclude.
 Edges where either endpoint belongs to one of these domains are removed.
-Like `keep_domains`, this filters the post-fold namespace (see the ordering
-note above). Default `NULL` (no exclusion).}
+Like \code{keep_domains}, this filters the post-fold namespace (see the ordering
+note above). Default \code{NULL} (no exclusion).}
 
 \item{keep_hosts}{Optional character vector of exact hosts to keep (e.g.
-`"www.example.com"`), as opposed to registrable domains. Matched on the
+\code{"www.example.com"}), as opposed to registrable domains. Matched on the
 exact host using the same canonicalization profile as cleaning, so IDN
-folding (`host_encoding` in `rurl_params`) applies consistently. Default
-`NULL`.}
+folding (\code{host_encoding} in \code{rurl_params}) applies consistently. Default
+\code{NULL}.}
 
 \item{exclude_hosts}{Optional character vector of exact hosts to exclude.
 Edges where either endpoint matches one of these hosts are removed. Ignore
-rules override keep rules. Default `NULL`.}
+rules override keep rules. Default \code{NULL}.}
 
-\item{...}{Additional arguments forwarded to [compute_salsa()].}
+\item{...}{Additional arguments forwarded to \code{\link[=compute_salsa]{compute_salsa()}}.}
 }
 \value{
-A data frame with one row per node and columns `node_name`, `hub`,
-  and `authority` (column names configurable via `...`). Hub and authority
-  each sum to `1` over their non-`NA` entries.
+A data frame with one row per node and columns \code{node_name}, \code{hub},
+and \code{authority} (column names configurable via \code{...}). Hub and authority
+each sum to \code{1} over their non-\code{NA} entries.
 }
 \description{
 Computes Lempel & Moran's SALSA hub and authority scores over
-  the same cleaned, redirect/canonical-folded, domain-filtered, deduplicated
-  link graph that [pagerank()] builds, so node identities line up across the
-  centrality measures. SALSA is a stochastic variant of HITS: it runs
-  HITS-style mutual reinforcement as PageRank-style random walks on the
-  bipartite hub/authority graph, yielding stationary-distribution scores
-  instead of dominant eigenvectors.
+the same cleaned, redirect/canonical-folded, domain-filtered, deduplicated
+link graph that \code{\link[=pagerank]{pagerank()}} builds, so node identities line up across the
+centrality measures. SALSA is a stochastic variant of HITS: it runs
+HITS-style mutual reinforcement as PageRank-style random walks on the
+bipartite hub/authority graph, yielding stationary-distribution scores
+instead of dominant eigenvectors.
 }
 \details{
-## Relationship to the PageRank pipeline
+\subsection{Relationship to the PageRank pipeline}{
 
-`salsa()` reuses the exact identity-forming steps of [pagerank()] — URL
-canonicalization (the same resolved `rurl` profile), the same composed
+\code{salsa()} reuses the exact identity-forming steps of \code{\link[=pagerank]{pagerank()}} — URL
+canonicalization (the same resolved \code{rurl} profile), the same composed
 redirect + canonical fold map, the same domain/host filtering, the same
-`duplicate_edge_policy` deduplication, and the same self-loop / isolate
-handling. The resulting vertex set therefore matches `pagerank()` run with
+\code{duplicate_edge_policy} deduplication, and the same self-loop / isolate
+handling. The resulting vertex set therefore matches \code{pagerank()} run with
 the same arguments, so hub, authority, and PageRank can be joined on
-`node_name` without re-canonicalizing.
+\code{node_name} without re-canonicalizing.
 
-The PageRank-specific, *forward-flow* modeling devices have **no SALSA
-analog and are intentionally not exposed**: nofollow evaporation, the
+The PageRank-specific, \emph{forward-flow} modeling devices have \strong{no SALSA
+analog and are intentionally not exposed}: nofollow evaporation, the
 indexability (noindex / robots.txt) transforms, the TIPR teleport prior, and
-the `reverse` flag. SALSA already computes both directions of authority flow
+the \code{reverse} flag. SALSA already computes both directions of authority flow
 (hub is the outflow-oriented score, authority the inflow-oriented one).
+}
 
-## SALSA versus HITS, and the pagerankr adaptation
+\subsection{SALSA versus HITS, and the pagerankr adaptation}{
 
-Where [hits()] takes the dominant eigenvectors of \eqn{A^\top A} and
+Where \code{\link[=hits]{hits()}} takes the dominant eigenvectors of \eqn{A^\top A} and
 \eqn{A A^\top}, SALSA replaces the mutual-reinforcement iteration with two
-*stochastic* Markov chains on the bipartite hub/authority graph; their
+\emph{stochastic} Markov chains on the bipartite hub/authority graph; their
 stationary distributions are the scores, which on a connected graph reduce to
-a simple in-/out-degree closed form (see [compute_salsa()]). Because the
+a simple in-/out-degree closed form (see \code{\link[=compute_salsa]{compute_salsa()}}). Because the
 chains are stochastic, SALSA is far less prone than HITS to the
 "tightly-knit community" effect, where a dense cluster of mutually linking
 pages dominates the top scores.
 
-Lempel & Moran's original SALSA ran on a query-focused base set. `salsa()`
-instead runs on the **full (or user-filtered) site graph** that `pagerankr`
+Lempel & Moran's original SALSA ran on a query-focused base set. \code{salsa()}
+instead runs on the \strong{full (or user-filtered) site graph} that \code{pagerankr}
 assembles — a documented site-graph adaptation of the focused-subgraph
 algorithm. Treat the scores as site-wide structural centralities, not
-query-relevance scores. Coverage differs from PageRank: a node's `hub` is
-`NA` when it has no outlinks and its `authority` is `NA` when it has no
-inlinks (see [compute_salsa()]).
+query-relevance scores. Coverage differs from PageRank: a node's \code{hub} is
+\code{NA} when it has no outlinks and its \code{authority} is \code{NA} when it has no
+inlinks (see \code{\link[=compute_salsa]{compute_salsa()}}).
+}
 }
 \examples{
 edges <- data.frame(
@@ -227,11 +229,11 @@ s[which.max(s$authority), ]
 }
 \references{
 Lempel, R. & Moran, S. (2001). SALSA: The Stochastic Approach for
-  Link-Structure Analysis. *ACM Transactions on Information Systems*,
-  19(2), 131-160.
+Link-Structure Analysis. \emph{ACM Transactions on Information Systems},
+19(2), 131-160.
 }
 \seealso{
-[compute_salsa()] for the computational core, [hits()] for the HITS
-  analog, and [pagerank()] for the PageRank analog sharing this identity
-  pipeline.
+\code{\link[=compute_salsa]{compute_salsa()}} for the computational core, \code{\link[=hits]{hits()}} for the HITS
+analog, and \code{\link[=pagerank]{pagerank()}} for the PageRank analog sharing this identity
+pipeline.
 }

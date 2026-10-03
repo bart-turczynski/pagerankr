@@ -5,46 +5,48 @@
 \title{PageRank convergence diagnostic object}
 \description{
 Records how the PageRank stationary vector was obtained: which
-  solver ran, how many iterations it used (when that is observable), and how
-  well the returned vector satisfies the PageRank fixed-point equation. It is
-  attached to the result of [compute_pagerank()] / [pagerank()] as the
-  `"convergence"` attribute and is the companion to the
-  [transition_audit][transition_audit] provenance record.
+solver ran, how many iterations it used (when that is observable), and how
+well the returned vector satisfies the PageRank fixed-point equation. It is
+attached to the result of \code{\link[=compute_pagerank]{compute_pagerank()}} / \code{\link[=pagerank]{pagerank()}} as the
+\code{"convergence"} attribute and is the companion to the
+\link{transition_audit} provenance record.
 }
 \details{
-## Why the solver matters
+\subsection{Why the solver matters}{
 
-`igraph::page_rank()` offers two back-ends:
+\code{igraph::page_rank()} offers two back-ends:
 \describe{
-  \item{`"prpack"`}{(default) A direct/sparse solver (the PRPACK library).
-    It is fast and exact to machine precision, but it is **not** iterative in
-    any way it exposes: there is no iteration count and no tolerance knob, so
-    `iters` is reported as `NA` and `eps` / `niter` have no effect.}
-  \item{`"arpack"`}{An iterative eigensolver. It honors a tolerance and a
-    maximum iteration count and reports the iterations it actually used and
-    whether it converged. This is the only back-end on which `eps` and
-    `niter` take effect; supplying either to [compute_pagerank()] /
-    [pagerank()] therefore transparently selects it.}
+\item{\code{"prpack"}}{(default) A direct/sparse solver (the PRPACK library).
+It is fast and exact to machine precision, but it is \strong{not} iterative in
+any way it exposes: there is no iteration count and no tolerance knob, so
+\code{iters} is reported as \code{NA} and \code{eps} / \code{niter} have no effect.}
+\item{\code{"arpack"}}{An iterative eigensolver. It honors a tolerance and a
+maximum iteration count and reports the iterations it actually used and
+whether it converged. This is the only back-end on which \code{eps} and
+\code{niter} take effect; supplying either to \code{\link[=compute_pagerank]{compute_pagerank()}} /
+\code{\link[=pagerank]{pagerank()}} therefore transparently selects it.}
 }
 
-The old `igraph` `eps` / `niter` arguments to `page_rank()` were removed in
-modern `igraph` (2.x); this package re-introduces them as friendly aliases
-that map onto the ARPACK `options$tol` / `options$maxiter` controls.
+The old \code{igraph} \code{eps} / \code{niter} arguments to \code{page_rank()} were removed in
+modern \code{igraph} (2.x); this package re-introduces them as friendly aliases
+that map onto the ARPACK \code{options$tol} / \code{options$maxiter} controls.
+}
 
-## The residual is solver-independent
+\subsection{The residual is solver-independent}{
 
-Regardless of back-end, `residual` is computed here directly from the
+Regardless of back-end, \code{residual} is computed here directly from the
 returned vector as the L1 norm of one PageRank operator application,
 \eqn{\|G x - x\|_1}, where \eqn{G} is the Google operator implied by the
 scored graph, the damping factor, and the teleport vector (uniform, or the
 supplied TIPR prior). This is the standard Kamvar, Haveliwala & Golub (2004)
-stopping criterion, evaluated *post hoc* so it is a genuine, comparable
+stopping criterion, evaluated \emph{post hoc} so it is a genuine, comparable
 quality check across both solvers (a converged solution sits near machine
-precision). `tol_met` reports whether `residual` is at or below `tol` (the
-supplied `eps`, or the conventional default of `1e-3` when `eps` is `NULL`),
-additionally requiring `info == 0` for the ARPACK back-end.
+precision). \code{tol_met} reports whether \code{residual} is at or below \code{tol} (the
+supplied \code{eps}, or the conventional default of \code{1e-3} when \code{eps} is \code{NULL}),
+additionally requiring \code{info == 0} for the ARPACK back-end.
+}
 
-## Iteration-count rule of thumb
+\subsection{Iteration-count rule of thumb}{
 
 Power-iteration PageRank needs about
 \eqn{\log_{10}(\tau) / \log_{10}(\alpha)}
@@ -52,9 +54,10 @@ iterations to reach residual \eqn{\tau} at damping \eqn{\alpha} (Langville &
 Meyer, 2004). At \eqn{\tau = 10^{-8}}: \eqn{\alpha = 0.85} needs ~114,
 \eqn{\alpha = 0.95} ~362, and \eqn{\alpha = 0.99} ~1,833 iterations — so a
 high damping factor degrades convergence sharply. ARPACK is not plain power
-iteration, so its reported `iters` is typically far lower, but the same
-qualitative warning applies: raise `niter` if you raise the damping factor
+iteration, so its reported \code{iters} is typically far lower, but the same
+qualitative warning applies: raise \code{niter} if you raise the damping factor
 toward 1.
+}
 }
 \examples{
 edges <- data.frame(
@@ -81,5 +84,5 @@ conv_arpack$iters
 conv_arpack$tol
 }
 \seealso{
-[compute_pagerank()], [pagerank()], [transition_audit]
+\code{\link[=compute_pagerank]{compute_pagerank()}}, \code{\link[=pagerank]{pagerank()}}, \link{transition_audit}
 }

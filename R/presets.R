@@ -46,9 +46,9 @@
 #'     and dangling pages. All five placement terms are named explicitly, so
 #'     this is a complete recipe rather than a partial adjustment.
 #'
-#'     This preset sets policy; the *data* is `placement_col`, which the caller
-#'     must supply (it errors otherwise). [pagerank_screaming_frog()] supplies
-#'     it from the bundle, so `preset = "content"` works there directly.}
+#'   This preset sets policy; the *data* is `placement_col`, which the caller
+#'   must supply (it errors otherwise). [pagerank_screaming_frog()] supplies
+#'   it from the bundle, so `preset = "content"` works there directly.}
 #' }
 #'
 #' Presets are not composable with one another -- `preset` takes a single

@@ -16,17 +16,17 @@ pr_top_k_share(x, k = 0.1)
 \arguments{
 \item{x}{Numeric vector of non-negative values (typically PageRank scores).}
 
-\item{k}{Fraction of nodes to consider (0 < k <= 1). Default `0.1` (top 10
+\item{k}{Fraction of nodes to consider (0 < k <= 1). Default \code{0.1} (top 10
 percent).}
 }
 \value{
 A single numeric value.
 
-A single numeric value (in nats). Returns `NA` for empty or
-  all-zero inputs.
+A single numeric value (in nats). Returns \code{NA} for empty or
+all-zero inputs.
 
 A single numeric value between 0 and 1 representing the cumulative
-  share.
+share.
 }
 \description{
 Compute summary statistics for a vector of PageRank scores. These metrics

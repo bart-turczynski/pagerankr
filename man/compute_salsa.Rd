@@ -17,58 +17,59 @@ compute_salsa(
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the processed edge list, with
-source/target columns (see `from_col`, `to_col`). NAs in those columns are
+source/target columns (see \code{from_col}, \code{to_col}). NAs in those columns are
 omitted before graph construction.}
 
 \item{vertices_df}{An optional single-column data frame of node names
-defining the vertex set (e.g. to retain isolates). If `NULL` (default), the
-vertices are inferred from `edge_list_df`. The column name is given by
-`vertex_col_name`.}
+defining the vertex set (e.g. to retain isolates). If \code{NULL} (default), the
+vertices are inferred from \code{edge_list_df}. The column name is given by
+\code{vertex_col_name}.}
 
-\item{from_col, to_col}{Names of the source/target columns in `edge_list_df`.
-Defaults `"from"` / `"to"`.}
+\item{from_col, to_col}{Names of the source/target columns in \code{edge_list_df}.
+Defaults \code{"from"} / \code{"to"}.}
 
-\item{vertex_col_name}{Name of the node column in `vertices_df`. Default
-`"node_name"`.}
+\item{vertex_col_name}{Name of the node column in \code{vertices_df}. Default
+\code{"node_name"}.}
 
 \item{pr_node_col}{Name for the node column in the output. Default
-`"node_name"` (kept consistent with [compute_pagerank()]).}
+\code{"node_name"} (kept consistent with \code{\link[=compute_pagerank]{compute_pagerank()}}).}
 
 \item{hub_col, authority_col}{Names for the hub and authority score columns in
-the output. Defaults `"hub"` / `"authority"`.}
+the output. Defaults \code{"hub"} / \code{"authority"}.}
 }
 \value{
 A data frame with three columns: the node name (named by
-  `pr_node_col`) and the hub and authority scores (named by `hub_col` /
-  `authority_col`). Hub and authority each sum to `1` over their non-`NA`
-  entries. Returns an empty (zero-row) data frame with those columns when the
-  graph has no vertices.
+\code{pr_node_col}) and the hub and authority scores (named by \code{hub_col} /
+\code{authority_col}). Hub and authority each sum to \code{1} over their non-\code{NA}
+entries. Returns an empty (zero-row) data frame with those columns when the
+graph has no vertices.
 }
 \description{
 Computes the Stochastic Approach for Link-Structure Analysis
-  (SALSA; Lempel & Moran 2001) hub and authority scores from a processed edge
-  list. SALSA combines HITS-style mutual reinforcement with PageRank-style
-  stochastic random walks on the bipartite hub/authority graph. This is the
-  low-level computational core; the high-level [salsa()] wrapper runs the
-  URL-cleaning, redirect/canonical folding, domain filtering, deduplication,
-  and isolate-handling identity pipeline first.
+(SALSA; Lempel & Moran 2001) hub and authority scores from a processed edge
+list. SALSA combines HITS-style mutual reinforcement with PageRank-style
+stochastic random walks on the bipartite hub/authority graph. This is the
+low-level computational core; the high-level \code{\link[=salsa]{salsa()}} wrapper runs the
+URL-cleaning, redirect/canonical folding, domain filtering, deduplication,
+and isolate-handling identity pipeline first.
 }
 \details{
-## The two SALSA Markov chains
+\subsection{The two SALSA Markov chains}{
 
 SALSA builds an undirected bipartite graph \eqn{\hat{G}}: each crawl-graph
 edge \eqn{u \rightarrow v} contributes a hub-node \eqn{u_h} and an
 authority-node \eqn{v_a} joined by an edge. Two coupled random walks run on
-it. The **authority** chain alternates authority \eqn{\rightarrow} hub
-\eqn{\rightarrow} authority (one step = two traversals); the **hub** chain
+it. The \strong{authority} chain alternates authority \eqn{\rightarrow} hub
+\eqn{\rightarrow} authority (one step = two traversals); the \strong{hub} chain
 alternates the other way. Unlike HITS — whose scores are the dominant
 eigenvectors of \eqn{A^\top A} and \eqn{A A^\top} — each SALSA chain is
-*stochastic*, so its stationary distribution is the score vector.
+\emph{stochastic}, so its stationary distribution is the score vector.
+}
 
-## Closed form (no iteration)
+\subsection{Closed form (no iteration)}{
 
 Lempel & Moran (2001, Proposition 6) show the stationary distributions have a
-degree-based closed form, so **no eigenvector iteration is needed**. On a
+degree-based closed form, so \strong{no eigenvector iteration is needed}. On a
 single connected component the authority score of a node is
 \eqn{d_{in}(i) / W} and the hub score is \eqn{d_{out}(i) / W}, where \eqn{W}
 is the edge count. When the support graph splits into several weakly
@@ -82,25 +83,28 @@ component and then reweighted by the component's share of the relevant side
 for authorities (and symmetrically for hubs with \eqn{d_{out}} and
 \eqn{|H_c|}), where \eqn{A} is the set of all authorities (in-degree
 \eqn{> 0}), \eqn{A_{c(j)}} the authorities in \eqn{j}'s component, and
-\eqn{W_{c(j)}} the edges in that component. **This component reweighting is
-required for correctness:** without it, cross-component score comparisons are
+\eqn{W_{c(j)}} the edges in that component. \strong{This component reweighting is
+required for correctness:} without it, cross-component score comparisons are
 invalid — a common failure mode on site crawls with orphan page clusters.
-Each side's scores sum to `1`.
+Each side's scores sum to \code{1}.
+}
 
-## Coverage and one-sided vertices
+\subsection{Coverage and one-sided vertices}{
 
 The hub side contains only nodes with out-degree \eqn{> 0}; the authority
-side only nodes with in-degree \eqn{> 0}. A node's `hub` is `NA` when its
-out-degree is `0`, and its `authority` is `NA` when its in-degree is `0`
-(a pure sink has `NA` hub; a pure source has `NA` authority; an isolate has
-both `NA`). SALSA coverage therefore differs from PageRank coverage on the
+side only nodes with in-degree \eqn{> 0}. A node's \code{hub} is \code{NA} when its
+out-degree is \code{0}, and its \code{authority} is \code{NA} when its in-degree is \code{0}
+(a pure sink has \code{NA} hub; a pure source has \code{NA} authority; an isolate has
+both \code{NA}). SALSA coverage therefore differs from PageRank coverage on the
 same graph — this is expected, not a bug.
+}
 
-## Weighting
+\subsection{Weighting}{
 
-v1 is **unweighted**: the closed form assumes uniform edge weights, so scores
+v1 is \strong{unweighted}: the closed form assumes uniform edge weights, so scores
 are driven by in-/out-degree on the deduplicated simple graph. A weighted
 extension is deferred.
+}
 }
 \examples{
 edges <- data.frame(
@@ -114,10 +118,10 @@ compute_salsa(edges, vertices_df = verts)
 }
 \references{
 Lempel, R. & Moran, S. (2001). SALSA: The Stochastic Approach for
-  Link-Structure Analysis. *ACM Transactions on Information Systems*,
-  19(2), 131-160.
+Link-Structure Analysis. \emph{ACM Transactions on Information Systems},
+19(2), 131-160.
 }
 \seealso{
-[salsa()] for the full identity pipeline; [compute_hits()] for the
-  HITS analog; [compute_pagerank()] for the PageRank analog.
+\code{\link[=salsa]{salsa()}} for the full identity pipeline; \code{\link[=compute_hits]{compute_hits()}} for the
+HITS analog; \code{\link[=compute_pagerank]{compute_pagerank()}} for the PageRank analog.
 }
