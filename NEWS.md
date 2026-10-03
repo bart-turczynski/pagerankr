@@ -9,6 +9,13 @@
   `ı`, so values containing `I` silently stopped matching. Only ASCII
   letters are folded now, in every locale (`PAGE-vzetnwuu`).
 
+* **Help pages render their formatting.** Roxygen markdown was never switched
+  on, so the reference manual and every help page showed the documentation
+  source as literal text: `##` headings, `**bold**`, backticks and `[fn()]`
+  links. `DESCRIPTION` now sets `Roxygen: list(markdown = TRUE)` and the help
+  pages are regenerated, with headings, emphasis, code and cross-links rendered
+  (`PAGE-iyfuhqyz`).
+
 ## Internal
 
 * **R CMD check gates fail when the check halts.** When `R CMD check` stopped
