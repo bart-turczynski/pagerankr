@@ -869,7 +869,7 @@ pages:
     # no-op rather than a failure.
     - |
       set -eu
-      keep="README.md NEWS.md LICENSE.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md THIRD_PARTY_NOTICES.md ACKNOWLEDGMENTS.md"
+      keep="README.md NEWS.md LICENSE.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md THIRD_PARTY_NOTICES.md ACKNOWLEDGMENTS.md ARCHITECTURE.md"
       for f in $keep; do
         if [ "$f" = "THIRD_PARTY_NOTICES.md" ] && [ ! -f "$f" ]; then
           continue

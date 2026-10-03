@@ -1,15 +1,31 @@
 # Contributing
 
+Report bugs and request features in the GitLab issue tracker:
+<https://gitlab.com/bart-turczynski/pagerankr/-/work_items>. Report security issues
+privately as described in `SECURITY.md`. Send changes as merge requests on
+GitLab; the GitHub repository is a read-only mirror.
+
+New code needs tests, and each user-facing change needs one `NEWS.md` bullet.
+A merge request must pass the verification command below.
+
+Run verification (the pre-push chain: the hygiene hooks, the toolchain check,
+the URL check, then the seven-gate `verify` hook described below):
+
+```sh
+pre-commit run --hook-stage pre-push --all-files
+```
+
 ## Verification gate
 
-The four checks run remotely in **GitLab CI** (`.gitlab-ci.yml`): `news-version`
-(NEWS/DESCRIPTION consistency), `lint` (lintr + spelling) and `check`
-(`R CMD check`). They run on every push to `main` and on `v*` tags — **not** on
-merge requests or feature-branch pushes; see "One pipeline, not three" below.
-Alongside them, `codemeta` checks `codemeta.json` against `DESCRIPTION`, and
-`coverage` measures test coverage — reported through GitLab's own cobertura
-ingestion. Coverage is `allow_failure`, deliberately: coverage that blocks a
-merge turns every honest refactor into a fight with a number.
+The checks run remotely in **GitLab CI** (`.gitlab-ci.yml`): `gates`
+(news-version, codemeta, README drift, lint and spelling), `citation-version`
+and `check` (`R CMD check --as-cran`, failing on warnings). They run on every
+push to `main` and on `v*` tags — **not** on merge requests or feature-branch
+pushes; see "One pipeline, not three" below. Alongside them, `coverage`
+measures test coverage — reported through GitLab's own cobertura ingestion —
+and fails below 95% total coverage, the fleet minimum (seor
+`design/fleet-standard.md`). The threshold is never lowered: a package under
+it adds tests.
 
 Two things about that pipeline are worth knowing before you rely on it.
 
@@ -175,7 +191,7 @@ reasons a real package hits as it grows:
 
 `strings_as_factors_linter` is off, as in goodpractice, which dropped it in 1.2.0
 (ropensci-review-tools/goodpractice#321). It only guarded the pre-R-4.0
-`data.frame()` default, and this package Depends on R >= 4.0.0. The fleet
+`data.frame()` default, and this package Depends on R >= 4.1.0. The fleet
 turned it off on 2026-07-18, before goodpractice did (`PAGE-iiqjlfxl`).
 Its absence does not make `stringsAsFactors = FALSE` removable everywhere:
 `expand.grid()` kept `TRUE` as its default through R 4.0, so the argument in
