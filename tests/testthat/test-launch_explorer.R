@@ -1,6 +1,9 @@
 # Tests for launch_pagerank_explorer()
 # This function is a thin Shiny launcher; we test the validation logic
 # by creating copies of the function with overridden environments.
+# Each case that reaches past a requireNamespace() check needs that Suggests
+# package installed, so it skips without it (as R CMD check does when
+# _R_CHECK_FORCE_SUGGESTS_=false, e.g. the R 4.1.3 floor-check leg).
 
 describe("launch_pagerank_explorer validation", {
   it("errors when shiny is not available", {
@@ -17,6 +20,7 @@ describe("launch_pagerank_explorer validation", {
   })
 
   it("errors when DT is not available", {
+    skip_if_not_installed("shiny")
     fn <- launch_pagerank_explorer
     env <- new.env(parent = environment(fn))
     env$requireNamespace <- function(pkg, ...) {
@@ -30,6 +34,8 @@ describe("launch_pagerank_explorer validation", {
   })
 
   it("errors when app directory is not found", {
+    skip_if_not_installed("shiny")
+    skip_if_not_installed("DT")
     fn <- launch_pagerank_explorer
     env <- new.env(parent = environment(fn))
     env$system.file <- function(...) ""
@@ -38,6 +44,8 @@ describe("launch_pagerank_explorer validation", {
   })
 
   it("messages about visNetwork when not installed", {
+    skip_if_not_installed("shiny")
+    skip_if_not_installed("DT")
     fn <- launch_pagerank_explorer
     env <- new.env(parent = environment(fn))
     env$requireNamespace <- function(pkg, ...) {
