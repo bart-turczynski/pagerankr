@@ -8,6 +8,7 @@ Description: Provides a set of modular, pipeable functions to calculate PageRank
 License: MIT + file LICENSE
 Encoding: UTF-8
 Language: en-US
+Roxygen: list(markdown = TRUE)
 LazyData: true
 Depends:
     R (>= 4.0.0)

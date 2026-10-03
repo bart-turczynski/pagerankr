@@ -22,69 +22,69 @@ filter_links_by_domain(
 \item{edge_list_df}{A data frame representing the edge list, with at least
 two URL columns.}
 
-\item{from_col}{Name of the source URL column. Default `"from"`.}
+\item{from_col}{Name of the source URL column. Default \code{"from"}.}
 
-\item{to_col}{Name of the target URL column. Default `"to"`.}
+\item{to_col}{Name of the target URL column. Default \code{"to"}.}
 
 \item{keep_domains}{Character vector of registrable domains to keep (e.g.,
-`"example.com"`). Subdomains are included when their registrable domain
+\code{"example.com"}). Subdomains are included when their registrable domain
 matches.}
 
 \item{keep_hosts}{Character vector of specific hosts to keep (e.g.,
-`"www.example.com"`). Only exact host matches are kept.}
+\code{"www.example.com"}). Only exact host matches are kept.}
 
 \item{ignore_domains}{Character vector of registrable domains to drop.}
 
 \item{ignore_hosts}{Character vector of specific hosts to drop.}
 
 \item{drop_third_party}{Logical. When keep lists are provided and this is
-`TRUE` (default), URLs outside the keep lists are dropped. When `FALSE`,
+\code{TRUE} (default), URLs outside the keep lists are dropped. When \code{FALSE},
 only explicitly ignored URLs are dropped.}
 
-\item{return_report}{Logical. If `TRUE`, returns a list with the filtered
-data frame and a filter report. Default `FALSE`.}
+\item{return_report}{Logical. If \code{TRUE}, returns a list with the filtered
+data frame and a filter report. Default \code{FALSE}.}
 
 \item{psl_section}{Public Suffix List section used to derive registrable
-domains, passed to `rurl::get_domain()` / `rurl::safe_parse_urls()`. One of
-`"all"` (default, ICANN + private suffixes), `"icann"`, or `"private"`.
+domains, passed to \code{rurl::get_domain()} / \code{rurl::safe_parse_urls()}. One of
+\code{"all"} (default, ICANN + private suffixes), \code{"icann"}, or \code{"private"}.
 Affects domain-based (not host-based) keep/ignore matching; e.g. under
-`"icann"`, `user.github.io` has registrable domain `github.io`, while under
-`"all"` it is `user.github.io`.}
+\code{"icann"}, \code{user.github.io} has registrable domain \code{github.io}, while under
+\code{"all"} it is \code{user.github.io}.}
 
-\item{rurl_params}{A list of `rurl` canonicalization arguments overriding
+\item{rurl_params}{A list of \code{rurl} canonicalization arguments overriding
 pagerankr's profile per key, used when extracting hosts/domains from both
-the edge URLs and the keep/ignore values. Pass the **same** profile used to
+the edge URLs and the keep/ignore values. Pass the \strong{same} profile used to
 clean the graph so the comparison keys are derived identically. The
-host-relevant knobs are `host_encoding` (`"keep"`/`"idna"`/`"unicode"` —
-IDN folding; e.g. `"idna"` makes `münchen.de` and `xn--mnchen-3ya.de`
-match), `www_handling`, `subdomain_levels_to_keep`, `case_handling`, and
-`protocol_handling`. Registrable-domain matching is encoding-independent.
-When called from [pagerank()], this is forwarded automatically.}
+host-relevant knobs are \code{host_encoding} (\code{"keep"}/\code{"idna"}/\code{"unicode"} —
+IDN folding; e.g. \code{"idna"} makes \code{münchen.de} and \verb{xn--mnchen-3ya.de}
+match), \code{www_handling}, \code{subdomain_levels_to_keep}, \code{case_handling}, and
+\code{protocol_handling}. Registrable-domain matching is encoding-independent.
+When called from \code{\link[=pagerank]{pagerank()}}, this is forwarded automatically.}
 }
 \value{
-If `return_report = FALSE` (default), the filtered data frame
-  (preserving all columns). If `TRUE`, a list with elements
-  `filtered_df` and `report`.
+If \code{return_report = FALSE} (default), the filtered data frame
+(preserving all columns). If \code{TRUE}, a list with elements
+\code{filtered_df} and \code{report}.
 }
 \description{
 Filters an edge list by registrable domain and/or host rules. Rows are kept
 only when both endpoints satisfy the keep/ignore logic. Ignore rules always
-override keep rules. When keep rules are provided, `drop_third_party = TRUE`
+override keep rules. When keep rules are provided, \code{drop_third_party = TRUE}
 removes URLs outside the keep lists.
 
-This function is intended as a **pre-processing step** before calling
-[pagerank()]. For example, to scope a PageRank analysis to a single site
+This function is intended as a \strong{pre-processing step} before calling
+\code{\link[=pagerank]{pagerank()}}. For example, to scope a PageRank analysis to a single site
 or exclude CDN / tracking domains.
 
-**Ordering relative to folding:** when `pagerank()` calls this filter
-internally (via its `keep_domains` / `exclude_domains` / `keep_hosts` /
-`exclude_hosts` arguments), the filter runs *after* redirect and canonical
+\strong{Ordering relative to folding:} when \code{pagerank()} calls this filter
+internally (via its \code{keep_domains} / \code{exclude_domains} / \code{keep_hosts} /
+\code{exclude_hosts} arguments), the filter runs \emph{after} redirect and canonical
 folding, so it scopes the post-fold (canonical) namespace. If an out-of-scope
 canonical/redirect rewrites the crawled domain/host onto a different one,
-filtering on the crawled value inside `pagerank()` matches nothing. To
-domain-scope the **crawled input** instead, call `filter_links_by_domain()`
-on the edge list yourself *before* folding (i.e. before passing it to
-`pagerank()`).
+filtering on the crawled value inside \code{pagerank()} matches nothing. To
+domain-scope the \strong{crawled input} instead, call \code{filter_links_by_domain()}
+on the edge list yourself \emph{before} folding (i.e. before passing it to
+\code{pagerank()}).
 }
 \examples{
 links <- data.frame(

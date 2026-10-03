@@ -21,74 +21,75 @@ compute_hits(
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the processed edge list, with
-source/target columns (see `from_col`, `to_col`). NAs in those columns are
+source/target columns (see \code{from_col}, \code{to_col}). NAs in those columns are
 omitted before graph construction.}
 
 \item{vertices_df}{An optional single-column data frame of node names
-defining the vertex set (e.g. to retain isolates). If `NULL` (default), the
-vertices are inferred from `edge_list_df`. The column name is given by
-`vertex_col_name`.}
+defining the vertex set (e.g. to retain isolates). If \code{NULL} (default), the
+vertices are inferred from \code{edge_list_df}. The column name is given by
+\code{vertex_col_name}.}
 
-\item{from_col, to_col}{Names of the source/target columns in `edge_list_df`.
-Defaults `"from"` / `"to"`.}
+\item{from_col, to_col}{Names of the source/target columns in \code{edge_list_df}.
+Defaults \code{"from"} / \code{"to"}.}
 
-\item{vertex_col_name}{Name of the node column in `vertices_df`. Default
-`"node_name"`.}
+\item{vertex_col_name}{Name of the node column in \code{vertices_df}. Default
+\code{"node_name"}.}
 
 \item{weight_col}{Optional name of a numeric edge-weight column. Higher
 weights give an edge more influence in the hub/authority mutual
-reinforcement. If `NULL` (default), the graph is unweighted.}
+reinforcement. If \code{NULL} (default), the graph is unweighted.}
 
 \item{weight_validation}{How invalid edge weights are handled when
-`weight_col` is supplied: `"error"` (default), `"warning"`, or `"none"`.
-See [validate_edge_weights()].}
+\code{weight_col} is supplied: \code{"error"} (default), \code{"warning"}, or \code{"none"}.
+See \code{\link[=validate_edge_weights]{validate_edge_weights()}}.}
 
-\item{scale}{Logical, passed to `igraph::hits_scores()`. When `TRUE`
-(default) each score vector is scaled so its maximum entry is `1`, the
-conventional HITS reporting convention. When `FALSE` the raw principal
+\item{scale}{Logical, passed to \code{igraph::hits_scores()}. When \code{TRUE}
+(default) each score vector is scaled so its maximum entry is \code{1}, the
+conventional HITS reporting convention. When \code{FALSE} the raw principal
 eigenvectors (unit Euclidean norm) are returned.}
 
 \item{pr_node_col}{Name for the node column in the output. Default
-`"node_name"` (kept consistent with [compute_pagerank()]).}
+\code{"node_name"} (kept consistent with \code{\link[=compute_pagerank]{compute_pagerank()}}).}
 
 \item{hub_col, authority_col}{Names for the hub and authority score columns in
-the output. Defaults `"hub"` / `"authority"`.}
+the output. Defaults \code{"hub"} / \code{"authority"}.}
 
-\item{...}{Additional arguments passed to `igraph::hits_scores()` (e.g.
-`options`).}
+\item{...}{Additional arguments passed to \code{igraph::hits_scores()} (e.g.
+\code{options}).}
 }
 \value{
 A data frame with three columns: the node name (named by
-  `pr_node_col`) and the hub and authority scores (named by `hub_col` /
-  `authority_col`). Returns an empty (zero-row) data frame with those columns
-  when the graph has no vertices.
+\code{pr_node_col}) and the hub and authority scores (named by \code{hub_col} /
+\code{authority_col}). Returns an empty (zero-row) data frame with those columns
+when the graph has no vertices.
 }
 \description{
 Builds a directed graph from a processed edge list and computes
-  Kleinberg's HITS hub and authority scores using `igraph::hits_scores()`
-  (the non-deprecated successor of `igraph::hub_score()` /
-  `igraph::authority_score()`). This is the low-level computational core; the
-  high-level [hits()] wrapper runs the URL-cleaning, redirect/canonical
-  folding, domain filtering, deduplication, and isolate handling identity
-  pipeline first.
+Kleinberg's HITS hub and authority scores using \code{igraph::hits_scores()}
+(the non-deprecated successor of \code{igraph::hub_score()} /
+\code{igraph::authority_score()}). This is the low-level computational core; the
+high-level \code{\link[=hits]{hits()}} wrapper runs the URL-cleaning, redirect/canonical
+folding, domain filtering, deduplication, and isolate handling identity
+pipeline first.
 }
 \details{
-## Matrix formulation
+\subsection{Matrix formulation}{
 
 Let \eqn{A} be the adjacency matrix of the directed graph (\eqn{A_{ij} = 1}
 when page \eqn{i} links to page \eqn{j}, or the edge weight when weighted).
 HITS computes two mutually reinforcing scores as the dominant eigenvectors:
 
 \itemize{
-  \item **authority** is the dominant eigenvector of \eqn{A^\top A}: a page
-    is a good authority when it is pointed to by good hubs.
-  \item **hub** is the dominant eigenvector of \eqn{A A^\top}: a page is a
-    good hub when it points to good authorities.
+\item \strong{authority} is the dominant eigenvector of \eqn{A^\top A}: a page
+is a good authority when it is pointed to by good hubs.
+\item \strong{hub} is the dominant eigenvector of \eqn{A A^\top}: a page is a
+good hub when it points to good authorities.
 }
 
-`igraph::hits_scores()` solves these eigenproblems directly, so no separate
+\code{igraph::hits_scores()} solves these eigenproblems directly, so no separate
 direction flip is needed: authority is the inflow-oriented score and hub is
 the outflow-oriented score, both returned from a single call.
+}
 }
 \examples{
 edges <- data.frame(
@@ -101,6 +102,6 @@ verts <- data.frame(node_name = c("A", "B", "C", "D"))
 compute_hits(edges, vertices_df = verts)
 }
 \seealso{
-[hits()] for the full identity pipeline; [compute_pagerank()] for
-  the PageRank analog.
+\code{\link[=hits]{hits()}} for the full identity pipeline; \code{\link[=compute_pagerank]{compute_pagerank()}} for
+the PageRank analog.
 }

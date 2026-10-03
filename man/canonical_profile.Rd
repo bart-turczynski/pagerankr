@@ -7,126 +7,130 @@
 canonical_profile()
 }
 \value{
-A named list of `rurl` canonicalization arguments.
+A named list of \code{rurl} canonicalization arguments.
 }
 \description{
-The explicit set of `rurl` canonicalization arguments that
-  determine a pagerankr node identity (scheme + host + path). Every knob that
-  *shapes that key* is pinned here with an explicit value, so node keys never
-  depend on `rurl`'s own defaults -- which have changed across `rurl`
-  versions (e.g. `case_handling` flipped from `"keep"` to `"lower_host"`) and
-  previously desynced the pagerankr <-> semantic join. Knobs that only govern
-  components the key drops (port, query, fragment, userinfo) are deliberately
-  left unpinned -- see the "Knobs deliberately left unpinned" note in
-  @details.
+The explicit set of \code{rurl} canonicalization arguments that
+determine a pagerankr node identity (scheme + host + path). Every knob that
+\emph{shapes that key} is pinned here with an explicit value, so node keys never
+depend on \code{rurl}'s own defaults -- which have changed across \code{rurl}
+versions (e.g. \code{case_handling} flipped from \code{"keep"} to \code{"lower_host"}) and
+previously desynced the pagerankr <-> semantic join. Knobs that only govern
+components the key drops (port, query, fragment, userinfo) are deliberately
+left unpinned -- see the "Knobs deliberately left unpinned" note in
+@details.
 }
 \details{
-The canonical node key is **scheme + host + non-default port +
-  path + contentful query**, with the path normalized under the WHATWG URL
-  standard and percent-encoding preserved byte-for-byte. Fragment and
-  userinfo are dropped by `get_clean_url` and identify no resource --
-  userinfo under `credential_handling = "strip"`, which is pinned because
-  the alternative (`"reject"`) yields `NA` rather than a key.
+The canonical node key is \strong{scheme + host + non-default port +
+path + contentful query}, with the path normalized under the WHATWG URL
+standard and percent-encoding preserved byte-for-byte. Fragment and
+userinfo are dropped by \code{get_clean_url} and identify no resource --
+userinfo under \code{credential_handling = "strip"}, which is pinned because
+the alternative (\code{"reject"}) yields \code{NA} rather than a key.
 
-  **The governing principle: parse, do not fold.** pagerankr has redirects
-  and canonical tags as first-class inputs, and those are the site's own
-  statement about which URLs are the same page. Canonicalization therefore
-  normalizes only what the *standard* says is the same resource, and asserts
-  nothing about site configuration. If `www.example.com/a` and
-  `example.com/a` have no redirect and no canonical between them, they are
-  two nodes -- and that is a finding, not a defect to be papered over. The
-  knobs that would fold them (`www_handling`, `trailing_slash_handling`,
-  `index_page_handling`, `protocol_handling`) are all pinned to their
-  non-folding values for exactly this reason.
+\strong{The governing principle: parse, do not fold.} pagerankr has redirects
+and canonical tags as first-class inputs, and those are the site's own
+statement about which URLs are the same page. Canonicalization therefore
+normalizes only what the \emph{standard} says is the same resource, and asserts
+nothing about site configuration. If \code{www.example.com/a} and
+\code{example.com/a} have no redirect and no canonical between them, they are
+two nodes -- and that is a finding, not a defect to be papered over. The
+knobs that would fold them (\code{www_handling}, \code{trailing_slash_handling},
+\code{index_page_handling}, \code{protocol_handling}) are all pinned to their
+non-folding values for exactly this reason.
 
-  Two corollaries that are easy to get backwards:
-  * A **non-default port is a different origin**, so it stays in the key.
-    `rurl`'s default `port_handling = "exclude"` drops every port and would
-    merge `host:8080` with `host`. `"strip_default"` removes only `:80` on
-    http and `:443` on https, which the standard makes redundant.
-  * An **IDN host and its punycode form are the same request on the wire**,
-    so no redirect or canonical can ever fold them -- the graph has to.
-    `host_encoding = "idna"` normalizes both to the punycode form.
+Two corollaries that are easy to get backwards:
+\itemize{
+\item A \strong{non-default port is a different origin}, so it stays in the key.
+\code{rurl}'s default \code{port_handling = "exclude"} drops every port and would
+merge \code{host:8080} with \code{host}. \code{"strip_default"} removes only \verb{:80} on
+http and \verb{:443} on https, which the standard makes redundant.
+\item An \strong{IDN host and its punycode form are the same request on the wire},
+so no redirect or canonical can ever fold them -- the graph has to.
+\code{host_encoding = "idna"} normalizes both to the punycode form.
+}
 
-  **Why `whatwg`, and why `path_encoding = "keep"`.** These two are the only
-  knobs here that do not simply mirror a `rurl` default, and they are the
-  load-bearing pair. `path_encoding` is a *presentation* dial -- `rurl`'s own
-  documentation says only `"keep"` preserves a profile's canonical identity
-  path verbatim, and that `"encode"`/`"decode"` "may re-encode or decode
-  reserved octets (so `%2F` may fold to a path-separating `/`)". pagerankr
-  pinned `"decode"` for several releases and thereby merged `/a%2Fb` with
-  `/a/b`: two different resources, one node. Identity semantics live on
-  `url_standard` instead, which reaches a profile-internal path-identity axis
-  no presentation dial can touch.
+\strong{Why \code{whatwg}, and why \code{path_encoding = "keep"}.} These two are the only
+knobs here that do not simply mirror a \code{rurl} default, and they are the
+load-bearing pair. \code{path_encoding} is a \emph{presentation} dial -- \code{rurl}'s own
+documentation says only \code{"keep"} preserves a profile's canonical identity
+path verbatim, and that \code{"encode"}/\code{"decode"} "may re-encode or decode
+reserved octets (so \verb{\%2F} may fold to a path-separating \code{/})". pagerankr
+pinned \code{"decode"} for several releases and thereby merged \verb{/a\%2Fb} with
+\verb{/a/b}: two different resources, one node. Identity semantics live on
+\code{url_standard} instead, which reaches a profile-internal path-identity axis
+no presentation dial can touch.
 
-  `"whatwg"` rather than `"rfc3986"` because pagerankr models what a search
-  engine sees. Measured over the node-key fixture, `whatwg` additionally
-  resolves percent-encoded dot segments (`%2e%2e` behaves as `..`), strips
-  tab/newline from paths instead of failing the parse, percent-encodes
-  literal spaces instead of failing the parse, and keeps `http://host` and
-  `http://host/` as one node. `rfc3986` splits that last pair and returns
-  `NA` for the whitespace classes, both of which are common in crawl
-  exports. The cost is that `whatwg` preserves percent spellings, so
-  `/a%7Eb` and `/a~b` are two nodes, as they are to a crawler.
+\code{"whatwg"} rather than \code{"rfc3986"} because pagerankr models what a search
+engine sees. Measured over the node-key fixture, \code{whatwg} additionally
+resolves percent-encoded dot segments (\verb{\%2e\%2e} behaves as \code{..}), strips
+tab/newline from paths instead of failing the parse, percent-encodes
+literal spaces instead of failing the parse, and keeps \verb{http://host} and
+\verb{http://host/} as one node. \code{rfc3986} splits that last pair and returns
+\code{NA} for the whitespace classes, both of which are common in crawl
+exports. The cost is that \code{whatwg} preserves percent spellings, so
+\verb{/a\%7Eb} and \verb{/a~b} are two nodes, as they are to a crawler.
 
-  The remaining knobs equal `rurl`'s current defaults and are pinned only to
-  freeze them. (The anti-drift guarantee ultimately lives in the golden-key
-  fixtures in `test-canonicalization.R`: `rurl` 3.0.0 re-keyed six of them by
-  reordering decode after dot-segment removal *without touching any
-  argument*, which the surface guard cannot see.)
+The remaining knobs equal \code{rurl}'s current defaults and are pinned only to
+freeze them. (The anti-drift guarantee ultimately lives in the golden-key
+fixtures in \code{test-canonicalization.R}: \code{rurl} 3.0.0 re-keyed six of them by
+reordering decode after dot-segment removal \emph{without touching any
+argument}, which the surface guard cannot see.)
 
-  All twenty of these arguments are accepted by both
-  `rurl::get_clean_url()` (the cleaning path) and `rurl::safe_parse_url()`
-  (the domain-filtering path), so one profile drives both and the two paths
-  stay symmetrical.
+All twenty of these arguments are accepted by both
+\code{rurl::get_clean_url()} (the cleaning path) and \code{rurl::safe_parse_url()}
+(the domain-filtering path), so one profile drives both and the two paths
+stay symmetrical.
 
-  **Knobs deliberately left unpinned.** `rurl::get_clean_url()` has grown
-  options that govern components the node key does not carry, or that select
-  a parsing route rather than a key component:
-  * `source` (default `"all"`) -- the public-suffix source, reachable only
-    through `www_handling`/`subdomain_levels_to_keep`, both pinned to values
-    that do not consult it.
-  * Added in `rurl` 2.7.0: `scheme_policy` (default `"infer"`),
-    `scheme_acceptance` (default `"web"`), `engine` (default `NULL`) and
-    `profile` (default `NULL`, an unrelated `rurl` concept that merely shares
-    a name with this function). In particular `profile = "seo"` is **not**
-    used and must not be: it bundles `protocol_handling = "https"`,
-    `www_handling = "strip"`, `trailing_slash_handling = "strip"` and
-    `index_page_handling = "strip"`, every one of which is a redirect class
-    pagerankr resolves through its own auditable fold map
-    ([build_fold_map()], applied by [pagerank()]). Folding those at
-    canonicalization time makes the redirect row self-referential, which
-    the fold map drops as a no-op -- the hop is erased before anything can
-    audit or report it.
+\strong{Knobs deliberately left unpinned.} \code{rurl::get_clean_url()} has grown
+options that govern components the node key does not carry, or that select
+a parsing route rather than a key component:
+\itemize{
+\item \code{source} (default \code{"all"}) -- the public-suffix source, reachable only
+through \code{www_handling}/\code{subdomain_levels_to_keep}, both pinned to values
+that do not consult it.
+\item Added in \code{rurl} 2.7.0: \code{scheme_policy} (default \code{"infer"}),
+\code{scheme_acceptance} (default \code{"web"}), \code{engine} (default \code{NULL}) and
+\code{profile} (default \code{NULL}, an unrelated \code{rurl} concept that merely shares
+a name with this function). In particular \code{profile = "seo"} is \strong{not}
+used and must not be: it bundles \code{protocol_handling = "https"},
+\code{www_handling = "strip"}, \code{trailing_slash_handling = "strip"} and
+\code{index_page_handling = "strip"}, every one of which is a redirect class
+pagerankr resolves through its own auditable fold map
+(\code{\link[=build_fold_map]{build_fold_map()}}, applied by \code{\link[=pagerank]{pagerank()}}). Folding those at
+canonicalization time makes the redirect row self-referential, which
+the fold map drops as a no-op -- the hop is erased before anything can
+audit or report it.
+}
 
-  Under the scheme+host+path key these have no visible effect at their
-  defaults, so pinning them would add noise without changing identity. They
-  are intentionally **not** part of this profile; instead
-  `test-canonicalization.R` guards them from two sides, so a `rurl` change
-  is caught on the pagerankr side rather than silently changing node
-  identity: a behavioral guard asserts that a canonical key really does drop
-  the port, query and fragment (catching a default *flip*), and a surface
-  guard reads `rurl`'s own formals and fails on any argument this profile
-  has neither pinned nor listed above (catching an *addition*). A committed
-  node-key probe covering the cross-platform parse-determinism risk surface
-  pins the keys themselves.
+Under the scheme+host+path key these have no visible effect at their
+defaults, so pinning them would add noise without changing identity. They
+are intentionally \strong{not} part of this profile; instead
+\code{test-canonicalization.R} guards them from two sides, so a \code{rurl} change
+is caught on the pagerankr side rather than silently changing node
+identity: a behavioral guard asserts that a canonical key really does drop
+the port, query and fragment (catching a default \emph{flip}), and a surface
+guard reads \code{rurl}'s own formals and fails on any argument this profile
+has neither pinned nor listed above (catching an \emph{addition}). A committed
+node-key probe covering the cross-platform parse-determinism risk surface
+pins the keys themselves.
 
-  The cross-repo contract requires **semantic** to pin the identical profile;
-  change both repos together.
+The cross-repo contract requires \strong{semantic} to pin the identical profile;
+change both repos together.
 
-  **Accepted divergence on un-canonicalizable input.** For a value `rurl`
-  cannot parse (an unsupported scheme like `mailto:`/`tel:`, whitespace, a
-  dotless bare token), `rurl` returns `NA`. pagerankr's [clean_url_columns()]
-  keeps such a value as its raw self so it survives as an opaque graph node
-  (see that function; PR #50), whereas semantic's `canonical_url()` returns
-  `None` and drops it (FR-05 rurl byte-parity). This is intentional and does
-  **not** break the `node_score` <-> `page` join: valid URLs still produce
-  byte-identical keys on both sides (the actual contract), and in the
-  semantic -> pagerankr bridge semantic canonicalizes and drops
-  un-canonicalizable inputs *before* pagerankr sees the edges, so the raw
-  fallback never fires on that path. It only affects pagerankr run standalone
-  on raw crawl data, where such tokens become opaque nodes instead of being
-  dropped.
+\strong{Accepted divergence on un-canonicalizable input.} For a value \code{rurl}
+cannot parse (an unsupported scheme like \verb{mailto:}/\verb{tel:}, whitespace, a
+dotless bare token), \code{rurl} returns \code{NA}. pagerankr's \code{\link[=clean_url_columns]{clean_url_columns()}}
+keeps such a value as its raw self so it survives as an opaque graph node
+(see that function; PR #50), whereas semantic's \code{canonical_url()} returns
+\code{None} and drops it (FR-05 rurl byte-parity). This is intentional and does
+\strong{not} break the \code{node_score} <-> \code{page} join: valid URLs still produce
+byte-identical keys on both sides (the actual contract), and in the
+semantic -> pagerankr bridge semantic canonicalizes and drops
+un-canonicalizable inputs \emph{before} pagerankr sees the edges, so the raw
+fallback never fires on that path. It only affects pagerankr run standalone
+on raw crawl data, where such tokens become opaque nodes instead of being
+dropped.
 }
 \examples{
 # The pinned profile that determines pagerankr node identity.

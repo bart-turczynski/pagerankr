@@ -45,13 +45,13 @@ from \code{pagerank_df} to include (e.g., \code{list(rank = "rank")}).}
 }
 \value{
 The file path (invisibly). Called for its side effect of writing a
-  file.
+file.
 }
 \description{
 Exports a PageRank result and its edge list as a graph file
-  suitable for visualization in external tools (Gephi, yEd, Graphviz, etc.).
-  Supports GraphML, GEXF (via GraphML with attributes), DOT, and edge list
-  CSV formats.
+suitable for visualization in external tools (Gephi, yEd, Graphviz, etc.).
+Supports GraphML, GEXF (via GraphML with attributes), DOT, and edge list
+CSV formats.
 }
 \examples{
 edges <- data.frame(

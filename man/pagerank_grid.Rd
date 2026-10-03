@@ -15,31 +15,31 @@ pagerank_grid(
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list (passed to every
-[pagerank()] call).}
+\code{\link[=pagerank]{pagerank()}} call).}
 
 \item{params_grid}{A named list of named lists. Each inner list contains
-parameter overrides for [pagerank()]. The top-level names become the
-`model_id` values in the output.}
+parameter overrides for \code{\link[=pagerank]{pagerank()}}. The top-level names become the
+\code{model_id} values in the output.}
 
 \item{redirects_df}{An optional redirect data frame (passed to every call).
-Default `NULL`.}
+Default \code{NULL}.}
 
 \item{...}{Common parameters shared across all models (e.g.,
-`clean_edge_urls`, `rurl_params`, `damping`). These are passed to every
-[pagerank()] call and can be overridden by entries in `params_grid`.}
+\code{clean_edge_urls}, \code{rurl_params}, \code{damping}). These are passed to every
+\code{\link[=pagerank]{pagerank()}} call and can be overridden by entries in \code{params_grid}.}
 
 \item{edge_from_col, edge_to_col}{Names of from/to columns in
-`edge_list_df`. Default `"from"` / `"to"`.}
+\code{edge_list_df}. Default \code{"from"} / \code{"to"}.}
 }
 \value{
-A data frame with columns `model_id`, `node_name`, and `pagerank`
-  (or the column names returned by [pagerank()]). Rows from different
-  models are stacked via [rbind()].
+A data frame with columns \code{model_id}, \code{node_name}, and \code{pagerank}
+(or the column names returned by \code{\link[=pagerank]{pagerank()}}). Rows from different
+models are stacked via \code{\link[=rbind]{rbind()}}.
 }
 \description{
-Executes [pagerank()] for each entry in a named parameter grid,
-  returning a single combined data frame with a `model_id` column
-  identifying which configuration produced each row.
+Executes \code{\link[=pagerank]{pagerank()}} for each entry in a named parameter grid,
+returning a single combined data frame with a \code{model_id} column
+identifying which configuration produced each row.
 }
 \examples{
 edges <- data.frame(

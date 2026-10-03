@@ -14,12 +14,12 @@ sf_parse_follow(x)
 }
 \value{
 A logical vector the same length as \code{x}. Blank strings,
-  \code{NA}, and unrecognized values yield \code{NA}.
+\code{NA}, and unrecognized values yield \code{NA}.
 }
 \description{
 Converts the values Screaming Frog writes in a "Follow" column
-  into a logical vector. Matching is case-insensitive and whitespace is
-  trimmed.
+into a logical vector. Matching is case-insensitive and whitespace is
+trimmed.
 }
 \examples{
 sf_parse_follow(c("True", "nofollow", "yes", "", NA))

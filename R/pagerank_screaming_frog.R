@@ -314,7 +314,7 @@ pagerank_screaming_frog <- function(bundle,
 #' Build a `status_df` (url + status_code) from a bundle's node table.
 #'
 #' The node table carries the parsed integer `http_status` per crawled URL
-#' ([.sf_internal_nodes]); this maps it to the `url` / `status_code` shape
+#' (`.sf_internal_nodes`); this maps it to the `url` / `status_code` shape
 #' `pagerank()` expects. Returns `NULL` when the bundle has no usable node
 #' status column, so a link-only bundle degrades to "no status supplied"
 #' rather than erroring.

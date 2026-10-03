@@ -33,77 +33,77 @@ compute_pagerank(
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the processed edge list,
-typically with columns "from" and "to" (or as specified by `from_col`,
-`to_col`).
+typically with columns "from" and "to" (or as specified by \code{from_col},
+\code{to_col}).
 It should contain only edges to be included in the graph. NAs in these
 columns will be omitted before graph construction.}
 
 \item{vertices_df}{An optional single-column data frame of node names to
 define
-the set of vertices for the graph. If `NULL` (default), all unique non-NA
+the set of vertices for the graph. If \code{NULL} (default), all unique non-NA
 nodes
-present in `edge_list_df` (after NA removal from edges) are used.
-The column name is specified by `vertex_col_name`.}
+present in \code{edge_list_df} (after NA removal from edges) are used.
+The column name is specified by \code{vertex_col_name}.}
 
-\item{damping}{The damping factor for PageRank. A single number in `[0, 1]`,
-default `0.85`. `NA`, `NaN` and the infinities are rejected.}
+\item{damping}{The damping factor for PageRank. A single number in \verb{[0, 1]},
+default \code{0.85}. \code{NA}, \code{NaN} and the infinities are rejected.}
 
-\item{algo}{Solver back-end passed to `igraph::page_rank()`. Either
-`"prpack"` (default; a fast, exact direct solver with no tunable
-convergence controls) or `"arpack"` (an iterative eigensolver that honors
-`eps` / `niter` and reports its iteration count). Supplying `eps` or
-`niter` while leaving `algo` at its default transparently switches to
-`"arpack"`, since PRPACK ignores those controls. See [pagerank_convergence]
+\item{algo}{Solver back-end passed to \code{igraph::page_rank()}. Either
+\code{"prpack"} (default; a fast, exact direct solver with no tunable
+convergence controls) or \code{"arpack"} (an iterative eigensolver that honors
+\code{eps} / \code{niter} and reports its iteration count). Supplying \code{eps} or
+\code{niter} while leaving \code{algo} at its default transparently switches to
+\code{"arpack"}, since PRPACK ignores those controls. See \link{pagerank_convergence}
 for the trade-offs.}
 
-\item{eps}{Optional convergence tolerance (L1, the ARPACK `options$tol`).
-When supplied, the solver switches to `"arpack"` and iterates until the
-residual is at or below `eps`. A single finite positive number, or `NULL`
+\item{eps}{Optional convergence tolerance (L1, the ARPACK \code{options$tol}).
+When supplied, the solver switches to \code{"arpack"} and iterates until the
+residual is at or below \code{eps}. A single finite positive number, or \code{NULL}
 (default) to use the solver's own default.}
 
-\item{niter}{Optional maximum iteration count (the ARPACK `options$maxiter`).
-When supplied, the solver switches to `"arpack"`. A single whole number
-from `1` to `.Machine$integer.max`, or `NULL` (default) to use the
+\item{niter}{Optional maximum iteration count (the ARPACK \code{options$maxiter}).
+When supplied, the solver switches to \code{"arpack"}. A single whole number
+from \code{1} to \code{.Machine$integer.max}, or \code{NULL} (default) to use the
 solver's own default. A fractional value is an error rather than being
 truncated. As a rule of thumb, power-iteration PageRank needs about
-`log10(eps) / log10(damping)` iterations, so raise `niter` when you raise
-`damping` toward 1.}
+\code{log10(eps) / log10(damping)} iterations, so raise \code{niter} when you raise
+\code{damping} toward 1.}
 
-\item{from_col}{Name of the source node column in `edge_list_df`. Default
+\item{from_col}{Name of the source node column in \code{edge_list_df}. Default
 "from".}
 
-\item{to_col}{Name of the target node column in `edge_list_df`. Default "to".}
+\item{to_col}{Name of the target node column in \code{edge_list_df}. Default "to".}
 
-\item{vertex_col_name}{Name of the column in `vertices_df` containing node
+\item{vertex_col_name}{Name of the column in \code{vertices_df} containing node
 names.
 Default "node_name".}
 
-\item{reverse}{Logical. If `TRUE`, edge orientation is flipped before the
+\item{reverse}{Logical. If \code{TRUE}, edge orientation is flipped before the
 graph is built, so PageRank is computed on the transposed graph. This is
 the reverse / inverse PageRank (a.k.a. CheiRank): instead of inflow
 importance ("who points to me"), it measures outflow centrality ("does this
 page funnel authority outward"). Vertices, weights, and the teleport prior
 are unaffected by the flip; only edge direction is reversed. Default
-`FALSE`. See [pagerank()] for the higher-level wrapper and the caveats on
-combining `reverse = TRUE` with direction-sensitive features.}
+\code{FALSE}. See \code{\link[=pagerank]{pagerank()}} for the higher-level wrapper and the caveats on
+combining \code{reverse = TRUE} with direction-sensitive features.}
 
-\item{weight_col}{Optional name of a numeric column in `edge_list_df`
+\item{weight_col}{Optional name of a numeric column in \code{edge_list_df}
 containing
 edge weights. Higher weights make edges more likely to be followed in the
-random surfer model. If `NULL` (default), all edges have equal weight
+random surfer model. If \code{NULL} (default), all edges have equal weight
 (unweighted PageRank).}
 
 \item{weight_validation}{How invalid edge weights are handled when
-`weight_col` is supplied: `"error"` (default), `"warning"`, or `"none"`.
+\code{weight_col} is supplied: \code{"error"} (default), \code{"warning"}, or \code{"none"}.
 Validation covers negative and non-finite values plus sources whose
-outgoing weights are all zero. See [validate_edge_weights()].}
+outgoing weights are all zero. See \code{\link[=validate_edge_weights]{validate_edge_weights()}}.}
 
 \item{weight_expected_total}{Optional expected per-source weight total.
-Leave `NULL` (default) for ordinary raw edge weights. Set to `1` when
-`weight_col` contains pre-normalized transition probabilities.}
+Leave \code{NULL} (default) for ordinary raw edge weights. Set to \code{1} when
+\code{weight_col} contains pre-normalized transition probabilities.}
 
 \item{weight_tolerance}{Non-negative tolerance used with
-`weight_expected_total`.}
+\code{weight_expected_total}.}
 
 \item{pr_node_col}{Name for the node column in the output PageRank data
 frame. Default "node_name".}
@@ -113,37 +113,37 @@ frame. Default "pagerank".}
 
 \item{prior_df}{Optional per-URL external-authority prior (TIPR). When
 supplied, a personalization/teleport vector is built via
-[align_prior_to_vertices()] from the final vertex set and passed to
-`igraph::page_rank(personalized = )`. The prior URLs must already share the
-vertex namespace (canonicalized + redirect-folded); [pagerank()] handles
-that. Default `NULL` (uniform teleport).}
+\code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}} from the final vertex set and passed to
+\code{igraph::page_rank(personalized = )}. The prior URLs must already share the
+vertex namespace (canonicalized + redirect-folded); \code{\link[=pagerank]{pagerank()}} handles
+that. Default \code{NULL} (uniform teleport).}
 
-\item{prior_url_col, prior_weight_col}{Column names in `prior_df`. Defaults
-`"url"` / `"weight"`.}
+\item{prior_url_col, prior_weight_col}{Column names in \code{prior_df}. Defaults
+\code{"url"} / \code{"weight"}.}
 
 \item{prior_transform, prior_alpha, prior_exclude_nodes, prior_verbose}{Passed
-to [align_prior_to_vertices()] as `transform`, `alpha`, `exclude_nodes`,
-`verbose`. See that function for semantics. When `prior_df` is `NULL`,
-`prior_exclude_nodes` still applies: the teleport is uniform over the
+to \code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}} as \code{transform}, \code{alpha}, \code{exclude_nodes},
+\code{verbose}. See that function for semantics. When \code{prior_df} is \code{NULL},
+\code{prior_exclude_nodes} still applies: the teleport is uniform over the
 vertices it does not name (empty vector => plain uniform teleport).}
 
-\item{...}{Additional arguments passed to `igraph::page_rank()`.}
+\item{...}{Additional arguments passed to \code{igraph::page_rank()}.}
 }
 \value{
 A data frame with two columns: one for node names (named by
-  `pr_node_col`)
-  and one for their PageRank scores (named by `pr_value_col`), which sum to 1
-  for non-empty graphs. Returns an empty data frame with correct column names
-  if the graph is empty or has no nodes after processing.
+\code{pr_node_col})
+and one for their PageRank scores (named by \code{pr_value_col}), which sum to 1
+for non-empty graphs. Returns an empty data frame with correct column names
+if the graph is empty or has no nodes after processing.
 
-  For non-empty graphs the result carries a `"convergence"` attribute (a
-  [pagerank_convergence] object) recording the solver used, iterations (when
-  the solver exposes them), and the post-hoc L1 residual of the returned
-  vector. Retrieve it with `attr(result, "convergence")`.
+For non-empty graphs the result carries a \code{"convergence"} attribute (a
+\link{pagerank_convergence} object) recording the solver used, iterations (when
+the solver exposes them), and the post-hoc L1 residual of the returned
+vector. Retrieve it with \code{attr(result, "convergence")}.
 }
 \description{
 Builds a graph from a processed edge list and computes PageRank
-  scores using `igraph::page_rank()`.
+scores using \code{igraph::page_rank()}.
 }
 \examples{
 edges <- data.frame(

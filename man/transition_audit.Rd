@@ -5,133 +5,134 @@
 \title{Transition-construction audit / provenance object}
 \description{
 Builds a stable, documented audit / provenance record describing
-  what happened to the edges and weights as [pagerank()] turned a raw edge
-  list into the transition graph it scored. It is the backbone of
-  reproducibility and of downstream diagnostics: it carries the row/edge
-  counts, behavioral-weight coverage, normalization totals, the data that was
-  dropped along the way (rows lost to NA / deduplication / self-loop removal,
-  and authority-prior URLs that never folded onto a vertex), and the relevant
-  [pagerank()] configuration. It also records the duplicate-edge policy used
-  to build transitions, so callers can distinguish the default
-  destination-level surfer from opt-in aggregate / link-slot models.
+what happened to the edges and weights as \code{\link[=pagerank]{pagerank()}} turned a raw edge
+list into the transition graph it scored. It is the backbone of
+reproducibility and of downstream diagnostics: it carries the row/edge
+counts, behavioral-weight coverage, normalization totals, the data that was
+dropped along the way (rows lost to NA / deduplication / self-loop removal,
+and authority-prior URLs that never folded onto a vertex), and the relevant
+\code{\link[=pagerank]{pagerank()}} configuration. It also records the duplicate-edge policy used
+to build transitions, so callers can distinguish the default
+destination-level surfer from opt-in aggregate / link-slot models.
 }
 \details{
-## Structure and contract
+\subsection{Structure and contract}{
 
-The object is an S3 list with class `"transition_audit"` (a list was chosen
+The object is an S3 list with class \code{"transition_audit"} (a list was chosen
 over a bare list so that it prints a human-readable summary while remaining a
-plain, inspectable `list` for programmatic access — `audit$counts$n_edges`
-works as expected, mirroring the existing [audit_redirects()] /
-[audit_canonicals()] objects in this package). The documented top-level
-fields are **stable**; callers may rely on them being present.
+plain, inspectable \code{list} for programmatic access — \code{audit$counts$n_edges}
+works as expected, mirroring the existing \code{\link[=audit_redirects]{audit_redirects()}} /
+\code{\link[=audit_canonicals]{audit_canonicals()}} objects in this package). The documented top-level
+fields are \strong{stable}; callers may rely on them being present.
 
 \describe{
-  \item{counts}{A list of integer counts: `n_input_rows` (rows in the raw
-    `edge_list_df`), `n_edges` (directed edges remaining after URL folding,
-    deduplication and self-loop handling — i.e. the edges actually scored),
-    and `n_vertices` (vertices in the returned result).}
-  \item{coverage}{A list describing behavioral-weight coverage: `weighted`
-    (logical, whether a `weight_col` was in effect), `weight_col` (its name
-    or `NULL`), `n_edges_weighted` (edges carrying a finite, positive
-    weight), and `coverage` (the fraction `n_edges_weighted / n_edges`, or
-    `NA_real_` when there are no edges / no weighting).}
-  \item{normalization}{A list of normalization totals: `pagerank_total` (sum
-    of the returned PageRank scores; `< 1` when mass evaporated via nofollow,
-    vanished robots-blocked pages, etc.).}
-  \item{dropped}{A list accounting for data removed during construction:
-    `n_rows_na` (input rows dropped because `from`/`to` was `NA`),
-    `n_rows_duplicate` (rows collapsed by edge deduplication),
-    `n_self_loops` (self-loop edges dropped when `self_loops = "drop"`),
-    `n_rows_collapsed` (total input rows that did not survive as distinct
-    scored edges = `n_input_rows - n_edges`), `n_prior_unmatched` (authority
-    prior URLs that did not fold onto any vertex; `NA_integer_` when no
-    `prior_df` was supplied), `n_robots_blocked` (URLs treated as
-    robots.txt-blocked), and `n_status_dead` (in-graph URLs whose HTTP
-    status code marked them response-dead; `0` when no `status_df` was
-    supplied).}
-  \item{duplicates}{A list describing duplicate-edge handling:
-    `policy` (the `duplicate_edge_policy` passed to [pagerank()]),
-    `n_duplicate_rows` (post-fold duplicate input rows), `instance_count_col`
-    (the internal audit column used by `"count_instances"`, or `NULL`), and
-    `n_duplicate_instances` (the number of duplicate link instances folded
-    into transition weights), and `duplicate_edges` (a compact data frame of
-    counted edges with more than one link instance, or `NULL`).}
-  \item{config}{A list of the [pagerank()] arguments that materially shape
-    the transition graph. `preset` records the *provenance* of the rest:
-    the name of the [pr_preset()] bundle the caller asked for (e.g.
-    `"declared"`), `"custom"` for a hand-rolled bundle, or `NULL` when no
-    preset was used — so a run made as a named view stays distinguishable
-    from the same arguments typed out by hand. `placement` records
-    placement-aware weighting when it was used (`placement_col`,
-    `accepted_placements`, `placement_weights`, and `n_rows_dropped`, the
-    number of edge rows the placement filter removed), or `NULL` when it was
-    not — so a downweighted edge can be explained by the region it sits in
-    rather than only by the opaque weight column it produced. `boilerplate`
-    records the recurrence detector the same way when it was used
-    (`container_col`, `boilerplate_threshold`, `min_container_pages`,
-    `boilerplate_weight`, and the counts `n_containers`, `n_edges_scored`,
-    `n_edges_judged` and `n_edges_discounted`), or `NULL` when it was not.
-    Placement and recurrence are two detectors feeding one graded axis, and
-    the strongest applicable discount wins, so both are recorded
-    **separately**: the resulting weight alone cannot say which detector
-    produced it. `position` records the orthogonal reading-order axis the
-    same way when it was used (`position_col`, `position_transform`,
-    `position_alpha`, `position_floor`, and the counts `n_edges_scored`,
-    `n_sources_scored`, and `min_position_weight`), or `NULL` when it was
-    not -- it *multiplies* into the weight rather than competing for the
-    minimum, so it too is recorded on its own so an edge weighing `0.02` can
-    be explained as region times reading order. The other fields are the
-    resolved configuration itself: `self_loops`, `drop_isolates_flag`,
-    `reverse`,
-    `weight_col`, `nofollow_col`, `nofollow_action`, `robots_blocked_action`,
-    `prior_alpha`, `prior_transform`, `prior_inject_unmatched`, and the
-    logical flags `has_redirects` / `has_canonicals` (whether that signal
-    *materially* folded an edge — an effective no-op such as a self-canonical
-    reads `FALSE`), `has_indexability`, and `has_prior`.}
-  \item{mass}{A list decomposing the internal stationary vector (which
-    always sums to 1) into its accounted-for components: `reported` (the
-    mass on returned, visible pages — equals the summed result scores),
-    `sink` (the **evaporated mass**: authority routed to the shared waste
-    sink — what the whole waste class (noindex / robots-blocked / 4xx-5xx)
-    and every real nofollowed link under `nofollow_action = "evaporate"`
-    passed on but could not deliver),
-    `leaked` (the **leaked mass**: authority sent to the synthetic leak sink
-    under `out_of_scope_fold = "leak"`, i.e. equity that flowed into
-    out-of-scope-folded sources and left the measured graph — `0` when no
-    leak occurred), `hidden` (the **hidden mass**: the own stationary mass of
-    robots-blocked nodes removed under `robots_blocked_action = "vanish"`;
-    their pass-through still routes to the waste sink and is counted in
-    `sink`), and `total` (their sum, which
-    reconciles to 1 by construction). These are the precise components of
-    the deficit between the reported scores and 1 — it is evaporated, leaked
-    and hidden mass, not undifferentiated "leakage". Each is `NULL` when the
-    stationary vector is undefined (e.g. an empty graph).}
-  \item{fold}{A list recording how **out-of-scope folds** were handled — a
-    composed fold-map entry whose *target* (the representative a crawled
-    source folds onto) is not itself a crawled node, which silently invents
-    a phantom vertex. `policy` (the `out_of_scope_fold` argument,
-    `"relabel"`, `"keep"` or `"leak"`), `n_out_of_scope` (count of such
-    entries), `applied` (logical: `TRUE` when they were acted upon —
-    relabeled / folded through under `"relabel"`, or routed to the leak sink
-    under `"leak"` — and `FALSE` when skipped / kept as crawled under
-    `"keep"`; combine with `policy` to distinguish relabel from leak), and
-    `out_of_scope` (a data frame of the offending `source` / `target` /
-    `signal` rows, or `NULL` when there were none), and `collisions` (a data
-    frame of **fold-target collisions** — uncrawled URLs that a fold
-    relabeled a crawled source onto while they were ALSO independently
-    linked, so the two silently merge into one vertex and the crawled page
-    absorbs the inbound link equity of that uncrawled URL; columns `target`,
-    `n_independent_refs` and the folded `source`(s) — or `NULL` when none). A
-    collision triggers a `warning()` naming the merged URL(s). This
-    diagnostic requires crawl-URL knowledge to distinguish an uncrawled fold
-    target from a genuinely crawled leaf page, so it is only computed when an
-    `indexability_df` is supplied to [pagerank()]; without it, `collisions`
-    is `NULL`. Recorded regardless of `out_of_scope_fold` policy.}
+\item{counts}{A list of integer counts: \code{n_input_rows} (rows in the raw
+\code{edge_list_df}), \code{n_edges} (directed edges remaining after URL folding,
+deduplication and self-loop handling — i.e. the edges actually scored),
+and \code{n_vertices} (vertices in the returned result).}
+\item{coverage}{A list describing behavioral-weight coverage: \code{weighted}
+(logical, whether a \code{weight_col} was in effect), \code{weight_col} (its name
+or \code{NULL}), \code{n_edges_weighted} (edges carrying a finite, positive
+weight), and \code{coverage} (the fraction \code{n_edges_weighted / n_edges}, or
+\code{NA_real_} when there are no edges / no weighting).}
+\item{normalization}{A list of normalization totals: \code{pagerank_total} (sum
+of the returned PageRank scores; \verb{< 1} when mass evaporated via nofollow,
+vanished robots-blocked pages, etc.).}
+\item{dropped}{A list accounting for data removed during construction:
+\code{n_rows_na} (input rows dropped because \code{from}/\code{to} was \code{NA}),
+\code{n_rows_duplicate} (rows collapsed by edge deduplication),
+\code{n_self_loops} (self-loop edges dropped when \code{self_loops = "drop"}),
+\code{n_rows_collapsed} (total input rows that did not survive as distinct
+scored edges = \code{n_input_rows - n_edges}), \code{n_prior_unmatched} (authority
+prior URLs that did not fold onto any vertex; \code{NA_integer_} when no
+\code{prior_df} was supplied), \code{n_robots_blocked} (URLs treated as
+robots.txt-blocked), and \code{n_status_dead} (in-graph URLs whose HTTP
+status code marked them response-dead; \code{0} when no \code{status_df} was
+supplied).}
+\item{duplicates}{A list describing duplicate-edge handling:
+\code{policy} (the \code{duplicate_edge_policy} passed to \code{\link[=pagerank]{pagerank()}}),
+\code{n_duplicate_rows} (post-fold duplicate input rows), \code{instance_count_col}
+(the internal audit column used by \code{"count_instances"}, or \code{NULL}), and
+\code{n_duplicate_instances} (the number of duplicate link instances folded
+into transition weights), and \code{duplicate_edges} (a compact data frame of
+counted edges with more than one link instance, or \code{NULL}).}
+\item{config}{A list of the \code{\link[=pagerank]{pagerank()}} arguments that materially shape
+the transition graph. \code{preset} records the \emph{provenance} of the rest:
+the name of the \code{\link[=pr_preset]{pr_preset()}} bundle the caller asked for (e.g.
+\code{"declared"}), \code{"custom"} for a hand-rolled bundle, or \code{NULL} when no
+preset was used — so a run made as a named view stays distinguishable
+from the same arguments typed out by hand. \code{placement} records
+placement-aware weighting when it was used (\code{placement_col},
+\code{accepted_placements}, \code{placement_weights}, and \code{n_rows_dropped}, the
+number of edge rows the placement filter removed), or \code{NULL} when it was
+not — so a downweighted edge can be explained by the region it sits in
+rather than only by the opaque weight column it produced. \code{boilerplate}
+records the recurrence detector the same way when it was used
+(\code{container_col}, \code{boilerplate_threshold}, \code{min_container_pages},
+\code{boilerplate_weight}, and the counts \code{n_containers}, \code{n_edges_scored},
+\code{n_edges_judged} and \code{n_edges_discounted}), or \code{NULL} when it was not.
+Placement and recurrence are two detectors feeding one graded axis, and
+the strongest applicable discount wins, so both are recorded
+\strong{separately}: the resulting weight alone cannot say which detector
+produced it. \code{position} records the orthogonal reading-order axis the
+same way when it was used (\code{position_col}, \code{position_transform},
+\code{position_alpha}, \code{position_floor}, and the counts \code{n_edges_scored},
+\code{n_sources_scored}, and \code{min_position_weight}), or \code{NULL} when it was
+not -- it \emph{multiplies} into the weight rather than competing for the
+minimum, so it too is recorded on its own so an edge weighing \code{0.02} can
+be explained as region times reading order. The other fields are the
+resolved configuration itself: \code{self_loops}, \code{drop_isolates_flag},
+\code{reverse},
+\code{weight_col}, \code{nofollow_col}, \code{nofollow_action}, \code{robots_blocked_action},
+\code{prior_alpha}, \code{prior_transform}, \code{prior_inject_unmatched}, and the
+logical flags \code{has_redirects} / \code{has_canonicals} (whether that signal
+\emph{materially} folded an edge — an effective no-op such as a self-canonical
+reads \code{FALSE}), \code{has_indexability}, and \code{has_prior}.}
+\item{mass}{A list decomposing the internal stationary vector (which
+always sums to 1) into its accounted-for components: \code{reported} (the
+mass on returned, visible pages — equals the summed result scores),
+\code{sink} (the \strong{evaporated mass}: authority routed to the shared waste
+sink — what the whole waste class (noindex / robots-blocked / 4xx-5xx)
+and every real nofollowed link under \code{nofollow_action = "evaporate"}
+passed on but could not deliver),
+\code{leaked} (the \strong{leaked mass}: authority sent to the synthetic leak sink
+under \code{out_of_scope_fold = "leak"}, i.e. equity that flowed into
+out-of-scope-folded sources and left the measured graph — \code{0} when no
+leak occurred), \code{hidden} (the \strong{hidden mass}: the own stationary mass of
+robots-blocked nodes removed under \code{robots_blocked_action = "vanish"};
+their pass-through still routes to the waste sink and is counted in
+\code{sink}), and \code{total} (their sum, which
+reconciles to 1 by construction). These are the precise components of
+the deficit between the reported scores and 1 — it is evaporated, leaked
+and hidden mass, not undifferentiated "leakage". Each is \code{NULL} when the
+stationary vector is undefined (e.g. an empty graph).}
+\item{fold}{A list recording how \strong{out-of-scope folds} were handled — a
+composed fold-map entry whose \emph{target} (the representative a crawled
+source folds onto) is not itself a crawled node, which silently invents
+a phantom vertex. \code{policy} (the \code{out_of_scope_fold} argument,
+\code{"relabel"}, \code{"keep"} or \code{"leak"}), \code{n_out_of_scope} (count of such
+entries), \code{applied} (logical: \code{TRUE} when they were acted upon —
+relabeled / folded through under \code{"relabel"}, or routed to the leak sink
+under \code{"leak"} — and \code{FALSE} when skipped / kept as crawled under
+\code{"keep"}; combine with \code{policy} to distinguish relabel from leak), and
+\code{out_of_scope} (a data frame of the offending \code{source} / \code{target} /
+\code{signal} rows, or \code{NULL} when there were none), and \code{collisions} (a data
+frame of \strong{fold-target collisions} — uncrawled URLs that a fold
+relabeled a crawled source onto while they were ALSO independently
+linked, so the two silently merge into one vertex and the crawled page
+absorbs the inbound link equity of that uncrawled URL; columns \code{target},
+\code{n_independent_refs} and the folded \code{source}(s) — or \code{NULL} when none). A
+collision triggers a \code{warning()} naming the merged URL(s). This
+diagnostic requires crawl-URL knowledge to distinguish an uncrawled fold
+target from a genuinely crawled leaf page, so it is only computed when an
+\code{indexability_df} is supplied to \code{\link[=pagerank]{pagerank()}}; without it, \code{collisions}
+is \code{NULL}. Recorded regardless of \code{out_of_scope_fold} policy.}
 }
 
-The constructor [new_transition_audit()] is internal plumbing for
-[pagerank()]; the object is normally obtained via
-`attr(result, "transition_audit")` (see [pagerank()]).
+The constructor \code{\link[=new_transition_audit]{new_transition_audit()}} is internal plumbing for
+\code{\link[=pagerank]{pagerank()}}; the object is normally obtained via
+\code{attr(result, "transition_audit")} (see \code{\link[=pagerank]{pagerank()}}).
+}
 }
 \examples{
 # A transition_audit is attached to every pagerank() result, and explains
@@ -159,5 +160,5 @@ audit$mass$reported
 audit$mass$total
 }
 \seealso{
-[pagerank()], [audit_redirects()], [audit_canonicals()]
+\code{\link[=pagerank]{pagerank()}}, \code{\link[=audit_redirects]{audit_redirects()}}, \code{\link[=audit_canonicals]{audit_canonicals()}}
 }

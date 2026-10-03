@@ -24,72 +24,72 @@ audit_fold(
 )
 }
 \arguments{
-\item{redirects_df}{Optional data frame of 3xx redirect rules, or `NULL`.}
+\item{redirects_df}{Optional data frame of 3xx redirect rules, or \code{NULL}.}
 
 \item{canonicals_df}{Optional data frame of declared rel=canonical links, or
-`NULL`. Each row pairs a source URL with the canonical it declares.}
+\code{NULL}. Each row pairs a source URL with the canonical it declares.}
 
 \item{edge_list_df}{Optional edge list, passed to the per-signal audits for
 orphan detection.}
 
-\item{redirect_from_col, redirect_to_col}{From/to columns in `redirects_df`.
-Default `"from"` / `"to"`.}
+\item{redirect_from_col, redirect_to_col}{From/to columns in \code{redirects_df}.
+Default \code{"from"} / \code{"to"}.}
 
 \item{canonical_from_col, canonical_to_col}{From/to columns in
-`canonicals_df`. Default `"from"` / `"to"`.}
+\code{canonicals_df}. Default \code{"from"} / \code{"to"}.}
 
 \item{duplicate_from_policy}{How to handle a redirect source with multiple
-distinct targets. See [resolve_redirects()]. Default `"strict"`.}
+distinct targets. See \code{\link[=resolve_redirects]{resolve_redirects()}}. Default \code{"strict"}.}
 
 \item{loop_handling}{How to handle redirect cycles. See
-[resolve_redirects()]. Default `"error"`. Also governs cross-signal cycles
+\code{\link[=resolve_redirects]{resolve_redirects()}}. Default \code{"error"}. Also governs cross-signal cycles
 in the composed graph.}
 
 \item{canonical_duplicate_from_policy}{How to handle a canonical source with
-multiple distinct declared canonicals. Reuses the `duplicate_from_policy`
-enum. Default `"strict"`.}
+multiple distinct declared canonicals. Reuses the \code{duplicate_from_policy}
+enum. Default \code{"strict"}.}
 
 \item{canonical_loop_handling}{How to handle cycles among declared
-canonicals. Reuses the `loop_handling` enum. Default `"error"`.}
+canonicals. Reuses the \code{loop_handling} enum. Default \code{"error"}.}
 
 \item{canonical_conflict_policy}{How to resolve a redirect-vs-canonical
-disagreement on the **same source** URL. One of:
+disagreement on the \strong{same source} URL. One of:
 \describe{
-  \item{`"redirect_wins"`}{(Default) The 3xx redirect wins; a canonical
-    declared on a URL that itself redirects is ignored and flagged, never
-    transferred onto the redirect target.}
-  \item{`"error"`}{Error when a redirect and a canonical disagree on the
-    same source (after audit context is computed). Sources where the two
-    signals agree do not error.}
-  \item{`"canonical_wins"`}{The declared canonical wins for that source;
-    still flagged in the audit. The explicit exception to the default
-    ignored-canonical-on-redirecting-source rule.}
+\item{\code{"redirect_wins"}}{(Default) The 3xx redirect wins; a canonical
+declared on a URL that itself redirects is ignored and flagged, never
+transferred onto the redirect target.}
+\item{\code{"error"}}{Error when a redirect and a canonical disagree on the
+same source (after audit context is computed). Sources where the two
+signals agree do not error.}
+\item{\code{"canonical_wins"}}{The declared canonical wins for that source;
+still flagged in the audit. The explicit exception to the default
+ignored-canonical-on-redirecting-source rule.}
 }}
 
-\item{edge_from_col, edge_to_col}{From/to columns in `edge_list_df`.}
+\item{edge_from_col, edge_to_col}{From/to columns in \code{edge_list_df}.}
 }
 \value{
-A list with class `"fold_audit"` containing:
-  \describe{
-    \item{redirects}{The [audit_redirects()] result (or `NULL`).}
-    \item{canonicals}{The [audit_canonicals()] result (or `NULL`).}
-    \item{conflicts}{Data frame of same-source redirect-vs-canonical cases:
-      `source`, `redirect_to`, `canonical_to`, `disagrees`, `resolution`.}
-    \item{ignored_canonicals}{Data frame of canonicals dropped because their
-      source also redirects (populated under `"redirect_wins"`).}
-    \item{conflict_policy}{The `canonical_conflict_policy` in effect.}
-  }
+A list with class \code{"fold_audit"} containing:
+\describe{
+\item{redirects}{The \code{\link[=audit_redirects]{audit_redirects()}} result (or \code{NULL}).}
+\item{canonicals}{The \code{\link[=audit_canonicals]{audit_canonicals()}} result (or \code{NULL}).}
+\item{conflicts}{Data frame of same-source redirect-vs-canonical cases:
+\code{source}, \code{redirect_to}, \code{canonical_to}, \code{disagrees}, \code{resolution}.}
+\item{ignored_canonicals}{Data frame of canonicals dropped because their
+source also redirects (populated under \code{"redirect_wins"}).}
+\item{conflict_policy}{The \code{canonical_conflict_policy} in effect.}
+}
 }
 \description{
-Audits how 3xx **redirects** and declared **rel=canonical**
-  links combine into a single fold map, surfacing exactly where the two
-  signals interact. Wraps [audit_redirects()] and [audit_canonicals()] for
-  the per-signal views and adds the cross-signal tables from
-  [build_fold_map()]: same-source disagreements, canonicals ignored because
-  their source also redirects, and the `canonical_conflict_policy` outcome.
+Audits how 3xx \strong{redirects} and declared \strong{rel=canonical}
+links combine into a single fold map, surfacing exactly where the two
+signals interact. Wraps \code{\link[=audit_redirects]{audit_redirects()}} and \code{\link[=audit_canonicals]{audit_canonicals()}} for
+the per-signal views and adds the cross-signal tables from
+\code{\link[=build_fold_map]{build_fold_map()}}: same-source disagreements, canonicals ignored because
+their source also redirects, and the \code{canonical_conflict_policy} outcome.
 
-  Disagreements are never silently resolved -- they are always reported here,
-  regardless of which policy decides the winner.
+Disagreements are never silently resolved -- they are always reported here,
+regardless of which policy decides the winner.
 }
 \examples{
 redirects <- data.frame(from = "http://a", to = "http://b")
@@ -98,5 +98,5 @@ canonicals <- data.frame(from = "http://a", to = "http://d")
 audit_fold(redirects, canonicals)
 }
 \seealso{
-[audit_redirects()], [audit_canonicals()], [build_fold_map()]
+\code{\link[=audit_redirects]{audit_redirects()}}, \code{\link[=audit_canonicals]{audit_canonicals()}}, \code{\link[=build_fold_map]{build_fold_map()}}
 }

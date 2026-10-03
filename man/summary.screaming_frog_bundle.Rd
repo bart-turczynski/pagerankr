@@ -7,7 +7,7 @@
 \method{summary}{screaming_frog_bundle}(object, ...)
 }
 \arguments{
-\item{object}{A `screaming_frog_bundle` object.}
+\item{object}{A \code{screaming_frog_bundle} object.}
 
 \item{...}{Unused; for S3 compatibility.}
 }

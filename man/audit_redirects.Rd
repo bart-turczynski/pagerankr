@@ -34,28 +34,28 @@ identified.}
 }
 \value{
 A list with class \code{"redirect_audit"} containing:
-  \describe{
-    \item{n_rules}{Total number of redirect rules (after NA removal).}
-    \item{n_self_refs}{Number of self-referencing redirects (from == to).}
-    \item{self_refs}{Data frame of self-referencing redirects.}
-    \item{n_conflicts}{Number of source URLs with conflicting targets.}
-    \item{conflicts}{Data frame listing each conflicting source and its
-      distinct targets.}
-    \item{n_loops}{Number of redirect loops detected.}
-    \item{loops}{List of character vectors, each describing a cycle path.}
-    \item{chains}{Data frame with columns \code{from}, \code{to_final}, and
-      \code{chain_length} showing the terminal destination and hop count
-      for every source URL.}
-    \item{max_chain_length}{Maximum chain length found.}
-    \item{orphaned_redirects}{Data frame of redirect sources not found in
-      the edge list (only when \code{edge_list_df} is provided).}
-  }
+\describe{
+\item{n_rules}{Total number of redirect rules (after NA removal).}
+\item{n_self_refs}{Number of self-referencing redirects (from == to).}
+\item{self_refs}{Data frame of self-referencing redirects.}
+\item{n_conflicts}{Number of source URLs with conflicting targets.}
+\item{conflicts}{Data frame listing each conflicting source and its
+distinct targets.}
+\item{n_loops}{Number of redirect loops detected.}
+\item{loops}{List of character vectors, each describing a cycle path.}
+\item{chains}{Data frame with columns \code{from}, \code{to_final}, and
+\code{chain_length} showing the terminal destination and hop count
+for every source URL.}
+\item{max_chain_length}{Maximum chain length found.}
+\item{orphaned_redirects}{Data frame of redirect sources not found in
+the edge list (only when \code{edge_list_df} is provided).}
+}
 }
 \description{
 Analyzes a redirect data frame and returns a diagnostic report
-  covering chain lengths, loops, conflicting sources, self-referencing
-  redirects, and terminal destinations. Useful as a pre-flight check before
-  running \code{\link{resolve_redirects}} or \code{\link{pagerank}}.
+covering chain lengths, loops, conflicting sources, self-referencing
+redirects, and terminal destinations. Useful as a pre-flight check before
+running \code{\link{resolve_redirects}} or \code{\link{pagerank}}.
 }
 \examples{
 redirects <- data.frame(

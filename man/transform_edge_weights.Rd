@@ -42,36 +42,36 @@ per-source normalized \code{transition_probability}. Default
 }
 \value{
 The input data frame with two columns added (or overwritten):
-  \code{weight_col} (the per-source transformed weight) and \code{prob_col}
-  (the per-source transition probability, summing to 1 within each
-  \code{by} group across non-\code{NA} weights). Row order is preserved.
+\code{weight_col} (the per-source transformed weight) and \code{prob_col}
+(the per-source transition probability, summing to 1 within each
+\code{by} group across non-\code{NA} weights). Row order is preserved.
 }
 \description{
 Applies a weight transformation \emph{within each source page's
-  outgoing choice set}, rather than across one global vector. Link ranks and
-  transition weights are normally meaningful relative to the other links on
-  the \emph{same} source page: a "position 1" link on page A and a
-  "position 1" link on page B should each be top-of-choice-set for their own
-  source. A global rank (as computed by \code{\link{transform_weights}})
-  conflates them; this helper computes the transform separately within each
-  \code{by} group.
+outgoing choice set}, rather than across one global vector. Link ranks and
+transition weights are normally meaningful relative to the other links on
+the \emph{same} source page: a "position 1" link on page A and a
+"position 1" link on page B should each be top-of-choice-set for their own
+source. A global rank (as computed by \code{\link{transform_weights}})
+conflates them; this helper computes the transform separately within each
+\code{by} group.
 
-  In addition to the transformed weight, it returns a normalized
-  \code{transition_probability} that sums to 1 within each \code{by} group,
-  so the per-source choice distribution can be inspected and validated before
-  it reaches the solver (igraph re-normalizes edge strengths internally, but
-  that normalization is not otherwise visible to the user).
+In addition to the transformed weight, it returns a normalized
+\code{transition_probability} that sums to 1 within each \code{by} group,
+so the per-source choice distribution can be inspected and validated before
+it reaches the solver (igraph re-normalizes edge strengths internally, but
+that normalization is not otherwise visible to the user).
 }
 \details{
 The transform is applied independently per group by calling
-  \code{\link{transform_weights}} on each group's slice of
-  \code{value_col} -- it reuses, rather than re-implements, the existing
-  methods. \code{transition_probability} is then formed by dividing each
-  group's transformed weights by their group sum. \code{NA} transformed
-  weights (e.g. from \code{NA} inputs) are carried through and excluded from
-  the probability total. A group whose transformed weights sum to zero (or
-  are all \code{NA}) yields \code{NA} probabilities for that group, since no
-  meaningful distribution can be formed.
+\code{\link{transform_weights}} on each group's slice of
+\code{value_col} -- it reuses, rather than re-implements, the existing
+methods. \code{transition_probability} is then formed by dividing each
+group's transformed weights by their group sum. \code{NA} transformed
+weights (e.g. from \code{NA} inputs) are carried through and excluded from
+the probability total. A group whose transformed weights sum to zero (or
+are all \code{NA}) yields \code{NA} probabilities for that group, since no
+meaningful distribution can be formed.
 }
 \examples{
 # Two source pages, each with its own link positions (1 = top)
@@ -90,5 +90,5 @@ transform_edge_weights(edges, "position",
 }
 \seealso{
 \code{\link{transform_weights}} for the single-vector (global)
-  transform and the full description of each \code{method}.
+transform and the full description of each \code{method}.
 }

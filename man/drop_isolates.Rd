@@ -14,40 +14,40 @@ drop_isolates(
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, typically with
-columns "from" and "to" (or as specified by `from_col`, `to_col`).
+columns "from" and "to" (or as specified by \code{from_col}, \code{to_col}).
 Rows where both columns are non-NA represent edges. Rows where one column
 is NA represent known nodes that do not participate in a complete edge
 (potential isolates).}
 
-\item{drop}{Logical. If `TRUE`, returns a single-column data frame containing
+\item{drop}{Logical. If \code{TRUE}, returns a single-column data frame containing
 only node names that participate in at least one complete edge (both from
-and to are non-NA in the same row). If `FALSE` (default), returns a
+and to are non-NA in the same row). If \code{FALSE} (default), returns a
 single-column data frame of all unique non-NA node names present in either
-column of `edge_list_df` (the full vertex universe, including isolates).}
+column of \code{edge_list_df} (the full vertex universe, including isolates).}
 
-\item{from_col}{Name of the source node column in `edge_list_df`. Default
+\item{from_col}{Name of the source node column in \code{edge_list_df}. Default
 "from".}
 
-\item{to_col}{Name of the target node column in `edge_list_df`. Default "to".}
+\item{to_col}{Name of the target node column in \code{edge_list_df}. Default "to".}
 
 \item{node_col_name}{Name for the output column containing node names.
-Default "node_name". When used with [compute_pagerank()], this should match
-its `vertex_col_name` parameter.}
+Default "node_name". When used with \code{\link[=compute_pagerank]{compute_pagerank()}}, this should match
+its \code{vertex_col_name} parameter.}
 }
 \value{
-A single-column data frame named according to `node_col_name`.
-  If `drop = TRUE`, contains unique node names with degree > 0 (from complete
-  edges only). If `drop = FALSE`, contains all unique non-NA node names from
-  both columns of the input edge list (full vertex universe).
-  Returns an empty data frame with the correct column name if no nodes meet
-  the criteria or if the input edge list is empty/all NAs.
+A single-column data frame named according to \code{node_col_name}.
+If \code{drop = TRUE}, contains unique node names with degree > 0 (from complete
+edges only). If \code{drop = FALSE}, contains all unique non-NA node names from
+both columns of the input edge list (full vertex universe).
+Returns an empty data frame with the correct column name if no nodes meet
+the criteria or if the input edge list is empty/all NAs.
 }
 \description{
 From an edge list, identifies isolated nodes (nodes that do not
-  participate in any complete edge, i.e., a row where both from and to are
-  non-NA). It can return only connected nodes (degree > 0) or the full vertex
-  universe (all unique non-NA URLs from both columns, including those from
-  partial/incomplete rows).
+participate in any complete edge, i.e., a row where both from and to are
+non-NA). It can return only connected nodes (degree > 0) or the full vertex
+universe (all unique non-NA URLs from both columns, including those from
+partial/incomplete rows).
 }
 \examples{
 # Edge list with partial rows

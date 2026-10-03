@@ -343,8 +343,9 @@
 #'   the graph: a preset name (`"raw"`, `"declared"`, `"reversed"`,
 #'   `"content"`), a [pr_preset()]
 #'   result, or `NULL` (default, no preset). Preset values are applied only to
-#'   arguments you did not name yourself, so precedence is **explicit argument
-#'   > preset > base default**. Must be named in full (it sits after `...`).
+#'   arguments you did not name yourself, so precedence is
+#'   **explicit argument > preset > base default**. Must be named in full (it
+#'   sits after `...`).
 #'   See [pr_preset()] for the exact expansion of each preset.
 #'
 #' @details
@@ -1891,9 +1892,9 @@ pagerank <- function(
 
 #' Validate `status_df` and its url/status column names.
 #'
-#' Mirrors [.validate_indexability_df]: shape check plus presence of the two
+#' Mirrors `.validate_indexability_df`: shape check plus presence of the two
 #' named columns. The status column is not coerced here — parsing to integer
-#' and 400:599 class membership happen in [.classify_status_dead]; a column of
+#' and 400:599 class membership happen in `.classify_status_dead`; a column of
 #' non-numeric strings is a data problem surfaced there, not a contract error.
 #' @keywords internal
 #' @noRd
@@ -1994,7 +1995,7 @@ pagerank <- function(
 #' Build synthetic self-loop rows for a sink node.
 #'
 #' Constructs one `from == to == node` row per element of `nodes` (via
-#' [.make_synthetic_rows]), matching the column structure of `edge_list_df`.
+#' `.make_synthetic_rows`), matching the column structure of `edge_list_df`.
 #' Used for the absorbing waste-sink and leak-sink self-loops.
 #' @keywords internal
 #' @noRd
@@ -2004,7 +2005,7 @@ pagerank <- function(
 
 #' Build synthetic edge rows with an explicit from/to pairing.
 #'
-#' Generalizes [.make_sink_rows]: constructs one row per `from_nodes[i] ->
+#' Generalizes `.make_sink_rows`: constructs one row per `from_nodes[i] ->
 #' to_nodes[i]` pair (recycled the usual R way), matching the column structure
 #' of `edge_list_df`. Extra columns beyond the from/to pair are filled with
 #' type-appropriate neutral defaults (`FALSE` for logical, `1` for numeric, `NA`
@@ -2200,7 +2201,7 @@ pagerank <- function(
 #' declared noindex or robots.txt-blocked, with robots.txt taking priority (a
 #' page that is both is treated as robots-blocked, never noindex). Flow
 #' treatment — routing the whole "collects PR but cannot pass it" class through
-#' the waste sink — happens uniformly in [.route_waste_class], so this no longer
+#' the waste sink — happens uniformly in `.route_waste_class`, so this no longer
 #' mutates edges or the nofollow column.
 #'
 #' @return A list with `noindex_urls` and `robots_blocked_urls` character
@@ -3231,7 +3232,7 @@ pagerank <- function(
 #'
 #' Computes behavioral-weight coverage, the unmatched authority-prior count, the
 #' reported PageRank total, the out-of-scope fold list, and the vertex / robots
-#' / oos counts. Returns a named list consumed by [.assemble_transition_audit].
+#' / oos counts. Returns a named list consumed by `.assemble_transition_audit`.
 #' @keywords internal
 #' @noRd
 .transition_audit_metrics <- function(
@@ -3359,7 +3360,7 @@ pagerank <- function(
 
 #' Construct the transition_audit object from precomputed metrics + raw counts.
 #'
-#' Packages the config snapshot (via [.transition_audit_config]) and forwards
+#' Packages the config snapshot (via `.transition_audit_config`) and forwards
 #' every field to [new_transition_audit()]. Split out so the derived-metric and
 #' config concerns live in their own helpers; behavior is unchanged.
 #' @keywords internal
@@ -3460,7 +3461,7 @@ pagerank <- function(
 #' Apply the duplicate-edge policy and collect its audit metadata.
 #'
 #' Dedups the edge list per `duplicate_edge_policy` (see
-#' [.apply_duplicate_edge_policy]); under `"count_instances"` also records the
+#' `.apply_duplicate_edge_policy`); under `"count_instances"` also records the
 #' synthetic instance-count column, the effective weight column (the
 #' instance-count column when no `weight_col` was supplied), the per-edge
 #' duplicate audit rows, and the total duplicate-instance count.

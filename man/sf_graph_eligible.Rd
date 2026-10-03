@@ -12,13 +12,13 @@ e.g. \code{"Hyperlink"} or \code{"Image"}. Whitespace is trimmed.}
 }
 \value{
 A logical vector the same length as \code{type}, \code{TRUE} where
-  the type is graph-eligible.
+the type is graph-eligible.
 }
 \description{
 Reports which Screaming Frog link types count as edges in the
-  link graph. Only true hyperlinks build the graph; resource references such
-  as images, stylesheets, and scripts are excluded. The eligible set is
-  \code{sf_contract()$graph_eligible_types}.
+link graph. Only true hyperlinks build the graph; resource references such
+as images, stylesheets, and scripts are excluded. The eligible set is
+\code{sf_contract()$graph_eligible_types}.
 }
 \examples{
 sf_graph_eligible(c("Hyperlink", "Image", "Stylesheet"))

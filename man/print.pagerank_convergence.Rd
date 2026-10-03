@@ -7,12 +7,12 @@
 \method{print}{pagerank_convergence}(x, ...)
 }
 \arguments{
-\item{x}{A `pagerank_convergence` object.}
+\item{x}{A \code{pagerank_convergence} object.}
 
 \item{...}{Unused; for S3 compatibility.}
 }
 \value{
-`x`, invisibly.
+\code{x}, invisibly.
 }
 \description{
 Print a pagerank_convergence object

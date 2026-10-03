@@ -35,37 +35,37 @@ new_transition_audit(
 )
 }
 \arguments{
-\item{n_input_rows}{Integer, rows in the raw `edge_list_df`.}
+\item{n_input_rows}{Integer, rows in the raw \code{edge_list_df}.}
 
 \item{n_edges}{Integer, directed edges that survived folding, dedup and
 self-loop handling (the edges actually scored).}
 
 \item{n_vertices}{Integer, vertices in the returned result.}
 
-\item{weighted}{Logical, whether an edge `weight_col` was in effect.}
+\item{weighted}{Logical, whether an edge \code{weight_col} was in effect.}
 
-\item{weight_col}{Character or `NULL`, the weight column name.}
+\item{weight_col}{Character or \code{NULL}, the weight column name.}
 
 \item{n_edges_weighted}{Integer, edges carrying a finite positive weight.}
 
 \item{duplicate_edge_policy}{Character, the duplicate-edge policy used by
-[pagerank()].}
+\code{\link[=pagerank]{pagerank()}}.}
 
-\item{instance_count_col}{Character or `NULL`, internal count column used by
-`duplicate_edge_policy = "count_instances"`.}
+\item{instance_count_col}{Character or \code{NULL}, internal count column used by
+\code{duplicate_edge_policy = "count_instances"}.}
 
 \item{n_duplicate_instances}{Integer, duplicate link instances folded into
 transition weights.}
 
-\item{duplicate_edges}{Data frame or `NULL`, compact counted-edge audit rows.}
+\item{duplicate_edges}{Data frame or \code{NULL}, compact counted-edge audit rows.}
 
-\item{n_rows_na}{Integer, input rows dropped due to `NA` endpoints.}
+\item{n_rows_na}{Integer, input rows dropped due to \code{NA} endpoints.}
 
 \item{n_rows_duplicate}{Integer, rows collapsed by deduplication.}
 
 \item{n_self_loops}{Integer, self-loop edges dropped.}
 
-\item{n_prior_unmatched}{Integer or `NA`, prior URLs that did not fold onto a
+\item{n_prior_unmatched}{Integer or \code{NA}, prior URLs that did not fold onto a
 vertex.}
 
 \item{n_robots_blocked}{Integer, URLs treated as robots.txt-blocked.}
@@ -76,47 +76,47 @@ them response-dead (4xx/5xx).}
 \item{pagerank_total}{Numeric, sum of the returned PageRank scores.}
 
 \item{mass_reported}{Numeric, stationary mass on returned/visible pages
-(typically equal to `pagerank_total`).}
+(typically equal to \code{pagerank_total}).}
 
 \item{mass_evaporated}{Numeric, stationary mass routed to the shared waste
 sink (authority the waste class and every real nofollowed link passed on
-but could not deliver). `0` when nothing reached the sink.}
+but could not deliver). \code{0} when nothing reached the sink.}
 
 \item{mass_leaked}{Numeric, stationary mass sent to the leak sink under
-`out_of_scope_fold = "leak"` (authority that flowed into
-out-of-scope-folded sources, treated like an external redirect). `0` when
+\code{out_of_scope_fold = "leak"} (authority that flowed into
+out-of-scope-folded sources, treated like an external redirect). \code{0} when
 no leak occurred.}
 
 \item{mass_hidden}{Numeric, the own stationary mass of vanished
 robots-blocked nodes removed from the results (their pass-through is
-counted in `mass_evaporated`, not here). `0` when none.}
+counted in \code{mass_evaporated}, not here). \code{0} when none.}
 
-\item{out_of_scope_fold}{Character, the `out_of_scope_fold` policy used
-(`"relabel"`, `"keep"` or `"leak"`).}
+\item{out_of_scope_fold}{Character, the \code{out_of_scope_fold} policy used
+(\code{"relabel"}, \code{"keep"} or \code{"leak"}).}
 
 \item{n_out_of_scope_folds}{Integer, count of composed fold-map entries whose
 target was not a crawled node.}
 
-\item{out_of_scope_folds_applied}{Logical, `TRUE` when the out-of-scope folds
-were acted upon (relabeled under `"relabel"`, or routed to the leak sink
-under `"leak"`), `FALSE` when they were skipped (kept) under `"keep"`.}
+\item{out_of_scope_folds_applied}{Logical, \code{TRUE} when the out-of-scope folds
+were acted upon (relabeled under \code{"relabel"}, or routed to the leak sink
+under \code{"leak"}), \code{FALSE} when they were skipped (kept) under \code{"keep"}.}
 
-\item{out_of_scope_fold_list}{Data frame or `NULL`, the out-of-scope folds
-as `source` / `target` / `signal` rows.}
+\item{out_of_scope_fold_list}{Data frame or \code{NULL}, the out-of-scope folds
+as \code{source} / \code{target} / \code{signal} rows.}
 
-\item{fold_collisions}{Data frame or `NULL`, fold-target collisions detected
-on the pre-fold edge list: rows of `target` / `n_independent_refs` /
-`source` for uncrawled URLs that a fold relabeled a crawled source onto
-while they were also independently linked. `NULL` when no `indexability_df`
+\item{fold_collisions}{Data frame or \code{NULL}, fold-target collisions detected
+on the pre-fold edge list: rows of \code{target} / \code{n_independent_refs} /
+\code{source} for uncrawled URLs that a fold relabeled a crawled source onto
+while they were also independently linked. \code{NULL} when no \code{indexability_df}
 crawl-URL set was available to detect them.}
 
-\item{config}{A named list of the relevant [pagerank()] configuration.}
+\item{config}{A named list of the relevant \code{\link[=pagerank]{pagerank()}} configuration.}
 }
 \value{
-An object of class `"transition_audit"` (see [transition_audit]).
+An object of class \code{"transition_audit"} (see \link{transition_audit}).
 }
 \description{
-Internal constructor used by [pagerank()] to assemble the audit record from
+Internal constructor used by \code{\link[=pagerank]{pagerank()}} to assemble the audit record from
 counts gathered along the aggregation / validation / cleaning path. Every
 argument has a default so that partially-known states (e.g. an empty edge
 list) still produce a well-formed object with the documented fields present.

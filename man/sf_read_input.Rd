@@ -19,17 +19,17 @@ schema's standard field order.}
 }
 \value{
 A data frame with canonical snake_case columns. The resolved schema
-  is attached as the \code{"sf_schema"} attribute, a list of
-  \code{export_kind}, \code{columns}, \code{aliases}, and
-  \code{ignored_columns}.
+is attached as the \code{"sf_schema"} attribute, a list of
+\code{export_kind}, \code{columns}, \code{aliases}, and
+\code{ignored_columns}.
 }
 \description{
 Reads a Screaming Frog export -- either an in-memory data frame
-  or a path to a CSV/Excel file -- and returns it with canonical snake_case
-  column names, validated against the schema for \code{export_kind}. Header
-  aliases are resolved (e.g. \code{"Address"}, \code{"URL"}, and
-  \code{"URI"} all map to \code{address}), empty strings become \code{NA},
-  and character columns are trimmed.
+or a path to a CSV/Excel file -- and returns it with canonical snake_case
+column names, validated against the schema for \code{export_kind}. Header
+aliases are resolved (e.g. \code{"Address"}, \code{"URL"}, and
+\code{"URI"} all map to \code{address}), empty strings become \code{NA},
+and character columns are trimmed.
 }
 \examples{
 crawl <- data.frame(

@@ -29,7 +29,7 @@ summed (raw counts are additive — summing happens before any transform).}
 \item{prior_weight_col}{Name of the numeric weight column in \code{prior_df}.
 Default \code{"weight"}. \strong{Contract: this must be an additive raw
 count.} URLs that coalesce (duplicate rows here, redirect variants folded
-upstream by [pagerank()]) are combined by \emph{summation}, which is only
+upstream by \code{\link[=pagerank]{pagerank()}}) are combined by \emph{summation}, which is only
 meaningful for counts — quantities that genuinely add when two URLs merge.
 This makes the prior \strong{source-agnostic}: referring domains (the
 default metric), links-to-target, or dofollow-only referring domains from
@@ -41,7 +41,7 @@ per-URL score such as UR is itself a PageRank-flavored metric, so using it
 as the teleport prior for PageRank is circular.}
 
 \item{transform}{Character, how to shape the raw authority before it becomes
-teleport mass. Passed to [transform_weights()]; one of \code{"none"}
+teleport mass. Passed to \code{\link[=transform_weights]{transform_weights()}}; one of \code{"none"}
 (default, faithful linear share), \code{"log"}, \code{"percentile"},
 \code{"minmax"}, \code{"zipf"}, \code{"rank_linear"}. The transform is
 applied only to vertices that actually carry authority; vertices with no
@@ -59,7 +59,7 @@ handling owns dead nodes.}
 
 \item{exclude_nodes}{Character vector of vertex names that must receive
 \strong{zero} teleport in both components: the synthetic sinks
-(e.g. \code{"__pr_waste_sink__"}) and, when [pagerank()] runs with
+(e.g. \code{"__pr_waste_sink__"}) and, when \code{\link[=pagerank]{pagerank()}} runs with
 \code{prior_exclude_waste = TRUE}, the collect-but-cannot-pass class
 (noindex / robots-blocked / response-dead). Excluded vertices still receive
 rank through their inlinks; only their teleport share is removed.}
@@ -71,25 +71,25 @@ their dropped weight, and the realized uniform mass fraction). Default
 }
 \value{
 A numeric vector the same length as \code{vertex_names}, in the same
-  order, summing to 1 (suitable for
-  \code{igraph::page_rank(personalized = )}).
-  Excluded vertices get exactly 0. If the prior matches no vertex and
-  \code{alpha = 0}, the function falls back to a uniform vector over the
-  non-excluded vertices and warns.
+order, summing to 1 (suitable for
+\code{igraph::page_rank(personalized = )}).
+Excluded vertices get exactly 0. If the prior matches no vertex and
+\code{alpha = 0}, the function falls back to a uniform vector over the
+non-excluded vertices and warns.
 }
 \description{
 Builds a personalization / teleport vector for
-  \code{igraph::page_rank(personalized = )} from a per-URL external-authority
-  prior (e.g. Ahrefs referring domains), aligned to the \emph{final} graph
-  vertex set. This is the core of TIPR ("topic/true internal PageRank"),
-  where the random surfer's teleport mass is distributed in proportion to
-  external authority instead of uniformly.
+\code{igraph::page_rank(personalized = )} from a per-URL external-authority
+prior (e.g. Ahrefs referring domains), aligned to the \emph{final} graph
+vertex set. This is the core of TIPR ("topic/true internal PageRank"),
+where the random surfer's teleport mass is distributed in proportion to
+external authority instead of uniformly.
 
-  The prior URLs are expected to already share the vertex namespace (i.e.
-  canonicalized with the same \code{rurl} settings and folded through the
-  same redirect map as the edges). [pagerank()] performs that
-  canonicalization and redirect-fold before calling this function; call it
-  directly only when your prior URLs already match \code{vertex_names}.
+The prior URLs are expected to already share the vertex namespace (i.e.
+canonicalized with the same \code{rurl} settings and folded through the
+same redirect map as the edges). \code{\link[=pagerank]{pagerank()}} performs that
+canonicalization and redirect-fold before calling this function; call it
+directly only when your prior URLs already match \code{vertex_names}.
 }
 \details{
 Alignment proceeds as: sum raw weights per URL -> match onto
@@ -124,5 +124,5 @@ align_prior_to_vertices(v, prior,
 )
 }
 \seealso{
-[pagerank()], [transform_weights()]
+\code{\link[=pagerank]{pagerank()}}, \code{\link[=transform_weights]{transform_weights()}}
 }

@@ -21,25 +21,25 @@ resolve_canonicals(
 
 \item{canonicals_df}{A data frame of declared canonical links.}
 
-\item{edge_from_col, edge_to_col}{Source/target columns in `edge_list_df`.}
+\item{edge_from_col, edge_to_col}{Source/target columns in \code{edge_list_df}.}
 
 \item{canonical_from_col, canonical_to_col}{From/to columns in
-`canonicals_df`.}
+\code{canonicals_df}.}
 
 \item{canonical_duplicate_from_policy}{How to handle a canonical source with
-multiple distinct targets. See [build_fold_map()].}
+multiple distinct targets. See \code{\link[=build_fold_map]{build_fold_map()}}.}
 
 \item{canonical_loop_handling}{How to handle canonical cycles. See
-[build_fold_map()].}
+\code{\link[=build_fold_map]{build_fold_map()}}.}
 }
 \value{
-The edge list with `edge_from_col` and `edge_to_col` folded through
-  canonical declarations. The applied fold map is attached as attribute
-  `"fold_map"`.
+The edge list with \code{edge_from_col} and \code{edge_to_col} folded through
+canonical declarations. The applied fold map is attached as attribute
+\code{"fold_map"}.
 }
 \description{
-Applies declared `rel=canonical` folds to the source and target columns of an
-edge list. This is URL **folding** from canonical-link signals, not URL
+Applies declared \code{rel=canonical} folds to the source and target columns of an
+edge list. This is URL \strong{folding} from canonical-link signals, not URL
 syntax canonicalization such as lower-casing hosts or removing tracking
 parameters.
 }

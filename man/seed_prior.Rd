@@ -13,50 +13,50 @@ seed_prior(
 }
 \arguments{
 \item{seeds}{The seed set. Either a character vector of seed URLs (each gets
-equal weight unless `seed_weight` is given), or a data frame with a URL
-column and a numeric weight column (see `seed_url_col` / `seed_weight_col`)
+equal weight unless \code{seed_weight} is given), or a data frame with a URL
+column and a numeric weight column (see \code{seed_url_col} / \code{seed_weight_col})
 for unequal emphasis.}
 
-\item{seed_weight}{Optional numeric weight for a character-vector `seeds`:
+\item{seed_weight}{Optional numeric weight for a character-vector \code{seeds}:
 either one value per seed or a single value recycled to all seeds. Ignored
-when `seeds` is a data frame. Default `NULL` (every seed weight `1`, i.e. a
+when \code{seeds} is a data frame. Default \code{NULL} (every seed weight \code{1}, i.e. a
 uniform distribution over the seed set).}
 
-\item{seed_url_col, seed_weight_col}{Column names used when `seeds` is a data
-frame. Defaults `"url"` / `"weight"`. Ignored for a character vector.}
+\item{seed_url_col, seed_weight_col}{Column names used when \code{seeds} is a data
+frame. Defaults \code{"url"} / \code{"weight"}. Ignored for a character vector.}
 }
 \value{
-A data frame with `url` and `weight` columns, suitable as the
-  `prior_df` argument to [pagerank()].
+A data frame with \code{url} and \code{weight} columns, suitable as the
+\code{prior_df} argument to \code{\link[=pagerank]{pagerank()}}.
 }
 \description{
-Build a teleport prior (a `prior_df`) concentrated on a set of
-  **seed** pages. A seed prior is the teleportation vector that biases the
-  random surfer toward the seeds instead of jumping uniformly, and it is the
-  single ingredient shared by the seed-biased members of the PageRank family:
-  [trustrank()] (trusted seeds) and [topic_feeder_pagerank()] (a target
-  cluster) both build one and hand it to [pagerank()].
+Build a teleport prior (a \code{prior_df}) concentrated on a set of
+\strong{seed} pages. A seed prior is the teleportation vector that biases the
+random surfer toward the seeds instead of jumping uniformly, and it is the
+single ingredient shared by the seed-biased members of the PageRank family:
+\code{\link[=trustrank]{trustrank()}} (trusted seeds) and \code{\link[=topic_feeder_pagerank]{topic_feeder_pagerank()}} (a target
+cluster) both build one and hand it to \code{\link[=pagerank]{pagerank()}}.
 
-  `seed_prior()` is **orientation-agnostic**: it does nothing but turn a seed
-  set into a `url`/`weight` prior. Whether teleport mass then flows *outward*
-  from the seeds (trust) or is accumulated by pages that *point into* the
-  seeds (feeders) is a property of the **graph**, chosen by the caller — not
-  of this builder. [trustrank()] runs the prior on the forward graph;
-  [topic_feeder_pagerank()] runs the identical prior on the reversed graph
-  (`pagerank(reverse = TRUE)`). That is precisely why one builder serves
-  both: the direction lives in the wrapper, not in the prior.
+\code{seed_prior()} is \strong{orientation-agnostic}: it does nothing but turn a seed
+set into a \code{url}/\code{weight} prior. Whether teleport mass then flows \emph{outward}
+from the seeds (trust) or is accumulated by pages that \emph{point into} the
+seeds (feeders) is a property of the \strong{graph}, chosen by the caller — not
+of this builder. \code{\link[=trustrank]{trustrank()}} runs the prior on the forward graph;
+\code{\link[=topic_feeder_pagerank]{topic_feeder_pagerank()}} runs the identical prior on the reversed graph
+(\code{pagerank(reverse = TRUE)}). That is precisely why one builder serves
+both: the direction lives in the wrapper, not in the prior.
 
-  For the multi-topic case ([topic_sensitive_pagerank()]) the prior is built
-  internally per topic from a named list; `seed_prior()` covers the
-  single-seed-set case that the two convenience wrappers share.
+For the multi-topic case (\code{\link[=topic_sensitive_pagerank]{topic_sensitive_pagerank()}}) the prior is built
+internally per topic from a named list; \code{seed_prior()} covers the
+single-seed-set case that the two convenience wrappers share.
 }
 \details{
-Seed weights are an **additive teleport budget**: when two seed URLs fold
+Seed weights are an \strong{additive teleport budget}: when two seed URLs fold
 onto the same vertex (redirect / canonical variants) their weights sum,
-exactly as the [pagerank()] / [align_prior_to_vertices()] prior contract
+exactly as the \code{\link[=pagerank]{pagerank()}} / \code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}} prior contract
 specifies. Equal weights give a uniform distribution over the seed set;
-unequal weights express graded emphasis (graded trust for [trustrank()],
-graded cluster importance for [topic_feeder_pagerank()]).
+unequal weights express graded emphasis (graded trust for \code{\link[=trustrank]{trustrank()}},
+graded cluster importance for \code{\link[=topic_feeder_pagerank]{topic_feeder_pagerank()}}).
 }
 \examples{
 # A trusted-seed prior for TrustRank: run on the FORWARD graph, trust flows
@@ -79,6 +79,6 @@ pagerank(edges, prior_df = cluster, reverse = TRUE, clean_edge_urls = FALSE)
 seed_prior(data.frame(url = c("/a", "/b"), weight = c(3, 1)))
 }
 \seealso{
-[trustrank()], [topic_feeder_pagerank()],
-  [topic_sensitive_pagerank()], [pagerank()], [align_prior_to_vertices()]
+\code{\link[=trustrank]{trustrank()}}, \code{\link[=topic_feeder_pagerank]{topic_feeder_pagerank()}},
+\code{\link[=topic_sensitive_pagerank]{topic_sensitive_pagerank()}}, \code{\link[=pagerank]{pagerank()}}, \code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}}
 }

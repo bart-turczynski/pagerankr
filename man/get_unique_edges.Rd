@@ -13,26 +13,26 @@ get_unique_edges(
 }
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, typically with
-columns "from" and "to" (or as specified by `from_col`, `to_col`).}
+columns "from" and "to" (or as specified by \code{from_col}, \code{to_col}).}
 
 \item{self_loops}{A character string specifying how to handle self-loops.
 Must be one of "drop" (default) or "keep".}
 
-\item{from_col}{Name of the source node column in `edge_list_df`. Default
+\item{from_col}{Name of the source node column in \code{edge_list_df}. Default
 "from".}
 
-\item{to_col}{Name of the target node column in `edge_list_df`. Default "to".}
+\item{to_col}{Name of the target node column in \code{edge_list_df}. Default "to".}
 }
 \value{
 A data frame with unique edges, with self-loops handled according to
-  the `self_loops` argument. The from/to columns are coerced to character;
-  all other columns in the input are preserved (first occurrence kept on
-  dedup). If input columns are factors, they are converted to characters in
-  the output.
+the \code{self_loops} argument. The from/to columns are coerced to character;
+all other columns in the input are preserved (first occurrence kept on
+dedup). If input columns are factors, they are converted to characters in
+the output.
 }
 \description{
 Removes duplicate edge rows from an edge list data frame and
-  provides control over how self-loops (e.g., a -> a) are handled.
+provides control over how self-loops (e.g., a -> a) are handled.
 }
 \details{
 Any edge where either from or to is NA is automatically dropped before

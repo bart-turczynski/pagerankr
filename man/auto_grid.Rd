@@ -8,21 +8,21 @@ auto_grid(...)
 }
 \arguments{
 \item{...}{Named arguments where each value is a vector of options to
-sweep. Parameter names must match [pagerank()] arguments.}
+sweep. Parameter names must match \code{\link[=pagerank]{pagerank()}} arguments.}
 }
 \value{
-A named list of named lists, ready to pass as `params_grid` to
-  [pagerank_grid()]. Names are auto-generated from the parameter values
-  (e.g., `"damping=0.85_self_loops=drop"`).
+A named list of named lists, ready to pass as \code{params_grid} to
+\code{\link[=pagerank_grid]{pagerank_grid()}}. Names are auto-generated from the parameter values
+(e.g., \code{"damping=0.85_self_loops=drop"}).
 }
 \description{
 Creates a named list of parameter lists suitable for passing to
-[pagerank_grid()]. Each combination of the supplied parameter values
+\code{\link[=pagerank_grid]{pagerank_grid()}}. Each combination of the supplied parameter values
 becomes one entry, with an auto-generated model ID describing the
 configuration.
 
 This is the "exhaustive search" complement to manually specifying a
-`params_grid` -- it generates all combinations of the parameter values
+\code{params_grid} -- it generates all combinations of the parameter values
 you provide.
 }
 \examples{

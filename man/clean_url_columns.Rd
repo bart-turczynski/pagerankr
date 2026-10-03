@@ -10,51 +10,50 @@ clean_url_columns(data_frame, columns = c("from", "to"), ...)
 \item{data_frame}{A data frame containing URL columns to be cleaned.}
 
 \item{columns}{A character vector specifying the names of the columns
-containing URLs. Defaults to `c("from", "to")`.}
+containing URLs. Defaults to \code{c("from", "to")}.}
 
-\item{...}{`rurl::get_clean_url` arguments that override the canonicalization
-profile per key. Recognized knobs are the ones [canonical_profile()] pins:
-`protocol_handling`, `case_handling`, `www_handling`,
-`trailing_slash_handling`, `index_page_handling`, `path_normalization`,
-`scheme_relative_handling`, `subdomain_levels_to_keep`, `host_encoding`,
-`path_encoding`, `url_standard`, `port_handling`, `query_handling`,
-`params_keep`, `params_drop`, `params_case_sensitive`, `sort_params`,
-`empty_param_handling`, `decode_plus`. Note `url_standard` governs
-`case_handling` and `path_normalization`, so `rurl` rejects an override of
+\item{...}{\code{rurl::get_clean_url} arguments that override the canonicalization
+profile per key. Recognized knobs are the ones \code{\link[=canonical_profile]{canonical_profile()}} pins:
+\code{protocol_handling}, \code{case_handling}, \code{www_handling},
+\code{trailing_slash_handling}, \code{index_page_handling}, \code{path_normalization},
+\code{scheme_relative_handling}, \code{subdomain_levels_to_keep}, \code{host_encoding},
+\code{path_encoding}, \code{url_standard}, \code{port_handling}, \code{query_handling},
+\code{params_keep}, \code{params_drop}, \code{params_case_sensitive}, \code{sort_params},
+\code{empty_param_handling}, \code{decode_plus}. Note \code{url_standard} governs
+\code{case_handling} and \code{path_normalization}, so \code{rurl} rejects an override of
 either while the profile pins a standard selector.}
 }
 \value{
 A data frame with the specified URL columns cleaned.
 }
 \description{
-Applies `rurl::get_clean_url` to specified columns of a data
-  frame. URLs are cleaned under pagerankr's explicit canonicalization profile
-  (see Details), with any arguments in `...` overriding individual knobs.
+Applies \code{rurl::get_clean_url} to specified columns of a data
+frame. URLs are cleaned under pagerankr's explicit canonicalization profile
+(see Details), with any arguments in \code{...} overriding individual knobs.
 }
 \details{
-The canonicalization profile ([canonical_profile()]) pins every `rurl` knob
-explicitly so node identities do not depend on `rurl`'s own
+The canonicalization profile (\code{\link[=canonical_profile]{canonical_profile()}}) pins every \code{rurl} knob
+explicitly so node identities do not depend on \code{rurl}'s own
 (version-dependent) defaults, and keeps the cleaning and domain-filtering
-paths symmetrical. Most knobs equal `rurl`'s current defaults; six override
-them because they shape node identity -- `path_normalization`,
-`path_encoding`, `url_standard`, `port_handling`, `host_encoding` and
-`query_handling`. In particular `path_encoding = "keep"` holds that
-presentation dial at its only identity-preserving value, and `url_standard =
-"whatwg"` is where the path-identity semantics actually live. See
-[canonical_profile()] for details.
+paths symmetrical. Most knobs equal \code{rurl}'s current defaults; six override
+them because they shape node identity -- \code{path_normalization},
+\code{path_encoding}, \code{url_standard}, \code{port_handling}, \code{host_encoding} and
+\code{query_handling}. In particular \code{path_encoding = "keep"} holds that
+presentation dial at its only identity-preserving value, and \code{url_standard = "whatwg"} is where the path-identity semantics actually live. See
+\code{\link[=canonical_profile]{canonical_profile()}} for details.
 
 NA values in the specified columns are preserved in the output. Downstream
 functions in the pagerankr workflow (such as get_unique_edges and pagerank)
 will automatically drop any edge where either from or to is NA.
 
-Tokens that `rurl` cannot parse as a URL (e.g. a dotless bare label such as
-`"A"`, which newer `rurl` normalizes to NA) are left as their raw input value
+Tokens that \code{rurl} cannot parse as a URL (e.g. a dotless bare label such as
+\code{"A"}, which newer \code{rurl} normalizes to NA) are left as their raw input value
 rather than becoming NA. This keeps unparseable but non-missing node
 identities as opaque nodes instead of silently dropping them, so an odd URL
 in a crawl is scored as its own node rather than vanishing. Only genuinely
 missing (NA) inputs stay NA. This raw-fallback is a deliberate, accepted
-divergence from the sibling `semantic` project (which drops such inputs); see
-[canonical_profile()] for why it does not desync the cross-repo node join.
+divergence from the sibling \code{semantic} project (which drops such inputs); see
+\code{\link[=canonical_profile]{canonical_profile()}} for why it does not desync the cross-repo node join.
 }
 \examples{
 df <- data.frame(

@@ -24,48 +24,48 @@ simulate_changes_screaming_frog(
 )
 }
 \arguments{
-\item{bundle}{A `screaming_frog_bundle` object.}
+\item{bundle}{A \code{screaming_frog_bundle} object.}
 
 \item{add_links_df, remove_links_df, redirect_urls_df, remove_urls}{The
-changeset verbs. See [simulate_changes()] for their semantics. Link and
-redirect endpoints (and `remove_urls`) match the bundle's raw crawled URLs
-(the `from`/`to` node identities before any folding), using `from`/`to`
-columns. A modeled `remove_urls` 404 composes on top of the bundle's real
+changeset verbs. See \code{\link[=simulate_changes]{simulate_changes()}} for their semantics. Link and
+redirect endpoints (and \code{remove_urls}) match the bundle's raw crawled URLs
+(the \code{from}/\code{to} node identities before any folding), using \code{from}/\code{to}
+columns. A modeled \code{remove_urls} 404 composes on top of the bundle's real
 crawled status.}
 
 \item{on_unknown_target}{How to treat a redirect or link target absent from
-the current graph. See [simulate_changes()].}
+the current graph. See \code{\link[=simulate_changes]{simulate_changes()}}.}
 
 \item{accepted_placements, link_origins, placement_weights, weight_col}{Bundle
 scoring controls forwarded to the shared adapter, identical to
-[pagerank_screaming_frog()].}
+\code{\link[=pagerank_screaming_frog]{pagerank_screaming_frog()}}.}
 
 \item{apply_canonicals, apply_redirects, preset}{Fold and view controls
-forwarded to the shared adapter, identical to [pagerank_screaming_frog()].
+forwarded to the shared adapter, identical to \code{\link[=pagerank_screaming_frog]{pagerank_screaming_frog()}}.
 All of these shape the baseline and the proposed model equally, so the two
 differ only by the changeset.}
 
-\item{...}{Additional scoring controls passed through to both [pagerank()]
-calls (e.g. `self_loops`, `nofollow_action`, `damping`, `position_col`).}
+\item{...}{Additional scoring controls passed through to both \code{\link[=pagerank]{pagerank()}}
+calls (e.g. \code{self_loops}, \code{nofollow_action}, \code{damping}, \code{position_col}).}
 
 \item{label_baseline, label_proposed}{Labels for the two models in the
-comparison output. Defaults `"baseline"` / `"proposed"`.}
+comparison output. Defaults \code{"baseline"} / \code{"proposed"}.}
 }
 \value{
-The [simulate_changes()] output: a [compare_pagerank()] table with a
-  `node_status` column, plus `summary`, `proposed`, and `manifest`
-  attributes. See [simulate_changes()].
+The \code{\link[=simulate_changes]{simulate_changes()}} output: a \code{\link[=compare_pagerank]{compare_pagerank()}} table with a
+\code{node_status} column, plus \code{summary}, \code{proposed}, and \code{manifest}
+attributes. See \code{\link[=simulate_changes]{simulate_changes()}}.
 }
 \description{
-The Screaming Frog entry point for [simulate_changes()]. A thin
-  wrapper that mirrors [pagerank_screaming_frog()]: it reuses the same
-  bundle -> [pagerank()] adapter to build the baseline inputs (edges,
-  redirects, canonicals, indexability, placement, nofollow, ...), applies the
-  same URL- and edge-level verbs, and delegates to the shared changeset
-  engine. There is no Screaming Frog-specific simulation logic; both entry
-  points funnel into one engine, so CSV and bundle users get identical
-  what-if capability. The what-if's modeled redirects compose on top of the
-  bundle's real crawled redirects (a changeset redirect for a source wins).
+The Screaming Frog entry point for \code{\link[=simulate_changes]{simulate_changes()}}. A thin
+wrapper that mirrors \code{\link[=pagerank_screaming_frog]{pagerank_screaming_frog()}}: it reuses the same
+bundle -> \code{\link[=pagerank]{pagerank()}} adapter to build the baseline inputs (edges,
+redirects, canonicals, indexability, placement, nofollow, ...), applies the
+same URL- and edge-level verbs, and delegates to the shared changeset
+engine. There is no Screaming Frog-specific simulation logic; both entry
+points funnel into one engine, so CSV and bundle users get identical
+what-if capability. The what-if's modeled redirects compose on top of the
+bundle's real crawled redirects (a changeset redirect for a source wins).
 }
 \examples{
 internal <- data.frame(
@@ -97,7 +97,7 @@ simulate_changes_screaming_frog(
 )
 }
 \seealso{
-[simulate_changes()] for the bare edge-list entry point and full
-  verb semantics; [pagerank_screaming_frog()] for scoring a bundle without a
-  what-if.
+\code{\link[=simulate_changes]{simulate_changes()}} for the bare edge-list entry point and full
+verb semantics; \code{\link[=pagerank_screaming_frog]{pagerank_screaming_frog()}} for scoring a bundle without a
+what-if.
 }

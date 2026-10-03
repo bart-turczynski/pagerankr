@@ -71,11 +71,11 @@ pagerank(
 \arguments{
 \item{edge_list_df}{A data frame representing the edge list, typically with
 columns like "from" and "to". Edges are expected to be page-to-page
-hyperlinks: `pagerank()` is graph-agnostic and treats every endpoint as a
+hyperlinks: \code{pagerank()} is graph-agnostic and treats every endpoint as a
 node, so resource links (images, CSS, JS, and other non-HTML references)
 must be filtered upstream or they collect authority as ordinary vertices.
-`pagerank_screaming_frog()` does this at the crawl boundary via
-[sf_graph_eligible()] (`Hyperlink` only); a hand-built or non-SF edge list
+\code{pagerank_screaming_frog()} does this at the crawl boundary via
+\code{\link[=sf_graph_eligible]{sf_graph_eligible()}} (\code{Hyperlink} only); a hand-built or non-SF edge list
 should apply the same hyperlink-only filter before scoring.}
 
 \item{redirects_df}{An optional data frame for redirect rules, typically
@@ -85,12 +85,12 @@ with "from" and "to" columns. Defaults to NULL.}
 Defaults to TRUE.}
 
 \item{clean_redirect_urls}{Logical, whether to clean URLs in the redirect
-list. Defaults to TRUE. Only effective if `redirects_df` is provided.}
+list. Defaults to TRUE. Only effective if \code{redirects_df} is provided.}
 
-\item{rurl_params}{A list of parameters to pass to `rurl::clean_url`.
-Defaults to an empty list. `protocol_handling` defaults to `"keep"` and
-`case_handling` to `"lower_host"` for cross-project canonicalization
-consistency. If you set `host_encoding` (`"idna"` or `"unicode"`) to fold
+\item{rurl_params}{A list of parameters to pass to \code{rurl::clean_url}.
+Defaults to an empty list. \code{protocol_handling} defaults to \code{"keep"} and
+\code{case_handling} to \code{"lower_host"} for cross-project canonicalization
+consistency. If you set \code{host_encoding} (\code{"idna"} or \code{"unicode"}) to fold
 internationalized (IDN) hosts, that same value is also passed to the
 domain-filtering step so its comparisons stay consistent with the cleaned
 node keys. (Registrable-domain matching is encoding-independent, so this
@@ -102,421 +102,421 @@ Either "drop" (default) or "keep".}
 \item{drop_isolates_flag}{Logical, whether to drop isolated nodes before
 PageRank computation. Defaults to TRUE.}
 
-\item{reverse}{Logical. If `TRUE`, PageRank is computed on the transposed
+\item{reverse}{Logical. If \code{TRUE}, PageRank is computed on the transposed
 (edge-reversed) graph, yielding reverse / inverse PageRank instead of the
-usual inflow score. Default `FALSE`. See the "Reverse / inverse PageRank"
+usual inflow score. Default \code{FALSE}. See the "Reverse / inverse PageRank"
 section in Details for what it measures and which other arguments are
 compatible.}
 
-\item{weight_col}{Optional name of a numeric column in `edge_list_df`
+\item{weight_col}{Optional name of a numeric column in \code{edge_list_df}
 containing edge weights. Higher weights make edges more likely to be
-followed. If `NULL` (default), all edges have equal weight.}
+followed. If \code{NULL} (default), all edges have equal weight.}
 
-\item{placement_col}{Optional name of a column in `edge_list_df` holding the
+\item{placement_col}{Optional name of a column in \code{edge_list_df} holding the
 page region each link sits in, using the crawler-neutral vocabulary
-`"content"`, `"nav"`, `"header"`, `"footer"`, `"aside"`. Matching is
-case-insensitive and whitespace is trimmed. `NULL` (default) means no
-placement handling. Placement is **not** a Screaming Frog concept: a
+\code{"content"}, \code{"nav"}, \code{"header"}, \code{"footer"}, \code{"aside"}. Matching is
+case-insensitive and whitespace is trimmed. \code{NULL} (default) means no
+placement handling. Placement is \strong{not} a Screaming Frog concept: a
 per-crawler adapter maps vendor labels onto this vocabulary (see
-[sf_normalize_position()]) and `pagerank()` only consumes the result, so
+\code{\link[=sf_normalize_position]{sf_normalize_position()}}) and \code{pagerank()} only consumes the result, so
 any crawler that reports link regions can drive placement-aware scoring.}
 
 \item{accepted_placements}{Optional character vector of placements to
 retain; edges placed elsewhere (or with a missing placement) are dropped.
-`NULL` (default) keeps every edge. Requires `placement_col`.}
+\code{NULL} (default) keeps every edge. Requires \code{placement_col}.}
 
 \item{placement_weights}{Optional named positive numeric vector assigning
 edge weights by placement, e.g.
-`c(content = 1, nav = 0.1, header = 0.1, footer = 0.1, aside = 0.1)`.
-Placements not named keep weight `1`, so name all five to state a complete
-recipe. Requires `placement_col` and cannot be combined with `weight_col`,
+\code{c(content = 1, nav = 0.1, header = 0.1, footer = 0.1, aside = 0.1)}.
+Placements not named keep weight \code{1}, so name all five to state a complete
+recipe. Requires \code{placement_col} and cannot be combined with \code{weight_col},
 which it supersedes by building a weight column of its own. Downweighting
 rather than filtering is deliberate: dropping a region changes the graph's
-*shape* (pages reachable only through nav become teleport-only, pages
+\emph{shape} (pages reachable only through nav become teleport-only, pages
 linking out only through nav become dangling), whereas a small weight
 leaves the topology intact and merely stops the region dominating.}
 
-\item{container_col}{Optional name of a column in `edge_list_df` identifying
-the **source-side component** each link sits in -- the template element the
+\item{container_col}{Optional name of a column in \code{edge_list_df} identifying
+the \strong{source-side component} each link sits in -- the template element the
 link belongs to, stable across the pages that element appears on. Supplying
-it switches on the boilerplate detector; `NULL` (default) leaves it off.
-Like `placement_col` this is crawler-neutral data: a per-crawler adapter
+it switches on the boilerplate detector; \code{NULL} (default) leaves it off.
+Like \code{placement_col} this is crawler-neutral data: a per-crawler adapter
 derives component identity from whatever the crawler reports (a DOM path,
-a CSS selector, a template ID) and `pagerank()` only consumes the result,
+a CSS selector, a template ID) and \code{pagerank()} only consumes the result,
 so any crawler that can identify a link's component can drive the
 detector. Cannot be combined with
-`weight_col`, which it supersedes by building a weight column of its own.}
+\code{weight_col}, which it supersedes by building a weight column of its own.}
 
 \item{boilerplate_threshold}{The container-conditioned recurrence ratio at
-or above which an edge is **classified** boilerplate, in `(0, 1]`. The
+or above which an edge is \strong{classified} boilerplate, in \verb{(0, 1]}. The
 ratio is the share of pages carrying the container on which that container
-points at this same target, so `1` means "every time this component
-appeared, it linked here" and values near `0` mean the component chooses a
-different target on each page. Default `0.5`. Only consulted when
-`container_col` is supplied.}
+points at this same target, so \code{1} means "every time this component
+appeared, it linked here" and values near \code{0} mean the component chooses a
+different target on each page. Default \code{0.5}. Only consulted when
+\code{container_col} is supplied.}
 
 \item{min_container_pages}{Minimum number of pages a container must appear
-on before any of its edges may be classified. Default `10`. Small
+on before any of its edges may be classified. Default \code{10}. Small
 containers are excluded because their ratios are quantized -- a container
-on three pages can only score `0.33`, `0.67` or `1` -- so a high ratio
+on three pages can only score \code{0.33}, \code{0.67} or \code{1} -- so a high ratio
 there is thin evidence rather than a strong signal. A judgment call, not
 a measured cut.}
 
-\item{boilerplate_weight}{The multiplier applied to an edge **classified**
-boilerplate, in `(0, 1]`. Default `0.5`. Note this is a different quantity
-from `boilerplate_threshold` despite sharing a default value: the
-threshold is a fraction of pages that decides *whether* an edge is
-boilerplate, this is the discount applied *once it is*. Placement and
-recurrence are two **detectors feeding one graded axis**, not two
+\item{boilerplate_weight}{The multiplier applied to an edge \strong{classified}
+boilerplate, in \verb{(0, 1]}. Default \code{0.5}. Note this is a different quantity
+from \code{boilerplate_threshold} despite sharing a default value: the
+threshold is a fraction of pages that decides \emph{whether} an edge is
+boilerplate, this is the discount applied \emph{once it is}. Placement and
+recurrence are two \strong{detectors feeding one graded axis}, not two
 independent axes: a nav link is boilerplate by construction, so the
 factors are not multiplied -- that would discount the same link twice for
 the same fact. The strongest applicable discount wins, giving chrome
-`0.1`, repetitive in-content `0.5`, and unique in-content `1`. Both
+\code{0.1}, repetitive in-content \code{0.5}, and unique in-content \code{1}. Both
 factors are recorded separately in the transition audit.}
 
-\item{position_col}{Optional name of a numeric column in `edge_list_df`
-holding each link's **position index** within its source page -- `1` for
-the first link, `2` for the second, and so on in reading order. Supplying
-it switches on the positional-decay axis; `NULL` (default) leaves it off.
+\item{position_col}{Optional name of a numeric column in \code{edge_list_df}
+holding each link's \strong{position index} within its source page -- \code{1} for
+the first link, \code{2} for the second, and so on in reading order. Supplying
+it switches on the positional-decay axis; \code{NULL} (default) leaves it off.
 This is the genuinely orthogonal axis of the edge-weighting model: where
-placement and recurrence describe *templatedness* (and feed one graded axis
-combined by minimum), position describes *reading order* and so composes by
-**multiplication** -- an above-the-fold boilerplate CTA (`0.5 * 1.0`)
-outranks a trailing organic link (`1.0 * 0.2`) with no special-casing. Like
-`placement_col` and `container_col` this is crawler-neutral data: the index
-must be materialized from document order **at ingest**, while it is still
+placement and recurrence describe \emph{templatedness} (and feed one graded axis
+combined by minimum), position describes \emph{reading order} and so composes by
+\strong{multiplication} -- an above-the-fold boilerplate CTA (\code{0.5 * 1.0})
+outranks a trailing organic link (\code{1.0 * 0.2}) with no special-casing. Like
+\code{placement_col} and \code{container_col} this is crawler-neutral data: the index
+must be materialized from document order \strong{at ingest}, while it is still
 trustworthy, and never inferred from row order here, where a filter, join
 or dedup may already have destroyed it (for Screaming Frog it is read from
-an **All Outlinks** export, whose row order is document order, never All
+an \strong{All Outlinks} export, whose row order is document order, never All
 Inlinks, whose row order is destination-alphabetical). Edges with no index
-(`NA`) keep position weight `1`, so ranking only the source's main-content
+(\code{NA}) keep position weight \code{1}, so ranking only the source's main-content
 links -- leaving site chrome to the placement axis -- is expressed by
-indexing only those links. Cannot be combined with `weight_col`, which it
+indexing only those links. Cannot be combined with \code{weight_col}, which it
 supersedes by building a weight column of its own.}
 
-\item{position_transform}{The reading-order decay applied to `position_col`,
-one of `"zipf"` (default) or `"rank_linear"`, reusing [transform_weights()]
-within each source page's choice set. `"zipf"` gives
-`weight = 1 / rank^position_alpha` (position 1 keeps weight `1`, later
-positions drop off as a power law); `"rank_linear"` gives
-`weight = (n - rank + 1) / n` across a source's `n` indexed links. Only
-consulted when `position_col` is supplied.}
+\item{position_transform}{The reading-order decay applied to \code{position_col},
+one of \code{"zipf"} (default) or \code{"rank_linear"}, reusing \code{\link[=transform_weights]{transform_weights()}}
+within each source page's choice set. \code{"zipf"} gives
+\code{weight = 1 / rank^position_alpha} (position 1 keeps weight \code{1}, later
+positions drop off as a power law); \code{"rank_linear"} gives
+\code{weight = (n - rank + 1) / n} across a source's \code{n} indexed links. Only
+consulted when \code{position_col} is supplied.}
 
-\item{position_alpha}{The exponent for `position_transform = "zipf"`, a
-single positive number. Default `1`. Higher values make the drop-off
-steeper, so position 1 dominates its page more. Unused by `"rank_linear"`.}
+\item{position_alpha}{The exponent for \code{position_transform = "zipf"}, a
+single positive number. Default \code{1}. Higher values make the drop-off
+steeper, so position 1 dominates its page more. Unused by \code{"rank_linear"}.}
 
-\item{position_floor}{The smallest position weight, in `(0, 1]`. Default
-`0.01`. Decayed weights are clamped up to this floor so that compounding
-the two axes can never reach `0` -- an "effectively dropped" edge must not
+\item{position_floor}{The smallest position weight, in \verb{(0, 1]}. Default
+\code{0.01}. Decayed weights are clamped up to this floor so that compounding
+the two axes can never reach \code{0} -- an "effectively dropped" edge must not
 sneak back in through decay (the same downweight-not-drop rule that governs
-placement and boilerplate). Only consulted when `position_col` is supplied.}
+placement and boilerplate). Only consulted when \code{position_col} is supplied.}
 
-\item{duplicate_edge_policy}{How repeated `from -> to` rows are represented
+\item{duplicate_edge_policy}{How repeated \code{from -> to} rows are represented
 after URL cleaning, redirect/canonical folding, and domain filtering. One
 of:
 \describe{
-  \item{`"collapse"`}{(default) Destination-level surfer: repeated rows
-    collapse to one unweighted destination edge, preserving legacy
-    `get_unique_edges()` behavior and the common binary PageRank
-    convention.}
-  \item{`"aggregate"`}{Collapse each `from -> to` pair with
-    [aggregate_edges()] semantics. Numeric columns, including
-    `weight_col`, are summed; logical columns such as `nofollow` use the
-    default `"any"` conflict policy.}
-  \item{`"count_instances"`}{Link-slot / edge-level surfer: repeated
-    rows increase transition probability. With no `weight_col`, each
-    surviving `from -> to` pair receives an internal weight equal to its
-    duplicate-row count. With `weight_col`, weights are summed and an
-    `instance_count` audit column is retained.}
+\item{\code{"collapse"}}{(default) Destination-level surfer: repeated rows
+collapse to one unweighted destination edge, preserving legacy
+\code{get_unique_edges()} behavior and the common binary PageRank
+convention.}
+\item{\code{"aggregate"}}{Collapse each \code{from -> to} pair with
+\code{\link[=aggregate_edges]{aggregate_edges()}} semantics. Numeric columns, including
+\code{weight_col}, are summed; logical columns such as \code{nofollow} use the
+default \code{"any"} conflict policy.}
+\item{\code{"count_instances"}}{Link-slot / edge-level surfer: repeated
+rows increase transition probability. With no \code{weight_col}, each
+surviving \code{from -> to} pair receives an internal weight equal to its
+duplicate-row count. With \code{weight_col}, weights are summed and an
+\code{instance_count} audit column is retained.}
 }}
 
 \item{nofollow_col}{Optional name of a logical or 0/1 column in
-`edge_list_df` indicating nofollow edges. If `NULL` (default),
+\code{edge_list_df} indicating nofollow edges. If \code{NULL} (default),
 no nofollow handling is performed.}
 
-\item{nofollow_action}{How to handle nofollow edges when `nofollow_col` is
+\item{nofollow_action}{How to handle nofollow edges when \code{nofollow_col} is
 provided. One of:
 \describe{
-  \item{`"evaporate"`}{(default) Nofollow links remain outgoing slots:
-    they consume their weighted share of the source node's outgoing PR
-    budget but pass nothing to their targets. Implemented via a sink node
-    that absorbs the unpropagated PR.}
-  \item{`"drop"`}{Remove nofollow edges before allocating the outgoing
-    budget. They consume no slots, so followed edges divide the full
-    budget among themselves.}
-  \item{`"keep"`}{Retain and follow these edges normally, so their targets
-    receive their allocated shares.}
+\item{\code{"evaporate"}}{(default) Nofollow links remain outgoing slots:
+they consume their weighted share of the source node's outgoing PR
+budget but pass nothing to their targets. Implemented via a sink node
+that absorbs the unpropagated PR.}
+\item{\code{"drop"}}{Remove nofollow edges before allocating the outgoing
+budget. They consume no slots, so followed edges divide the full
+budget among themselves.}
+\item{\code{"keep"}}{Retain and follow these edges normally, so their targets
+receive their allocated shares.}
 }}
 
 \item{indexability_df}{Optional data frame mapping URLs to their indexability
 status (e.g., from an SEO crawl export). See Details.}
 
-\item{indexability_url_col}{Name of the URL column in `indexability_df`.
-Default `"url"`.}
+\item{indexability_url_col}{Name of the URL column in \code{indexability_df}.
+Default \code{"url"}.}
 
 \item{indexability_status_col}{Name of the status column in
-`indexability_df`. Default `"indexability_status"`. Values are
-comma-separated strings; recognized statuses are `"Blocked by robots.txt"`
-and `"noindex"` (case-insensitive for noindex).}
+\code{indexability_df}. Default \code{"indexability_status"}. Values are
+comma-separated strings; recognized statuses are \code{"Blocked by robots.txt"}
+and \code{"noindex"} (case-insensitive for noindex).}
 
 \item{status_df}{Optional data frame mapping URLs to their HTTP response
-status code (e.g., from an SEO crawl export). Lets `pagerank()` recognize
+status code (e.g., from an SEO crawl export). Lets \code{pagerank()} recognize
 response-dead pages, which would otherwise be scored as ordinary live
 vertices. See the "HTTP response status" section in Details.}
 
-\item{status_url_col}{Name of the URL column in `status_df`. Default
-`"url"`.}
+\item{status_url_col}{Name of the URL column in \code{status_df}. Default
+\code{"url"}.}
 
-\item{status_col}{Name of the HTTP status-code column in `status_df`.
-Default `"status_code"`. Values are HTTP status codes (integer, or
-coercible to integer); codes in `400:599` mark a page response-dead.}
+\item{status_col}{Name of the HTTP status-code column in \code{status_df}.
+Default \code{"status_code"}. Values are HTTP status codes (integer, or
+coercible to integer); codes in \code{400:599} mark a page response-dead.}
 
 \item{robots_blocked_action}{How to present robots.txt-blocked pages in
 results. Both values route the page's throughput to the shared waste sink
 (no self-loop); they differ only in whether the page itself is shown. One
 of:
 \describe{
-  \item{`"show"`}{(default) Blocked pages appear in results showing the
-    authority they collect, useful for seeing wasted PageRank. What they
-    would pass on evaporates to the sink.}
-  \item{`"vanish"`}{Blocked pages are removed from results; their own
-    stationary mass is booked as hidden (their throughput still evaporates
-    to the sink).}
+\item{\code{"show"}}{(default) Blocked pages appear in results showing the
+authority they collect, useful for seeing wasted PageRank. What they
+would pass on evaporates to the sink.}
+\item{\code{"vanish"}}{Blocked pages are removed from results; their own
+stationary mass is booked as hidden (their throughput still evaporates
+to the sink).}
 }}
 
-\item{edge_from_col, edge_to_col}{Names of from/to columns in `edge_list_df`.}
+\item{edge_from_col, edge_to_col}{Names of from/to columns in \code{edge_list_df}.}
 
 \item{redirect_from_col, redirect_to_col}{Names of from/to columns in
-`redirects_df`.}
+\code{redirects_df}.}
 
 \item{duplicate_from_policy}{How to handle conflicting redirects in
-`redirects_df`. Passed through to [resolve_redirects()]. Default
-`"strict"` (error on conflicts). See [resolve_redirects()] for all
+\code{redirects_df}. Passed through to \code{\link[=resolve_redirects]{resolve_redirects()}}. Default
+\code{"strict"} (error on conflicts). See \code{\link[=resolve_redirects]{resolve_redirects()}} for all
 available policies.}
 
 \item{loop_handling}{How to handle redirect cycles. Passed through to
-[resolve_redirects()]. Default `"error"`. See [resolve_redirects()] for
+\code{\link[=resolve_redirects]{resolve_redirects()}}. Default \code{"error"}. See \code{\link[=resolve_redirects]{resolve_redirects()}} for
 all available policies.}
 
-\item{canonicals_df}{An optional data frame of declared `rel=canonical`
-links, with `from`/`to` columns (or as set by `canonical_from_col` /
-`canonical_to_col`) pairing a source URL with the canonical it declares.
-Default `NULL` (opt-in; the default preserves current behavior).
-Canonicals are a **distinct, advisory** signal from enforced 3xx
-`redirects_df`: they are tracked separately and audited via
-[audit_canonicals()] / [audit_fold()], then folded into the same composed
-map as redirects (see [build_fold_map()]). Self-canonicals drop as no-ops.}
+\item{canonicals_df}{An optional data frame of declared \code{rel=canonical}
+links, with \code{from}/\code{to} columns (or as set by \code{canonical_from_col} /
+\code{canonical_to_col}) pairing a source URL with the canonical it declares.
+Default \code{NULL} (opt-in; the default preserves current behavior).
+Canonicals are a \strong{distinct, advisory} signal from enforced 3xx
+\code{redirects_df}: they are tracked separately and audited via
+\code{\link[=audit_canonicals]{audit_canonicals()}} / \code{\link[=audit_fold]{audit_fold()}}, then folded into the same composed
+map as redirects (see \code{\link[=build_fold_map]{build_fold_map()}}). Self-canonicals drop as no-ops.}
 
 \item{canonical_from_col, canonical_to_col}{From/to columns in
-`canonicals_df`. Default `"from"` / `"to"`.}
+\code{canonicals_df}. Default \code{"from"} / \code{"to"}.}
 
-\item{clean_canonical_urls}{Logical, whether to clean URLs in `canonicals_df`
-using the same resolved `rurl_params` profile as edge and redirect
-cleaning. Default `TRUE`. Only effective when `canonicals_df` is provided.}
+\item{clean_canonical_urls}{Logical, whether to clean URLs in \code{canonicals_df}
+using the same resolved \code{rurl_params} profile as edge and redirect
+cleaning. Default \code{TRUE}. Only effective when \code{canonicals_df} is provided.}
 
 \item{canonical_duplicate_from_policy}{How to handle a canonical source that
-declares multiple distinct canonicals. Reuses the `duplicate_from_policy`
-enum (see [resolve_redirects()]). Default `"strict"`.}
+declares multiple distinct canonicals. Reuses the \code{duplicate_from_policy}
+enum (see \code{\link[=resolve_redirects]{resolve_redirects()}}). Default \code{"strict"}.}
 
 \item{canonical_loop_handling}{How to handle cycles among declared
-canonicals. Reuses the `loop_handling` enum. Default `"error"`.}
+canonicals. Reuses the \code{loop_handling} enum. Default \code{"error"}.}
 
 \item{canonical_conflict_policy}{How to resolve a redirect-vs-canonical
-disagreement on the **same source** URL. One of `"redirect_wins"` (default;
+disagreement on the \strong{same source} URL. One of \code{"redirect_wins"} (default;
 the 3xx wins and the canonical on a redirecting source is ignored and
-flagged), `"error"` (error on genuine disagreement), or `"canonical_wins"`
+flagged), \code{"error"} (error on genuine disagreement), or \code{"canonical_wins"}
 (the declared canonical wins for that source, still flagged). See
-[build_fold_map()].}
+\code{\link[=build_fold_map]{build_fold_map()}}.}
 
 \item{out_of_scope_fold}{Policy for composed fold-map entries whose
-**target** (the representative a source folds onto) is not itself a crawled
-node. The crawled node set is the unique, non-`NA` edge endpoints captured
+\strong{target} (the representative a source folds onto) is not itself a crawled
+node. The crawled node set is the unique, non-\code{NA} edge endpoints captured
 immediately before folding (indexability URLs are not part of scope). Such
 an out-of-scope fold silently relabels a crawled page onto an uncrawled
 URL, inventing a phantom vertex (e.g. a staging crawl whose canonicals all
 point at the uncrawled production domain). One of:
 \describe{
-  \item{`"relabel"`}{(Default) Apply the full fold map unchanged,
-    relabeling crawled sources onto their out-of-scope targets. Preserves
-    historical behavior.}
-  \item{`"keep"`}{Drop the out-of-scope entries from the fold map before
-    applying it, so crawled source nodes retain their as-crawled identity.
-    The same filtered map is applied to the TIPR prior fold, keeping edges
-    and prior in one namespace.}
-  \item{`"leak"`}{Treat each such crawled source like an external redirect:
-    route it onto a synthetic **leak sink** node (distinct from the
-    nofollow sink) so the equity flowing INTO it leaves the measured graph
-    ("these pages won't rank; equity goes elsewhere"). The source's own
-    teleport prior is routed to the sink too. The evaporated equity is
-    reported as **leaked mass** in the `mass` section of the
-    `transition_audit` (`reported + sink + hidden + leaked = 1`). The leak
-    sink is created whenever there is at least one out-of-scope fold,
-    regardless of `nofollow_action`.}
+\item{\code{"relabel"}}{(Default) Apply the full fold map unchanged,
+relabeling crawled sources onto their out-of-scope targets. Preserves
+historical behavior.}
+\item{\code{"keep"}}{Drop the out-of-scope entries from the fold map before
+applying it, so crawled source nodes retain their as-crawled identity.
+The same filtered map is applied to the TIPR prior fold, keeping edges
+and prior in one namespace.}
+\item{\code{"leak"}}{Treat each such crawled source like an external redirect:
+route it onto a synthetic \strong{leak sink} node (distinct from the
+nofollow sink) so the equity flowing INTO it leaves the measured graph
+("these pages won't rank; equity goes elsewhere"). The source's own
+teleport prior is routed to the sink too. The evaporated equity is
+reported as \strong{leaked mass} in the \code{mass} section of the
+\code{transition_audit} (\code{reported + sink + hidden + leaked = 1}). The leak
+sink is created whenever there is at least one out-of-scope fold,
+regardless of \code{nofollow_action}.}
 }
 Regardless of policy, the count and list of out-of-scope folds (source,
-target, signal) are recorded in the `fold` section of the
-`transition_audit` object. See [transition_audit].}
+target, signal) are recorded in the \code{fold} section of the
+\code{transition_audit} object. See \link{transition_audit}.}
 
 \item{keep_domains}{Optional character vector of domains to keep. When
-  provided, edges are filtered via [filter_links_by_domain()] so that only
-  links where both endpoints belong to one of the specified domains are
-  included. Useful for restricting to internal links. Default `NULL` (no
-  domain filtering).
+provided, edges are filtered via \code{\link[=filter_links_by_domain]{filter_links_by_domain()}} so that only
+links where both endpoints belong to one of the specified domains are
+included. Useful for restricting to internal links. Default \code{NULL} (no
+domain filtering).
 
-  **Ordering:** filtering runs *after* redirect/canonical folding, so it
-  scopes the post-fold (canonical) namespace, not the crawled input. If an
-  out-of-scope canonical/redirect rewrites the crawled domain onto a
-  different one, filtering on the crawled domain matches nothing (an empty
-  graph). To scope the INPUT you crawled, run [filter_links_by_domain()] on
-  the edge list *before* calling `pagerank()`.}
+\strong{Ordering:} filtering runs \emph{after} redirect/canonical folding, so it
+scopes the post-fold (canonical) namespace, not the crawled input. If an
+out-of-scope canonical/redirect rewrites the crawled domain onto a
+different one, filtering on the crawled domain matches nothing (an empty
+graph). To scope the INPUT you crawled, run \code{\link[=filter_links_by_domain]{filter_links_by_domain()}} on
+the edge list \emph{before} calling \code{pagerank()}.}
 
 \item{exclude_domains}{Optional character vector of domains to exclude.
 Edges where either endpoint belongs to one of these domains are removed.
-Like `keep_domains`, this filters the post-fold namespace (see the ordering
-note above). Default `NULL` (no exclusion).}
+Like \code{keep_domains}, this filters the post-fold namespace (see the ordering
+note above). Default \code{NULL} (no exclusion).}
 
 \item{keep_hosts}{Optional character vector of exact hosts to keep (e.g.
-`"www.example.com"`), as opposed to registrable domains. Matched on the
+\code{"www.example.com"}), as opposed to registrable domains. Matched on the
 exact host using the same canonicalization profile as cleaning, so IDN
-folding (`host_encoding` in `rurl_params`) applies consistently. Default
-`NULL`.}
+folding (\code{host_encoding} in \code{rurl_params}) applies consistently. Default
+\code{NULL}.}
 
 \item{exclude_hosts}{Optional character vector of exact hosts to exclude.
 Edges where either endpoint matches one of these hosts are removed. Ignore
-rules override keep rules. Default `NULL`.}
+rules override keep rules. Default \code{NULL}.}
 
 \item{prior_df}{Optional per-URL external-authority prior for TIPR
-  (authority-weighted teleport). A data frame with one row per URL and a
-  numeric weight. The prior URLs are canonicalized with the same
-  `rurl_params` and folded through the same redirect map as the edges,
-  weights for URLs that coalesce are summed, and the result is aligned to the
-  final vertex set via [align_prior_to_vertices()] and passed to
-  `igraph::page_rank(personalized = )`. Default `NULL` (uniform teleport).
+(authority-weighted teleport). A data frame with one row per URL and a
+numeric weight. The prior URLs are canonicalized with the same
+\code{rurl_params} and folded through the same redirect map as the edges,
+weights for URLs that coalesce are summed, and the result is aligned to the
+final vertex set via \code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}} and passed to
+\code{igraph::page_rank(personalized = )}. Default \code{NULL} (uniform teleport).
 
-  The weight column must be an **additive raw count** — the redirect fold
-  sums it (see `prior_weight_col`), which is only meaningful for quantities
-  that add when URLs coalesce. This keeps the prior **source-agnostic**: the
-  default is Ahrefs **referring domains**, but any backlink-source count is a
-  drop-in swap (Ahrefs *links-to-target* or *dofollow-only referring
-  domains*; SEMrush backlink/referring-domain counts; or even non-backlink
-  counts such as GA4 entrances), simply by pointing `prior_weight_col` at it.
-  Do **not** pass a calculated authority *score* (Ahrefs UR / DR, or any
-  0–100 rating): scores are not additive (folding two redirect variants is a
-  `max`, not a `sum`), and a per-URL score like UR is itself a PageRank-style
-  metric — using it as a teleport prior for PageRank is circular. See
-  [align_prior_to_vertices()] for the full contract.}
+The weight column must be an \strong{additive raw count} — the redirect fold
+sums it (see \code{prior_weight_col}), which is only meaningful for quantities
+that add when URLs coalesce. This keeps the prior \strong{source-agnostic}: the
+default is Ahrefs \strong{referring domains}, but any backlink-source count is a
+drop-in swap (Ahrefs \emph{links-to-target} or \emph{dofollow-only referring
+domains}; SEMrush backlink/referring-domain counts; or even non-backlink
+counts such as GA4 entrances), simply by pointing \code{prior_weight_col} at it.
+Do \strong{not} pass a calculated authority \emph{score} (Ahrefs UR / DR, or any
+0–100 rating): scores are not additive (folding two redirect variants is a
+\code{max}, not a \code{sum}), and a per-URL score like UR is itself a PageRank-style
+metric — using it as a teleport prior for PageRank is circular. See
+\code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}} for the full contract.}
 
-\item{prior_url_col, prior_weight_col}{Column names in `prior_df`. Defaults
-`"url"` / `"weight"`. Swapping `prior_weight_col` between additive count
+\item{prior_url_col, prior_weight_col}{Column names in \code{prior_df}. Defaults
+\code{"url"} / \code{"weight"}. Swapping \code{prior_weight_col} between additive count
 columns is the supported way to A/B alternative authority metrics (e.g. via
-[pagerank_grid()]); see `prior_df` for which metrics qualify.}
+\code{\link[=pagerank_grid]{pagerank_grid()}}); see \code{prior_df} for which metrics qualify.}
 
 \item{prior_transform}{How to shape raw authority before it becomes teleport
-mass. One of `"none"` (default, faithful linear share), `"log"`,
-`"percentile"`, `"minmax"`, `"zipf"`, `"rank_linear"`. See
-[transform_weights()]. Counts are summed on the raw scale before any
+mass. One of \code{"none"} (default, faithful linear share), \code{"log"},
+\code{"percentile"}, \code{"minmax"}, \code{"zipf"}, \code{"rank_linear"}. See
+\code{\link[=transform_weights]{transform_weights()}}. Counts are summed on the raw scale before any
 transform.}
 
-\item{prior_alpha}{Mixture weight in `[0, 1]` between uniform and
-authority-weighted teleport (`p = alpha * uniform + (1 - alpha) *
-authority_share`). `0` (default) is pure authority teleport; `1` reproduces
-uniform PageRank. See [align_prior_to_vertices()].}
+\item{prior_alpha}{Mixture weight in \verb{[0, 1]} between uniform and
+authority-weighted teleport (\code{p = alpha * uniform + (1 - alpha) * authority_share}). \code{0} (default) is pure authority teleport; \code{1} reproduces
+uniform PageRank. See \code{\link[=align_prior_to_vertices]{align_prior_to_vertices()}}.}
 
-\item{prior_inject_unmatched}{Logical. If `TRUE`, authoritative prior URLs
+\item{prior_inject_unmatched}{Logical. If \code{TRUE}, authoritative prior URLs
 that do not fold onto any existing vertex are added as edge-less isolate
 vertices so they appear in results carrying their teleport prior. Default
-`FALSE` (align-only: such URLs are dropped and logged).}
+\code{FALSE} (align-only: such URLs are dropped and logged).}
 
-\item{prior_exclude_waste}{Logical. If `TRUE` (default), the
+\item{prior_exclude_waste}{Logical. If \code{TRUE} (default), the
 collect-but-cannot-pass class — noindex, robots-blocked, and 4xx/5xx pages
-(see `indexability_df` / `status_df`) — is excluded from the teleport
+(see \code{indexability_df} / \code{status_df}) — is excluded from the teleport
 vector: those pages keep the authority that reaches them through inlinks
 but are no longer paid the uniform teleport share for merely existing. This
 stops a page from manufacturing authority by linking to many dead ends
 (Page & Brin 1998 criticize uniform teleport for "valuing pages simply
-because they exist"). Set `FALSE` to give every page uniform teleport,
-matching `igraph::page_rank()` for canonical comparisons. Has no effect
-unless `indexability_df` or `status_df` supplies the class; the synthetic
+because they exist"). Set \code{FALSE} to give every page uniform teleport,
+matching \code{igraph::page_rank()} for canonical comparisons. Has no effect
+unless \code{indexability_df} or \code{status_df} supplies the class; the synthetic
 evaporation and leak sinks are excluded from teleport regardless.}
 
 \item{prior_verbose}{Logical, whether to emit prior-alignment coverage
-diagnostics. Default `TRUE`. Only relevant when `prior_df` is supplied.}
+diagnostics. Default \code{TRUE}. Only relevant when \code{prior_df} is supplied.}
 
 \item{damping}{The PageRank damping factor \eqn{\alpha} (the random surfer's
 continue probability; the teleport probability is \eqn{1 - \alpha}). A
-single number in `[0, 1]`, default `0.85` — the field convention from Brin
-& Page. Forwarded to [compute_pagerank()] and on to `igraph::page_rank()`.
+single number in \verb{[0, 1]}, default \code{0.85} — the field convention from Brin
+& Page. Forwarded to \code{\link[=compute_pagerank]{compute_pagerank()}} and on to \code{igraph::page_rank()}.
 Higher values weight the link structure more heavily but converge more
 slowly: a power-iteration solve needs roughly
 \eqn{\log_{10}(\tau) / \log_{10}(\alpha)} iterations to reach residual
 \eqn{\tau}, so pushing \eqn{\alpha} toward 1 sharply raises the iteration
-count (raise `niter` accordingly when using the ARPACK solver). See the
+count (raise \code{niter} accordingly when using the ARPACK solver). See the
 "Damping factor" section in Details for guidance on choosing it, and
-[damping_sensitivity()] to sweep a range of values.}
+\code{\link[=damping_sensitivity]{damping_sensitivity()}} to sweep a range of values.}
 
-\item{...}{Additional arguments passed to [compute_pagerank()] and
-subsequently to `igraph::page_rank()`. Besides `damping`, the recognized
-convergence controls `algo` (`"prpack"` / `"arpack"`), `eps`, and `niter`
+\item{...}{Additional arguments passed to \code{\link[=compute_pagerank]{compute_pagerank()}} and
+subsequently to \code{igraph::page_rank()}. Besides \code{damping}, the recognized
+convergence controls \code{algo} (\code{"prpack"} / \code{"arpack"}), \code{eps}, and \code{niter}
 are forwarded here; see the "Convergence controls" section below.}
 
 \item{preset}{Optional named argument bundle describing a common view of
-the graph: a preset name (`"raw"`, `"declared"`, `"reversed"`,
-`"content"`), a [pr_preset()]
-result, or `NULL` (default, no preset). Preset values are applied only to
-arguments you did not name yourself, so precedence is **explicit argument
-> preset > base default**. Must be named in full (it sits after `...`).
-See [pr_preset()] for the exact expansion of each preset.}
+the graph: a preset name (\code{"raw"}, \code{"declared"}, \code{"reversed"},
+\code{"content"}), a \code{\link[=pr_preset]{pr_preset()}}
+result, or \code{NULL} (default, no preset). Preset values are applied only to
+arguments you did not name yourself, so precedence is
+\strong{explicit argument > preset > base default}. Must be named in full (it
+sits after \code{...}).
+See \code{\link[=pr_preset]{pr_preset()}} for the exact expansion of each preset.}
 }
 \value{
 A data frame with node names and their PageRank scores. When
-  nofollow evaporation, the waste class (noindex / robots-blocked /
-  response-dead), or `robots_blocked_action = "vanish"` is active, the
-  returned scores may sum to less than 1. The difference is not
-  undifferentiated "leakage": it is decomposed into **evaporated mass**
-  (authority sent to the shared waste sink, i.e. what the class and every
-  real nofollowed link passed on but could not deliver), **leaked mass**
-  (authority sent to the leak sink under `out_of_scope_fold = "leak"`), and
-  **hidden mass** (the own stationary mass of robots-blocked nodes removed
-  from the results). The full breakdown — reported / evaporated (sink) /
-  leaked / hidden / total (= 1) — is recorded in the `mass` field of the
-  transition audit (see below).
+nofollow evaporation, the waste class (noindex / robots-blocked /
+response-dead), or \code{robots_blocked_action = "vanish"} is active, the
+returned scores may sum to less than 1. The difference is not
+undifferentiated "leakage": it is decomposed into \strong{evaporated mass}
+(authority sent to the shared waste sink, i.e. what the class and every
+real nofollowed link passed on but could not deliver), \strong{leaked mass}
+(authority sent to the leak sink under \code{out_of_scope_fold = "leak"}), and
+\strong{hidden mass} (the own stationary mass of robots-blocked nodes removed
+from the results). The full breakdown — reported / evaporated (sink) /
+leaked / hidden / total (= 1) — is recorded in the \code{mass} field of the
+transition audit (see below).
 
-  When `indexability_df` or `status_df` is supplied, the result gains two
-  per-URL waste-attribution columns, present only with those inputs
-  (mirroring how `prior_weight` appears only with `prior_df`), so the result
-  is otherwise unchanged:
-  \describe{
-    \item{`page_state`}{The page's health/indexability state: `"live"`,
-      `"noindex"`, `"robots_blocked"`, or `"response_dead"` (robots-blocked
-      > response-dead > noindex > live when a page carries more than one
-      signal).}
-    \item{`wasted_mass`}{The authority the page collected and black-holed —
-      its share of the shared waste sink's stationary mass. A waste-class
-      page routes its whole throughput to the absorbing sink, so this is
-      `damping / (1 - damping)` times its own reported score: larger than,
-      and distinct from, that score, which answers the "how much did this
-      page amass and evaporate" question `page_state` only labels. It sums
-      across the waste class to the evaporated mass reported in the
-      transition audit (`mass$sink`). A `"live"` page routes nothing to the
-      sink, so its `wasted_mass` is `0`.}
-  }
-  `page_state` is the page's *health* state; the `node_status` column
-  returned by [simulate_changes()] is a distinct axis — a node's *role in a
-  before/after comparison* (`normal` / `new-target` / `removed-dead`) — not a
-  second name for the same thing.
+When \code{indexability_df} or \code{status_df} is supplied, the result gains two
+per-URL waste-attribution columns, present only with those inputs
+(mirroring how \code{prior_weight} appears only with \code{prior_df}), so the result
+is otherwise unchanged:
+\describe{
+\item{\code{page_state}}{The page's health/indexability state: \code{"live"},
+\code{"noindex"}, \code{"robots_blocked"}, or \code{"response_dead"} (robots-blocked
+> response-dead > noindex > live when a page carries more than one
+signal).}
+\item{\code{wasted_mass}}{The authority the page collected and black-holed —
+its share of the shared waste sink's stationary mass. A waste-class
+page routes its whole throughput to the absorbing sink, so this is
+\code{damping / (1 - damping)} times its own reported score: larger than,
+and distinct from, that score, which answers the "how much did this
+page amass and evaporate" question \code{page_state} only labels. It sums
+across the waste class to the evaporated mass reported in the
+transition audit (\code{mass$sink}). A \code{"live"} page routes nothing to the
+sink, so its \code{wasted_mass} is \code{0}.}
+}
+\code{page_state} is the page's \emph{health} state; the \code{node_status} column
+returned by \code{\link[=simulate_changes]{simulate_changes()}} is a distinct axis — a node's \emph{role in a
+before/after comparison} (\code{normal} / \code{new-target} / \code{removed-dead}) — not a
+second name for the same thing.
 
-  The data frame additionally carries a `"transition_audit"` attribute (a
-  [transition_audit] object) recording how the transition graph was built:
-  row/edge counts, behavioral-weight coverage, normalization totals, the
-  page-mass decomposition (reported / evaporated / leaked / hidden / total),
-  dropped
-  data (rows lost to NA / dedup / self-loops, unmatched prior URLs), and the
-  model configuration used. Retrieve it with
-  `attr(result, "transition_audit")`.
+The data frame additionally carries a \code{"transition_audit"} attribute (a
+\link{transition_audit} object) recording how the transition graph was built:
+row/edge counts, behavioral-weight coverage, normalization totals, the
+page-mass decomposition (reported / evaporated / leaked / hidden / total),
+dropped
+data (rows lost to NA / dedup / self-loops, unmatched prior URLs), and the
+model configuration used. Retrieve it with
+\code{attr(result, "transition_audit")}.
 
-  The result additionally carries a `"convergence"` attribute (a
-  [pagerank_convergence] object); see the "Convergence controls" section.
+The result additionally carries a \code{"convergence"} attribute (a
+\link{pagerank_convergence} object); see the "Convergence controls" section.
 }
 \description{
 Orchestrates the complete PageRank calculation workflow,
@@ -525,14 +525,14 @@ indexability handling, nofollow handling, isolate handling, and
 PageRank computation.
 }
 \details{
-## Damping factor
+\subsection{Damping factor}{
 
-The `damping` factor \eqn{\alpha} is the probability that the random surfer
+The \code{damping} factor \eqn{\alpha} is the probability that the random surfer
 follows a link rather than teleporting; the remaining \eqn{1 - \alpha} is
-spread over the teleport vector (uniform, or the supplied TIPR `prior_df`).
+spread over the teleport vector (uniform, or the supplied TIPR \code{prior_df}).
 
-The default `0.85` is the original Brin & Page value and remains the field
-convention, but it is *eminently empirical* — Boldi, Santini & Vigna
+The default \code{0.85} is the original Brin & Page value and remains the field
+convention, but it is \emph{eminently empirical} — Boldi, Santini & Vigna
 (\emph{PageRank as a Function of the Damping Factor}, WWW 2005) show it has
 no analytical claim to being uniquely correct. A common misconception is that
 values close to 1 yield "more accurate" rankings by trusting the link graph
@@ -546,172 +546,179 @@ reach residual \eqn{\tau} (Langville & Meyer, \emph{Deeper Inside PageRank},
 Internet Mathematics 2004). At \eqn{\tau = 10^{-8}}: \eqn{\alpha = 0.85}
 needs ~114 iterations, \eqn{\alpha = 0.95} ~362, and \eqn{\alpha = 0.99}
 ~1,833 — so a high damping factor is both slower and rarely better. When you
-do raise it on the ARPACK solver, raise `niter` to match (see "Convergence
+do raise it on the ARPACK solver, raise \code{niter} to match (see "Convergence
 controls" below).
 
-Both of those papers study the open web. Whether `0.85` is still the right
+Both of those papers study the open web. Whether \code{0.85} is still the right
 convention for a site-scale intranet graph is an open empirical question;
-[damping_sensitivity()] sweeps a range of \eqn{\alpha} values so you can see
-how much the ranking on *your* graph actually moves.
-
-## Convergence controls
-
-`igraph::page_rank()` is called through one of two solver back-ends, selected
-with `algo` (forwarded via `...`):
-\describe{
-  \item{`"prpack"`}{(default) A fast, exact direct solver. It has **no**
-    tunable tolerance or iteration cap, and reports no iteration count.}
-  \item{`"arpack"`}{An iterative eigensolver that honors `eps` (the L1
-    tolerance) and `niter` (the maximum iterations), and reports how many
-    iterations it used.}
+\code{\link[=damping_sensitivity]{damping_sensitivity()}} sweeps a range of \eqn{\alpha} values so you can see
+how much the ranking on \emph{your} graph actually moves.
 }
 
-Modern `igraph` (2.x) removed the legacy `page_rank()` `eps` / `niter`
-arguments; this package re-exposes them as friendly aliases for the ARPACK
-`options$tol` / `options$maxiter` controls. Because PRPACK ignores them,
-supplying either `eps` or `niter` transparently switches `algo` to
-`"arpack"`. As a rule of thumb a power-iteration solve needs about
-`log10(eps) / log10(damping)` iterations, so raise `niter` when you push
-`damping` toward 1.
+\subsection{Convergence controls}{
 
-Every non-empty result carries a `"convergence"` attribute (a
-[pagerank_convergence] object) reporting the solver, iteration count (when
+\code{igraph::page_rank()} is called through one of two solver back-ends, selected
+with \code{algo} (forwarded via \code{...}):
+\describe{
+\item{\code{"prpack"}}{(default) A fast, exact direct solver. It has \strong{no}
+tunable tolerance or iteration cap, and reports no iteration count.}
+\item{\code{"arpack"}}{An iterative eigensolver that honors \code{eps} (the L1
+tolerance) and \code{niter} (the maximum iterations), and reports how many
+iterations it used.}
+}
+
+Modern \code{igraph} (2.x) removed the legacy \code{page_rank()} \code{eps} / \code{niter}
+arguments; this package re-exposes them as friendly aliases for the ARPACK
+\code{options$tol} / \code{options$maxiter} controls. Because PRPACK ignores them,
+supplying either \code{eps} or \code{niter} transparently switches \code{algo} to
+\code{"arpack"}. As a rule of thumb a power-iteration solve needs about
+\code{log10(eps) / log10(damping)} iterations, so raise \code{niter} when you push
+\code{damping} toward 1.
+
+Every non-empty result carries a \code{"convergence"} attribute (a
+\link{pagerank_convergence} object) reporting the solver, iteration count (when
 the solver exposes it), and the solver-independent post-hoc L1 residual
 \eqn{\|G x - x\|_1} of the returned vector. Retrieve it with
-`attr(result, "convergence")`.
+\code{attr(result, "convergence")}.
+}
 
-## The waste class (noindex, robots-blocked, response-dead)
+\subsection{The waste class (noindex, robots-blocked, response-dead)}{
 
-`pagerankr` models one **"collects PageRank but cannot pass it"** class and
-routes every member through a single shared **waste sink** with the same
+\code{pagerankr} models one \strong{"collects PageRank but cannot pass it"} class and
+routes every member through a single shared \strong{waste sink} with the same
 mechanism: the member loses all of its outgoing edges and gains exactly one
 edge to the sink, so it still absorbs the authority its inlinks send but
 passes none of it back into the graph. The sink is an internal accounting
 bucket (never a page, always stripped from the returned result); the mass it
-collects is reported as **evaporated** mass in the transition audit. Removing
+collects is reported as \strong{evaporated} mass in the transition audit. Removing
 the old robots-blocked self-loop is deliberate: a self-loop is an absorbing
 rank sink that compounds inbound authority every iteration (a measured 8.3×
 inflation), whereas the waste sink lets authority flow in and stop.
 
 Members come from three signals:
 
-**noindex** (`indexability_df`): `pagerankr` models the ranked corpus as the
+\strong{noindex} (\code{indexability_df}): \code{pagerankr} models the ranked corpus as the
 set of indexed documents, so a noindex page is outside it — it may receive
 authority through inlinks but cannot redistribute it within the indexed
 graph. This is a PageRank modeling choice; it does not assert that Google
 defines noindex as a nofollow directive. noindex routing to the sink is
-independent of `nofollow_action` (which governs only real `rel=nofollow`
+independent of \code{nofollow_action} (which governs only real \code{rel=nofollow}
 edges): a noindex page always routes to the sink. noindex pages still appear
 in results so their received authority remains auditable.
 
-**robots.txt-blocked** (`indexability_df`): Google cannot access the page
-content, so there are no visible outgoing links. `robots_blocked_action`
-controls only whether the page appears in results (`"show"`, the default) or
-is removed with its own mass booked as hidden (`"vanish"`) — both route the
+\strong{robots.txt-blocked} (\code{indexability_df}): Google cannot access the page
+content, so there are no visible outgoing links. \code{robots_blocked_action}
+controls only whether the page appears in results (\code{"show"}, the default) or
+is removed with its own mass booked as hidden (\code{"vanish"}) — both route the
 page's throughput to the sink.
 
-**Priority rule:** robots.txt always takes precedence over noindex. If a
+\strong{Priority rule:} robots.txt always takes precedence over noindex. If a
 page is both robots-blocked and noindex, it is treated as robots-blocked.
+}
 
-## HTTP response status
+\subsection{HTTP response status}{
 
-When `status_df` is provided, pages whose HTTP status code falls in
-`400:599` are recognized as **response-dead**: at crawl time they returned
+When \code{status_df} is provided, pages whose HTTP status code falls in
+\code{400:599} are recognized as \strong{response-dead}: at crawl time they returned
 no content and expose no outgoing links, so they can collect authority
 through their inlinks but cannot pass any of it on. They belong to the same
 waste class as noindex pages and route to the same sink; because a dead page
 typically has no outlinks, this ADDS the one edge to the sink that stops it
 from dangling and recycling its inbound authority to every page via teleport.
 
-`pagerankr` does **not** split 4xx from 5xx. The crawl is a snapshot, and at
-crawl time a transient `503` and a permanent `404` are indistinguishable:
+\code{pagerankr} does \strong{not} split 4xx from 5xx. The crawl is a snapshot, and at
+crawl time a transient \code{503} and a permanent \code{404} are indistinguishable:
 both return no content and expose no links. Modeling one as recoverable
 would require guessing about a future the crawl has no data on — the same
-reason `pagerankr` folds a `302` exactly like a `301`. A caller who knows a
-given `5xx` was a blip should re-crawl rather than have the tool assume
+reason \code{pagerankr} folds a \code{302} exactly like a \code{301}. A caller who knows a
+given \verb{5xx} was a blip should re-crawl rather than have the tool assume
 recovery on its behalf.
 
-`3xx` redirects are **not** part of this class; they are modeled through
-`redirects_df`. Codes below `400`, and rows whose status is missing or
+\verb{3xx} redirects are \strong{not} part of this class; they are modeled through
+\code{redirects_df}. Codes below \code{400}, and rows whose status is missing or
 cannot be parsed as an integer, are treated as live. Response-dead pages
-that are present in the graph are counted in the returned `transition_audit`
-(`config$has_status` and `n_status_dead`).
+that are present in the graph are counted in the returned \code{transition_audit}
+(\code{config$has_status} and \code{n_status_dead}).
+}
 
-## Reverse / inverse PageRank (`reverse = TRUE`)
+\subsection{Reverse / inverse PageRank (\code{reverse = TRUE})}{
 
-Standard PageRank measures **inflow** importance ("who points to me"). With
-`reverse = TRUE` the link graph is transposed before computation, yielding
-**outflow centrality** ("does this page funnel authority outward"). This is
-the *reverse PageRank* of Bar-Yossef & Mashiach (CIKM 2008), equivalent to
-the **CheiRank** of the transposed Google matrix, and the PageRank-flavored
-analog of the *hub* score in Kleinberg's HITS. The sibling `semantic`
+Standard PageRank measures \strong{inflow} importance ("who points to me"). With
+\code{reverse = TRUE} the link graph is transposed before computation, yielding
+\strong{outflow centrality} ("does this page funnel authority outward"). This is
+the \emph{reverse PageRank} of Bar-Yossef & Mashiach (CIKM 2008), equivalent to
+the \strong{CheiRank} of the transposed Google matrix, and the PageRank-flavored
+analog of the \emph{hub} score in Kleinberg's HITS. The sibling \code{semantic}
 project consumes this as an outflow signal.
 
 Only edge orientation is flipped; URL cleaning, redirect folding,
 duplicate-edge policy, edge weights, domain/host filtering, and the teleport
 prior all behave identically (they are direction-agnostic). To obtain it
 directly from an edge list, swapping the from/to columns and running ordinary
-`pagerank()` is equivalent — `reverse = TRUE` just performs that flip
+\code{pagerank()} is equivalent — \code{reverse = TRUE} just performs that flip
 internally so weight, redirect, and sink handling cannot be mis-wired by a
 manual swap.
 
-**This is unrelated to the TIPR / personalized-prior feature (`prior_df`).**
-That seeds the *teleport* vector with external authority (e.g. backlinks) but
-still computes inflow PageRank on the forward graph; `reverse` is a pure
-*graph operation* on edge direction. The two are orthogonal and may be
+\strong{This is unrelated to the TIPR / personalized-prior feature (\code{prior_df}).}
+That seeds the \emph{teleport} vector with external authority (e.g. backlinks) but
+still computes inflow PageRank on the forward graph; \code{reverse} is a pure
+\emph{graph operation} on edge direction. The two are orthogonal and may be
 combined.
 
-**Direction-sensitive features are rejected under `reverse = TRUE`** because
+\strong{Direction-sensitive features are rejected under \code{reverse = TRUE}} because
 their semantics do not transpose:
 \describe{
-  \item{`nofollow_action = "evaporate"`}{Errors. The evaporation sink models
-    a *source* wasting its outgoing budget; reversed, it would inject rank
-    instead. Use `"drop"` — the correct treatment of a nofollowed link for
-    outflow centrality, since it funnels no authority outward — or `"keep"`.}
-  \item{`indexability_df`}{Errors. noindex and robots.txt blocking (route
-    the page's outgoing budget to the waste sink) encode forward crawl/index
-    behavior with no meaningful transpose.}
+\item{\code{nofollow_action = "evaporate"}}{Errors. The evaporation sink models
+a \emph{source} wasting its outgoing budget; reversed, it would inject rank
+instead. Use \code{"drop"} — the correct treatment of a nofollowed link for
+outflow centrality, since it funnels no authority outward — or \code{"keep"}.}
+\item{\code{indexability_df}}{Errors. noindex and robots.txt blocking (route
+the page's outgoing budget to the waste sink) encode forward crawl/index
+behavior with no meaningful transpose.}
+}
 }
 
-## Duplicate edge policy
+\subsection{Duplicate edge policy}{
 
 The original PageRank papers define a page's vote as divided by its outgoing
 link count but do not pin down how repeated hyperlinks from one source page
 to the same target are represented. The standard textbook / binary
 operationalization treats the outgoing set as a destination relation, so
-multiple `A -> C` rows collapse to one destination edge. `pagerankr` keeps
-that as the default (`duplicate_edge_policy = "collapse"`) for backward
+multiple \code{A -> C} rows collapse to one destination edge. \code{pagerankr} keeps
+that as the default (\code{duplicate_edge_policy = "collapse"}) for backward
 compatibility and as the less spam-sensitive model.
 
 Weighted / multigraph PageRank is also valid when repeated link slots are
-the intended unit. Use `duplicate_edge_policy = "count_instances"` for a
-link-slot surfer: `A -> B, A -> C, A -> C` sends twice as much outgoing mass
-to `C` as to `B`, equivalent to explicit weights `B = 1, C = 2` and to
-igraph's treatment of parallel edges. Use `"aggregate"` when duplicate rows
-should be collapsed loss-aware, especially with an existing `weight_col`;
+the intended unit. Use \code{duplicate_edge_policy = "count_instances"} for a
+link-slot surfer: \verb{A -> B, A -> C, A -> C} sends twice as much outgoing mass
+to \code{C} as to \code{B}, equivalent to explicit weights \verb{B = 1, C = 2} and to
+igraph's treatment of parallel edges. Use \code{"aggregate"} when duplicate rows
+should be collapsed loss-aware, especially with an existing \code{weight_col};
 numeric duplicate weights are summed instead of silently keeping the first
 row.
+}
 
-## Fold-then-filter ordering (domain / host scope)
+\subsection{Fold-then-filter ordering (domain / host scope)}{
 
-Redirect and canonical folding runs **before** the
-`keep_domains` / `exclude_domains` / `keep_hosts` / `exclude_hosts`
+Redirect and canonical folding runs \strong{before} the
+\code{keep_domains} / \code{exclude_domains} / \code{keep_hosts} / \code{exclude_hosts}
 filter. Folding can rewrite the node namespace: an out-of-scope canonical
-(e.g. every `staging.example.dev` page declaring a `example.com` canonical)
+(e.g. every \code{staging.example.dev} page declaring a \code{example.com} canonical)
 relabels crawled nodes onto a domain you never crawled. Because the filter
 then sees only the post-fold (canonical) namespace, filtering on the domain
 you actually crawled matches nothing and returns an empty graph.
 
-`pagerank()` detects this specific case -- a filter value that classified
+\code{pagerank()} detects this specific case -- a filter value that classified
 one or more crawled (pre-fold) nodes but no surviving post-fold node -- and
-emits an actionable `warning()` naming the folded-away value(s) and pointing
+emits an actionable \code{warning()} naming the folded-away value(s) and pointing
 at the out-of-scope fold as the cause. This is a diagnostic only; the
 fold-then-filter order is unchanged.
 
-To scope the **input you crawled**, filter first: run
-[filter_links_by_domain()] on the edge list (and, if used, the redirect /
-canonical data frames) *before* calling `pagerank()`. To scope the folded
+To scope the \strong{input you crawled}, filter first: run
+\code{\link[=filter_links_by_domain]{filter_links_by_domain()}} on the edge list (and, if used, the redirect /
+canonical data frames) \emph{before} calling \code{pagerank()}. To scope the folded
 graph, filter on the post-fold (canonical) domain/host instead.
+}
 }
 \examples{
 # Basic example

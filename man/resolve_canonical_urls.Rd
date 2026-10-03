@@ -20,20 +20,20 @@ resolve_canonical_urls(
 \item{canonicals_df}{A data frame of declared canonical links.}
 
 \item{canonical_from_col, canonical_to_col}{From/to columns in
-`canonicals_df`.}
+\code{canonicals_df}.}
 
 \item{canonical_duplicate_from_policy}{How to handle a canonical source with
-multiple distinct targets. See [build_fold_map()].}
+multiple distinct targets. See \code{\link[=build_fold_map]{build_fold_map()}}.}
 
 \item{canonical_loop_handling}{How to handle canonical cycles. See
-[build_fold_map()].}
+\code{\link[=build_fold_map]{build_fold_map()}}.}
 }
 \value{
-A data frame with `original`, `resolved`, `changed`, and `signal`
-  columns. The applied fold map is attached as attribute `"fold_map"`.
+A data frame with \code{original}, \code{resolved}, \code{changed}, and \code{signal}
+columns. The applied fold map is attached as attribute \code{"fold_map"}.
 }
 \description{
-Resolves a character vector through declared `rel=canonical` folds. This is
+Resolves a character vector through declared \code{rel=canonical} folds. This is
 distinct from URL syntax canonicalization; inputs are expected to already be
 in the same URL namespace as the canonical table.
 }

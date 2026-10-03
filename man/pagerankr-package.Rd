@@ -34,6 +34,7 @@ Useful links:
   \item \url{https://bart-turczynski.gitlab.io/pagerankr/}
   \item \url{https://gitlab.com/bart-turczynski/pagerankr}
   \item \url{https://bart-turczynski.r-universe.dev/pagerankr}
+  \item \url{https://CRAN.R-project.org/package=pagerankr}
   \item Report bugs at \url{https://gitlab.com/bart-turczynski/pagerankr/-/issues}
 }
 

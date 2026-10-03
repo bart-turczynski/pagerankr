@@ -21,90 +21,92 @@ build_fold_map(
 )
 }
 \arguments{
-\item{redirects_df}{Optional data frame of 3xx redirect rules, or `NULL`.}
+\item{redirects_df}{Optional data frame of 3xx redirect rules, or \code{NULL}.}
 
 \item{canonicals_df}{Optional data frame of declared rel=canonical links, or
-`NULL`. Each row pairs a source URL with the canonical it declares.}
+\code{NULL}. Each row pairs a source URL with the canonical it declares.}
 
-\item{redirect_from_col, redirect_to_col}{From/to columns in `redirects_df`.
-Default `"from"` / `"to"`.}
+\item{redirect_from_col, redirect_to_col}{From/to columns in \code{redirects_df}.
+Default \code{"from"} / \code{"to"}.}
 
 \item{canonical_from_col, canonical_to_col}{From/to columns in
-`canonicals_df`. Default `"from"` / `"to"`.}
+\code{canonicals_df}. Default \code{"from"} / \code{"to"}.}
 
 \item{duplicate_from_policy}{How to handle a redirect source with multiple
-distinct targets. See [resolve_redirects()]. Default `"strict"`.}
+distinct targets. See \code{\link[=resolve_redirects]{resolve_redirects()}}. Default \code{"strict"}.}
 
 \item{loop_handling}{How to handle redirect cycles. See
-[resolve_redirects()]. Default `"error"`. Also governs cross-signal cycles
+\code{\link[=resolve_redirects]{resolve_redirects()}}. Default \code{"error"}. Also governs cross-signal cycles
 in the composed graph.}
 
 \item{canonical_duplicate_from_policy}{How to handle a canonical source with
-multiple distinct declared canonicals. Reuses the `duplicate_from_policy`
-enum. Default `"strict"`.}
+multiple distinct declared canonicals. Reuses the \code{duplicate_from_policy}
+enum. Default \code{"strict"}.}
 
 \item{canonical_loop_handling}{How to handle cycles among declared
-canonicals. Reuses the `loop_handling` enum. Default `"error"`.}
+canonicals. Reuses the \code{loop_handling} enum. Default \code{"error"}.}
 
 \item{canonical_conflict_policy}{How to resolve a redirect-vs-canonical
-disagreement on the **same source** URL. One of:
+disagreement on the \strong{same source} URL. One of:
 \describe{
-  \item{`"redirect_wins"`}{(Default) The 3xx redirect wins; a canonical
-    declared on a URL that itself redirects is ignored and flagged, never
-    transferred onto the redirect target.}
-  \item{`"error"`}{Error when a redirect and a canonical disagree on the
-    same source (after audit context is computed). Sources where the two
-    signals agree do not error.}
-  \item{`"canonical_wins"`}{The declared canonical wins for that source;
-    still flagged in the audit. The explicit exception to the default
-    ignored-canonical-on-redirecting-source rule.}
+\item{\code{"redirect_wins"}}{(Default) The 3xx redirect wins; a canonical
+declared on a URL that itself redirects is ignored and flagged, never
+transferred onto the redirect target.}
+\item{\code{"error"}}{Error when a redirect and a canonical disagree on the
+same source (after audit context is computed). Sources where the two
+signals agree do not error.}
+\item{\code{"canonical_wins"}}{The declared canonical wins for that source;
+still flagged in the audit. The explicit exception to the default
+ignored-canonical-on-redirecting-source rule.}
 }}
 }
 \value{
 A data frame with one row per folded source URL (rows where the URL
-  actually changes), with columns:
-  \describe{
-    \item{from}{The source URL.}
-    \item{to}{Its final composed representative.}
-    \item{signal}{Which signal folded this source: `"redirect"` or
-      `"canonical"`.}
-  }
-  The data frame additionally carries the cross-signal conflict tables as
-  attributes `"conflicts"` and `"ignored_canonicals"` (see
-  [audit_canonicals()] / `audit_fold()`).
+actually changes), with columns:
+\describe{
+\item{from}{The source URL.}
+\item{to}{Its final composed representative.}
+\item{signal}{Which signal folded this source: \code{"redirect"} or
+\code{"canonical"}.}
+}
+The data frame additionally carries the cross-signal conflict tables as
+attributes \code{"conflicts"} and \code{"ignored_canonicals"} (see
+\code{\link[=audit_canonicals]{audit_canonicals()}} / \code{audit_fold()}).
 }
 \description{
 Composes a single URL fold map from two distinct web signals --
-  3xx **redirects** and declared **rel=canonical** links -- and reports, per
-  folded URL, which signal caused the fold. This is the source of truth that
-  [pagerank()] uses to fold edge endpoints and TIPR prior URLs, and that the
-  downstream `semantic` bridge consumes to build its `graph_fold` table
-  without duplicating the composition logic.
+3xx \strong{redirects} and declared \strong{rel=canonical} links -- and reports, per
+folded URL, which signal caused the fold. This is the source of truth that
+\code{\link[=pagerank]{pagerank()}} uses to fold edge endpoints and TIPR prior URLs, and that the
+downstream \code{semantic} bridge consumes to build its \code{graph_fold} table
+without duplicating the composition logic.
 
-  The two signals are kept separate internally for auditability and resolved
-  with their own duplicate/loop policies, then composed with explicit
-  precedence (see Details). Self-referential pairs (self-redirects,
-  self-canonicals) are dropped as no-ops.
+The two signals are kept separate internally for auditability and resolved
+with their own duplicate/loop policies, then composed with explicit
+precedence (see Details). Self-referential pairs (self-redirects,
+self-canonicals) are dropped as no-ops.
 }
 \details{
-## Composition semantics
+\subsection{Composition semantics}{
+\enumerate{
+\item The redirect rules are resolved to terminal destinations using
+\code{duplicate_from_policy} / \code{loop_handling}; the canonical rules are
+resolved \strong{independently} using \code{canonical_duplicate_from_policy} /
+\code{canonical_loop_handling}. The two terminal maps are kept separate.
+\item They are then composed into one graph and resolved to terminals, so that:
+a \strong{canonical target is itself redirect-resolved} before folding (a
+canonical may point at a URL that 3xx's), and chains spanning both signals
+collapse to a single representative.
+\item For the \strong{same source}, \code{canonical_conflict_policy} decides the winner.
+Under the default \code{"redirect_wins"}, the canonical declared on a
+redirecting source is dropped and recorded in the audit.
+}
 
-1. The redirect rules are resolved to terminal destinations using
-   `duplicate_from_policy` / `loop_handling`; the canonical rules are
-   resolved **independently** using `canonical_duplicate_from_policy` /
-   `canonical_loop_handling`. The two terminal maps are kept separate.
-2. They are then composed into one graph and resolved to terminals, so that:
-   a **canonical target is itself redirect-resolved** before folding (a
-   canonical may point at a URL that 3xx's), and chains spanning both signals
-   collapse to a single representative.
-3. For the **same source**, `canonical_conflict_policy` decides the winner.
-   Under the default `"redirect_wins"`, the canonical declared on a
-   redirecting source is dropped and recorded in the audit.
-
-Inputs are expected to be **already canonicalized** to the node namespace
-(e.g. via the same `rurl` profile used for edges). [pagerank()] cleans
+Inputs are expected to be \strong{already canonicalized} to the node namespace
+(e.g. via the same \code{rurl} profile used for edges). \code{\link[=pagerank]{pagerank()}} cleans
 redirects and canonicals before composing; call this directly only when your
 URLs already share that namespace.
+}
 }
 \examples{
 redirects <- data.frame(from = "http://a", to = "http://b")
@@ -113,5 +115,5 @@ canonicals <- data.frame(from = "http://c", to = "http://a")
 build_fold_map(redirects, canonicals)
 }
 \seealso{
-[resolve_redirects()], [audit_canonicals()], [pagerank()]
+\code{\link[=resolve_redirects]{resolve_redirects()}}, \code{\link[=audit_canonicals]{audit_canonicals()}}, \code{\link[=pagerank]{pagerank()}}
 }

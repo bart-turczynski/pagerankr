@@ -10,27 +10,27 @@ screaming_frog_internal(x)
 \item{x}{A path to an Internal: All CSV file or an equivalent data frame.}
 }
 \value{
-An object of class `screaming_frog_internal` with components:
-  \describe{
-    \item{nodes}{Normalized node facts in input row order. Columns are
-      `url`, `segments`, `content_type`, `http_status`, `status`,
-      `indexability`, `indexability_status`, `canonical`, `redirect_to`,
-      `redirect_type`, `crawl_allowed`, `indexing_allowed`, robots fields,
-      language/timestamps, and selected crawl metrics. Optional absent
-      fields are typed `NA` columns.}
-    \item{redirects}{Raw `from` / `to` redirect pairs from valid 3xx rows.}
-    \item{canonicals}{Raw `from` / `to` canonical pairs, including
-      self-canonicals.}
-    \item{indexability}{URL-level facts compatible with `pagerank()`'s
-      indexability input.}
-    \item{diagnostics}{Deterministic counts, missing optional and ignored
-      columns, duplicate addresses, and row-level structural issues.}
-    \item{provenance}{Input identity, retained input-row IDs, and the
-      normalized-to-detected column manifest.}
-  }
+An object of class \code{screaming_frog_internal} with components:
+\describe{
+\item{nodes}{Normalized node facts in input row order. Columns are
+\code{url}, \code{segments}, \code{content_type}, \code{http_status}, \code{status},
+\code{indexability}, \code{indexability_status}, \code{canonical}, \code{redirect_to},
+\code{redirect_type}, \code{crawl_allowed}, \code{indexing_allowed}, robots fields,
+language/timestamps, and selected crawl metrics. Optional absent
+fields are typed \code{NA} columns.}
+\item{redirects}{Raw \code{from} / \code{to} redirect pairs from valid 3xx rows.}
+\item{canonicals}{Raw \code{from} / \code{to} canonical pairs, including
+self-canonicals.}
+\item{indexability}{URL-level facts compatible with \code{pagerank()}'s
+indexability input.}
+\item{diagnostics}{Deterministic counts, missing optional and ignored
+columns, duplicate addresses, and row-level structural issues.}
+\item{provenance}{Input identity, retained input-row IDs, and the
+normalized-to-detected column manifest.}
+}
 }
 \description{
-Normalizes a Screaming Frog **Internal: All** CSV or data frame into node,
+Normalizes a Screaming Frog \strong{Internal: All} CSV or data frame into node,
 redirect, canonical, and indexability tables. This is a node-side adapter:
 it does not reconstruct links from aggregate Inlinks/Outlinks counts.
 }

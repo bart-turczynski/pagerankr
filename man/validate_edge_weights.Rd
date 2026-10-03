@@ -22,18 +22,18 @@ validate_edge_weights(
 choice sets.}
 
 \item{expected_total}{Optional finite, non-negative total expected for each
-source. Use `1` to validate an already-normalized transition-probability
-column. `NULL` (default) reports totals without enforcing a target.}
+source. Use \code{1} to validate an already-normalized transition-probability
+column. \code{NULL} (default) reports totals without enforcing a target.}
 
-\item{tolerance}{Non-negative numeric tolerance for `expected_total`.}
+\item{tolerance}{Non-negative numeric tolerance for \code{expected_total}.}
 
-\item{action}{How validation failures are handled: `"error"` (default),
-`"warning"`, or `"none"`. The report is returned in every mode.}
+\item{action}{How validation failures are handled: \code{"error"} (default),
+\code{"warning"}, or \code{"none"}. The report is returned in every mode.}
 }
 \value{
 A data frame with one row per source and columns describing edge
-  count, weight total, invalid-value counts, all-zero status, optional total
-  agreement, and overall validity.
+count, weight total, invalid-value counts, all-zero status, optional total
+agreement, and overall validity.
 }
 \description{
 Inspect a weighted edge list before it reaches the PageRank solver. The
