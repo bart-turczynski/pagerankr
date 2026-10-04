@@ -24,6 +24,11 @@
 
 ## Documentation
 
+* pagerankr has a logo, the fleet's black hex, in `man/figures/logo.svg` and
+  `logo.png`. r-universe shows it on the package card and the documentation
+  site in its header, and the `README.md` heading carries it
+  (`SEOR-wxjuxbtu`).
+
 * **The `README` is shorter and points at the live site.** It drops the
   function table and the capability list, which repeated the reference index
   the site's `llms.txt` already carries, and the note that the website was

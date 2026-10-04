@@ -1,7 +1,5 @@
-pagerankr: SEO-Focused PageRank Modeling Toolkit
-================
 
-# pagerankr
+# pagerankr <img src="man/figures/logo.png" align="right" height="139" />
 
 <!-- badges: start -->
 
