@@ -1,5 +1,5 @@
 
-# pagerankr <img src="man/figures/logo.png" align="right" height="139" />
+# pagerankr <img src="man/figures/logo.png" align="right" height="139" alt="hex logo, white on black" />
 
 <!-- badges: start -->
 

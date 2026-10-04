@@ -6,7 +6,7 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# pagerankr <img src="man/figures/logo.png" align="right" height="139" />
+# pagerankr <img src="man/figures/logo.png" align="right" height="139" alt="hex logo, white on black" />
 
 <!-- badges: start -->
 [![CRAN status](https://www.r-pkg.org/badges/version/pagerankr)](https://CRAN.R-project.org/package=pagerankr)
