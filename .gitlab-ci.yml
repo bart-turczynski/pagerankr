@@ -70,10 +70,98 @@ default:
   # from falling back to a shared runner (owner decision 2026-09-23, option a;
   # SEOR-hhtzaknn).
   tags: [local-docker]
-  # rocker/r-ver points `install.packages()` at the Posit binary repo for this
-  # image's Ubuntu release, so R packages arrive prebuilt. Without that, a cold
-  # `check` job compiles the whole Suggests set from source.
+  cache:
+    # Keyed on DESCRIPTION: the library only needs rebuilding when the declared
+    # dependencies move. Every dependency now resolves from CRAN, so a cache hit
+    # can still hold an older rurl than CRAN currently serves — a new rurl
+    # release does not touch DESCRIPTION and so does not rotate the key. That
+    # was true before too (`Remotes:` tracked rurl main HEAD); what changed is
+    # that the drift is now bounded by releases rather than by commits.
+    # `rurl-floor` is unaffected: it installs into its own library, below.
+    key:
+      files:
+        - DESCRIPTION
+    paths:
+      - .cache/R
+
+# --------------------------------------------------------------------------
+# Shared R setup: `.r`, the template every job that runs R extends, and
+# `.pandoc_install`, its apt and pinned-pandoc steps.
+#
+# The R steps used to be `default: before_script`, which every job without one
+# of its own inherited. They moved to `.r` when pandoc joined them
+# (SEOR-dpjdwhbi): the pandoc install needs Debian, dpkg and curl, and
+# `default:` would hand it to `citation-version` on python:3.13-alpine too
+# (seor design/fleet-standard.md, "CI on every push to `main`").
+#
+# The pandoc steps are their own anchored list so that `full-check` and
+# `floor-check`, whose own `before_script` replaces `.r`'s, run the same
+# install rather than a copy of it. They extend `.r` for PANDOC_VERSION. A
+# plain YAML anchor rather than `!reference`: the pre-commit `check-yaml` hook
+# parses this file with a safe loader, which cannot construct GitLab's custom
+# tag. GitLab flattens the nested list.
+# --------------------------------------------------------------------------
+.pandoc_install: &pandoc_install
+  # rocker/r-ver is a lean image. curl and ca-certificates fetch the pandoc
+  # release below; git serves the `readme` gate in `gates`, which diffs a
+  # fresh knit against the committed README.md. apt's pandoc is the fallback
+  # the pinned one is installed over.
+  - apt-get update -qq && apt-get install -y --no-install-recommends curl ca-certificates git pandoc
+  # pandoc is PINNED, in every R job, as the fleet standard requires
+  # (SEOR-egfbijyi). Its markdown writer reflows text and pads tables
+  # differently between versions, so README.md is byte-stable only under the
+  # pandoc that knit it, PANDOC_VERSION in `.r`. The images' apt pandoc,
+  # whose version differs per image, would report drift that is not there.
+  # Until SEOR-dpjdwhbi only `gates` pinned it, by hand, so `check`,
+  # `coverage`, `pages` and `full-check` rendered with apt's.
+  #
+  # The release .deb is installed over the apt pandoc above. The two sha256
+  # values are the release's own published digests; what else moves with
+  # them on a bump is listed at PANDOC_VERSION in `.r`. A failed or mismatched
+  # download only warns and leaves the apt pandoc in place, so every gate
+  # still runs and reports; `gates` then fails its README check by name, on
+  # the pandoc mismatch, instead of knitting and reporting false drift
+  # (scripts/gates.R). Nothing unverified is ever installed. The download
+  # retries and has a ceiling: --max-time (which the fleet checker requires)
+  # bounds each attempt and --retry-max-time the retries, so a stalled CDN
+  # reaches that warning in about seven minutes at most instead of hanging
+  # every R job. The architecture comes from `dpkg --print-architecture`, so
+  # the same lines work on the arm64 runner and on amd64.
+  - |
+    ARCH=$(dpkg --print-architecture)
+    case "$ARCH" in
+      amd64) PANDOC_SHA256=d502599878eb29af3ae5f0cb5d559134df96534125d452c7a0674a5bad2c5ecf ;;
+      arm64) PANDOC_SHA256=b651c8bfd5a0a2f6650d6c0830131747ef67a1d9c0475b1399626611419e2205 ;;
+      *) PANDOC_SHA256=unknown ;;
+    esac
+    if curl -fsSL --retry 3 --retry-delay 5 --retry-max-time 300 --connect-timeout 20 --max-time 120 \
+      -o /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${ARCH}.deb" \
+      && echo "${PANDOC_SHA256}  /tmp/pandoc.deb" | sha256sum -c - \
+      && dpkg -i /tmp/pandoc.deb; then
+      echo "pandoc ${PANDOC_VERSION} installed"
+    else
+      echo "WARNING: pandoc ${PANDOC_VERSION} not installed; this job runs on the apt pandoc"
+    fi
+    pandoc --version | sed -n 1p
+
+.r:
+  variables:
+    # The pandoc every R job runs, installed by `.pandoc_install` above.
+    # scripts/check-toolchain.R reads this line and fails the pre-push gate
+    # when the local pandoc differs; seor's scripts/check-fleet-standard.py
+    # checks it against the fleet's version (seor design/fleet-standard.md,
+    # "CI on every push to `main`"; SEOR-egfbijyi). It is not the only place
+    # the version lives. A bump moves these together, in one change:
+    #   - this PANDOC_VERSION;
+    #   - both sha256 digests in `.pandoc_install` (amd64, arm64), the
+    #     release's own published values;
+    #   - README.md, re-knit under the new pandoc.
+    PANDOC_VERSION: "3.10"
   before_script:
+    - *pandoc_install
+    # rocker/r-ver points `install.packages()` at the Posit binary repo for
+    # this image's Ubuntu release, so R packages arrive prebuilt. Without that,
+    # a cold `check` job compiles the whole Suggests set from source.
     - mkdir -p "$R_LIBS_USER"
     # Add CRAN itself BEHIND the image's p3m repo.
     #
@@ -133,19 +221,6 @@ default:
              "carry downloads but not the built library. See SEOR-dyzgzyot.",
              call. = FALSE)
       }'
-  cache:
-    # Keyed on DESCRIPTION: the library only needs rebuilding when the declared
-    # dependencies move. Every dependency now resolves from CRAN, so a cache hit
-    # can still hold an older rurl than CRAN currently serves — a new rurl
-    # release does not touch DESCRIPTION and so does not rotate the key. That
-    # was true before too (`Remotes:` tracked rurl main HEAD); what changed is
-    # that the drift is now bounded by releases rather than by commits.
-    # `rurl-floor` is unaffected: it installs into its own library, below.
-    key:
-      files:
-        - DESCRIPTION
-    paths:
-      - .cache/R
 
 variables:
   R_LIBS_USER: "$CI_PROJECT_DIR/.cache/R"
@@ -230,24 +305,6 @@ workflow:
     - if: $CI_PIPELINE_SOURCE == "web"
     - when: never
 
-# Pandoc is PINNED for the README drift gate in `gates`, copied from
-# punycoder's `.pandoc_script`. pandoc's markdown writer changes its line
-# wrapping and table layout between versions, so README.md is byte-stable only
-# under the version that knitted it: 3.10, the maintainer's local pandoc when
-# README.md was last re-knit. Ubuntu's apt pandoc (3.1.x) would report drift
-# that is not there. Bump it only together with a re-knit of README.md.
-#
-# A plain YAML anchor rather than `!reference`: the pre-commit `check-yaml`
-# hook parses this file with a safe loader, which cannot construct GitLab's
-# custom tag. The architecture comes from `dpkg --print-architecture`, so the
-# same lines work on the arm64 runner and on amd64.
-.pandoc_script: &pandoc_script
-  - PANDOC_VERSION=3.10
-  - apt-get update -qq && apt-get install -y --no-install-recommends curl ca-certificates git
-  - curl -fsSL -o /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-$(dpkg --print-architecture).deb"
-  - dpkg -i /tmp/pandoc.deb
-  - pandoc --version | head -n1
-
 # 1, 2, 4. Folded verify-stage gate (SEOR-pgammbgo).
 #
 # Used to be four separate jobs: news-version, codemeta, citation-version
@@ -277,7 +334,7 @@ workflow:
 # apt-get is cheap in isolation, but it would add a NEW network/package
 # dependency to a job whose other two members (news-version, codemeta are
 # pure grep; lint resolves R packages through the P3M/CRAN options already
-# configured in `before_script`) touch no package manager at all today — one
+# configured in `.r`'s `before_script`) touched no package manager then — one
 # more thing that can flake and take three unrelated checks down with it, to
 # save a pickup that citation-version's own tiny alpine image already pays
 # almost nothing for. check-citation.py is also stdlib-only and offline by
@@ -286,7 +343,7 @@ workflow:
 # apt-get. This still removes 2 of the 3 possible extra pickups (news-version
 # and codemeta), just not all 3.
 #
-# Runs on the DEFAULT image/before_script (not alpine), because `lint`
+# Runs on the default image and the `.r` setup (not alpine), because `lint`
 # requires the full R dependency install regardless of which job hosts it —
 # folding does not remove that cost, only the two extra runner pickups around
 # it. `check` below now depends on `gates` (it used to depend on `lint`) for
@@ -307,13 +364,13 @@ workflow:
 #   * `full-check`, `floor-check`, `rurl-floor` — release-shaped floor/compatibility
 #     checks, not cheap metadata checks; handled under SEOR-ihmntqzm below.
 gates:
+  extends: .r
   stage: verify
   variables:
     LINTR_ERROR_ON_LINT: "true"
   script:
-    # pandoc and git serve the `readme` gate: it re-knits README.Rmd and diffs
-    # the result against the committed README.md.
-    - *pandoc_script
+    # The `readme` gate re-knits README.Rmd and diffs the result against the
+    # committed README.md, under the pandoc and git `.r` installs.
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install(c("lintr", "spelling"))'
     - Rscript scripts/gates.R
@@ -341,7 +398,6 @@ citation-version:
   stage: verify
   image: python:3.13-alpine
   cache: []
-  before_script: []
   script:
     - python3 scripts/check-citation.py --self-test
     - python3 scripts/check-citation.py
@@ -361,6 +417,7 @@ citation-version:
 # metadata it reads, and for a package already on CRAN the check would halt
 # there and read as 0/0/0 (SEOR-ygzjighu, as in punycoder's `check`).
 check:
+  extends: .r
   stage: check
   needs: [gates]
   variables:
@@ -368,9 +425,10 @@ check:
     R_CRAN_SRC: "https://cloud.r-project.org"
     R_CRAN_WEB: "https://cloud.r-project.org"
   script:
-    # pandoc builds the vignettes; qpdf and ghostscript arm the tarball and PDF
-    # size checks that R CMD check otherwise silently SKIPS.
-    - apt-get update -qq && apt-get install -y --no-install-recommends pandoc qpdf ghostscript
+    # qpdf and ghostscript arm the tarball and PDF size checks that R CMD
+    # check otherwise silently SKIPS. pandoc, which builds the vignettes, comes
+    # from `.pandoc_install`, whose `apt-get update` this install reuses.
+    - apt-get install -y --no-install-recommends qpdf ghostscript
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install("rcmdcheck")'
     # `check_dir` is set so the check output lands inside the project directory.
@@ -413,6 +471,7 @@ check:
 # threshold test, so a failing run still carries its report. The threshold is
 # never lowered: a package under it adds tests.
 coverage:
+  extends: .r
   stage: check
   needs: [check]
   script:
@@ -461,6 +520,7 @@ coverage:
 # as manual on every pipeline; both paths are gone, so no ordinary push
 # pipeline carries an audit job.
 osv-audit:
+  extends: .r
   stage: verify
   needs: []
   variables:
@@ -533,6 +593,7 @@ osv-audit:
 # Sonatype sunsets on 2026-12-31. After that this job goes red on transport,
 # not on an advisory, until oysteR moves or the audit is re-pointed.
 security-audit:
+  extends: .r
   stage: verify
   needs: []
   variables:
@@ -576,6 +637,7 @@ security-audit:
 #
 # No push pipeline runs these jobs; `check` is the push-time check.
 full-check:
+  extends: .r
   stage: check
   needs: []
   image: $R_IMAGE
@@ -611,13 +673,16 @@ full-check:
           - "rocker/r-ver:4.5"
           - "rocker/r-ver:devel"
   before_script:
+    # `.pandoc_install`: the apt and pinned-pandoc steps every R job runs
+    # (SEOR-dpjdwhbi). This job's own before_script replaces the rest of `.r`'s.
+    - *pandoc_install
     # The three images point `repos` at three shapes: `latest` at p3m
     # `latest`, `4.5` at a FROZEN p3m snapshot (2026-04-23, older than the
     # rurl, punycoder and pslr releases pagerankr needs, so resolution failed
     # outright on it), and `devel` at cloud.r-project.org. A user .Rprofile,
     # read after Rprofile.site, rewrites a trailing snapshot date to `latest`
     # and puts CRAN itself behind it, because p3m `latest` lags a new CRAN
-    # release by up to a day (see the default before_script). Testing old R
+    # release by up to a day (see `.r`'s before_script). Testing old R
     # against CURRENT packages is also what CRAN does.
     - |
       Rscript -e '
@@ -641,7 +706,7 @@ full-check:
       install.packages("pak", repos = sprintf(
       "https://r-lib.github.io/p/pak/stable/%s/%s/%s",
       .Platform$pkgType, R.Version()$os, R.Version()$arch))'
-    # Same self-evidencing check as the default before_script (SEOR-dyzgzyot).
+    # Same self-evidencing check as `.r`'s before_script (SEOR-dyzgzyot).
     - |
       Rscript -e '
       cat("Effective .libPaths():\n"); print(.libPaths())
@@ -652,7 +717,8 @@ full-check:
       }'
   script:
     - Rscript -e 'cat("Effective repos:\n"); print(getOption("repos"))'
-    - apt-get update -qq && apt-get install -y --no-install-recommends pandoc qpdf ghostscript
+    # pandoc comes from `.pandoc_install` above, which also ran `apt-get update`.
+    - apt-get install -y --no-install-recommends qpdf ghostscript
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install("rcmdcheck")'
     # rcmdcheck reads a check that halted partway as 0/0/0 and returns normally,
@@ -697,12 +763,15 @@ full-check:
 #   explorer, the tooling and the scheduled audits; their tests skip or mock
 #   without them, so _R_CHECK_FORCE_SUGGESTS_=false lets --as-cran report them
 #   as a NOTE instead of stopping.
-# - Vignettes are neither built nor checked, as in punycoder: no pandoc in this
-#   job, and the vignettes exercise the same functions the tests do.
+# - Vignettes are neither built nor checked, as in punycoder: the vignettes
+#   exercise the same functions the tests do. pandoc is installed anyway, by
+#   `.pandoc_install`, because every R job runs the one pinned pandoc
+#   (SEOR-dpjdwhbi).
 #
-# Its own before_script: the default one rewrites repos and installs pak for
-# the 4.6 image, and this job uses neither.
+# Its own before_script: `.r`'s rewrites repos and installs pak for the 4.6
+# image, and this job uses neither, so it takes only `.pandoc_install`.
 floor-check:
+  extends: .r
   stage: check
   needs: []
   image: rocker/r-ver:4.1.3
@@ -725,9 +794,10 @@ floor-check:
     - if: $CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_KIND == "deep-check"
     - if: $CI_PIPELINE_SOURCE == "api" && $DEEP_CHECK == "1"
   before_script:
+    - *pandoc_install
     - mkdir -p "$R_LIBS_USER"
   script:
-    - apt-get update -qq && apt-get install -y --no-install-recommends pkg-config libcurl4-openssl-dev libssl-dev libxml2-dev libglpk-dev libgmp3-dev zlib1g-dev
+    - apt-get install -y --no-install-recommends pkg-config libcurl4-openssl-dev libssl-dev libxml2-dev libglpk-dev libgmp3-dev zlib1g-dev
     - >
       Rscript -e 'snap <- c("igraph", "stringi", "digest", "Rcpp", "cpp11", "testthat", "withr", "knitr", "rmarkdown", "rcmdcheck");
       need <- setdiff(snap, rownames(installed.packages()));
@@ -781,6 +851,7 @@ floor-check:
 # the guard here would TAKE AWAY a check that currently runs on every push,
 # which is the exact failure mode this ticket exists to avoid, not produce.
 rurl-floor:
+  extends: .r
   stage: check
   needs: []
   variables:
@@ -870,6 +941,7 @@ rurl-floor:
 # or commit for a manual run, which is how a deliberate upstream break is
 # checked for visibility.
 rurl-devel:
+  extends: .r
   stage: check
   needs: []
   variables:
@@ -915,12 +987,12 @@ rurl-devel:
 # Default branch only: a site rebuilt from every merge request would publish
 # unreviewed docs to the same URL.
 pages:
+  extends: .r
   stage: deploy
   needs: [check]
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   script:
-    - apt-get update -qq && apt-get install -y --no-install-recommends pandoc
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install("pkgdown")'
     # pagerankr itself must be INSTALLED, not merely loaded: `build_reference()`
