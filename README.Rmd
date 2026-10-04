@@ -1,5 +1,4 @@
 ---
-title: "pagerankr: SEO-Focused PageRank Modeling Toolkit"
 output: github_document
 ---
 

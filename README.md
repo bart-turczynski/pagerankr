@@ -1,5 +1,3 @@
-pagerankr: SEO-Focused PageRank Modeling Toolkit
-================
 
 # pagerankr <img src="man/figures/logo.png" align="right" height="139" />
 
