@@ -158,7 +158,37 @@ gate_lint <- function() {
 # scripts/gates-readme-check.sh, SEOR-kaqtnovh). The test is on the diff's
 # output rather than its exit status, which rocker's git 2.43 sets on a
 # blank-only diff even under --ignore-blank-lines.
+#
+# CI sets PANDOC_VERSION (the `.r` template in .gitlab-ci.yml), and the pinned
+# install there only warns when it fails, leaving the image's apt pandoc in
+# place. A knit under that pandoc reports drift that is not there, so the gate
+# first fails by name when rmarkdown's pandoc is not the pin. Locally the
+# variable is unset and this is skipped; scripts/check-toolchain.R compares the
+# local pandoc with the pin instead.
+pandoc_pin_mismatch <- function() {
+  pin <- Sys.getenv("PANDOC_VERSION")
+  if (!nzchar(pin)) {
+    return(NULL)
+  }
+  found <- as.character(rmarkdown::pandoc_version())
+  if (identical(found, pin)) {
+    return(NULL)
+  }
+  c(
+    sprintf(
+      "rmarkdown uses pandoc %s, but CI pins %s (PANDOC_VERSION).",
+      found, pin
+    ),
+    "The pinned install failed (see the WARNING in before_script), so a knit",
+    "here would report drift that is not there. The README check did not run."
+  )
+}
+
 gate_readme <- function() {
+  mismatch <- pandoc_pin_mismatch()
+  if (!is.null(mismatch)) {
+    return(record("readme", FALSE, mismatch))
+  }
   knit <- tryCatch(
     {
       rmarkdown::render(

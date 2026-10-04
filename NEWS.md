@@ -55,8 +55,8 @@
 
 * **Every CI job that runs R uses `pandoc` 3.10.** `README.md` renders
   byte for byte only under the `pandoc` that wrote it, and only the `gates`
-  job pinned it: `check`, `coverage`, `rurl-floor` and `pages` used the older
-  one Ubuntu ships. One shared setup now installs 3.10 from its release in
+  job pinned it: `check`, `coverage`, `pages` and `full-check` used the one
+  each image ships. One shared setup now installs 3.10 from its release in
   every R job, after checking the download against the digest the release
   publishes, and `scripts/check-toolchain.R` fails the pre-push gate when the
   local `pandoc` differs from that pin (`SEOR-dpjdwhbi`).
