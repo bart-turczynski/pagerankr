@@ -1,9 +1,6 @@
 ---
 title: "pagerankr: SEO-Focused PageRank Modeling Toolkit"
-output:
-  github_document:
-    toc: true
-    number_sections: true
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
@@ -31,29 +28,14 @@ knitr::opts_chunk$set(echo = TRUE)
 [![Last commit](https://img.shields.io/gitlab/last-commit/bart-turczynski%2Fpagerankr)](https://gitlab.com/bart-turczynski/pagerankr/-/commits/main)
 <!-- badges: end -->
 
-`pagerankr` is an SEO-focused R toolkit for PageRank modeling on crawl data.
-It supports both a single end-to-end wrapper (`pagerank()`) and modular
-building blocks for cleaning URLs, auditing redirects, resolving link graphs,
-running scenario comparisons, and exporting graph outputs.
-
-The package currently includes:
-
-- End-to-end and low-level PageRank calculation
-- Redirect diagnostics and resolution policies
-- Nofollow and indexability-aware PageRank modeling
-- Domain/host filtering and edge-weight transformations
-- Screaming Frog Internal: All plus All Inlinks/Outlinks import adapters
-- Model comparison, parameter sweeps, and what-if simulations
-- Graph export utilities and an optional interactive Shiny explorer
-- HITS hub and authority scores (`hits()`)
-- SALSA hub and authority scores (`salsa()`)
-- TrustRank seed-biased PageRank (`trustrank()`)
-- Topic-Sensitive PageRank (per-topic authority with blended scores)
-- Reverse-graph feeder PageRank (find pages that power a cluster)
-- GA4 behavioral transition modeling (transition counts, structural
-  smoothing, entrance teleport)
-- PageRank convergence controls (algo/eps/niter) and alpha-stability
-  reporting (`pagerank_stability()`)
+`pagerankr` models PageRank on crawl data for SEO work. Give it an edge list,
+a redirect report or a Screaming Frog crawl export, and it resolves redirects
+and canonicals, builds the link graph, and scores how authority flows through
+the site's internal links. Beyond PageRank it computes HITS, SALSA, TrustRank
+and topic-sensitive PageRank, compares models across parameter sweeps,
+simulates proposed link and redirect changes, and exports the graph for other
+tools. It is for SEO practitioners and analysts who want to measure internal
+linking from the crawls they already have.
 
 ## Installation
 
@@ -61,9 +43,11 @@ The package currently includes:
 # From CRAN
 install.packages("pagerankr")
 
-# Development version from GitLab
-# install.packages("devtools")
-devtools::install_gitlab("bart-turczynski/pagerankr")
+# From r-universe
+install.packages(
+  "pagerankr",
+  repos = c("https://bart-turczynski.r-universe.dev", "https://cloud.r-project.org")
+)
 ```
 
 ## Quick Start
@@ -89,199 +73,27 @@ pr <- pagerank(edges, redirects_df = redirects)
 print(pr)
 ```
 
-## Current Capabilities
+## Learn More
 
-### Crawl Data Prep and Redirect QA
+The documentation site, <https://bart-turczynski.gitlab.io/pagerankr/>,
+holds the function reference and these articles:
 
-- `clean_url_columns()` canonicalizes URL columns using `rurl::get_clean_url`
-- `audit_redirects()` reports redirect chains, loops, conflicts, self-refs,
-  and optional orphaned rules vs. an edge list
-- `resolve_redirects()` applies redirect maps to an edge list with conflict and
-  loop policies
-- `resolve_redirect_urls()` resolves a character vector of URLs without requiring an
-  edge list
-- `resolve_links()` returns the resolved/deduplicated graph without computing PR
-- `get_unique_edges()` and `drop_isolates()` provide explicit graph hygiene tools
+- [Using the pagerankr Package](https://bart-turczynski.gitlab.io/pagerankr/articles/pagerankr-usage.html):
+  the full pipeline from an edge list to a scored graph. Start here.
+- [Case study: measuring an internal-linking intervention](https://bart-turczynski.gitlab.io/pagerankr/articles/case-study.html)
+- [Presets: named views of the link graph](https://bart-turczynski.gitlab.io/pagerankr/articles/presets.html)
+- [Boilerplate detection: template links that live in the content](https://bart-turczynski.gitlab.io/pagerankr/articles/boilerplate.html)
+- [TrustRank: seed-biased PageRank in pagerankr](https://bart-turczynski.gitlab.io/pagerankr/articles/trustrank.html)
+- [Topic Feeder PageRank: what powers a content cluster](https://bart-turczynski.gitlab.io/pagerankr/articles/topic_feeder_pagerank.html)
 
-```r
-audit <- audit_redirects(redirects, edge_list_df = edges)
-print(audit)
+The same material ships with the package: `help(package = "pagerankr")` and
+`vignette(package = "pagerankr")`.
 
-resolve_redirect_urls(
-  c("http://example.com/old-blog", "http://example.com/home"),
-  redirects
-)
-```
-
-### Screaming Frog Crawl Imports
-
-Use `screaming_frog_bundle()` with an **Internal: All** export and either
-**All Inlinks** or **All Outlinks**. The node export supplies page facts,
-redirects, canonicals, and indexability. The link export supplies raw link
-observations and graph-eligible Hyperlink edges. Resource, canonical, hreflang,
-and other non-Hyperlink link rows are retained in diagnostics but excluded from
-the PageRank graph by default.
-
-```r
-bundle <- screaming_frog_bundle(
-  internal = "internal_all.csv",
-  links = "all_outlinks.csv",
-  link_export_kind = "all_outlinks"
-)
-
-pr <- pagerank_screaming_frog(bundle)
-attr(pr, "screaming_frog_import")
-attr(pr, "transition_audit")
-```
-
-Placement and rendered-vs-HTML policies are explicit scoring choices:
-
-```r
-pagerank_screaming_frog(
-  bundle,
-  accepted_placements = c("nav", "content"),
-  link_origins = c("html", "html_rendered"),
-  placement_weights = c(nav = 2, content = 1)
-)
-```
-
-### PageRank Modeling Controls
-
-- `pagerank()` supports weighted edges via `weight_col`
-- `duplicate_edge_policy = "collapse"` keeps the standard binary
-  destination-level surfer as the default: repeated `from -> to` rows become
-  one edge. Opt into `"aggregate"` to sum duplicate numeric weights, or
-  `"count_instances"` for a link-slot surfer where repeated links to the same
-  target increase transition probability.
-- `nofollow_col` + `nofollow_action = c("evaporate", "drop", "keep")`
-- `indexability_df` support for `noindex` and `Blocked by robots.txt`
-  behaviors (`robots_blocked_action = "show"` or `"vanish"`)
-- Domain scoping directly in `pagerank()` (`keep_domains`, `exclude_domains`)
-  or via `filter_links_by_domain()` with domain/host keep/ignore rules
-- `transform_weights()` provides rank/log/zipf/percentile transforms for raw
-  edge signals
-
-```r
-edges_w <- data.frame(
-  from = c("Home", "Home", "Home"),
-  to = c("About", "Blog", "Contact"),
-  position = c(1, 2, 5)
-)
-
-edges_w$weight <- transform_weights(
-  edges_w$position,
-  method = "zipf",
-  descending = FALSE
-)
-
-pagerank(edges_w, weight_col = "weight", clean_edge_urls = FALSE)
-```
-
-### Comparison, Grid Search, and Simulation
-
-- `compare_pagerank()` calculates deltas, rank shifts, and summary stats
-- `auto_grid()` and `pagerank_grid()` run parameter sweeps
-- `analyze_pagerank_grid()` summarizes concentration/distribution effects
-- `simulate_changes()` compares baseline vs proposed links/redirects
-- `pr_gini()`, `pr_entropy()`, and `pr_top_k_share()` compute distribution metrics
-
-```r
-grid <- auto_grid(
-  damping = c(0.85, 0.95),
-  nofollow_action = c("evaporate", "drop")
-)
-
-grid_results <- pagerank_grid(edges, params_grid = grid, clean_edge_urls = FALSE)
-analyze_pagerank_grid(grid_results)
-```
-
-### Export and Exploration
-
-- `export_graph()` writes outputs in `graphml`, `dot`, `edgelist`, or `pajek`
-  formats
-- `launch_pagerank_explorer()` launches an interactive Shiny app for uploads,
-  visualization, redirect auditing, and exports
-
-```r
-pr <- pagerank(edges, clean_edge_urls = FALSE)
-export_graph(pr, edges, file = "pagerank.graphml", format = "graphml")
-
-# Optional interactive app:
-# install.packages(c("shiny", "DT", "visNetwork"))
-# launch_pagerank_explorer()
-```
-
-## Key Functions
-
-| Function | Purpose |
-|---|---|
-| `pagerank()` | End-to-end PageRank pipeline |
-| `compute_pagerank()` | Low-level wrapper around `igraph::page_rank()` |
-| `resolve_links()` | Resolve redirects and deduplicate graph without PR |
-| `resolve_redirects()` | Apply redirect rules to an edge list |
-| `resolve_redirect_urls()` | Resolve standalone URL vectors through redirects |
-| `resolve_canonicals()` | Apply rel=canonical folds to edge endpoints |
-| `resolve_folded_urls()` | Resolve URL vectors through redirects plus canonicals |
-| `audit_redirects()` | Diagnose redirect chains, loops, and conflicts |
-| `screaming_frog_bundle()` | Compose Screaming Frog node and link exports |
-| `pagerank_screaming_frog()` | Score a Screaming Frog bundle via `pagerank()` |
-| `clean_url_columns()` | Canonicalize URL columns in data frames |
-| `get_unique_edges()` | Deduplicate edges and handle self-loops |
-| `drop_isolates()` | Build vertex sets with or without isolates |
-| `filter_links_by_domain()` | Filter edges by keep/ignore domain or host lists |
-| `transform_weights()` | Transform raw signals into PageRank edge weights |
-| `compare_pagerank()` | Compare two PageRank outputs with rank deltas |
-| `simulate_changes()` | Evaluate proposed link/redirect changes |
-| `auto_grid()` | Build exhaustive parameter grids |
-| `pagerank_grid()` | Run PageRank across multiple parameter sets |
-| `analyze_pagerank_grid()` | Summarize PageRank distribution by model |
-| `pr_gini()` | Gini concentration metric |
-| `pr_entropy()` | Entropy dispersion metric |
-| `pr_top_k_share()` | Top-k PageRank concentration share |
-| `export_graph()` | Export graph and PageRank metadata for external tools |
-| `launch_pagerank_explorer()` | Start the interactive Shiny explorer |
-| `hits()` | End-to-end HITS hub + authority scores |
-| `compute_hits()` | Low-level igraph HITS wrapper |
-| `salsa()` | End-to-end SALSA hub + authority scores |
-| `compute_salsa()` | Low-level SALSA computational core |
-| `trustrank()` | TrustRank: seed-biased PageRank from a trusted seed set |
-| `topic_sensitive_pagerank()` | Per-topic personalized PageRank with blended scores |
-| `topic_feeder_pagerank()` | Reverse-graph seeded PR: find pages that feed a cluster |
-| `seed_prior()` | Build a teleport prior from a seed set (for trustrank / topic_feeder_pagerank) |
-| `align_prior_to_vertices()` | Align a prior/teleport data frame to the graph vertex set |
-| `damping_sensitivity()` | Sweep PageRank across a range of damping factors |
-| `pagerank_stability()` | Alpha-stability report: rank correlation across a damping grid |
-| `ga4_page_transitions()` | Consecutive page-view transition counts from a GA4 export |
-| `smooth_transitions()` | Shrink sparse empirical transitions toward a structural prior |
-| `ga4_entrance_teleport()` | Entrance/landing-page counts as a PageRank teleport vector |
-| `aggregate_edges()` | Aggregate duplicate edges after URL folding |
-| `transform_edge_weights()` | Per-source grouped edge weight transforms |
-| `validate_edge_weights()` | Validate per-source weight totals |
-| `screaming_frog_internal()` | Import Screaming Frog Internal: All export |
-| `screaming_frog_links()` | Import Screaming Frog All Inlinks / All Outlinks export |
-| `audit_redirects()` | Diagnose redirect chains, loops, and conflicts |
-| `audit_canonicals()` | Diagnose rel=canonical fold coverage and conflicts |
-| `resolve_canonicals()` | Apply rel=canonical folds to an edge list |
-| `resolve_canonical_urls()` | Resolve a URL vector through rel=canonical folds |
-| `resolve_folded_urls()` | Resolve a URL vector through redirects plus canonicals |
-
-## Further Information
-
-The reference and vignettes ship with the package and are reachable through
-`help(package = "pagerankr")` and the `vignette()` calls below; the rendered
-website is being rebuilt after the move to GitLab. To report a bug or request
-an enhancement, use [GitLab Issues](https://gitlab.com/bart-turczynski/pagerankr/-/work_items).
+To report a bug or request an enhancement, use
+[GitLab Issues](https://gitlab.com/bart-turczynski/pagerankr/-/work_items).
 Please read [CONTRIBUTING.md](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/CONTRIBUTING.md)
-before proposing a change; it sets out the test, lint, and R CMD check
-requirements. For privately reported security vulnerabilities, follow
-[SECURITY.md](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/SECURITY.md).
-
-```r
-help(package = "pagerankr")
-vignette("pagerankr-usage")
-vignette("trustrank")
-vignette("topic_feeder_pagerank")
-```
+before proposing a change. For privately reported security vulnerabilities,
+follow [SECURITY.md](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/SECURITY.md).
 
 ## Code of Conduct
 
