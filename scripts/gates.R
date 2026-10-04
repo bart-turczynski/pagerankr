@@ -150,8 +150,8 @@ gate_lint <- function() {
 # design/fleet-standard.md): README.md must match a fresh knit of README.Rmd.
 # Rendered with rmarkdown directly rather than devtools::build_readme(): the
 # Rmd evaluates no package code, so nothing needs installing first, and
-# rmarkdown is already a Suggests. Needs pandoc 3.10 and git, which the `gates`
-# CI job installs (see `.pandoc_script` there).
+# rmarkdown is already a Suggests. Needs pandoc 3.10 and git, which every R CI
+# job installs through the `.r` template (PANDOC_VERSION there).
 #
 # Blank-line-only differences don't count: pandoc versions disagree about the
 # blank line after `<!-- badges: start -->` (punycoder's
