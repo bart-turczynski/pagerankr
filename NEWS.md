@@ -22,6 +22,19 @@
   pages are regenerated, with headings, emphasis, code and cross-links rendered
   (`PAGE-iyfuhqyz`).
 
+## Documentation
+
+* **The `README` is shorter and points at the live site.** It drops the
+  function table and the capability list, which repeated the reference index
+  the site's `llms.txt` already carries, and the note that the website was
+  being rebuilt. It links the pkgdown site and each article, and adds the
+  r-universe install command next to the CRAN one (`SEOR-kqmqosji`).
+
+* **`DESCRIPTION` declares search keywords.** The new
+  `X-schema.org-keywords` field is the only keyword source r-universe reads
+  for a package built from GitLab, so pagerankr now shows up under topics
+  such as PageRank, internal linking and Screaming Frog (`SEOR-nplcfbib`).
+
 ## Internal
 
 * **R CMD check gates fail when the check halts.** When `R CMD check` stopped

@@ -39,4 +39,7 @@ URL: https://bart-turczynski.gitlab.io/pagerankr/,
     https://bart-turczynski.r-universe.dev/pagerankr,
     https://CRAN.R-project.org/package=pagerankr
 BugReports: https://gitlab.com/bart-turczynski/pagerankr/-/issues
+X-schema.org-keywords: pagerank, seo, technical-seo, internal-linking,
+    link-graph, link-equity, crawl-analysis, screaming-frog, redirects,
+    trustrank
 Config/roxygen2/version: 8.0.0
