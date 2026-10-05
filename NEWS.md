@@ -2,73 +2,12 @@
 
 ## Breaking changes
 
-* pagerankr now requires R >= 4.1.0 (was R >= 4.0.0). rurl, which pagerankr
-  imports, needs pslr and punycoder, and both require R 4.1. The weekly
-  `deep-check` pipeline now checks the package on R 4.1.3 (`SEOR-wurguiqa`).
+* pagerankr now requires R >= 4.1.0 (was R >= 4.0.0), as its dependency rurl does (`SEOR-wurguiqa`).
 
 ## Bug fixes
 
-* **Case-insensitive matching no longer depends on the locale.** Screaming Frog
-  header names and values (`Follow`, `Link Origin`, the crawl and indexing
-  `Allowed` flags), XPath regions, placement labels and URL hosts were folded
-  with `tolower()`, which under a Turkish locale on Linux maps `I` to a dotless
-  `ı`, so values containing `I` silently stopped matching. Only ASCII
-  letters are folded now, in every locale (`PAGE-vzetnwuu`).
-
-* **Help pages render their formatting.** Roxygen markdown was never switched
-  on, so the reference manual and every help page showed the documentation
-  source as literal text: `##` headings, `**bold**`, backticks and `[fn()]`
-  links. `DESCRIPTION` now sets `Roxygen: list(markdown = TRUE)` and the help
-  pages are regenerated, with headings, emphasis, code and cross-links rendered
-  (`PAGE-iyfuhqyz`).
-
-## Documentation
-
-* pagerankr has a logo, the fleet's black hex, in `man/figures/logo.svg` and
-  `logo.png`. r-universe shows it on the package card and the documentation
-  site in its header, and the `README.md` heading carries it with the alt text
-  "hex logo, white on black" (`SEOR-wxjuxbtu`, `SEOR-wfleahtg`).
-
-* The logo files carry full metadata: every project link (GitLab, GitHub, CRAN,
-  r-universe, the documentation site and, where one exists, the Zenodo DOI), a
-  screen-reader description and the standard image metadata fields, written by
-  `scripts/logo-metadata.py` in the `seor` repository (`SEOR-eyfiidrv`).
-
-* The logo's keywords are this package's `X-schema.org-keywords` tags, the ones
-  r-universe indexes, as written in `DESCRIPTION` and after `R`, `rstats` and
-  `R package` (`SEOR-qoqmestu`).
-
-* **The `README` is shorter and points at the live site.** It drops the
-  function table and the capability list, which repeated the reference index
-  the site's `llms.txt` already carries, and the note that the website was
-  being rebuilt. It links the pkgdown site and each article, and adds the
-  r-universe install command next to the CRAN one (`SEOR-kqmqosji`).
-
-* **`DESCRIPTION` declares search keywords.** The new
-  `X-schema.org-keywords` field is the only keyword source r-universe reads
-  for a package built from GitLab, so pagerankr now shows up under topics
-  such as PageRank, internal linking and Screaming Frog (`SEOR-nplcfbib`).
-
-## Internal
-
-* **R CMD check gates fail when the check halts.** When `R CMD check` stopped
-  partway, `rcmdcheck` parsed the cut-off log as 0 errors, 0 warnings and 0
-  notes, and the gate passed. The pre-push hook and the CI `check` and
-  `check-oldrel` jobs now also fail on a non-zero exit status (`SEOR-maavnxdm`).
-
-* **A weekly job tests against the development `main` of rurl again.** Removing
-  `Remotes:` ended the CI jobs' resolution of rurl to its `main`, so an upstream break
-  would have reached pagerankr only after a rurl release. The `rurl-devel` job,
-  on its own weekly schedule, installs rurl from GitLab `main` for the test
-  step only (`PAGE-majaowtn`).
-
-* **Every CI job that runs R uses `pandoc` 3.10.** `README.md` renders
-  byte for byte only under the `pandoc` that wrote it, and only the `gates`
-  job pinned it: `check`, `coverage`, `pages` and `full-check` used the one
-  each image ships. One shared setup now installs 3.10 from its release in
-  every R job, after checking the download against the digest the release
-  publishes, and `scripts/check-toolchain.R` fails the pre-push gate when the
-  local `pandoc` differs from that pin (`SEOR-dpjdwhbi`).
+* Case-insensitive matching of Screaming Frog headers, XPath regions, placement labels and hosts no longer depends on the locale (`PAGE-vzetnwuu`).
+* Help pages render their Markdown formatting instead of showing it as literal text (`PAGE-iyfuhqyz`).
 
 # pagerankr 0.1.1
 
