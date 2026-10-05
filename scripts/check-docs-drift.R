@@ -24,21 +24,24 @@
 # so a dynamic doc could make the gate reject a tree that document() considers
 # clean -- an unfixable failure, the worst kind for a gate to have.
 #
-# WHERE IT RUNS. In robotstxtr the default loader compiles src/ in place and
-# leaves .o files and a .so behind, so there it must not run in the directory
-# rcmdcheck builds from. pagerankr has no src/, so the loader writes nothing
-# but the docs themselves. What still matters is that, on drift, this script
-# REWRITES man/ and NAMESPACE in place. .githooks/pre-push therefore runs it
-# last, after every gate that reads man/ (spelling, R CMD check), so no other
-# gate ever sees a tree this one changed; scripts/gates.R runs it after `lint`
-# for the same reason.
+# WHERE IT RUNS. The script regenerates IN the directory it is given, so on
+# drift that directory's man/, NAMESPACE and DESCRIPTION come out rewritten.
+# The gate therefore never points it at a checkout: scripts/gates.R (the
+# `docs` gate, which both .githooks/pre-push and the `gates` CI job call)
+# exports the commit under test with `git archive` into a throwaway temp
+# directory, runs this script there, and deletes the directory afterwards. That
+# keeps the developer's tree untouched mid-push, and it means the gate judges
+# the COMMIT -- a fix sitting uncommitted on disk does not rescue a stale
+# committed man/, and an untracked man/*.Rd does not count as present.
+# pagerankr has no src/, so roxygen's load leaves no build residue either way.
 #
 # Usage (from the package root):
 #   Rscript scripts/check-docs-drift.R [package-dir]
 #
 # On drift the script prints the diff, exits 1, and LEAVES the regenerated
-# files in place: run against a working tree, the fix is then already applied
-# and only needs committing.
+# files in package-dir. Run by hand against a working tree, that is the fix
+# already applied (the same thing devtools::document() does); the gate's
+# export is discarded instead.
 
 args <- commandArgs(trailingOnly = TRUE)
 pkg <- if (length(args) > 0L) args[[1L]] else "."
@@ -86,11 +89,18 @@ if (!identical(pinned, installed)) {
 }
 
 # The generated surface roxygen2 owns, relative to the package root.
+# DESCRIPTION is on it because roxygenise() writes there too: RoxygenNote and
+# Config/roxygen2/version (the version gate above keeps those still), and a
+# Collate field once any R/ file carries an @include tag. A Collate change is
+# real drift, and the gate would otherwise pass while leaving it behind.
 watched_files <- function(root) {
   rd <- list.files(file.path(root, "man"), pattern = "[.]Rd$",
     recursive = TRUE)
-  c(if (file.exists(file.path(root, "NAMESPACE"))) "NAMESPACE",
-    if (length(rd) > 0L) file.path("man", rd))
+  c(
+    if (file.exists(file.path(root, "DESCRIPTION"))) "DESCRIPTION",
+    if (file.exists(file.path(root, "NAMESPACE"))) "NAMESPACE",
+    if (length(rd) > 0L) file.path("man", rd)
+  )
 }
 
 # Copy a set of package-relative paths into a flat mirror directory, so the two
@@ -109,8 +119,10 @@ read_bytes <- function(path) readBin(path, "raw", file.size(path))
 committed_files <- watched_files(pkg)
 committed_dir <- mirror(pkg, committed_files, tempfile("docs-committed-"))
 
-message(sprintf("Regenerating man/ and NAMESPACE with roxygen2 %s ...",
-  installed))
+message(sprintf(
+  "Regenerating man/, NAMESPACE and DESCRIPTION with roxygen2 %s ...",
+  installed
+))
 roxygen2::roxygenise(pkg)
 
 regenerated_files <- watched_files(pkg)
@@ -125,7 +137,10 @@ changed <- Filter(
 )
 
 if (length(added) == 0L && length(removed) == 0L && length(changed) == 0L) {
-  message("Docs in sync: man/ and NAMESPACE match the roxygen comments in R/.")
+  message(
+    "Docs in sync: man/, NAMESPACE and DESCRIPTION match the roxygen ",
+    "comments in R/."
+  )
   quit(status = 0L)
 }
 
@@ -172,7 +187,7 @@ if (length(diff_out) > 0L) {
 
 message("")
 message(
-  "Fix: run devtools::document() and commit the resulting man/ and NAMESPACE ",
-  "changes."
+  "Fix: run devtools::document() and COMMIT the resulting man/, NAMESPACE ",
+  "and DESCRIPTION changes. The gate checks the commit, not the working tree."
 )
 quit(status = 1L)

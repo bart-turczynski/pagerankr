@@ -33,16 +33,18 @@
 #   4. bugreports      scripts/check-bugreports.py (+ --self-test)
 #   5. lint            lintr::lint_package()
 #   6. spelling        spelling::spell_check_package()
-#   7. rcmdcheck       rcmdcheck --as-cran, fails on ERRORS AND WARNINGS
-#   8. docs            scripts/gates.R -- roxygen docs drift (man/, NAMESPACE)
+#   7. docs            scripts/gates.R -- roxygen docs drift (man/, NAMESPACE,
+#                      DESCRIPTION) in a git-archive export of the pushed commit
+#   8. rcmdcheck       rcmdcheck --as-cran, fails on ERRORS AND WARNINGS
 # Between 4 and 5, one NON-GATING notice: installed rurl vs the version CRAN
 # serves. It warns and never fails, and it is the one thing here still allowed
 # to skip itself, because it reports drift rather than checking the tree.
 #
-# Gate 8 breaks the cheapest-first order on purpose: on drift it rewrites man/
-# and NAMESPACE in place, so it runs after every gate that reads them.
+# Gate 7 is the one gate that reads the PUSHED COMMIT rather than the working
+# tree: it exports PRE_COMMIT_TO_REF (HEAD when unset) to a temp directory, so
+# an uncommitted fix cannot pass it and it never rewrites this checkout.
 #
-# Gates 1, 2 and 8 are not reimplemented here. They call scripts/gates.R, the same
+# Gates 1, 2 and 7 are not reimplemented here. They call scripts/gates.R, the same
 # file the `gates` CI job runs, so the two cannot drift. This hook used to carry
 # its own bash reimplementation of the news-version rule; that was a second
 # copy of a rule that already existed in R.
@@ -76,7 +78,7 @@
 # Known divergence that remains on purpose: dependencies resolve from the LOCAL
 # library here, while CI installs them fresh. An out-of-date local rurl makes
 # this gate weaker than CI's -- which is what the non-gating notice reports, and
-# what gate 7 exists to catch. `qpdf` missing also makes R CMD check SKIP the
+# what gate 8 exists to catch. `qpdf` missing also makes R CMD check SKIP the
 # tarball/PDF size checks CRAN runs; `brew install qpdf` arms them.
 #
 # Enable once per clone:   pre-commit install && pre-commit install --hook-type pre-push
@@ -233,7 +235,25 @@ else
   fi
 fi
 
-# 7. R CMD check --as-cran, fails on errors AND warnings. This is what catches
+# 7. Roxygen docs drift (SEOR-nwfmerhu). A stale .Rd is valid .Rd, so lint and
+# R CMD check pass it; only regenerating and diffing sees it. The logo sweep
+# added man/figures/logo.svg without re-running devtools::document(), and
+# rurl's and pslr's man/<pkg>-package.Rd went stale with every gate green.
+# Same scripts/gates.R gate the `gates` CI job runs. It regenerates inside a
+# throwaway `git archive` export of the commit being pushed (PRE_COMMIT_TO_REF,
+# which pre-commit's pre-push stage sets; HEAD when it is unset), so it leaves
+# this checkout alone and needs no slot after the gates that read man/. It sits
+# here, before R CMD check, by cost. No roxygen2 probe here: the script fails by
+# name when roxygen2 is missing, so a second Rscript launch to ask first would
+# only duplicate that.
+echo "pre-push: roxygen docs drift (scripts/gates.R docs) ..." >&2
+if Rscript scripts/gates.R --no-summary docs >&2; then
+  record docs pass
+else
+  record docs fail
+fi
+
+# 8. R CMD check --as-cran, fails on errors AND warnings. This is what catches
 # correctness regressions -- a dependency bump that turns fixtures red (rurl
 # 2.1.0 emptied bare-label graphs and slipped in while remote CI was
 # billing-disabled).
@@ -248,23 +268,6 @@ else
   else
     record rcmdcheck fail
   fi
-fi
-
-# 8. Roxygen docs drift (SEOR-nwfmerhu). A stale .Rd is valid .Rd, so lint and
-# R CMD check pass it; only regenerating and diffing sees it. The logo sweep
-# added man/figures/logo.svg without re-running devtools::document(), and
-# rurl's and pslr's man/<pkg>-package.Rd went stale with every gate green.
-# Same scripts/gates.R gate the `gates` CI job runs. LAST on purpose: on drift
-# it rewrites man/ and NAMESPACE in place (the fix, ready to commit), and no
-# gate above may read a tree it changed. pagerankr has no src/, so the roxygen
-# load leaves no build residue for R CMD check to pick up.
-echo "pre-push: roxygen docs drift (scripts/gates.R docs) ..." >&2
-if ! have_r_pkg docs roxygen2; then
-  record docs fail
-elif Rscript scripts/gates.R --no-summary docs >&2; then
-  record docs pass
-else
-  record docs fail
 fi
 
 # The summary. "The gate passed" is a claim about a NAMED set, never about

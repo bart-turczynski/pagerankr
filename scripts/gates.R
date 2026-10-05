@@ -49,7 +49,7 @@
 # file: it calls `gates.R news-version codemeta` for the two base-R gates and
 # runs lint itself, because the hook keeps SKIP_SPELLING as a separate opt-in
 # that this file's combined `lint` gate has no way to express (SEOR-dzrisdmi).
-# It calls `gates.R docs` too, as its last gate (SEOR-nwfmerhu).
+# It calls `gates.R docs` too, for its docs-drift gate (SEOR-nwfmerhu).
 #
 # Selecting a subset does NOT make it fail-fast: whatever is selected still
 # runs to completion and reports once, below.
@@ -217,25 +217,68 @@ gate_readme <- function() {
   record("readme", TRUE)
 }
 
-# 5. docs -- roxygen docs drift (SEOR-nwfmerhu): man/ and NAMESPACE must match
-# what roxygen2 regenerates from R/. The rule lives in
-# scripts/check-docs-drift.R, run here as its own process so the hook and this
-# job call the same file. It needs roxygen2 at exactly DESCRIPTION's
-# Config/roxygen2/version; the CI job installs that pin before invoking this.
+# 5. docs -- roxygen docs drift (SEOR-nwfmerhu): man/, NAMESPACE and the
+# roxygen-owned DESCRIPTION fields must match what roxygen2 regenerates from
+# R/. The rule lives in scripts/check-docs-drift.R, run here as its own process
+# so the hook and this job call the same file. It needs roxygen2 at exactly
+# DESCRIPTION's Config/roxygen2/version; the CI job installs that pin before
+# invoking this, and the script itself fails by name when roxygen2 is missing.
 #
-# On drift that script REWRITES man/ and NAMESPACE in place, so `docs` sits
-# LAST in `available` below: `lint`'s spelling check reads man/, and must see
-# the tree as committed, not as this gate left it.
+# It checks the COMMIT, never the working tree. That script rewrites the
+# directory it runs in, so this gate exports the commit with `git archive` into
+# a temp directory, runs it there, and removes the directory on every exit
+# path (on.exit, inside R's own session tempdir as a second net). The commit is
+# PRE_COMMIT_TO_REF when set -- pre-commit's pre-push stage sets it to the
+# local sha being pushed, which is how .githooks/pre-push runs -- and HEAD
+# otherwise: `pre-commit run --all-files`, a hand run, and the `gates` CI job,
+# whose checkout IS the commit under test. So an uncommitted fix on disk cannot
+# rescue a stale committed man/, an untracked man/*.Rd does not count as
+# present, and the developer's checkout is never rewritten mid-push.
+docs_ref <- function() {
+  ref <- Sys.getenv("PRE_COMMIT_TO_REF")
+  if (nzchar(ref)) ref else "HEAD"
+}
+
 gate_docs <- function() {
+  ref <- docs_ref()
+  work <- tempfile("docs-gate-")
+  dir.create(work)
+  on.exit(unlink(work, recursive = TRUE, force = TRUE), add = TRUE)
+  tarball <- file.path(work, "commit.tar")
+  pkg <- file.path(work, "pkg")
+  dir.create(pkg)
+
+  archived <- suppressWarnings(system2(
+    "git", c("archive", "--format=tar", paste0("--output=", tarball), ref),
+    stdout = TRUE, stderr = TRUE
+  ))
+  status <- attr(archived, "status")
+  if (!is.null(status) && status != 0L) {
+    return(record("docs", FALSE, c(
+      sprintf("git archive could not export '%s':", ref), archived
+    )))
+  }
+  if (!identical(as.integer(utils::untar(tarball, exdir = pkg)), 0L)) {
+    return(record("docs", FALSE, sprintf(
+      "could not unpack the export of '%s' into %s.", ref, pkg
+    )))
+  }
+  unlink(tarball)
+
+  cat(sprintf("[gates] docs: checking the commit %s, exported to a temp dir\n",
+    ref))
   status <- system2(
     file.path(R.home("bin"), "Rscript"),
-    c("scripts/check-docs-drift.R", ".")
+    c("scripts/check-docs-drift.R", shQuote(pkg))
   )
   ok <- identical(as.integer(status), 0L)
   record("docs", ok, if (ok) {
     character()
   } else {
-    "man/ or NAMESPACE is stale; the diff is printed above."
+    sprintf(paste0(
+      "the generated docs in %s are stale (or the check could not run); ",
+      "see the output above."
+    ), ref)
   })
 }
 

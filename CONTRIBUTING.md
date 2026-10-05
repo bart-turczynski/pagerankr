@@ -110,7 +110,7 @@ pipeline runs them.
 
 The same checks also run **locally**, as a committed pre-push hook script,
 `.githooks/pre-push`, so a red result costs seconds instead of a round trip
-through CI. It runs eight gates, cheapest first apart from the last, and reports every failure in
+through CI. It runs eight gates, cheapest first, and reports every failure in
 one summary rather than stopping at the first:
 
 1. `news-version`: top `NEWS.md` heading matches `DESCRIPTION` `Version:` (or
@@ -125,13 +125,16 @@ one summary rather than stopping at the first:
 5. `lint`: `lintr::lint_package()` reports no lints
 6. `spelling`: `spelling::spell_check_package()` reports no misspellings
    against `DESCRIPTION` `Language: en-US`
-7. `rcmdcheck`: `R CMD check --as-cran`, which **fails on errors AND warnings**
+7. `docs`: `man/`, `NAMESPACE` and `DESCRIPTION` match what roxygen2
+   regenerates from `R/` (`scripts/check-docs-drift.R` via `scripts/gates.R`,
+   the file the `gates` CI job runs). It checks the **commit being pushed**,
+   not the working tree: it exports that commit with `git archive` to a temp
+   directory, regenerates there and deletes the directory, so it never
+   rewrites your checkout. Under `pre-commit run --all-files` it checks `HEAD`.
+   An uncommitted `devtools::document()` fix does not pass it; commit the fix
+8. `rcmdcheck`: `R CMD check --as-cran`, which **fails on errors AND warnings**
    (the package is warning-clean; the only allowed NOTE is the CRAN-incoming
    new-submission one)
-8. `docs`: `man/` and `NAMESPACE` match what roxygen2 regenerates from `R/`
-   (`scripts/check-docs-drift.R` via `scripts/gates.R`, the file the `gates` CI
-   job runs). Last on purpose: on drift it rewrites `man/` and `NAMESPACE` in
-   place, so the fix is ready to commit and no earlier gate reads a changed tree
 
 Between gates 4 and 5 it prints a non-gating notice when the installed rurl is
 older than the version CRAN serves. A **missing checker fails its gate**: no
@@ -153,7 +156,7 @@ pre-commit install --hook-type pre-push
 It blocks a push that would turn the `gates` / `citation-version` / `check`
 CI jobs red.
 Emergency bypass: `SKIP_VERIFY=1 git push` (skips all eight);
-`SKIP_RCMDCHECK=1 git push` (skips only gate 7); `SKIP_SPELLING=1 git push`
+`SKIP_RCMDCHECK=1 git push` (skips only gate 8); `SKIP_SPELLING=1 git push`
 (skips only gate 6). An opt-in skip reports as SKIP in the summary, never as
 PASS.
 
@@ -226,11 +229,11 @@ Fix genuine misspellings in the text; add real terms to `inst/WORDLIST`
 (`spelling::update_wordlist()` refreshes it). When `spelling` is not installed
 the gate **fails**; install it, or push with `SKIP_SPELLING=1` deliberately.
 
-### Gate 7 needs the Suggests toolchain
+### Gate 8 needs the Suggests toolchain
 
-`R CMD check` (gate 7) requires the full `Suggests` set (`covr`,
+`R CMD check` (gate 8) requires the full `Suggests` set (`covr`,
 `goodpractice`, `DT`, `visNetwork`, `rcmdcheck`, ...). When `rcmdcheck` is not
-installed, gate 7 **fails** rather than skipping, so a fresh clone must install
+installed, gate 8 **fails** rather than skipping, so a fresh clone must install
 the Suggests (or push with `SKIP_RCMDCHECK=1` deliberately). The full check — it is what catches correctness regressions such as a dependency
 bump that turns test fixtures red (this class of failure previously slipped
 onto `main` while remote CI was billing-disabled; see PR #50).
