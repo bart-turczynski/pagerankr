@@ -34,6 +34,10 @@
   screen-reader description and the standard image metadata fields, written by
   `scripts/logo-metadata.py` in the `seor` repository (`SEOR-eyfiidrv`).
 
+* The logo's keywords are this package's `X-schema.org-keywords` tags, the ones
+  r-universe indexes, as written in `DESCRIPTION` and after `R`, `rstats` and
+  `R package` (`SEOR-qoqmestu`).
+
 * **The `README` is shorter and points at the live site.** It drops the
   function table and the capability list, which repeated the reference index
   the site's `llms.txt` already carries, and the note that the website was

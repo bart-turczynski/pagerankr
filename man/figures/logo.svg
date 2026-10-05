@@ -24,7 +24,7 @@
 <dc:relation>https://bart-turczynski.r-universe.dev/pagerankr</dc:relation>
 <dc:relation>https://bart-turczynski.gitlab.io/pagerankr/</dc:relation>
 <dc:relation>https://doi.org/10.5281/zenodo.23046334</dc:relation>
-<dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>SEO</rdf:li><rdf:li>PageRank</rdf:li><rdf:li>link graph</rdf:li><rdf:li>link analysis</rdf:li></rdf:Bag></dc:subject>
+<dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>pagerank</rdf:li><rdf:li>seo</rdf:li><rdf:li>technical-seo</rdf:li><rdf:li>internal-linking</rdf:li><rdf:li>link-graph</rdf:li><rdf:li>link-equity</rdf:li><rdf:li>crawl-analysis</rdf:li><rdf:li>screaming-frog</rdf:li><rdf:li>redirects</rdf:li><rdf:li>trustrank</rdf:li></rdf:Bag></dc:subject>
 <dc:contributor>Name set in IBM Plex Mono (SIL Open Font License 1.1), converted to outlines.</dc:contributor>
 <dcterms:alternative>pagerankr logo</dcterms:alternative>
 <dcterms:created>2026-10-04</dcterms:created>
@@ -48,7 +48,7 @@
 <dc:publisher><rdf:Bag><rdf:li>Bart Turczynski</rdf:li></rdf:Bag></dc:publisher>
 <dc:contributor><rdf:Bag><rdf:li>Name set in IBM Plex Mono (SIL Open Font License 1.1), converted to outlines.</rdf:li></rdf:Bag></dc:contributor>
 <dc:rights><rdf:Alt><rdf:li xml:lang="x-default">&#169; 2026 Bart Turczynski. MIT License.</rdf:li></rdf:Alt></dc:rights>
-<dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>SEO</rdf:li><rdf:li>PageRank</rdf:li><rdf:li>link graph</rdf:li><rdf:li>link analysis</rdf:li></rdf:Bag></dc:subject>
+<dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>pagerank</rdf:li><rdf:li>seo</rdf:li><rdf:li>technical-seo</rdf:li><rdf:li>internal-linking</rdf:li><rdf:li>link-graph</rdf:li><rdf:li>link-equity</rdf:li><rdf:li>crawl-analysis</rdf:li><rdf:li>screaming-frog</rdf:li><rdf:li>redirects</rdf:li><rdf:li>trustrank</rdf:li></rdf:Bag></dc:subject>
 <dc:source>https://gitlab.com/bart-turczynski/pagerankr</dc:source>
 <dc:relation><rdf:Bag><rdf:li>https://gitlab.com/bart-turczynski/pagerankr</rdf:li><rdf:li>https://github.com/bart-turczynski/pagerankr</rdf:li><rdf:li>https://CRAN.R-project.org/package=pagerankr</rdf:li><rdf:li>https://bart-turczynski.r-universe.dev/pagerankr</rdf:li><rdf:li>https://bart-turczynski.gitlab.io/pagerankr/</rdf:li><rdf:li>https://doi.org/10.5281/zenodo.23046334</rdf:li></rdf:Bag></dc:relation>
 <dc:identifier>pagerankr</dc:identifier>
@@ -69,7 +69,7 @@
 <xmpRights:Owner><rdf:Bag><rdf:li>Bart Turczynski</rdf:li></rdf:Bag></xmpRights:Owner>
 <xmpMM:DocumentID>uuid:41b5ce69-f499-572d-987e-69378dd812ba</xmpMM:DocumentID>
 <xmpMM:OriginalDocumentID>uuid:41b5ce69-f499-572d-987e-69378dd812ba</xmpMM:OriginalDocumentID>
-<xmpMM:InstanceID>uuid:a576af4c-ad51-52dc-8cf4-71e56cb87fe9</xmpMM:InstanceID>
+<xmpMM:InstanceID>uuid:7c1b7d64-f6ee-5761-b148-0b96dfc28b16</xmpMM:InstanceID>
 <photoshop:Headline>pagerankr: PageRank library for R</photoshop:Headline>
 <photoshop:Credit>Bart Turczynski</photoshop:Credit>
 <photoshop:Source>Bart Turczynski</photoshop:Source>
