@@ -246,8 +246,24 @@ fi
 # here, before R CMD check, by cost. No roxygen2 probe here: the script fails by
 # name when roxygen2 is missing, so a second Rscript launch to ask first would
 # only duplicate that.
+#
+# R removes the export on its own exit (on.exit), but not when a signal kills
+# it, so the gate runs with TMPDIR set to a directory of its own: R's session
+# tempdir, and the export with it, sits inside, and the traps remove it on
+# every way out. INT/TERM/HUP become an ordinary exit, which runs the EXIT
+# trap. The traps live in a subshell, so the hook's own exit is left alone.
 echo "pre-push: roxygen docs drift (scripts/gates.R docs) ..." >&2
-if Rscript scripts/gates.R --no-summary docs >&2; then
+if (
+  docs_tmp="$(mktemp -d "${TMPDIR:-/tmp}/pagerankr-docs.XXXXXX")" || {
+    echo "pre-push: could not create a temporary directory for the docs gate" >&2
+    exit 1
+  }
+  trap 'rm -rf "$docs_tmp"' EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+  trap 'exit 129' HUP
+  TMPDIR="$docs_tmp" Rscript scripts/gates.R --no-summary docs >&2
+); then
   record docs pass
 else
   record docs fail

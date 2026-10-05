@@ -249,7 +249,8 @@ gate_docs <- function() {
   dir.create(pkg)
 
   archived <- suppressWarnings(system2(
-    "git", c("archive", "--format=tar", paste0("--output=", tarball), ref),
+    "git",
+    c("archive", "--format=tar", paste0("--output=", shQuote(tarball)), ref),
     stdout = TRUE, stderr = TRUE
   ))
   status <- attr(archived, "status")

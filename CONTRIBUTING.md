@@ -131,7 +131,7 @@ one summary rather than stopping at the first:
    not the working tree: it exports that commit with `git archive` to a temp
    directory, regenerates there and deletes the directory, so it never
    rewrites your checkout. Under `pre-commit run --all-files` it checks `HEAD`.
-   An uncommitted `devtools::document()` fix does not pass it; commit the fix
+   An uncommitted `devtools::document()` fix does not pass it; commit the fix.
 8. `rcmdcheck`: `R CMD check --as-cran`, which **fails on errors AND warnings**
    (the package is warning-clean; the only allowed NOTE is the CRAN-incoming
    new-submission one)
