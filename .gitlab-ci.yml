@@ -373,6 +373,13 @@ gates:
     # committed README.md, under the pandoc and git `.r` installs.
     - Rscript -e 'pak::local_install_dev_deps(dependencies = TRUE)'
     - Rscript -e 'pak::pkg_install(c("lintr", "spelling"))'
+    # The `docs` gate regenerates man/, NAMESPACE and DESCRIPTION in a
+    # `git archive` export of HEAD (this checkout's commit) and diffs them
+    # against it (SEOR-nwfmerhu). It refuses any roxygen2 but the one
+    # DESCRIPTION pins in Config/roxygen2/version, because another version
+    # rewrites man/ in its own dialect and that would read as drift. The pin is
+    # read from DESCRIPTION, so it has no second copy here to fall behind.
+    - Rscript -e 'pak::pkg_install(paste0("roxygen2@", read.dcf("DESCRIPTION")[1L, "Config/roxygen2/version"]))'
     - Rscript scripts/gates.R
 
 # CITATION.cff / .zenodo.json version consistency.
