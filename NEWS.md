@@ -2,7 +2,7 @@
 
 ## Breaking changes
 
-* pagerankr now requires R >= 4.1.0 (was R >= 4.0.0), as its dependency rurl does (`SEOR-wurguiqa`).
+* pagerankr now requires R >= 4.1.0 (was R >= 4.0.0), as `pslr`, which it needs through `rurl`, does (`SEOR-wurguiqa`).
 
 ## Bug fixes
 
