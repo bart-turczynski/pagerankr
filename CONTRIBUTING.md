@@ -9,7 +9,7 @@ New code needs tests, and each user-facing change needs one `NEWS.md` bullet.
 A merge request must pass the verification command below.
 
 Run verification (the pre-push chain: the hygiene hooks, the toolchain check,
-the URL check, then the seven-gate `verify` hook described below):
+the URL check, then the eight-gate `verify` hook described below):
 
 ```sh
 pre-commit run --hook-stage pre-push --all-files
@@ -110,7 +110,7 @@ pipeline runs them.
 
 The same checks also run **locally**, as a committed pre-push hook script,
 `.githooks/pre-push`, so a red result costs seconds instead of a round trip
-through CI. It runs seven gates, cheapest first, and reports every failure in
+through CI. It runs eight gates, cheapest first apart from the last, and reports every failure in
 one summary rather than stopping at the first:
 
 1. `news-version`: top `NEWS.md` heading matches `DESCRIPTION` `Version:` (or
@@ -128,6 +128,10 @@ one summary rather than stopping at the first:
 7. `rcmdcheck`: `R CMD check --as-cran`, which **fails on errors AND warnings**
    (the package is warning-clean; the only allowed NOTE is the CRAN-incoming
    new-submission one)
+8. `docs`: `man/` and `NAMESPACE` match what roxygen2 regenerates from `R/`
+   (`scripts/check-docs-drift.R` via `scripts/gates.R`, the file the `gates` CI
+   job runs). Last on purpose: on drift it rewrites `man/` and `NAMESPACE` in
+   place, so the fix is ready to commit and no earlier gate reads a changed tree
 
 Between gates 4 and 5 it prints a non-gating notice when the installed rurl is
 older than the version CRAN serves. A **missing checker fails its gate**: no
@@ -148,7 +152,7 @@ pre-commit install --hook-type pre-push
 
 It blocks a push that would turn the `gates` / `citation-version` / `check`
 CI jobs red.
-Emergency bypass: `SKIP_VERIFY=1 git push` (skips all seven);
+Emergency bypass: `SKIP_VERIFY=1 git push` (skips all eight);
 `SKIP_RCMDCHECK=1 git push` (skips only gate 7); `SKIP_SPELLING=1 git push`
 (skips only gate 6). An opt-in skip reports as SKIP in the summary, never as
 PASS.

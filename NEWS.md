@@ -51,6 +51,12 @@
 
 ## Internal
 
+* **A stale help page fails the gate.** The pre-push hook and the CI `gates`
+  job now regenerate `man/` and `NAMESPACE` with roxygen2 and fail on any
+  difference from the commit (`scripts/check-docs-drift.R`). A stale `.Rd` is
+  still valid `.Rd`, so lint and `R CMD check` never saw one; the logo sweep
+  left two packages' help pages stale that way (`SEOR-nwfmerhu`).
+
 * **R CMD check gates fail when the check halts.** When `R CMD check` stopped
   partway, `rcmdcheck` parsed the cut-off log as 0 errors, 0 warnings and 0
   notes, and the gate passed. The pre-push hook and the CI `check` and
