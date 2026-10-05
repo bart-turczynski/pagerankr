@@ -49,6 +49,7 @@
 # file: it calls `gates.R news-version codemeta` for the two base-R gates and
 # runs lint itself, because the hook keeps SKIP_SPELLING as a separate opt-in
 # that this file's combined `lint` gate has no way to express (SEOR-dzrisdmi).
+# It calls `gates.R docs` too, as its last gate (SEOR-nwfmerhu).
 #
 # Selecting a subset does NOT make it fail-fast: whatever is selected still
 # runs to completion and reports once, below.
@@ -216,11 +217,34 @@ gate_readme <- function() {
   record("readme", TRUE)
 }
 
+# 5. docs -- roxygen docs drift (SEOR-nwfmerhu): man/ and NAMESPACE must match
+# what roxygen2 regenerates from R/. The rule lives in
+# scripts/check-docs-drift.R, run here as its own process so the hook and this
+# job call the same file. It needs roxygen2 at exactly DESCRIPTION's
+# Config/roxygen2/version; the CI job installs that pin before invoking this.
+#
+# On drift that script REWRITES man/ and NAMESPACE in place, so `docs` sits
+# LAST in `available` below: `lint`'s spelling check reads man/, and must see
+# the tree as committed, not as this gate left it.
+gate_docs <- function() {
+  status <- system2(
+    file.path(R.home("bin"), "Rscript"),
+    c("scripts/check-docs-drift.R", ".")
+  )
+  ok <- identical(as.integer(status), 0L)
+  record("docs", ok, if (ok) {
+    character()
+  } else {
+    "man/ or NAMESPACE is stale; the diff is printed above."
+  })
+}
+
 available <- list(
   "news-version" = gate_news_version,
   "codemeta" = gate_codemeta,
   "readme" = gate_readme,
-  "lint" = gate_lint
+  "lint" = gate_lint,
+  "docs" = gate_docs
 )
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -228,7 +252,7 @@ args <- commandArgs(trailingOnly = TRUE)
 # `--no-summary` suppresses the count and VERDICT lines, keeping the per-gate
 # PASS/FAIL lines and the exit status. .githooks/pre-push passes it: the hook
 # drives this file one gate at a time and prints its OWN verdict list across all
-# seven of its gates, so an inner "VERDICT: PASS -- codemeta" in the middle of a
+# eight of its gates, so an inner "VERDICT: PASS -- codemeta" in the middle of a
 # failing push is noise that contradicts the real summary.
 summarize <- !("--no-summary" %in% args)
 selected <- setdiff(args, "--no-summary")

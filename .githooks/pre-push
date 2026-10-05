@@ -34,11 +34,15 @@
 #   5. lint            lintr::lint_package()
 #   6. spelling        spelling::spell_check_package()
 #   7. rcmdcheck       rcmdcheck --as-cran, fails on ERRORS AND WARNINGS
+#   8. docs            scripts/gates.R -- roxygen docs drift (man/, NAMESPACE)
 # Between 4 and 5, one NON-GATING notice: installed rurl vs the version CRAN
 # serves. It warns and never fails, and it is the one thing here still allowed
 # to skip itself, because it reports drift rather than checking the tree.
 #
-# Gates 1 and 2 are not reimplemented here. They call scripts/gates.R, the same
+# Gate 8 breaks the cheapest-first order on purpose: on drift it rewrites man/
+# and NAMESPACE in place, so it runs after every gate that reads them.
+#
+# Gates 1, 2 and 8 are not reimplemented here. They call scripts/gates.R, the same
 # file the `gates` CI job runs, so the two cannot drift. This hook used to carry
 # its own bash reimplementation of the news-version rule; that was a second
 # copy of a rule that already existed in R.
@@ -57,6 +61,8 @@
 #                                              laptop and nowhere else)
 #   R CMD check     yes    check               both --as-cran, failing on
 #                                              warnings
+#   docs drift      yes    gates (docs)        same scripts/gates.R, which
+#                                              runs scripts/check-docs-drift.R
 #   coverage        NO     coverage            CI only
 #   osv-audit       NO     osv-audit           CI only, and schedule-gated
 #   OSS Index       NO     security-audit      CI only, schedule-gated, needs
@@ -242,6 +248,23 @@ else
   else
     record rcmdcheck fail
   fi
+fi
+
+# 8. Roxygen docs drift (SEOR-nwfmerhu). A stale .Rd is valid .Rd, so lint and
+# R CMD check pass it; only regenerating and diffing sees it. The logo sweep
+# added man/figures/logo.svg without re-running devtools::document(), and
+# rurl's and pslr's man/<pkg>-package.Rd went stale with every gate green.
+# Same scripts/gates.R gate the `gates` CI job runs. LAST on purpose: on drift
+# it rewrites man/ and NAMESPACE in place (the fix, ready to commit), and no
+# gate above may read a tree it changed. pagerankr has no src/, so the roxygen
+# load leaves no build residue for R CMD check to pick up.
+echo "pre-push: roxygen docs drift (scripts/gates.R docs) ..." >&2
+if ! have_r_pkg docs roxygen2; then
+  record docs fail
+elif Rscript scripts/gates.R --no-summary docs >&2; then
+  record docs pass
+else
+  record docs fail
 fi
 
 # The summary. "The gate passed" is a claim about a NAMED set, never about
