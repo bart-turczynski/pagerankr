@@ -1,26 +1,95 @@
-<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="1.732in" height="2in" viewBox="0 0 1732 2000" role="img" aria-labelledby="pagerankr-title">
+<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" width="1.732in" height="2in" viewBox="0 0 1732 2000" role="img" aria-labelledby="pagerankr-title" aria-describedby="pagerankr-desc" xml:lang="en-US" lang="en-US">
 <title id="pagerankr-title">pagerankr</title>
-<desc id="pagerankr-desc">PageRank library for R</desc>
-<metadata id="pagerankr-metadata"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#">
+<desc id="pagerankr-desc">Logo of the pagerankr library for R, white text on a black background</desc>
+<metadata id="pagerankr-metadata"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:cc="http://creativecommons.org/ns#">
 <cc:Work rdf:about="">
 <dc:title>pagerankr</dc:title>
 <dc:description>PageRank library for R</dc:description>
+<dc:description>Logo of the pagerankr library for R, white text on a black background</dc:description>
 <dc:creator><cc:Agent><dc:title>Bart Turczynski</dc:title></cc:Agent></dc:creator>
+<dc:publisher><cc:Agent><dc:title>Bart Turczynski</dc:title></cc:Agent></dc:publisher>
 <dc:rights><cc:Agent><dc:title>&#169; 2026 Bart Turczynski. MIT License.</dc:title></cc:Agent></dc:rights>
-<cc:license>https://opensource.org/license/mit</cc:license>
 <dc:date>2026-10-04</dc:date>
+<dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
 <dc:format>image/svg+xml</dc:format>
-<dc:language>en</dc:language>
+<dc:language>en-US</dc:language>
 <dc:identifier>pagerankr</dc:identifier>
+<dc:identifier>https://gitlab.com/bart-turczynski/pagerankr/-/raw/main/man/figures/logo.svg</dc:identifier>
+<dc:source>https://gitlab.com/bart-turczynski/pagerankr</dc:source>
 <dc:source>https://github.com/bart-turczynski/pagerankr</dc:source>
-<dc:relation>https://github.com/bart-turczynski/pagerankr</dc:relation>
+<dc:source>https://CRAN.R-project.org/package=pagerankr</dc:source>
 <dc:relation>https://gitlab.com/bart-turczynski/pagerankr</dc:relation>
+<dc:relation>https://github.com/bart-turczynski/pagerankr</dc:relation>
 <dc:relation>https://CRAN.R-project.org/package=pagerankr</dc:relation>
 <dc:relation>https://bart-turczynski.r-universe.dev/pagerankr</dc:relation>
+<dc:relation>https://bart-turczynski.gitlab.io/pagerankr/</dc:relation>
+<dc:relation>https://doi.org/10.5281/zenodo.23046334</dc:relation>
 <dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>SEO</rdf:li><rdf:li>PageRank</rdf:li><rdf:li>link graph</rdf:li><rdf:li>link analysis</rdf:li></rdf:Bag></dc:subject>
 <dc:contributor>Name set in IBM Plex Mono (SIL Open Font License 1.1), converted to outlines.</dc:contributor>
+<dcterms:alternative>pagerankr logo</dcterms:alternative>
+<dcterms:created>2026-10-04</dcterms:created>
+<dcterms:modified>2026-10-05</dcterms:modified>
+<dcterms:dateCopyrighted>2026</dcterms:dateCopyrighted>
+<dcterms:rightsHolder>Bart Turczynski</dcterms:rightsHolder>
+<dcterms:license rdf:resource="https://opensource.org/license/mit"/>
+<dcterms:accessRights>Public</dcterms:accessRights>
+<dcterms:audience>R users</dcterms:audience>
+<dcterms:isPartOf rdf:resource="https://gitlab.com/bart-turczynski/seor"/>
+<cc:license rdf:resource="https://opensource.org/license/mit"/>
+<cc:attributionName>Bart Turczynski</cc:attributionName>
+<cc:attributionURL rdf:resource="https://gitlab.com/bart-turczynski/pagerankr"/>
 </cc:Work>
-</rdf:RDF></metadata>
+</rdf:RDF>
+<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/" xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/" xmlns:stRef="http://ns.adobe.com/xap/1.0/sType/ResourceRef#" xmlns:photoshop="http://ns.adobe.com/photoshop/1.0/" xmlns:Iptc4xmpCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/" xmlns:plus="http://ns.useplus.org/ldf/xmp/1.0/" xmlns:cc="http://creativecommons.org/ns#">
+<dc:title><rdf:Alt><rdf:li xml:lang="x-default">pagerankr</rdf:li></rdf:Alt></dc:title>
+<dc:description><rdf:Alt><rdf:li xml:lang="x-default">Logo of the pagerankr library for R, white text on a black background</rdf:li></rdf:Alt></dc:description>
+<dc:creator><rdf:Seq><rdf:li>Bart Turczynski</rdf:li></rdf:Seq></dc:creator>
+<dc:publisher><rdf:Bag><rdf:li>Bart Turczynski</rdf:li></rdf:Bag></dc:publisher>
+<dc:contributor><rdf:Bag><rdf:li>Name set in IBM Plex Mono (SIL Open Font License 1.1), converted to outlines.</rdf:li></rdf:Bag></dc:contributor>
+<dc:rights><rdf:Alt><rdf:li xml:lang="x-default">&#169; 2026 Bart Turczynski. MIT License.</rdf:li></rdf:Alt></dc:rights>
+<dc:subject><rdf:Bag><rdf:li>R</rdf:li><rdf:li>rstats</rdf:li><rdf:li>R package</rdf:li><rdf:li>SEO</rdf:li><rdf:li>PageRank</rdf:li><rdf:li>link graph</rdf:li><rdf:li>link analysis</rdf:li></rdf:Bag></dc:subject>
+<dc:source>https://gitlab.com/bart-turczynski/pagerankr</dc:source>
+<dc:relation><rdf:Bag><rdf:li>https://gitlab.com/bart-turczynski/pagerankr</rdf:li><rdf:li>https://github.com/bart-turczynski/pagerankr</rdf:li><rdf:li>https://CRAN.R-project.org/package=pagerankr</rdf:li><rdf:li>https://bart-turczynski.r-universe.dev/pagerankr</rdf:li><rdf:li>https://bart-turczynski.gitlab.io/pagerankr/</rdf:li><rdf:li>https://doi.org/10.5281/zenodo.23046334</rdf:li></rdf:Bag></dc:relation>
+<dc:identifier>pagerankr</dc:identifier>
+<dc:format>image/svg+xml</dc:format>
+<dc:language><rdf:Bag><rdf:li>en-US</rdf:li></rdf:Bag></dc:language>
+<dc:type><rdf:Bag><rdf:li>Image</rdf:li><rdf:li>StillImage</rdf:li></rdf:Bag></dc:type>
+<dc:date><rdf:Seq><rdf:li>2026-10-04</rdf:li></rdf:Seq></dc:date>
+<xmp:CreateDate>2026-10-04</xmp:CreateDate>
+<xmp:ModifyDate>2026-10-05</xmp:ModifyDate>
+<xmp:MetadataDate>2026-10-05</xmp:MetadataDate>
+<xmp:CreatorTool>Claude Design</xmp:CreatorTool>
+<xmp:Label>seor fleet</xmp:Label>
+<xmp:Nickname>pagerankr logo</xmp:Nickname>
+<xmp:Identifier><rdf:Bag><rdf:li>https://gitlab.com/bart-turczynski/pagerankr/-/raw/main/man/figures/logo.svg</rdf:li><rdf:li>https://gitlab.com/bart-turczynski/pagerankr</rdf:li><rdf:li>https://github.com/bart-turczynski/pagerankr</rdf:li><rdf:li>https://CRAN.R-project.org/package=pagerankr</rdf:li><rdf:li>https://bart-turczynski.r-universe.dev/pagerankr</rdf:li><rdf:li>https://bart-turczynski.gitlab.io/pagerankr/</rdf:li><rdf:li>https://doi.org/10.5281/zenodo.23046334</rdf:li></rdf:Bag></xmp:Identifier>
+<xmpRights:Marked>True</xmpRights:Marked>
+<xmpRights:WebStatement>https://opensource.org/license/mit</xmpRights:WebStatement>
+<xmpRights:UsageTerms><rdf:Alt><rdf:li xml:lang="x-default">Licensed under the MIT License: https://opensource.org/license/mit</rdf:li></rdf:Alt></xmpRights:UsageTerms>
+<xmpRights:Owner><rdf:Bag><rdf:li>Bart Turczynski</rdf:li></rdf:Bag></xmpRights:Owner>
+<xmpMM:DocumentID>uuid:41b5ce69-f499-572d-987e-69378dd812ba</xmpMM:DocumentID>
+<xmpMM:OriginalDocumentID>uuid:41b5ce69-f499-572d-987e-69378dd812ba</xmpMM:OriginalDocumentID>
+<xmpMM:InstanceID>uuid:a576af4c-ad51-52dc-8cf4-71e56cb87fe9</xmpMM:InstanceID>
+<photoshop:Headline>pagerankr: PageRank library for R</photoshop:Headline>
+<photoshop:Credit>Bart Turczynski</photoshop:Credit>
+<photoshop:Source>Bart Turczynski</photoshop:Source>
+<photoshop:AuthorsPosition>Maintainer</photoshop:AuthorsPosition>
+<photoshop:CaptionWriter>Bart Turczynski</photoshop:CaptionWriter>
+<photoshop:DateCreated>2026-10-04</photoshop:DateCreated>
+<Iptc4xmpCore:AltTextAccessibility><rdf:Alt><rdf:li xml:lang="x-default">Logo of the pagerankr library for R, white text on a black background</rdf:li></rdf:Alt></Iptc4xmpCore:AltTextAccessibility>
+<Iptc4xmpCore:ExtDescrAccessibility><rdf:Alt><rdf:li xml:lang="x-default">A black hexagon with a thin white border. The package name, pagerankr, is set across the center in white capital letters, with the R that marks it as an R package in a lighter weight than the rest.</rdf:li></rdf:Alt></Iptc4xmpCore:ExtDescrAccessibility>
+<Iptc4xmpCore:IntellectualGenre>logo</Iptc4xmpCore:IntellectualGenre>
+<Iptc4xmpCore:CreatorContactInfo rdf:parseType="Resource"><Iptc4xmpCore:CiEmailWork>bartek@turczynski.pl</Iptc4xmpCore:CiEmailWork><Iptc4xmpCore:CiUrlWork>https://gitlab.com/bart-turczynski/pagerankr</Iptc4xmpCore:CiUrlWork></Iptc4xmpCore:CreatorContactInfo>
+<plus:Licensor><rdf:Seq><rdf:li rdf:parseType="Resource"><plus:LicensorName>Bart Turczynski</plus:LicensorName><plus:LicensorURL>https://gitlab.com/bart-turczynski/pagerankr</plus:LicensorURL><plus:LicensorEmail>bartek@turczynski.pl</plus:LicensorEmail></rdf:li></rdf:Seq></plus:Licensor>
+<plus:CopyrightOwner><rdf:Seq><rdf:li rdf:parseType="Resource"><plus:CopyrightOwnerName>Bart Turczynski</plus:CopyrightOwnerName></rdf:li></rdf:Seq></plus:CopyrightOwner>
+<plus:ImageCreator><rdf:Seq><rdf:li rdf:parseType="Resource"><plus:ImageCreatorName>Bart Turczynski</plus:ImageCreatorName></rdf:li></rdf:Seq></plus:ImageCreator>
+<plus:ModelReleaseStatus>http://ns.useplus.org/ldf/vocab/MR-NAP</plus:ModelReleaseStatus>
+<plus:PropertyReleaseStatus>http://ns.useplus.org/ldf/vocab/PR-NAP</plus:PropertyReleaseStatus>
+<cc:license rdf:resource="https://opensource.org/license/mit"/>
+<cc:attributionName>Bart Turczynski</cc:attributionName>
+<cc:attributionURL rdf:resource="https://gitlab.com/bart-turczynski/pagerankr"/>
+</rdf:Description></rdf:RDF></x:xmpmeta>
+</metadata>
 <path id="pagerankr-border" fill="#F5F5F5" d="M866 0L1732 500L1732 1500L866 2000L0 1500L0 500Z"></path>
 <path id="pagerankr-background" fill="#000000" d="M866 69.3L1672 534.6L1672 1465.4L866 1930.7L60 1465.4L60 534.6Z"></path>
 <path id="pagerankr-name-bold" fill="#F5F5F5" d="M329.1 1075.4L296.5 1075.4L296.5 924.6L354.8 924.6Q365.9 924.6 374.5 928.0Q383.1 931.3 389.1 937.6Q395.0 943.8 398.0 952.7Q401.1 961.6 401.1 972.6L401.1 972.6Q401.1 983.6 398.0 992.4Q395.0 1001.3 389.1 1007.6Q383.1 1013.8 374.5 1017.2Q365.9 1020.5 354.8 1020.5L354.8 1020.5L329.1 1020.5L329.1 1075.4ZM329.1 950.8L329.1 994.4L346.6 994.4Q358.1 994.4 362.5 990.1Q366.9 985.7 366.9 975.8L366.9 975.8L366.9 969.3Q366.9 959.4 362.5 955.1Q358.1 950.8 346.6 950.8L346.6 950.8L329.1 950.8ZM538.2 1075.4L503.7 1075.4L494.2 1039.1L452.9 1039.1L443.6 1075.4L410.8 1075.4L451.6 924.6L497.4 924.6L538.2 1075.4ZM489.2 1013.0L474.5 955.9L472.8 955.9L458.1 1013.0L489.2 1013.0ZM628.1 1075.4L628.1 1054L626.1 1054Q624.2 1058.8 621.4 1063.1Q618.6 1067.4 614.5 1070.7Q610.4 1074.1 604.9 1076.0Q599.3 1078.0 592.4 1078.0L592.4 1078.0Q581.4 1078.0 572.9 1072.8Q564.4 1067.6 558.5 1057.7Q552.7 1047.7 549.8 1033.5Q546.9 1019.2 546.9 1001.3L546.9 1001.3Q546.9 962.8 560.9 942.4Q574.9 922.0 604.3 922.0L604.3 922.0Q616.0 922.0 624.8 925.2Q633.7 928.3 640.1 934.0Q646.4 939.7 650.5 947.7Q654.6 955.7 657.0 965.4L657.0 965.4L626.8 972.8Q625.5 968.0 623.9 963.6Q622.2 959.2 619.7 955.7Q617.1 952.3 613.2 950.2Q609.3 948.2 603.7 948.2L603.7 948.2Q591.4 948.2 586.3 958.3Q581.2 968.5 581.2 986.8L581.2 986.8L581.2 1011.4Q581.2 1029.8 586.7 1040.8Q592.2 1051.8 606.3 1051.8L606.3 1051.8Q617.3 1051.8 622.7 1045.4Q628.1 1038.9 628.1 1028.7L628.1 1028.7L628.1 1017.7L602.4 1017.7L602.4 994.8L657.0 994.8L657.0 1075.4L628.1 1075.4ZM782.5 1075.4L686.2 1075.4L686.2 924.6L782.5 924.6L782.5 951.2L718.6 951.2L718.6 985.7L780.4 985.7L780.4 1012.3L718.6 1012.3L718.6 1048.8L782.5 1048.8L782.5 1075.4ZM846.9 1019.4L846.9 1075.4L814.9 1075.4L814.9 924.6L873.2 924.6Q884.3 924.6 892.9 928.0Q901.5 931.3 907.5 937.6Q913.4 943.8 916.4 952.7Q919.5 961.6 919.5 972.6L919.5 972.6Q919.5 988.6 912.5 1000Q905.6 1011.4 892.9 1015.1L892.9 1015.1L922.5 1075.4L887.1 1075.4L861.8 1019.4L846.9 1019.4ZM846.9 994.4L865.5 994.4Q876.9 994.4 881.3 990.1Q885.8 985.7 885.8 975.8L885.8 975.8L885.8 969.3Q885.8 959.4 881.3 955.1Q876.9 950.8 865.5 950.8L865.5 950.8L846.9 950.8L846.9 994.4ZM1056.6 1075.4L1022.1 1075.4L1012.6 1039.1L971.3 1039.1L962.0 1075.4L929.2 1075.4L970.0 924.6L1015.8 924.6L1056.6 1075.4ZM1007.6 1013.0L992.9 955.9L991.2 955.9L976.5 1013.0L1007.6 1013.0ZM1135.2 1075.4L1100.9 975.2L1098.5 975.2L1098.5 1075.4L1070.9 1075.4L1070.9 924.6L1109.8 924.6L1144.1 1024.8L1146.5 1024.8L1146.5 924.6L1174.1 924.6L1174.1 1075.4L1135.2 1075.4ZM1281.0 1075.4L1247.8 1012.5L1234.4 1031.3L1234.4 1075.4L1202.0 1075.4L1202.0 924.6L1234.4 924.6L1234.4 987.7L1236.1 987.7L1252.5 962.6L1279.1 924.6L1315.4 924.6L1270.2 988.3L1317.5 1075.4L1281.0 1075.4Z"></path>
