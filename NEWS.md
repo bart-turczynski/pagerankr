@@ -32,10 +32,11 @@
 * The logo files carry full metadata: every project link (GitLab, GitHub, CRAN,
   r-universe, the documentation site and, where one exists, the Zenodo DOI), a
   screen-reader description and the standard image metadata fields, written by
-  `scripts/logo-metadata.py` in the `seor` repository (`SEOR-eyfiidrv`). Their
-  keywords are the `X-schema.org-keywords` tags of `DESCRIPTION`, after `R`,
-  `rstats` and `R package`, so the logo and r-universe list the same tags
-  (`SEOR-qoqmestu`).
+  `scripts/logo-metadata.py` in the `seor` repository (`SEOR-eyfiidrv`).
+
+* The logo's keywords are this package's `X-schema.org-keywords` tags, the ones
+  r-universe indexes, as written in `DESCRIPTION` and after `R`, `rstats` and
+  `R package` (`SEOR-qoqmestu`).
 
 * **The `README` is shorter and points at the live site.** It drops the
   function table and the capability list, which repeated the reference index
