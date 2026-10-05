@@ -29,6 +29,11 @@
   site in its header, and the `README.md` heading carries it with the alt text
   "hex logo, white on black" (`SEOR-wxjuxbtu`, `SEOR-wfleahtg`).
 
+* pagerankr's logo files carry full metadata: every project link (GitLab,
+  GitHub, CRAN, r-universe, the documentation site), a screen-reader description
+  and the standard image metadata fields, written by seor's
+  `scripts/logo-metadata.py` (`SEOR-eyfiidrv`).
+
 * **The `README` is shorter and points at the live site.** It drops the
   function table and the capability list, which repeated the reference index
   the site's `llms.txt` already carries, and the note that the website was
