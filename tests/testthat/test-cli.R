@@ -111,9 +111,9 @@ describe("compare_pagerank() on the case-study fixture (pinned for the CLI)", {
 
 # --- The CLI --------------------------------------------------------------
 
-cli_csv <- function(df) {
+cli_csv <- function(df, na = "NA") {
   path <- withr::local_tempfile(fileext = ".csv", .local_envir = parent.frame())
-  utils::write.csv(df, path, row.names = FALSE)
+  utils::write.csv(df, path, row.names = FALSE, na = na)
   path
 }
 
@@ -325,6 +325,70 @@ describe("cli output", {
     expect_true(grepl("\"spearman_rho\":null", json, fixed = TRUE))
   })
 
+  it("orders rows that print the same PageRank by node_name", {
+    # 0.1 + 0.2 is one unit in the last place above 0.3; both print as 0.3.
+    forward <- data.frame(
+      node_name = c("b", "a", "c"), pagerank = c(0.1 + 0.2, 0.3, 0.4)
+    )
+    reverse <- data.frame(node_name = c("a", "b", "c"), pagerank = 1 / 3)
+    scores <- .cli_join_scores(forward, reverse)
+    expect_identical(scores$node_name, c("c", "a", "b"))
+  })
+
+  it("writes UTF-8 whatever the locale", {
+    edges_utf8 <- withr::local_tempfile(fileext = ".csv")
+    cafe <- "https://example.com/café"
+    sep <- "https://example.com/a b"
+    writeLines(
+      enc2utf8(c("from,to", paste0(cafe, ",", sep), paste0(sep, ",", cafe))),
+      edges_utf8,
+      useBytes = TRUE
+    )
+    withr::local_locale(c(LC_CTYPE = "C"))
+    skip_if_not(
+      identical(Sys.getlocale("LC_CTYPE"), "C"), "cannot switch to the C locale"
+    )
+    utf8_bytes <- function(x) charToRaw(enc2utf8(x))
+    has_bytes <- function(haystack, needle) {
+      grepl(
+        rawToChar(needle), rawToChar(haystack),
+        fixed = TRUE, useBytes = TRUE
+      )
+    }
+
+    scores_out <- cli_run(c("score", edges_utf8))
+    bytes <- readBin(scores_out, "raw", file.size(scores_out))
+    expect_true(has_bytes(bytes, utf8_bytes(paste0("\"", cafe, "\""))))
+    expect_true(has_bytes(bytes, utf8_bytes(paste0("\"", sep, "\""))))
+    expect_false(has_bytes(bytes, charToRaw("<U+")))
+
+    stdout_lines <- capture.output(cli(c("score", edges_utf8)))
+    stdout_bytes <- charToRaw(paste(stdout_lines, collapse = "\n"))
+    expect_true(has_bytes(stdout_bytes, utf8_bytes(cafe)))
+    expect_false(has_bytes(stdout_bytes, charToRaw("<U+")))
+
+    json_out <- cli_run(
+      c("compare", scores_out, scores_out, "--format", "json")
+    )
+    bytes <- readBin(json_out, "raw", file.size(json_out))
+    expect_true(has_bytes(bytes, utf8_bytes(paste0("\"", cafe, "\""))))
+    expect_true(has_bytes(bytes, utf8_bytes(paste0("\"", sep, "\""))))
+    expect_false(has_bytes(bytes, charToRaw("<U+")))
+  })
+
+  it("writes a large CSV in linear time", {
+    skip_on_cran()
+    # `compare` cleans no URLs, so its run time is reading, joining and
+    # writing; rendering CSV through a textConnection() took minutes here.
+    n <- 150000L
+    nodes <- sprintf("https://example.com/p%06d", seq_len(n))
+    a <- cli_csv(data.frame(node_name = nodes, pagerank = seq_len(n) / n))
+    b <- cli_csv(data.frame(node_name = nodes, pagerank = rev(seq_len(n)) / n))
+    elapsed <- system.time(cmp_out <- cli_run(c("compare", a, b)))[["elapsed"]]
+    expect_lt(elapsed, 10)
+    expect_length(readLines(cmp_out), n + 1L)
+  })
+
   it("prints usage for --help", {
     expect_output(res <- cli("--help"), "pagerankr score EDGES")
     expect_null(res)
@@ -402,7 +466,46 @@ describe("cli argument errors", {
 
   it("rejects a malformed --damping", {
     expect_usage_error(c("score", edges_csv, "--damping", "abc"), "--damping")
-    expect_usage_error(c("score", edges_csv, "--damping", "1.5"), "between 0")
+    expect_usage_error(
+      c("score", edges_csv, "--damping", "1.5"), "in \\[0, 1\\), not '1.5'"
+    )
+    expect_usage_error(c("score", edges_csv, "--damping", "-0.1"), "\\[0, 1\\)")
+  })
+
+  it("rejects --damping 1, which leaves the scores undefined", {
+    expect_usage_error(
+      c("score", edges_csv, "--damping", "1"), "in \\[0, 1\\), not '1'"
+    )
+    # 0 is in range: every node gets the teleport share.
+    scores <- cli_read(cli_run(c("score", edges_csv, "--damping", "0")))
+    expect_equal(scores$pagerank, rep(1 / 3, 3L))
+  })
+
+  it("reads -h as an option's value, not as a request for help", {
+    expect_usage_error(
+      c("score", edges_csv, "--damping", "-h"), "not '-h'"
+    )
+    expect_usage_error(
+      c("compare", scores_csv, scores_csv, "--format", "--help"),
+      "not '--help'"
+    )
+    # Where an option name is expected, -h and --help still print usage.
+    expect_output(res <- cli(c("score", edges_csv, "--help")), "--damping")
+    expect_null(res)
+    expect_output(cli(c("score", "--damping", "0.5", "-h")), "--damping")
+    expect_output(cli(c("score", "--damping=0.5", "-h")), "--damping")
+  })
+
+  it("ends the options at --", {
+    withr::local_dir(withr::local_tempdir())
+    utils::write.csv(cli_small_edges(), "--edges.csv", row.names = FALSE)
+    out <- withr::local_tempfile(fileext = ".csv")
+    cli(c("score", "--out", out, "--", "--edges.csv"))
+    expect_identical(nrow(cli_read(out)), 3L)
+    # After --, -h is a file name, not a request for help.
+    err <- expect_error(cli(c("score", "--", "-h")), "no such file")
+    expect_false(inherits(err, "pagerankr_cli_usage"))
+    expect_usage_error(c("score", "--", "a.csv", "b.csv"), "got 2")
   })
 
   it("rejects placements outside the vocabulary", {
@@ -478,6 +581,71 @@ describe("cli input errors", {
     )
   })
 
+  it("reads only the columns it uses", {
+    path <- cli_csv(data.frame(
+      extra = "x", to = "b", from = "a", weight = 2, notes = "y"
+    ))
+    edges <- .cli_read_csv(
+      path, "edges file",
+      required = c("from", "to"), optional = c("placement", "weight")
+    )
+    expect_named(edges, c("to", "from", "weight"))
+    expect_identical(edges$weight, "2")
+  })
+
+  it("reports blank cells and repeated nodes in a scores file", {
+    good <- cli_csv(data.frame(node_name = c("x", "y"), pagerank = c(0.6, 0.4)))
+    blank_score <- cli_csv(
+      data.frame(node_name = c("x", "y"), pagerank = c(0.6, NA)),
+      na = ""
+    )
+    expect_input_error(
+      c("compare", good, blank_score),
+      paste0(
+        "scores file '", blank_score,
+        "' has a blank pagerank cell in data row 2"
+      )
+    )
+    blank_node <- cli_csv(
+      data.frame(node_name = c(NA, "y"), pagerank = c(0.6, 0.4)),
+      na = ""
+    )
+    expect_input_error(
+      c("compare", blank_node, good), "has a blank node_name cell in data row 1"
+    )
+    repeated <- cli_csv(
+      data.frame(node_name = c("x", "y", "x"), pagerank = c(0.5, 0.3, 0.2))
+    )
+    expect_input_error(
+      c("compare", good, repeated),
+      paste0("scores file '", repeated, "' lists node_name 'x' more than once")
+    )
+    # Only the compared metric's column has to be complete.
+    blank_other <- cli_csv(
+      data.frame(
+        node_name = c("x", "y"), pagerank = c(0.6, 0.4), cheirank = c(0.5, NA)
+      ),
+      na = ""
+    )
+    expect_identical(
+      nrow(cli_read(cli_run(c("compare", good, blank_other)))), 2L
+    )
+  })
+
+  it("reports scores that are not finite numbers", {
+    edges <- cli_small_edges()
+    solver <- pagerank
+    local_mocked_bindings(pagerank = function(..., reverse = FALSE) {
+      out <- solver(..., reverse = reverse)
+      if (reverse) out$pagerank[[2L]] <- NaN
+      out
+    })
+    expect_input_error(
+      c("score", cli_csv(edges)),
+      "the cheirank of 1 of 3 nodes is not a finite number"
+    )
+  })
+
   it("needs a placement column for the placement options", {
     expect_input_error(
       c("score", no_placement_csv, "--accepted-placements", "content"),
@@ -544,6 +712,12 @@ describe("the installed script", {
       stdout = FALSE, stderr = FALSE
     )
     expect_equal(usage, 2L)
+    damping_one <- system2(
+      rscript,
+      c(shQuote(script), "score", shQuote(edges_csv), "--damping", "1"),
+      stdout = FALSE, stderr = FALSE
+    )
+    expect_equal(damping_one, 2L)
     missing_input <- system2(
       rscript, c(shQuote(script), "score", shQuote(tempfile())),
       stdout = FALSE, stderr = FALSE

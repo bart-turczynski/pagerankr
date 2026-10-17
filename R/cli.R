@@ -13,9 +13,15 @@
 #'   [compare_pagerank()] result for one of the two scores, as CSV or JSON.
 #'
 #' Output is machine-readable and goes to standard output unless `--out FILE`
-#' names a file. The command never judges the scores: a successful run is a
-#' successful run whatever the numbers are, and thresholds are left to the
-#' caller.
+#' names a file. Input files are read as UTF-8 and output is written as UTF-8,
+#' whatever the locale. The command never judges the scores: a run that
+#' produces finite scores succeeds whatever the numbers are, and thresholds are
+#' left to the caller.
+#'
+#' Every option takes a value, given as `--name value` or `--name=value`.
+#' `-h` or `--help` where an option name is expected prints the usage; as an
+#' option's value it is just that value. `--` ends the options: every argument
+#' after it is a file, even one that starts with `-`.
 #'
 #' @param args A character vector of command-line arguments, the command
 #'   first. Defaults to `commandArgs(trailingOnly = TRUE)`, the arguments the
@@ -43,7 +49,10 @@
 #' [pagerank()] defaults: URLs are cleaned, self-loops and isolates are
 #' dropped and duplicate edges collapse.
 #'
-#' * `--damping X`: the damping factor, a number in `[0, 1]`. Default `0.85`.
+#' * `--damping X`: the damping factor, a number in `[0, 1)`. Default `0.85`.
+#'   [pagerank()] itself accepts `1`, but with no teleport the scores are not
+#'   well defined on most graphs (the solver can return `NaN`), so `score`
+#'   refuses it.
 #' * `--accepted-placements LIST`: comma-separated placements to keep, from
 #'   `content`, `nav`, `header`, `footer` and `aside`. Edges placed elsewhere
 #'   are dropped. Needs a `placement` column.
@@ -53,7 +62,8 @@
 #'   with a `weight` column.
 #' * `--out FILE`: write the CSV to `FILE` instead of standard output.
 #'
-#' The output has one row per scored node, highest PageRank first:
+#' The output has one row per scored node, highest written PageRank first and
+#' rows that print the same PageRank in `node_name` order:
 #' \describe{
 #'   \item{`node_name`}{The node, after URL cleaning.}
 #'   \item{`pagerank`}{Its PageRank. The column sums to 1.}
@@ -66,7 +76,8 @@
 #' [--format csv|json] [--out FILE]`
 #'
 #' `SCORES_A` (the baseline) and `SCORES_B` are CSV files with a `node_name`
-#' column and the metric's column, as `score` writes them.
+#' column and the metric's column, as `score` writes them. Each `node_name`
+#' appears once and no cell in either column is blank.
 #'
 #' * `--metric`: which score to compare, `pagerank` (default) or `cheirank`.
 #' * `--format`: `csv` (default) or `json`.
@@ -85,17 +96,23 @@
 #' @section Precision:
 #' Both commands write numbers with 15 significant digits, R's own CSV
 #' precision. Nodes in equivalent positions in the graph get scores that differ
-#' only by floating-point noise past that digit; written out, they are equal,
-#' so `compare` ranks them as ties instead of ordering them by the noise. A
-#' comparison of the written scores therefore matches [compare_pagerank()] run
-#' on the scores rounded to 15 significant digits.
+#' only by floating-point noise past that digit; written out, they are usually
+#' equal, so `compare` ranks them as ties instead of ordering them by the
+#' noise. Rounding makes a difference between platforms unlikely, not
+#' impossible: two values either side of a rounding boundary still print
+#' differently. A comparison of the written scores matches [compare_pagerank()]
+#' run on the scores rounded to 15 significant digits. Its ranks and
+#' `spearman_rho` are computed on the written, rounded values, so they can
+#' differ from [compare_pagerank()] run on the full-precision scores wherever
+#' scores differ only by floating-point noise.
 #'
 #' @section Exit status:
 #' The script exits 0 on success, 2 on a usage error (an unknown command or
 #' option, a missing or malformed value, a placement outside the vocabulary)
-#' and 1 on any other error, such as an unreadable or malformed input file. It
-#' prints the error to standard error. Called from R, `cli()` signals the error
-#' instead; a usage error has class `pagerankr_cli_usage`.
+#' and 1 on any other error, such as an unreadable or malformed input file, a
+#' blank or repeated cell in a scores file, or a score that is not a finite
+#' number. It prints the error to standard error. Called from R, `cli()`
+#' signals the error instead; a usage error has class `pagerankr_cli_usage`.
 #'
 #' @return Invisibly, the data frame written: the scores for `score`, the
 #'   [compare_pagerank()] result for `compare`, or `NULL` for `--help`.
@@ -155,7 +172,7 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
     "                      [--placement-weights LIST] [--out FILE]",
     "  EDGES: CSV with from,to and optional placement and weight columns.",
     "  Writes node_name,pagerank,cheirank (CheiRank = reverse PageRank).",
-    "  --damping X                damping factor in [0, 1] (default 0.85)",
+    "  --damping X                damping factor in [0, 1) (default 0.85)",
     "  --accepted-placements LIST placements to keep, e.g. content,nav",
     "  --placement-weights LIST   e.g. content=1,nav=0.1,footer=0.1",
     "  Placements: content, nav, header, footer, aside."
@@ -169,6 +186,7 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   common <- c(
     "",
     "  --out FILE writes to FILE instead of standard output.",
+    "  -- ends the options; every later argument is a file.",
     "  Help: ?pagerankr::cli"
   )
   body <- switch(topic,
@@ -202,15 +220,39 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   )
 }
 
+#' Does `args` ask for help where an option name is expected?
+#'
+#' `--name` without `=value` takes the next argument as its value, so a `-h`
+#' there is a value, not a request for help; scanning stops at `--`.
+#'
+#' @keywords internal
+#' @noRd
+.cli_wants_help <- function(args) {
+  i <- 1L
+  while (i <= length(args)) {
+    arg <- args[[i]]
+    if (arg == "--") {
+      return(FALSE)
+    }
+    if (arg %in% c("-h", "--help")) {
+      return(TRUE)
+    }
+    takes_next <- startsWith(arg, "--") && !grepl("=", arg, fixed = TRUE)
+    i <- i + if (takes_next) 2L else 1L
+  }
+  FALSE
+}
+
 #' Parse a command's arguments into positionals and option values
 #'
 #' Every option takes a value, given as `--name value` or `--name=value`.
-#' `-h` / `--help` anywhere returns `help = TRUE`.
+#' `-h` / `--help` where an option name is expected returns `help = TRUE`;
+#' `--` ends the options.
 #'
 #' @keywords internal
 #' @noRd
 .cli_parse <- function(args, options, n_positional, command) {
-  if (any(args %in% c("-h", "--help"))) {
+  if (.cli_wants_help(args)) {
     return(list(help = TRUE))
   }
   values <- list()
@@ -219,6 +261,10 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   while (i <= length(args)) {
     arg <- args[[i]]
     i <- i + 1L
+    if (arg == "--") {
+      positional <- c(positional, args[-seq_len(i - 1L)])
+      break
+    }
     if (!startsWith(arg, "--")) {
       positional <- c(positional, arg)
       next
@@ -266,9 +312,9 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
     return(NULL)
   }
   damping <- suppressWarnings(as.numeric(value))
-  if (is.na(damping) || damping < 0 || damping > 1) {
+  if (is.na(damping) || damping < 0 || damping >= 1) {
     .cli_usage_error(
-      "--damping must be a number between 0 and 1, not '", value, "'."
+      "--damping must be a number in [0, 1), not '", value, "'."
     )
   }
   damping
@@ -365,37 +411,47 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   value
 }
 
-#' Read a CSV input as all-character columns
+#' Read the `required` and `optional` columns of a CSV input as character
+#'
+#' The header is read first, so the columns the command does not use are
+#' skipped (`colClasses = "NULL"`) instead of read and dropped. Strings are
+#' marked UTF-8 whatever the locale.
+#'
 #' @keywords internal
 #' @noRd
-.cli_read_csv <- function(path, what) {
+.cli_read_csv <- function(path, what, required, optional = character()) {
   if (!file.exists(path) || dir.exists(path)) {
     stop("cannot read ", what, " '", path, "': no such file.", call. = FALSE)
   }
-  tryCatch(
-    utils::read.csv(
-      path,
-      colClasses = "character", na.strings = "", check.names = FALSE,
-      encoding = "UTF-8"
-    ),
-    error = function(e) {
-      stop(
-        "cannot read ", what, " '", path, "': ", conditionMessage(e),
-        call. = FALSE
-      )
-    }
-  )
+  read <- function(...) {
+    tryCatch(
+      utils::read.csv(path, check.names = FALSE, encoding = "UTF-8", ...),
+      error = function(e) {
+        stop(
+          "cannot read ", what, " '", path, "': ", conditionMessage(e),
+          call. = FALSE
+        )
+      }
+    )
+  }
+  # nrows = 1, not 0: read.table() takes a non-positive nrows as "all rows".
+  header <- names(read(nrows = 1L))
+  .cli_require_columns(header, required, what, path)
+  col_classes <- rep("NULL", length(header))
+  wanted <- intersect(c(required, optional), header)
+  col_classes[match(wanted, header)] <- "character"
+  read(colClasses = col_classes, na.strings = "")
 }
 
-#' Stop unless `df` has every column in `required`
+#' Stop unless the `header` names every column in `required`
 #' @keywords internal
 #' @noRd
-.cli_require_columns <- function(df, required, what, path) {
-  missing_cols <- setdiff(required, names(df))
+.cli_require_columns <- function(header, required, what, path) {
+  missing_cols <- setdiff(required, header)
   if (length(missing_cols) > 0L) {
     stop(
       what, " '", path, "' has no ", toString(missing_cols),
-      " column; it has: ", toString(names(df)), ".",
+      " column; it has: ", toString(header), ".",
       call. = FALSE
     )
   }
@@ -423,8 +479,10 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
 #' @noRd
 .cli_read_edges <- function(path) {
   what <- "edges file"
-  edges <- .cli_read_csv(path, what)
-  .cli_require_columns(edges, c("from", "to"), what, path)
+  edges <- .cli_read_csv(
+    path, what,
+    required = c("from", "to"), optional = c("placement", "weight")
+  )
   edges <- edges[
     intersect(c("from", "to", "placement", "weight"), names(edges))
   ]
@@ -439,10 +497,26 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
 #' @noRd
 .cli_read_scores <- function(path, metric) {
   what <- "scores file"
-  scores <- .cli_read_csv(path, what)
-  .cli_require_columns(scores, c("node_name", metric), what, path)
+  scores <- .cli_read_csv(path, what, required = c("node_name", metric))
   out <- data.frame(node_name = scores$node_name)
   out[[metric]] <- .cli_numeric_column(scores[[metric]], metric, what, path)
+  for (column in names(out)) {
+    if (anyNA(out[[column]])) {
+      stop(
+        what, " '", path, "' has a blank ", column, " cell in data row ",
+        which(is.na(out[[column]]))[[1L]], ".",
+        call. = FALSE
+      )
+    }
+  }
+  repeated <- anyDuplicated(out$node_name)
+  if (repeated > 0L) {
+    stop(
+      what, " '", path, "' lists node_name '", out$node_name[[repeated]],
+      "' more than once.",
+      call. = FALSE
+    )
+  }
   out
 }
 
@@ -483,7 +557,27 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   args
 }
 
-#' Join forward PageRank and CheiRank, highest PageRank first
+#' Stop unless every score `pagerank()` returned is a finite number
+#' @keywords internal
+#' @noRd
+.cli_check_finite <- function(result, metric) {
+  bad <- !is.finite(result$pagerank)
+  if (any(bad)) {
+    stop(
+      "the ", metric, " of ", sum(bad), " of ", length(bad), " nodes is not ",
+      "a finite number; the solver did not produce usable scores.",
+      call. = FALSE
+    )
+  }
+  invisible(NULL)
+}
+
+#' Join forward PageRank and CheiRank, highest written PageRank first
+#'
+#' Rows are ordered on the PageRank as written (15 significant digits), then
+#' on `node_name`, so rows that print the same score are not ordered by the
+#' noise past the 15th digit.
+#'
 #' @keywords internal
 #' @noRd
 .cli_join_scores <- function(forward, reverse) {
@@ -492,8 +586,9 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
     data.frame(node_name = reverse$node_name, cheirank = reverse$pagerank),
     by = "node_name", all = TRUE
   )
+  written <- as.numeric(.cli_format_num(scores$pagerank))
   scores <- scores[
-    order(-scores$pagerank, scores$node_name, method = "radix"), ,
+    order(-written, scores$node_name, method = "radix"), ,
     drop = FALSE
   ]
   row.names(scores) <- NULL
@@ -524,7 +619,9 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
 
   pr_args <- .cli_score_args(edges, path, damping, accepted, weights)
   forward <- do.call(pagerank, pr_args)
+  .cli_check_finite(forward, "pagerank")
   reverse <- do.call(pagerank, c(pr_args, list(reverse = TRUE)))
+  .cli_check_finite(reverse, "cheirank")
   scores <- .cli_join_scores(forward, reverse)
   .cli_write(.cli_csv_lines(scores), values$out)
   invisible(scores)
@@ -577,17 +674,44 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   out
 }
 
+#' Quote strings for CSV, doubling embedded quotes as `write.csv()` does
+#' @keywords internal
+#' @noRd
+.cli_csv_quote <- function(x) {
+  paste0("\"", gsub("\"", "\"\"", x, fixed = TRUE), "\"")
+}
+
+#' Encode one column as CSV cells; a missing value is an empty cell
+#' @keywords internal
+#' @noRd
+.cli_csv_cells <- function(x) {
+  out <- if (is.character(x)) {
+    .cli_csv_quote(x)
+  } else if (is.double(x)) {
+    .cli_format_num(x)
+  } else {
+    as.character(x)
+  }
+  out[is.na(x) | is.na(out)] <- ""
+  out
+}
+
 #' Render a data frame as CSV lines, doubles at 15 significant digits
+#'
+#' The layout is `write.csv(row.names = FALSE, na = "")` with only character
+#' columns quoted, built with vectorized `paste()`: writing through a
+#' `textConnection()` grows its result one line at a time, which is quadratic
+#' in the row count.
+#'
 #' @keywords internal
 #' @noRd
 .cli_csv_lines <- function(df) {
-  quote_cols <- which(vapply(df, is.character, logical(1L)))
-  doubles <- vapply(df, is.double, logical(1L))
-  df[doubles] <- lapply(df[doubles], .cli_format_num)
-  con <- textConnection("csv_lines", open = "w", local = TRUE)
-  on.exit(close(con))
-  utils::write.csv(df, con, row.names = FALSE, na = "", quote = quote_cols)
-  textConnectionValue(con)
+  header <- paste(.cli_csv_quote(names(df)), collapse = ",")
+  if (nrow(df) == 0L) {
+    return(header)
+  }
+  cells <- lapply(unname(df), .cli_csv_cells)
+  c(header, do.call(paste, c(cells, sep = ",")))
 }
 
 #' Escape strings for a JSON string literal
@@ -661,16 +785,22 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
   )
 }
 
-#' Write lines to `out`, or to standard output when `out` is `NULL`
+#' Write lines as UTF-8 to `out`, or to standard output when `out` is `NULL`
+#'
+#' The lines are converted to UTF-8 and written as bytes, with no conversion
+#' by the connection: translating to the native encoding first would turn
+#' every character a C or POSIX locale cannot represent into `<U+00E9>`.
+#'
 #' @keywords internal
 #' @noRd
 .cli_write <- function(lines, out) {
+  lines <- enc2utf8(lines)
   if (is.null(out)) {
-    writeLines(lines)
+    writeLines(lines, stdout(), useBytes = TRUE)
     return(invisible(NULL))
   }
   con <- tryCatch(
-    file(out, open = "w", encoding = "UTF-8"),
+    file(out, open = "w", encoding = "native.enc"),
     error = function(e) NULL,
     warning = function(w) NULL
   )
@@ -678,6 +808,6 @@ cli <- function(args = commandArgs(trailingOnly = TRUE)) {
     stop("cannot write output file '", out, "'.", call. = FALSE)
   }
   on.exit(close(con))
-  writeLines(lines, con)
+  writeLines(lines, con, useBytes = TRUE)
   invisible(NULL)
 }

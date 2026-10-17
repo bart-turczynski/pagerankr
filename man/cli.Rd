@@ -29,9 +29,15 @@ out to much of the site scores high.
 }
 
 Output is machine-readable and goes to standard output unless \verb{--out FILE}
-names a file. The command never judges the scores: a successful run is a
-successful run whatever the numbers are, and thresholds are left to the
-caller.
+names a file. Input files are read as UTF-8 and output is written as UTF-8,
+whatever the locale. The command never judges the scores: a run that
+produces finite scores succeeds whatever the numbers are, and thresholds are
+left to the caller.
+
+Every option takes a value, given as \verb{--name value} or \code{--name=value}.
+\code{-h} or \code{--help} where an option name is expected prints the usage; as an
+option's value it is just that value. \verb{--} ends the options: every argument
+after it is a file, even one that starts with \code{-}.
 }
 \section{Locating the script}{
 
@@ -56,7 +62,10 @@ numeric \code{weight} column; other columns are ignored. Scoring uses the
 \code{\link[=pagerank]{pagerank()}} defaults: URLs are cleaned, self-loops and isolates are
 dropped and duplicate edges collapse.
 \itemize{
-\item \verb{--damping X}: the damping factor, a number in \verb{[0, 1]}. Default \code{0.85}.
+\item \verb{--damping X}: the damping factor, a number in \verb{[0, 1)}. Default \code{0.85}.
+\code{\link[=pagerank]{pagerank()}} itself accepts \code{1}, but with no teleport the scores are not
+well defined on most graphs (the solver can return \code{NaN}), so \code{score}
+refuses it.
 \item \verb{--accepted-placements LIST}: comma-separated placements to keep, from
 \code{content}, \code{nav}, \code{header}, \code{footer} and \code{aside}. Edges placed elsewhere
 are dropped. Needs a \code{placement} column.
@@ -67,7 +76,8 @@ with a \code{weight} column.
 \item \verb{--out FILE}: write the CSV to \code{FILE} instead of standard output.
 }
 
-The output has one row per scored node, highest PageRank first:
+The output has one row per scored node, highest written PageRank first and
+rows that print the same PageRank in \code{node_name} order:
 \describe{
 \item{\code{node_name}}{The node, after URL cleaning.}
 \item{\code{pagerank}}{Its PageRank. The column sums to 1.}
@@ -81,7 +91,8 @@ sums to 1.}
 \verb{pagerankr compare SCORES_A SCORES_B [--metric pagerank|cheirank] [--format csv|json] [--out FILE]}
 
 \code{SCORES_A} (the baseline) and \code{SCORES_B} are CSV files with a \code{node_name}
-column and the metric's column, as \code{score} writes them.
+column and the metric's column, as \code{score} writes them. Each \code{node_name}
+appears once and no cell in either column is blank.
 \itemize{
 \item \code{--metric}: which score to compare, \code{pagerank} (default) or \code{cheirank}.
 \item \code{--format}: \code{csv} (default) or \code{json}.
@@ -103,19 +114,25 @@ row of the CSV. A missing value is \code{null}.
 
 Both commands write numbers with 15 significant digits, R's own CSV
 precision. Nodes in equivalent positions in the graph get scores that differ
-only by floating-point noise past that digit; written out, they are equal,
-so \code{compare} ranks them as ties instead of ordering them by the noise. A
-comparison of the written scores therefore matches \code{\link[=compare_pagerank]{compare_pagerank()}} run
-on the scores rounded to 15 significant digits.
+only by floating-point noise past that digit; written out, they are usually
+equal, so \code{compare} ranks them as ties instead of ordering them by the
+noise. Rounding makes a difference between platforms unlikely, not
+impossible: two values either side of a rounding boundary still print
+differently. A comparison of the written scores matches \code{\link[=compare_pagerank]{compare_pagerank()}}
+run on the scores rounded to 15 significant digits. Its ranks and
+\code{spearman_rho} are computed on the written, rounded values, so they can
+differ from \code{\link[=compare_pagerank]{compare_pagerank()}} run on the full-precision scores wherever
+scores differ only by floating-point noise.
 }
 
 \section{Exit status}{
 
 The script exits 0 on success, 2 on a usage error (an unknown command or
 option, a missing or malformed value, a placement outside the vocabulary)
-and 1 on any other error, such as an unreadable or malformed input file. It
-prints the error to standard error. Called from R, \code{cli()} signals the error
-instead; a usage error has class \code{pagerankr_cli_usage}.
+and 1 on any other error, such as an unreadable or malformed input file, a
+blank or repeated cell in a scores file, or a score that is not a finite
+number. It prints the error to standard error. Called from R, \code{cli()}
+signals the error instead; a usage error has class \code{pagerankr_cli_usage}.
 }
 
 \examples{
