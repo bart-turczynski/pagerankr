@@ -1,0 +1,22 @@
+#!/usr/bin/env Rscript
+# pagerankr command-line entry point. Scores an edge-list CSV, or compares two
+# score files; see ?pagerankr::cli. Locate this script with
+# system.file("exec", "pagerankr", package = "pagerankr").
+#
+# Exit status: 0 on success, 2 on a usage error, 1 on any other error.
+status <- tryCatch(
+  {
+    pagerankr::cli()
+    0L
+  },
+  pagerankr_cli_usage = function(e) {
+    message("pagerankr: ", conditionMessage(e))
+    message("Run 'pagerankr --help' for usage.")
+    2L
+  },
+  error = function(e) {
+    message("pagerankr: ", conditionMessage(e))
+    1L
+  }
+)
+quit(save = "no", status = status)

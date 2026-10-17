@@ -4,6 +4,10 @@
 
 * pagerankr now requires R >= 4.1.0 (was R >= 4.0.0), as `pslr`, which it needs through `rurl`, does (`SEOR-wurguiqa`).
 
+## New features
+
+* pagerankr has a command-line entry point, so a shell or another language can score a link graph with no interactive R session. The `pagerankr` script, installed at `system.file("exec", "pagerankr", package = "pagerankr")`, runs the new `cli()`. `pagerankr score EDGES` reads an edge-list CSV (`from`, `to`, optional `placement` and `weight`) and writes `node_name`, `pagerank` and `cheirank` (PageRank with `reverse = TRUE`) per node, with `--damping`, `--accepted-placements` and `--placement-weights` passed to `pagerank()`. `pagerankr compare SCORES_A SCORES_B` writes the `compare_pagerank()` result for `--metric pagerank` or `cheirank` as CSV or, with `--format json`, as JSON with its summary. Output goes to standard output or `--out FILE`; the script exits 2 on a usage error, 1 on any other error and 0 otherwise, whatever the scores (`PAGE-nsdtszsj`).
+
 ## Bug fixes
 
 * Case-insensitive matching of Screaming Frog headers, XPath regions, placement labels and hosts no longer depends on the locale (`PAGE-vzetnwuu`).
