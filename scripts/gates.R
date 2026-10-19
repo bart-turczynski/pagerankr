@@ -17,7 +17,7 @@
 # 'which python3'`. Folding it in without a python3 install fails every run
 # with exit 127; adding an apt-get for it would add a new network/package
 # dependency to a job whose other two members touch no package manager at
-# all. citation-version stays its own job on `python:3.13-alpine`, where
+# all. citation-version stays its own job on `python:3.14-alpine`, where
 # python3 already exists at near-zero cost. See the `gates:` job's own
 # comment in .gitlab-ci.yml for the full reasoning and the two options
 # weighed.
