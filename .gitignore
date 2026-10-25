@@ -117,9 +117,4 @@ worklog/
 tmp/
 
 # Fiberplane local issue tracking
-.fp/*
-!.fp/config.toml
-!.fp/extensions/
-.fp/extensions/*
-!.fp/extensions/*.ts
-.fp/config.local.toml
+.fp/

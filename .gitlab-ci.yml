@@ -91,7 +91,7 @@ default:
 # The R steps used to be `default: before_script`, which every job without one
 # of its own inherited. They moved to `.r` when pandoc joined them
 # (SEOR-dpjdwhbi): the pandoc install needs Debian, dpkg and curl, and
-# `default:` would hand it to `citation-version` on python:3.13-alpine too
+# `default:` would hand it to `citation-version` on python:3.14-alpine too
 # (seor design/fleet-standard.md, "CI on every push to `main`").
 #
 # The pandoc steps are their own anchored list so that `full-check` and
@@ -411,7 +411,7 @@ gates:
 # is the trade seor design/adr/0005 exists to refuse.
 citation-version:
   stage: verify
-  image: python:3.13-alpine
+  image: python:3.14-alpine
   cache: []
   script:
     - python3 scripts/check-citation.py --self-test
