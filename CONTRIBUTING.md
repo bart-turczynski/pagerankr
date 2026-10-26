@@ -14,6 +14,9 @@ Install dependencies:
 Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
 ```
 
+The verification command also needs `python3` and
+[`pre-commit`](https://pre-commit.com/) (for example `pipx install pre-commit`).
+
 Run verification (the pre-push chain: the hygiene hooks, the toolchain check,
 the URL check, then the eight-gate `verify` hook described below):
 
@@ -46,26 +49,13 @@ one summary rather than stopping at the first:
    against `DESCRIPTION` `Language: en-US`
 7. `docs`: `man/`, `NAMESPACE` and `DESCRIPTION` match what roxygen2
    regenerates from `R/` (`scripts/check-docs-drift.R` via `scripts/gates.R`,
-   the file the `gates` CI job runs). It checks the **commit being pushed**,
-   not the working tree: it exports that commit with `git archive` to a temp
-   directory, regenerates there and deletes the directory, so it never
-   rewrites your checkout. Under `pre-commit run --all-files` it checks `HEAD`.
+   the file the `gates` CI job runs).
    An uncommitted `devtools::document()` fix does not pass it; commit the fix.
 8. `rcmdcheck`: `R CMD check --as-cran`, which **fails on errors AND warnings**
    (the package is warning-clean; the only allowed NOTE is the CRAN-incoming
    new-submission one)
 
-Between gates 4 and 5 it prints a non-gating notice when the installed rurl is
-older than the version CRAN serves. A **missing checker fails its gate**: no
-`python3`, `lintr`, `spelling` or `rcmdcheck` is a broken environment, not a
-passing tree (SEOR-dzrisdmi).
-
-The script itself is unchanged; only how it is armed changed. It now runs
-through a `pre-commit` local hook (`.pre-commit-config.yaml`) rather than
-`git config core.hooksPath`, because that file also carries the fleet's
-commit-stage hygiene hooks (trailing-whitespace, large-file guard,
-merge-conflict markers, and so on), and `pre-commit install` refuses to run at
-all while `core.hooksPath` is set. Enable both once per clone:
+Enable both hook stages once per clone:
 
 ```bash
 pre-commit install
@@ -81,9 +71,6 @@ PASS.
 
 ### Spelling (gate 6)
 
-Spelling is gated because prose regressed silently once already: the
-case-study vignette introduced two en-GB spellings and two untracked terms
-*after* `inst/WORDLIST` was built, and nothing caught them (PAGE-xevimisi).
 Fix genuine misspellings in the text; add real terms to `inst/WORDLIST`
 (`spelling::update_wordlist()` refreshes it). When `spelling` is not installed
 the gate **fails**; install it, or push with `SKIP_SPELLING=1` deliberately.
@@ -93,14 +80,14 @@ the gate **fails**; install it, or push with `SKIP_SPELLING=1` deliberately.
 `R CMD check` (gate 8) requires the full `Suggests` set (`covr`,
 `goodpractice`, `DT`, `visNetwork`, `rcmdcheck`, ...). When `rcmdcheck` is not
 installed, gate 8 **fails** rather than skipping, so a fresh clone must install
-the Suggests (or push with `SKIP_RCMDCHECK=1` deliberately). The full check — it is what catches correctness regressions such as a dependency
-bump that turns test fixtures red (this class of failure previously slipped
-onto `main` while remote CI was billing-disabled; see PR #50).
+the Suggests (or push with `SKIP_RCMDCHECK=1` deliberately).
 
 ## Where else to look
 
 The source layout and durable project context live in `ARCHITECTURE.md`
-and `design/`: CI in
+and `design/`: how the local gate works in
+[`design/verify-gate.md`](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/design/verify-gate.md),
+CI in
 [`design/ci.md`](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/design/ci.md),
 the linter set in
 [`design/lint.md`](https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/design/lint.md),
