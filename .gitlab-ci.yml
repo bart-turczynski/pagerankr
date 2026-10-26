@@ -40,7 +40,8 @@
 # account and no CODECOV_TOKEN.
 #
 #   Local mirror of the checks:       .githooks/pre-push
-#   What is and is not gated:         CONTRIBUTING.md, cran-comments.md
+#   What is and is not gated:         CONTRIBUTING.md, design/ci.md,
+#                                     cran-comments.md
 
 stages:
   - verify
@@ -303,7 +304,7 @@ variables:
 # `.githooks/pre-push` runs the same checks locally before the push ever
 # happens. What it does cost: GitLab's per-line coverage annotation in an MR
 # diff (see `coverage` below) needs a pipeline associated with the MR, and
-# none runs now — see CONTRIBUTING.md.
+# none runs now — see design/ci.md.
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -473,7 +474,7 @@ check:
 # request diff, and the `coverage:` regex below drives the project percentage
 # and its badge. The annotation half needs a pipeline associated with the MR to
 # attach the report to, and the top-level `workflow:` block creates none — see
-# CONTRIBUTING.md — so today this only ever runs on `main`, after the merge,
+# design/ci.md — so today this only ever runs on `main`, after the merge,
 # and the diff annotation never appears. Kept anyway: the badge and the
 # artifact are still useful, and it costs nothing to leave cobertura wired up
 # for the day an MR pipeline exists again. That removes a third-party account

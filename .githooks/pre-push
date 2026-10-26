@@ -4,7 +4,7 @@
 # On a feature branch this hook is the ONLY gate that runs anywhere. pagerankr's
 # `workflow:` block admits a tag, a push to main, or a hand-started `web` run
 # and nothing else, so a branch push creates no pipeline and a merge request
-# creates none either. That is deliberate (see CONTRIBUTING.md, "One pipeline,
+# creates none either. That is deliberate (see design/ci.md, "One pipeline,
 # not three"), and it is why this
 # file fails loudly rather than degrading quietly.
 #
