@@ -18,7 +18,7 @@ project:
   documentation:
     quickstart-guide: https://bart-turczynski.gitlab.io/pagerankr/
     detailed-guide: https://bart-turczynski.gitlab.io/pagerankr/reference/index.html
-    release-process: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/CONTRIBUTING.md
+    release-process: https://gitlab.com/bart-turczynski/pagerankr/-/blob/main/design/release-deltas.md
   repositories:
     - name: pagerankr
       url: https://gitlab.com/bart-turczynski/pagerankr

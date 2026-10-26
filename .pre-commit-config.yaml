@@ -102,8 +102,8 @@ repos:
       # inst/CITATION, NEWS, README.md) and fails on a dead one: --as-cran in
       # `verify` reports a dead link only as a NOTE, which the gate lets
       # through. A URL that cannot be reached at all only warns, so a network
-      # blip never rejects a push; zero URLs checked fails; the only exemption
-      # is BugReports' /-/issues URL answering exactly 404 (SEOR-ocbtrrnl).
+      # blip never rejects a push; zero URLs checked fails; nothing is exempt
+      # (seor's ADR 0011: BugReports names /-/work_items).
       # The fleet standard's URL check, copied from punycoder.
       - id: check-urls
         name: declared URLs resolve
