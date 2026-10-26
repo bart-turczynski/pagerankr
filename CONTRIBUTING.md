@@ -120,7 +120,7 @@ one summary rather than stopping at the first:
    `scripts/gates.R`
 3. `citation`: citation metadata vs `DESCRIPTION` (`scripts/check-citation.py`,
    the same script the `citation-version` CI job runs)
-4. `bugreports`: the BugReports tracker-link split
+4. `bugreports`: `BugReports:` and every tracker link name `/-/work_items`
    (`scripts/check-bugreports.py`, also run by `citation-version`)
 5. `lint`: `lintr::lint_package()` reports no lints
 6. `spelling`: `spelling::spell_check_package()` reports no misspellings

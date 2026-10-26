@@ -161,13 +161,13 @@ else
   record citation fail
 fi
 
-# 4. BugReports tracker-link split (SEOR-ocbtrrnl). DESCRIPTION and the roxygen-
-# generated man/pagerankr-package.Rd stay on the CRAN-incoming-safe /-/issues
-# form; codemeta.json / SECURITY.md / README.Rmd / README.md -- the files a
-# human clicks -- name /-/work_items, the address GitLab actually serves.
-# Declaring /-/work_items in DESCRIPTION archived the first pslr 1.2.1 upload at
-# the CRAN pretest on 2026-09-12.
-echo "pre-push: BugReports tracker-link split ..." >&2
+# 4. BugReports and tracker links (SEOR-sptibjph). DESCRIPTION, the roxygen-
+# generated man/pagerankr-package.Rd and every tracker link (codemeta.json,
+# .bestpractices.json, CONTRIBUTING.md, SECURITY.md, README.Rmd, README.md)
+# name /-/work_items, the address GitLab actually serves, and no human-facing
+# file carries a /-/issues link (seor's ADR 0011,
+# https://gitlab.com/bart-turczynski/seor/-/blob/main/design/adr/0011-bugreports-names-work-items.md).
+echo "pre-push: BugReports and tracker links name /-/work_items ..." >&2
 if ! have_tool bugreports python3; then
   record bugreports fail
 elif python3 scripts/check-bugreports.py --self-test >&2 &&
