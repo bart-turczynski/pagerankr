@@ -150,6 +150,11 @@ reference:
       - export_graph
       - launch_pagerank_explorer
 
+  - title: "Command line"
+    desc: "Score an edge list and compare two score files from a shell."
+    contents:
+      - cli
+
   - title: "Metrics and diagnostics"
     desc: "Summarize rank distributions and transition behavior."
     contents:

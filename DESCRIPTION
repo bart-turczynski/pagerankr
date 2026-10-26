@@ -42,4 +42,4 @@ BugReports: https://gitlab.com/bart-turczynski/pagerankr/-/issues
 X-schema.org-keywords: pagerank, seo, technical-seo, internal-linking,
     link-graph, link-equity, crawl-analysis, screaming-frog, redirects,
     trustrank
-Config/roxygen2/version: 8.0.0
+Config/roxygen2/version: 8.1.1
