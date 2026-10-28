@@ -8,8 +8,11 @@ reports, Screaming Frog exports). On CRAN; lifecycle experimental.
   and weighting are documented opt-ins. Cheap variants become `pagerank_grid()` columns, not re-runs.
 - Crawl exports under `_scratch/crawls/` exceed 1 GB. Aggregate in Rscript with
   `data.table::fread(select = ...)`, print summaries only, and bound schema peeks with `head -c`.
-- `NEWS.md` covers library changes. Crawl measurements and ranking predictions go in a vignette
-  or `notes/`.
+- `NEWS.md` lists only what a package user acts on or notices, each bullet one terse line (at
+  most 32 words). Cite a governing standard as a short clause, end with at most one issue or MR
+  reference. No housekeeping bullets (CI, gates, lint, agent files, metadata), no Internal
+  section; the `news-terse` hook enforces it. Crawl measurements and ranking predictions go in a
+  vignette or `notes/`.
 - A gate red on an untouched tree: run `scripts/check-toolchain.R` first. If it passes, report
   the red gate with its evidence instead of assuming the change caused it.
 
