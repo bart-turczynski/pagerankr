@@ -61,6 +61,8 @@
 #                                              it was hook-only before, so the
 #                                              fleet's newest gate ran on one
 #                                              laptop and nowhere else)
+#   news-terse      yes    citation-version    scripts/check-news.py, its own
+#                                              pre-commit hook, not this script
 #   R CMD check     yes    check               both --as-cran, failing on
 #                                              warnings
 #   docs drift      yes    gates (docs)        same scripts/gates.R, which

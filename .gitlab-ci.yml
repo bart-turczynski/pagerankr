@@ -409,7 +409,8 @@ gates:
 # exactly the same shape as check-citation.py, so it belongs in the job that
 # already has a python3 and costs nothing to extend. A separate job would pay
 # the fleet's ~2.6-minute runner-pickup tax for about a second of work, which
-# is the trade seor design/adr/0005 exists to refuse.
+# is the trade seor design/adr/0005 exists to refuse. `check-news.py` (the
+# news-terse hook, ported from seor) rides along for the same reasons.
 citation-version:
   stage: verify
   image: python:3.14-alpine
@@ -419,6 +420,8 @@ citation-version:
     - python3 scripts/check-citation.py
     - python3 scripts/check-bugreports.py --self-test
     - python3 scripts/check-bugreports.py
+    - python3 scripts/check-news.py --self-test
+    - python3 scripts/check-news.py NEWS.md
 
 # 4. R CMD check.
 #

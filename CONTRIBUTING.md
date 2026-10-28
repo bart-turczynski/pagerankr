@@ -17,7 +17,7 @@ Rscript -e 'pak::local_install_deps(dependencies = TRUE)'
 The verification command also needs `python3` and
 [`pre-commit`](https://pre-commit.com/) (for example `pipx install pre-commit`).
 
-Run verification (the pre-push chain: the hygiene hooks, the toolchain check,
+Run verification (the pre-push chain: the hygiene hooks, the NEWS terseness check, the toolchain check,
 the URL check, then the eight-gate `verify` hook described below):
 
 ```sh
