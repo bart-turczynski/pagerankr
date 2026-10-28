@@ -8,7 +8,7 @@ jobs. The local pre-push gate and its eight checks are in
 
 The checks run remotely in **GitLab CI** (`.gitlab-ci.yml`): `gates`
 (news-version, codemeta, README drift, lint and spelling), `citation-version`
-and `check` (`R CMD check --as-cran`, failing on warnings). They run on every
+(citation, BugReports and NEWS terseness) and `check` (`R CMD check --as-cran`, failing on warnings). They run on every
 push to `main` and on `v*` tags — **not** on merge requests or feature-branch
 pushes; see "One pipeline, not three" below. Alongside them, `coverage`
 measures test coverage — reported through GitLab's own cobertura ingestion —
