@@ -1,13 +1,21 @@
-# Wraps the existing local gate rather than replacing it (PAGE-bqrdbmht). This
-# repo already had a richer pre-push gate than the rest of the fleet --
-# .githooks/pre-push, armed via `git config core.hooksPath .githooks` -- with
-# five checks (NEWS/DESCRIPTION version, citation metadata, lintr, spelling,
-# R CMD check --as-cran). pre-commit refuses to install at all while
-# core.hooksPath is set ("Cowardly refusing to install hooks with
-# `core.hooksPath` set."), so arming the fleet-standard commit-stage hygiene
-# hooks required unsetting core.hooksPath and re-pointing the pre-push stage at
-# the SAME script -- not a reimplementation of its five checks in YAML. The
-# script stays at .githooks/pre-push; only how it is invoked changed.
+# The hygiene hooks, at commit and at push. Install with `pre-commit install`
+# (both hook types, from default_install_hook_types below), then
+# `.fleet-ci/pre-push --install`, which replaces pre-commit's pre-push hook
+# with fleet-ci's: that hook runs the fleet-ci local gate (.fleet-ci/gate,
+# settings in .fleet-ci.yml) on each pushed ref, then this file's pre-push
+# stage. The gate itself (spelling, the NEWS heading, codemeta, docs drift,
+# lintr, README drift, the URL check and R CMD check) is in .fleet-ci.yml,
+# never here: this file must not run .fleet-ci/gate (fleet-ci README, "The
+# local gate"). It replaces the former `verify` hook, .githooks/pre-push.
+#
+# Over fleet-ci's hook, `pre-commit install` and
+# `pre-commit install --hook-type pre-push` without -f move it to
+# hooks/pre-push.legacy (pre-commit's migration mode), which still runs the
+# gate first. `pre-commit install -f` (both types, from
+# default_install_hook_types) and `pre-commit install -f --hook-type pre-push`
+# delete it and drop the gate; `-f --hook-type pre-commit` leaves it alone.
+# Re-run `.fleet-ci/pre-push --install` after either of the two.
+default_install_hook_types: [pre-commit, pre-push]
 #
 # air (the R formatter) is intentionally NOT wired up here: this package has no
 # air.toml, so enabling it would reformat the whole source tree in one churny
@@ -33,33 +41,44 @@ repos:
       # tests/testthat/_snaps/ is testthat-owned: it rewrites those files on
       # every test run (passing runs included) and its writer ends each file
       # with a blank line that end-of-file-fixer would strip, which would make
-      # the committed form one the suite can never reproduce and fail the
-      # pre-push hook with "files were modified by this hook" on an otherwise
-      # green tree. Empty today, but the failure mode is immediate the moment a
-      # snapshot test is added, so it is excluded now rather than after the
-      # fact.
+      # the committed form one the suite can never reproduce. Empty today, but
+      # the failure mode is immediate the moment a snapshot test is added, so
+      # it is excluded now rather than after the fact.
+      #
+      # .fleet-ci/ is fleet-ci's bin/vendor output, which seor's fleet checker
+      # requires byte for byte; re-run bin/vendor rather than editing it.
       - id: end-of-file-fixer
-        exclude: &fixer-excludes '^(inst/extdata/|tests/testthat/fixtures/|tests/testthat/_snaps/)'
+        exclude: &fixer-excludes '^(\.fleet-ci/|inst/extdata/|tests/testthat/fixtures/|tests/testthat/_snaps/)'
       - id: trailing-whitespace
         exclude: *fixer-excludes
       - id: check-merge-conflict
+      # Every YAML file but .gitlab-ci.yml through PyYAML's safe loader.
       - id: check-yaml
+        exclude: ^\.gitlab-ci\.yml$
+      # .gitlab-ci.yml with --unsafe: syntax only. Its x-* jobs use GitLab's
+      # `!reference` tag, which the safe loader cannot construct. GitLab's CI
+      # lint API and fleet-ci's bin/rules-sim read that file in full.
+      - id: check-yaml
+        name: check yaml (.gitlab-ci.yml, syntax only)
+        args: [--unsafe]
+        files: ^\.gitlab-ci\.yml$
       - id: check-toml
       - id: mixed-line-ending
         exclude: *fixer-excludes
       - id: check-case-conflict
   # British spellings in code, comments, string literals and tooling, which
-  # spelling::spell_check_package() (gate 6 of .githooks/pre-push) never
+  # spelling::spell_check_package() (the fleet-ci gate's docs gate) never
   # reads: it covers DESCRIPTION, roxygen, vignettes, README and NEWS only,
   # and that gap let British runtime messages ship (SEOR-xtmnpmae). Only the
   # en-GB_to_en-US dictionary is enabled, so this is not a general typo
   # checker. codespell skips dotfiles unless given --check-hidden, so
   # .bestpractices.json is skipped either way; it is listed so the intent
   # survives a flag change.
-  # Excluded: man/ (roxygen output; fix the roxygen source), the Screaming
-  # Frog case-study exports under inst/extdata/ (upstream values such as the
-  # "Canonicalised" Indexability Status; the hand-written inst/extdata/README.md
-  # stays checked), the Screaming Frog test fixtures, and .bestpractices.json
+  # Excluded: .fleet-ci/ (fleet-ci's bin/vendor output), man/ (roxygen
+  # output; fix the roxygen source), the Screaming Frog case-study exports
+  # under inst/extdata/ (upstream values such as the "Canonicalised"
+  # Indexability Status; the hand-written inst/extdata/README.md stays
+  # checked), the Screaming Frog test fixtures, and .bestpractices.json
   # (mirrors the live bestpractices.dev entry). The British alias identifiers
   # (analyse_pagerank_grid, sf_normalise_position) need no allow-list: the
   # default tokenizer keeps underscores inside a word, so it never sees
@@ -71,9 +90,76 @@ repos:
         name: codespell (British spellings, en-GB_to_en-US; SEOR-xtmnpmae)
         args: [--builtin, en-GB_to_en-US]
         stages: [pre-commit, pre-push]
-        exclude: '^(man/|inst/extdata/(?!README\.md$)|tests/testthat/fixtures/|\.bestpractices\.json$)'
+        exclude: '^(\.fleet-ci/|man/|inst/extdata/(?!README\.md$)|tests/testthat/fixtures/|\.bestpractices\.json$)'
   - repo: local
     hooks:
+      # Warns, loudly, when this clone's pre-push hook is not fleet-ci's, so
+      # the push ran without the gate. Warn-only by decision, time-boxed until
+      # the hook is installed fleet-wide, then it fails. It only reads the
+      # hook file; it never runs .fleet-ci/gate.
+      - id: fleet-ci-hook-installed
+        name: fleet-ci pre-push hook is installed (warn-only)
+        entry: sh scripts/check-fleet-hook.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true
+        stages: [pre-push]
+      # This machine's R toolchain against what the package pins: roxygen2
+      # against Config/roxygen2/version, installed packages built under a newer
+      # R, and the local pandoc against the fleet image's (.fleet-ci/toolchain),
+      # so a local devtools::document() or a README knit writes what the gate
+      # accepts. The gate itself runs in the fleet image and does not depend
+      # on this machine's library. Quick: one request, for CRAN's package
+      # index (SEOR-hxxxkmws, SEOR-tcytizic).
+      - id: check-toolchain
+        name: toolchain matches what this package pins
+        entry: Rscript scripts/check-toolchain.R
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      # CITATION.cff `version:` and .zenodo.json `"version"` must name the
+      # release DESCRIPTION's Version names (X.Y.Z.9000 -> X.Y.Z), and every
+      # URL they declare must also appear in DESCRIPTION's URL: field. Ported
+      # from seor's scripts/check-citation.py (seor design/adr/0001). It runs
+      # on every push, whatever the gate's tier; T2's citation-version job runs
+      # it again. Its self-test runs when the script changes.
+      - id: check-citation
+        name: citation metadata vs DESCRIPTION
+        entry: python3 scripts/check-citation.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      - id: check-citation-self-test
+        name: check-citation self-test
+        entry: python3 scripts/check-citation.py --self-test
+        language: system
+        pass_filenames: false
+        files: ^scripts/check-citation\.py$
+        stages: [pre-push]
+      # DESCRIPTION's BugReports:, the roxygen-generated man/pagerankr-package.Rd
+      # and every tracker link (codemeta.json, .bestpractices.json,
+      # CONTRIBUTING.md, SECURITY.md, README.Rmd, README.md) name /-/work_items,
+      # and no human-facing file carries a /-/issues link (seor ADR 0011,
+      # https://gitlab.com/bart-turczynski/seor/-/blob/main/design/adr/0011-bugreports-names-work-items.md).
+      # It reads _pkgdown.yml too, so it runs on every push, whatever the
+      # gate's tier. Its self-test runs when the script changes.
+      - id: check-bugreports
+        name: BugReports and tracker links name /-/work_items
+        entry: python3 scripts/check-bugreports.py
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      - id: check-bugreports-self-test
+        name: check-bugreports self-test
+        entry: python3 scripts/check-bugreports.py --self-test
+        language: system
+        pass_filenames: false
+        files: ^scripts/check-bugreports\.py$
+        stages: [pre-push]
       # NEWS.md bullets are one terse line each (seor's fleet standard,
       # "NEWS.md bullets"). Ported verbatim from seor's scripts/check-news.py;
       # it takes milliseconds. Its self-test runs when the script changes.
@@ -91,52 +177,6 @@ repos:
         pass_filenames: false
         files: ^scripts/check-news\.py$
         stages: [pre-push]
-      # The same eight-check script CI's local counterpart has always run,
-      # unchanged -- .githooks/pre-push stays where it is. It reads no git
-      # hook arguments and no stdin. Its docs gate reads PRE_COMMIT_TO_REF,
-      # which pre-commit sets on this stage to the local sha being pushed, and
-      # checks that commit in a git-archive export; anywhere the variable is
-      # unset (a direct run, `pre-commit run --all-files`) it checks HEAD.
-      # Skip flags (SKIP_VERIFY, SKIP_RCMDCHECK, SKIP_SPELLING) are untouched
-      # and still read from the environment.
-      # Toolchain drift makes the gate red on a tree nobody changed, and it
-      # arrives disguised as a code defect: a roxygen2 skew aborts the docs
-      # guard, and a package built under a newer R than this one surfaces as an
-      # R CMD check WARNING minutes into the expensive step below. This is
-      # quick (one request, for CRAN's package index, which the check for a
-      # dependency older than CRAN's reads: SEOR-hxxxkmws), and it runs ahead
-      # of that step so the machine is
-      # named as the cause in one line rather than found by elimination
-      # (SEOR-tcytizic).
-      - id: check-toolchain
-        name: toolchain matches what this package pins
-        entry: Rscript scripts/check-toolchain.R
-        language: system
-        pass_filenames: false
-        always_run: true
-        stages: [pre-push]
-      # Fetches every URL the package declares (DESCRIPTION, man/,
-      # inst/CITATION, NEWS, README.md) and fails on a dead one: --as-cran in
-      # `verify` reports a dead link only as a NOTE, which the gate lets
-      # through. A URL that cannot be reached at all only warns, so a network
-      # blip never rejects a push; zero URLs checked fails; nothing is exempt
-      # (seor's ADR 0011: BugReports names /-/work_items).
-      # The fleet standard's URL check, copied from punycoder.
-      - id: check-urls
-        name: declared URLs resolve
-        entry: Rscript scripts/check-urls.R
-        language: system
-        pass_filenames: false
-        always_run: true
-        stages: [pre-push]
-      - id: verify
-        name: 'verify (eight-step gate: news/codemeta/citation/bugreports/lint/spelling/docs/check)'
-        entry: .githooks/pre-push
-        language: system
-        pass_filenames: false
-        always_run: true
-        stages: [pre-push]
-        verbose: true
       # bestpractices-url.py is a maintainer tool that reads the network, so the
       # hook runs only its offline self-test, and only when the script changes.
       - id: bestpractices-url-self-test

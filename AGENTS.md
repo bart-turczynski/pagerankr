@@ -16,4 +16,18 @@ reports, Screaming Frog exports). On CRAN; lifecycle experimental.
 - A gate red on an untouched tree: run `scripts/check-toolchain.R` first. If it passes, report
   the red gate with its evidence instead of assuming the change caused it.
 
-For the push gate, arming it, its skip flags and the WORDLIST rule, see CONTRIBUTING.md.
+## Verification
+
+Gate: local
+Verify: .fleet-ci/gate auto
+
+The merge gate is fleet-ci's local gate, run in the fleet image by the pre-push hook; install it
+once per clone with `.fleet-ci/pre-push --install`, and its settings are `.fleet-ci.yml`. A diff
+the classifier calls docs-only gets T0 (spelling, `pkgdown::check_pkgdown()`); any other gets T1:
+the NEWS heading, codemeta, docs drift, lintr, README drift, the URL check and one `R CMD check`.
+Branch pushes, merge requests and pushes to `main` create no pipeline. CI runs fleet-ci's
+template: T2 on the weekly `deep-check` schedule, T3 on a `RELEASE=1` web pipeline and on the
+`v*` tag, and `x-rurl-devel` plus `coverage` on the `rurl-devel` schedule (seor ADR 0012;
+design/ci.md).
+
+For installing the hooks and the WORDLIST rule, see CONTRIBUTING.md.

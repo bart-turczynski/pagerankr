@@ -89,12 +89,13 @@ repository:
           - project configuration
         integration:
           adhoc: true
-          ci: true
+          ci: false
           release: false
         results: {}
         comment: |
-          Full-package linting runs in the GitLab CI `gates` job on every pipeline
-          (each push to main, and tags) and in the pre-push hook.
+          Full-package linting runs in the local pre-push gate (fleet-ci's
+          .fleet-ci/gate, full tier) before every push that is not docs-only.
+          No CI job runs it.
       - name: R CMD check
         type: other
         rulesets:
@@ -105,11 +106,12 @@ repository:
           release: true
         results: {}
         comment: |
-          The GitLab CI `check` job runs R CMD check --as-cran on Linux with
-          R 4.6; `full-check` runs it on R release, oldrel and devel, and
-          `floor-check` on R 4.1.3, on v* tags and on the deep-check
-          schedule. The pre-push hook runs --as-cran. There is no macOS or
-          Windows CI; see the header of .gitlab-ci.yml.
+          The local pre-push gate runs R CMD check --as-cran (incoming checks
+          off) in the fleet image before every push that is not docs-only.
+          GitLab CI runs it on R release, oldrel and devel, at the R 4.1.3
+          floor, and --as-cran with incoming checks, on the weekly deep-check
+          schedule, every RELEASE=1 pipeline and v* tags. There is no macOS
+          or Windows CI; see design/ci.md.
       - name: rosv (OSV)
         type: SCA
         rulesets:
@@ -117,13 +119,13 @@ repository:
         integration:
           adhoc: true
           ci: true
-          release: false
+          release: true
         results: {}
         comment: |
           Audit of the runtime dependency closure against the OSV database
-          (osv.dev). No account or secrets required. Runs as the `osv-audit` job
-          in .gitlab-ci.yml on a pipeline schedule that sets
-          SCHEDULE_KIND=dependency-audit, or by hand.
+          (osv.dev). No account or secrets required. Runs as fleet-ci's
+          `osv-audit` job on the weekly deep-check schedule, every RELEASE=1
+          pipeline and v* tags.
       - name: oysteR (Sonatype OSS Index)
         type: SCA
         rulesets:
@@ -131,11 +133,11 @@ repository:
         integration:
           adhoc: true
           ci: true
-          release: false
+          release: true
         results: {}
         comment: |
           Audit of the hard dependencies (Depends + Imports) against the Sonatype
-          OSS Index. Runs as the `security-audit` job in .gitlab-ci.yml on a
-          pipeline schedule that sets SCHEDULE_KIND=dependency-audit, or by
-          hand; needs the OSSINDEX_USER / OSSINDEX_TOKEN CI/CD variables and
-          fails without them.
+          OSS Index. Runs as fleet-ci's `security-audit` job on the weekly
+          deep-check schedule, every RELEASE=1 pipeline and v* tags; needs the
+          OSSINDEX_USER / OSSINDEX_TOKEN CI/CD variables and fails without
+          them.

@@ -8,10 +8,15 @@ version: 1
 # FLEET_RELEASE_VARIANT (default fleet-r).
 variant: fleet-r
 
-# No docs_exclude: no full-tier gate reads a docs-allowlisted path. The docs
-# tier's own check_pkgdown() reads _pkgdown.yml, and the pre-push hook that
-# also reads it (scripts/check-bugreports.py) runs on every push, whatever
-# the tier.
+# Paths on the classifier's docs allowlist that a gate or hook outside the
+# docs tier reads, so a change to them gets the full tier.
+# scripts/check-bugreports.py forbids a /-/issues link in _pkgdown.yml. It is
+# a pre-commit pre-push hook, so it runs on every push whatever the tier;
+# _pkgdown.yml is excluded anyway, as the migration contract asks for every
+# allowlisted path a script or hook reads. No script under scripts/, tests/
+# or data-raw/ reads design/**/*.md.
+docs_exclude:
+  - _pkgdown.yml
 
 # T0, and the start of T1. Genuine terms go in inst/WORDLIST.
 docs_gates:
@@ -32,6 +37,17 @@ cheap_gates:
   - Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }'
   - sh scripts/check-readme-drift.sh
   - Rscript scripts/check-urls.R
+
+# test-ascii.R switches LC_CTYPE to tr_TR.UTF-8 (glibc's dotless-i case
+# fold) and skips when the locale is missing; the former hook ran it on
+# macOS, which ships the locale. The gate runs as the invoking user and reads
+# compiled locales from its own LOCPATH only (fleet-ci README, "A known
+# local/CI difference: locales"), so it is listed; t2-locale builds it too.
+# No locale_legs: the gate runs no extra locale check, as the former hook ran
+# none. t2-locale's default LC_ALL=C leg passed in a local gate run
+# (2026-10-30).
+locales:
+  - tr_TR.UTF-8
 
 # The gate runs R CMD check with NOT_CRAN=true, so skip_on_cran() no longer
 # keeps these out of it. T2 runs both, as osv-audit and security-audit.

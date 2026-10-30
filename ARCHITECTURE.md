@@ -42,8 +42,8 @@ the exported functions by the same layers.
 
 ## Where else to look
 
-- Contributing and the verify gate: [`CONTRIBUTING.md`](CONTRIBUTING.md).
-- CI, the linter set, renaming an export and the CRAN release deltas:
+- Contributing and the local gate: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- CI and the gate, the linter set, renaming an export and the CRAN release deltas:
   [`design/`](https://gitlab.com/bart-turczynski/pagerankr/-/tree/main/design).
 - Measurements and modeling notes: `notes/` and the vignettes.
 - Release history: [`NEWS.md`](NEWS.md).

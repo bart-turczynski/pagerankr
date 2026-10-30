@@ -1,12 +1,12 @@
 # Renaming an exported function
 
 `_pkgdown.yml`'s `reference:` index lists topics by name, and a stale entry
-fails the site build with "must be a known topic name or alias". Nothing
-before the merge sees it: tests, lint and `R CMD check --as-cran` all pass,
-the pre-push gate does not run pkgdown, and the `pages` job runs only on
-`main`, so the first red result arrives after the merge. The
-`resolve_urls()` -> `resolve_redirect_urls()` rename (PR #119) cost a round
-trip exactly this way.
+fails the site build with "must be a known topic name or alias". Tests, lint
+and `R CMD check --as-cran` all pass it, and the `pages` job runs only from a
+`v*` tag. The `resolve_urls()` -> `resolve_redirect_urls()` rename (PR #119)
+cost a round trip exactly this way, when the former pre-push gate ran no
+pkgdown. The fleet-ci local gate now runs `pkgdown::check_pkgdown()` in both
+tiers, so the push catches it.
 
 On any export rename:
 
