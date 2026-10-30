@@ -52,9 +52,9 @@ Thumbs.db
 
 # CRAN build/check artifacts
 *.Rcheck/
-# GitLab CI writes both of these into the project directory: the dependency
-# library (cache paths must live inside CI_PROJECT_DIR) and R CMD check output
-# (so a failed job can upload it as an artifact).
+# A local R library some setups keep in the project directory (the former
+# CI's dependency cache), and R CMD check output, which fleet-ci's CI jobs
+# write into the project directory to upload as an artifact.
 .cache/
 check/
 *.tar.gz

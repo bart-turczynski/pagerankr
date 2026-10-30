@@ -4,15 +4,15 @@
 ^\.github$
 ^\.gitlab-ci\.yml$
 ^\.gitlab$
-# The GitLab CI dependency library. Cache paths must live inside
-# CI_PROJECT_DIR, so the library sits in the package directory and `R CMD build`
-# would otherwise sweep it into the tarball — which fails the check with a
-# long-paths WARNING from vendored JS in DT and Rcpp.
+# A local R library some setups keep in the package directory; `R CMD build`
+# would otherwise sweep it into the tarball, which fails the check with a
+# long-paths WARNING from vendored JS in DT and Rcpp. The former CI kept its
+# dependency cache here. Every line here is a regular expression, comments
+# included: no unbalanced brackets.
 ^\.cache$
-# R CMD check output, written into the project directory so a failed CI job can
-# upload it as an artifact.
+# R CMD check output, written into the project directory so a CI job can
+# upload it as an artifact, as fleet-ci's FLEET_CHECK_DIR.
 ^check$
-^\.githooks$
 ^\.gitignore$
 ^\.Rbuildignore$
 ^\.pre-commit-config\.yaml$
@@ -52,3 +52,11 @@
 # non-standard top-level directory.
 ^scripts$
 ^CRAN-SUBMISSION$
+# The fleet-ci local gate: the vendored runner and its settings, per
+# fleet-ci's README, "Adopting the template". Every line here is a regular
+# expression, comments included: no unbalanced brackets.
+^\.fleet-ci$
+^\.fleet-ci\.yml$
+# fleet-ci's t2-sanitizers job, when switched on, installs the dependencies
+# into $CI_PROJECT_DIR/.fleet-lib and then runs `R CMD build .` there.
+^\.fleet-lib$
