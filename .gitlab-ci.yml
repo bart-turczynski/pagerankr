@@ -15,7 +15,7 @@
 # same SHA, in one merge request: .fleet-ci/VERSION must equal `ref:`.
 include:
   - project: bart-turczynski/fleet-ci
-    ref: 1857bf8d669dce324ab0d2b4a67732a2cb9e3903
+    ref: 864e5386511de38b0dff594ba3118a800f662cc7
     file: templates/r-package.yml
 
 variables:
@@ -38,9 +38,9 @@ variables:
 # published, current or archived; it goes into a job-local library prepended
 # for the test run only, so the run library keeps the rurl users get. The
 # suite runs through testthat::test_local(), as before, and the job sets no
-# NOT_CRAN of its own. It ran on every push to main; it now runs in every T2 and T3 pipeline (seor ADR
-# 0012), the RELEASE=1 pre-submission run among them. design/ci.md, "The
-# rurl floor job".
+# NOT_CRAN of its own. It ran on every push to main; it now runs in every T2
+# and T3 pipeline (seor ADR 0012), the RELEASE=1 pre-submission run among
+# them. design/ci.md, "The rurl floor job".
 x-rurl-floor:
   extends: .t2-job
   image: $FLEET_RELEASE_IMAGE
