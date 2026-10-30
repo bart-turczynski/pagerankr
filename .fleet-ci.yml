@@ -1,0 +1,63 @@
+# The fleet-ci local gate's settings: T0 (docs) and T1 (full) before every
+# push, run by .fleet-ci/gate in the fleet image (fleet-ci README, "The
+# .fleet-ci.yml file"; seor ADR 0012). Read from the pushed commit. The
+# t2-locale and pages CI jobs read it too.
+version: 1
+
+# The image the gate runs in. It must be .gitlab-ci.yml's
+# FLEET_RELEASE_VARIANT (default fleet-r).
+variant: fleet-r
+
+# No docs_exclude: no full-tier gate reads a docs-allowlisted path. The docs
+# tier's own check_pkgdown() reads _pkgdown.yml, and the pre-push hook that
+# also reads it (scripts/check-bugreports.py) runs on every push, whatever
+# the tier.
+
+# T0, and the start of T1. Genuine terms go in inst/WORDLIST.
+docs_gates:
+  - Rscript -e 'bad <- spelling::spell_check_package(); if (nrow(bad)) { print(bad); cat("Correct the prose, or add genuine terms to inst/WORDLIST.\n"); quit(status = 1) }'
+
+# T1, in the container after the dependency install, each run whatever the
+# others report: the NEWS heading against the version and codemeta.json's
+# version (the former scripts/gates.R's news-version and codemeta gates),
+# man/, NAMESPACE and DESCRIPTION against a fresh roxygen2 run
+# (SEOR-nwfmerhu), lintr, README.md against a fresh knit (the former `gates`
+# CI job's readme gate), and every declared URL (the gate's R CMD check runs
+# with remote incoming, and so its URL check, off; t2-ascran runs it with
+# incoming on).
+cheap_gates:
+  - Rscript scripts/check-news-version.R
+  - Rscript scripts/check-codemeta.R
+  - Rscript scripts/check-docs-drift.R .
+  - Rscript -e 'lints <- lintr::lint_package(); if (length(lints)) { print(lints); quit(status = 1) }'
+  - sh scripts/check-readme-drift.sh
+  - Rscript scripts/check-urls.R
+
+# The gate runs R CMD check with NOT_CRAN=true, so skip_on_cran() no longer
+# keeps these out of it. T2 runs both, as osv-audit and security-audit.
+exclude_tests:
+  - path: tests/testthat/test-osv.R
+    why: queries osv.dev over the network; the osv-audit job runs it in T2
+  - path: tests/testthat/test-security.R
+    why: queries Sonatype OSS Index with credentials the gate does not have; the security-audit job runs it in T2
+
+# Every skip R CMD check's test run may report; any other fails the gate.
+allowed_skips: []
+
+# No allowed_notes: R CMD check NOTEs don't fail the gate, as they did not
+# fail the former pre-push hook (rcmdcheck error_on = "warning").
+
+# The top-level .md files the pkgdown site publishes; every other one (the
+# agent files among them) is moved out before build_site() (SEOR-wqxhftpv).
+# The former pages job's keep-list, minus THIRD_PARTY_NOTICES.md, which
+# pagerankr does not carry. ACKNOWLEDGMENTS.md is linked from _pkgdown.yml's
+# navbar; ARCHITECTURE.md is the fleet standard's entry point.
+pages_keep:
+  - README.md
+  - NEWS.md
+  - LICENSE.md
+  - CONTRIBUTING.md
+  - SECURITY.md
+  - CODE_OF_CONDUCT.md
+  - ACKNOWLEDGMENTS.md
+  - ARCHITECTURE.md
