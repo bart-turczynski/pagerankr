@@ -202,8 +202,10 @@ These live in GitLab's project settings, so a clone does not carry them:
   `test-security.R` (which skips without the OSS Index credentials); T1
   excludes both (`.fleet-ci.yml`'s `exclude_tests`), and `osv-audit` and
   `security-audit` run them. A skipped test fails T1: `allowed_skips` is
-  empty. `x-rurl-floor` and `x-rurl-devel` leave `NOT_CRAN` unset, as the
-  former jobs did.
+  empty. `x-rurl-floor` and `x-rurl-devel` run the suite through
+  `testthat::test_local()` and set no `NOT_CRAN` of their own, as the former
+  jobs did; their skips (no OSS Index credentials, `tr_TR.UTF-8` missing)
+  don't fail them.
 - **Self-tests run when their script changes.** The former hook ran the
   `check-citation.py` and `check-bugreports.py` self-tests on every push.
 - **The validators that read the old CI are retired**:

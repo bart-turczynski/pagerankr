@@ -36,10 +36,9 @@ variables:
 # no 2.1.0 existed, and `>= 3.0.0` after it (rurl went 1.2.0 to 3.0.1 on
 # CRAN). The floor is read from DESCRIPTION and must be a version CRAN has
 # published, current or archived; it goes into a job-local library prepended
-# for the test run only, so the run library keeps the rurl users get. NOT_CRAN
-# stays unset, as before: test_local() does not set it, so skip_on_cran()
-# keeps the network audits and the timing test out. It ran
-# on every push to main; it now runs in every T2 and T3 pipeline (seor ADR
+# for the test run only, so the run library keeps the rurl users get. The
+# suite runs through testthat::test_local(), as before, and the job sets no
+# NOT_CRAN of its own. It ran on every push to main; it now runs in every T2 and T3 pipeline (seor ADR
 # 0012), the RELEASE=1 pre-submission run among them. design/ci.md, "The
 # rurl floor job".
 x-rurl-floor:
