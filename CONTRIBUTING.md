@@ -43,8 +43,8 @@ gate by hand on `HEAD`:
 The gate checks the committed tree, never uncommitted edits: an uncommitted
 `devtools::document()` fix does not pass it, so commit the fix. A diff that is
 docs-only (`design/**/*.md` and the like) gets the docs tier: spelling and
-`pkgdown::check_pkgdown()`. Any other diff gets the full tier: spelling, the
-`NEWS.md` heading against `DESCRIPTION`'s Version, `codemeta.json`'s version,
+`pkgdown::check_pkgdown()`. Any other diff gets the full tier: spelling,
+`pkgdown::check_pkgdown()`, the `NEWS.md` heading against `DESCRIPTION`'s Version, `codemeta.json`'s version,
 docs drift (`man/`, `NAMESPACE` and `DESCRIPTION` against a fresh roxygen2
 run), lintr, `README.md` against a fresh knit of `README.Rmd`, the URL check,
 and one `R CMD check --as-cran` (incoming checks off), which **fails on errors

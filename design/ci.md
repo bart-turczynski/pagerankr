@@ -61,9 +61,13 @@ Every job runs on pagerankr's own project runner, `pagerankr-local-docker`, a
 self-hosted Docker runner on one Mac (seor
 `design/adr/0003-fleet-ci-runs-on-self-hosted-runners.md`). The template's
 jobs carry no `tags:`, and that runner also runs untagged jobs, so the former
-`tags: [local-docker]` is gone. A scheduled or release pipeline started while
-the Mac sleeps waits, queued; it has not passed. The images come from
-fleet-ci's private registry, pulled with the job token (seor ADR 0013).
+`tags: [local-docker]` is gone. The tag existed to keep jobs off GitLab's
+shared runners (SEOR-hhtzaknn). Shared runners are disabled for pagerankr
+(project setting `shared_runners_enabled` false), so an untagged job has
+only the project runner to land on, and that runner accepts untagged jobs.
+A scheduled or release pipeline started while the Mac sleeps waits, queued;
+it has not passed. The images come from fleet-ci's private registry, pulled
+with the job token (seor ADR 0013).
 
 ## Platforms CI cannot cover
 
@@ -144,7 +148,13 @@ These live in GitLab's project settings, so a clone does not carry them:
   email). `security-audit` sets `OSSINDEX_AUDIT_REQUIRED=true`, so without
   them it fails rather than passing having audited nothing. oysteR 0.1.4
   hardcodes the legacy OSS Index endpoint, which Sonatype sunsets on
-  2026-12-31; after that the job goes red on transport.
+  2026-12-31; after that the job goes red on transport. `security-audit`
+  now also runs in `v*` tag pipelines. It gets the credentials there because
+  both variables are unprotected, and `v*` tags are protected, so protecting
+  the variables would still pass them to tag pipelines. Tag pipelines lose
+  the credentials, and `security-audit` fails there, if the variables are
+  protected and `v*` tags stop being protected. Being unprotected, the
+  variables also reach every other job: see "Gaps accepted".
 - **fleet-ci's job token allowlist** must admit pagerankr, or every fleet
   image pull fails (fleet-ci README, "The registry is private").
 - **Pages**: `pages` publishes only the top-level `.md` files on
@@ -199,13 +209,33 @@ These live in GitLab's project settings, so a clone does not carry them:
   `check` ran `R CMD check` without it; now the `skip_on_cran()` tests run
   there (`test-cli.R`'s large-CSV timing test and its installed-script
   test). The T2 check legs also run `test-osv.R` against the network and
-  `test-security.R` (which skips without the OSS Index credentials); T1
-  excludes both (`.fleet-ci.yml`'s `exclude_tests`), and `osv-audit` and
-  `security-audit` run them. A skipped test fails T1: `allowed_skips` is
-  empty. `x-rurl-floor` and `x-rurl-devel` run the suite through
-  `testthat::test_local()` and set no `NOT_CRAN` of their own, as the former
-  jobs did; their skips (no OSS Index credentials, `tr_TR.UTF-8` missing)
-  don't fail them.
+  `test-security.R`'s live OSS Index audit, which has the credentials there
+  (next entry); T1 excludes both files (`.fleet-ci.yml`'s `exclude_tests`),
+  and `osv-audit` and `security-audit` run them. A skipped test fails T1:
+  `allowed_skips` is empty. `x-rurl-floor` and `x-rurl-devel` run the suite
+  through `testthat::test_local()` and set no `NOT_CRAN` of their own, as the
+  former jobs did; `test_local()` sets it, so they run the live audit too.
+  Their skips (`tr_TR.UTF-8` missing) don't fail them.
+- **The live OSS Index audit runs in most suite-running jobs, not only in
+  `security-audit`.** `OSSINDEX_USER` and `OSSINDEX_TOKEN` are unprotected
+  project variables, and project variables reach every job. With
+  `NOT_CRAN=true`, `test-security.R`'s audit test finds the credentials and
+  calls OSS Index in `t2-check-release`, `t2-check-oldrel`, `t2-check-devel`,
+  `t2-locale`, `t3-manual`, `x-rurl-floor` and `x-rurl-devel`. An OSS Index
+  outage, an HTTP 429, or the shutdown of the endpoint oysteR 0.1.4 calls
+  (2026-12-31) turns all of them red, and on a `v*` tag that blocks `pages`.
+  Scoping the credentials to the audit job is a fleet follow-up (seor
+  SEOR-yrsmlrvp).
+- **The oldrel and devel legs lost `--as-cran`.** The former `full-check` ran
+  `R CMD check --as-cran` with incoming checks on under release, oldrel and
+  devel, and `floor-check` ran `--as-cran` too. Now only `t2-ascran`
+  (release R) runs `--as-cran` with incoming on; `t2-check-oldrel` and
+  `t2-check-devel` run a plain `R CMD check`, and `t2-floor` keeps
+  `--as-cran` with incoming off.
+- **T1 drops `test-security.R`'s two offline tests.** `exclude_tests` drops
+  the whole file, so the allow-list well-formedness test and the validator's
+  rejection test no longer run before a push; they run in T2. Moving them
+  into a file of their own changes `tests/`, so it is a follow-up.
 - **Self-tests run when their script changes.** The former hook ran the
   `check-citation.py` and `check-bugreports.py` self-tests on every push.
 - **The validators that read the old CI are retired**:
